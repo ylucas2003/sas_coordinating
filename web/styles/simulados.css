@@ -1,0 +1,286 @@
+/* ─── Empilhamento de cards (filtros + resultados em "quadrados" separados) ─ */
+
+.screen-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* O card de resultados não tem screen-header — precisa de respiro próprio. */
+.screen-stack > .card > .section:only-child {
+  padding-top: 20px;
+}
+
+/* ─── Tela de Simulados — filtros locais + calendário + tabela ─────────── */
+
+/* Bloco de filtros locais: linhas de chips por categoria. */
+.sim-filtros {
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sim-filtros__linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sim-filtros__rotulo {
+  width: 92px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.sim-chip {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-inset);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+
+.sim-chip:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+}
+
+.sim-chip.is-active {
+  background: var(--color-navy);
+  color: #fff;
+}
+
+.sim-chip__contagem {
+  margin-left: 6px;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.sim-chip.is-active .sim-chip__contagem {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sim-filtros__reset {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.sim-filtros__reset:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.sim-filtros__reset[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sim-filtros__vazio {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+/* ─── Toggle do calendário ─────────────────────────────────────────────── */
+
+.sim-calendario-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 24px 22px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-inset);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+
+.sim-calendario-toggle:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.sim-calendario-toggle.is-aberto {
+  color: var(--color-navy);
+  background: rgba(27, 63, 139, 0.06);
+  border-color: rgba(27, 63, 139, 0.18);
+}
+
+.sim-calendario-toggle__seta {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+}
+
+.sim-calendario-toggle.is-aberto .sim-calendario-toggle__seta {
+  color: var(--color-navy);
+}
+
+/* ─── Calendário anual ─────────────────────────────────────────────────── */
+
+.calendario {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.calendario__cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.calendario__titulo {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.calendario__resumo {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.calendario__grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 18px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 6px;   /* respiro pra scrollbar */
+  /* Custom scrollbar (webkit) — discreta e harmônica */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+.calendario__grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.calendario__grid::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 3px;
+}
+
+.calendario__grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.calendario__mes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-width: 160px;
+  scroll-snap-align: start;
+}
+
+.calendario__mes-titulo {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.calendario__semanas {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendario__dia-semana {
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  padding: 1px 0;
+}
+
+.calendario__dia {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--color-surface-inset);
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  cursor: default;
+  transition: background 100ms, border-color 100ms, transform 80ms;
+}
+
+.calendario__dia--vazio {
+  background: transparent;
+}
+
+.calendario__dia--com-simulado {
+  background: rgba(27, 63, 139, 0.18);
+  color: var(--color-navy);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.calendario__dia--com-simulado:hover {
+  background: rgba(27, 63, 139, 0.32);
+  transform: scale(1.06);
+}
+
+.calendario__dia.is-selecionada {
+  background: var(--color-navy);
+  color: #fff;
+  border-color: var(--color-navy-deep);
+}
+
+.calendario__dia.is-hoje {
+  outline: 1px solid var(--color-gold-deep);
+  outline-offset: 1px;
+}
+
+/* ─── Tabela de simulados (sobreescreve metadata pra ficar mais compacta) ─ */
+
+.sim-tabela td {
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-tabela tbody tr {
+  cursor: pointer;
+}
+
+.sim-tabela__pn {
+  font-weight: 500;
+  color: var(--color-navy-deep);
+}
+
+.sim-tabela__data {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.sim-tabela__vazio {
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}

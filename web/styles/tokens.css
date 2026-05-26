@@ -1,0 +1,48 @@
+/* ─── Design tokens ──────────────────────────────────────────────────────
+   Os tokens semânticos estão documentados em ../../docs/03-design-system.md.
+   Cor é linguagem: verde = positivo, âmbar = atenção, vermelho = negativo,
+   navy = neutro/seleção, ouro = acento institucional, cinza = referência.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Marca institucional */
+  --color-navy-deep: #122f6a;
+  --color-navy: #1b3f8b;
+  --color-navy-mid: #2952a3;
+  --color-navy-light: #4a78c9;
+  --color-gold: #f2c94c;
+  --color-gold-deep: #d4a82e;
+  --color-gold-soft: #fbefc6;
+
+  /* Semântica */
+  --color-red: #d9354a;
+  --color-red-soft: #fbe2e5;
+  --color-green: #2e8c5a;
+  --color-green-soft: #def0e4;
+  --color-amber: #e89b2a;
+  --color-amber-soft: #fbeed8;
+
+  /* Superfícies */
+  --color-bg: #eef1f7;
+  --color-surface: #ffffff;
+  --color-surface-inset: #f5f7fb;
+
+  /* Texto */
+  --color-text-primary: #1a1d24;
+  --color-text-secondary: rgba(26, 29, 36, 0.65);
+  --color-text-tertiary: rgba(26, 29, 36, 0.45);
+
+  /* Bordas e sombras */
+  --color-border: rgba(20, 30, 80, 0.06);
+  --color-border-strong: rgba(20, 30, 80, 0.12);
+  --shadow-card: 0 1px 2px rgba(20, 30, 80, 0.02), 0 4px 14px rgba(20, 30, 80, 0.05);
+
+  /* Raios */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* Tipografia */
+  --font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
+}

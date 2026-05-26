@@ -1,0 +1,7 @@
+BEGIN;
+
+DROP TABLE IF EXISTS chat_artefato;
+DROP TABLE IF EXISTS chat_mensagem;
+DROP TABLE IF EXISTS chat_thread;
+
+COMMIT;

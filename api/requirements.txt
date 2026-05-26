@@ -1,0 +1,17 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+supabase==2.7.4
+python-dotenv==1.0.1
+
+# Upload de planilhas
+python-multipart==0.0.9
+openpyxl==3.1.5
+
+# Migration runner (conexão direta ao Postgres do Supabase)
+psycopg[binary]==3.2.3
+
+# Geração de insights (LLM) — usado em api/app/stats/insights.py.
+# Sem OPENAI_API_KEY configurada o módulo degrada graciosamente.
+openai==1.55.0

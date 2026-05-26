@@ -1,0 +1,292 @@
+/* ─── Ficha individual do aluno ────────────────────────────────────────── */
+
+/* Header com botão de exportar à direita. */
+.aluno-ficha__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 4px;
+}
+
+.aluno-ficha__header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.aluno-ficha__header-info .screen-breadcrumb,
+.aluno-ficha__header-info .screen-title,
+.aluno-ficha__header-info .screen-subtitle {
+  padding: 0;
+}
+
+/* ─── Botão Exportar (dropdown leve) ───────────────────────────────────── */
+
+.export-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.export-menu__botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-inset);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+
+.export-menu__botao:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.export-menu__seta {
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+}
+
+.export-menu__lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+}
+
+.export-menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: left;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 100ms;
+}
+
+.export-menu__item:hover {
+  background: var(--color-surface-inset);
+}
+
+.export-menu__item-dica {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+
+/* ─── Gráfico de evolução ──────────────────────────────────────────────── */
+
+.linha-evol {
+  position: relative;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.linha-evol__svg {
+  display: block;
+  user-select: none;
+}
+
+.linha-evol__vazio {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.linha-evol__ponto {
+  transition: r 100ms;
+}
+
+.linha-evol__ponto:hover {
+  r: 6;
+}
+
+.linha-evol__legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px 0 2px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.linha-evol__legenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.linha-evol__legenda-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Tooltip do gráfico — flutua sobre o SVG. */
+.linha-evol__tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(26, 29, 36, 0.96);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 12px;
+  min-width: 180px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  transition: opacity 80ms;
+  z-index: 30;
+  font-variant-numeric: tabular-nums;
+}
+
+.linha-evol__tt-cab {
+  font-weight: 600;
+  font-size: 12px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 2px solid var(--color-navy);
+}
+
+.linha-evol__tt-linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 2px 0;
+}
+
+.linha-evol__tt-rot {
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: lowercase;
+  font-size: 11px;
+}
+
+.linha-evol__tt-val {
+  color: #fff;
+}
+
+.linha-evol__tt-nota {
+  font-weight: 600;
+}
+
+.linha-evol__tt-val.tone-verde { color: #5ed896; }
+.linha-evol__tt-val.tone-vermelho { color: #f08c95; }
+
+.linha-evol__tt-sep {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 6px 0;
+}
+
+.linha-evol__tt-aviso {
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: rgba(232, 155, 42, 0.22);
+  color: #ffd28c;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* ─── Tabela do aluno — colunas extras ─────────────────────────────────── */
+
+.sim-tabela__sua {
+  font-weight: 600;
+  color: var(--color-navy-deep);
+}
+
+.sim-tabela__delta {
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-tabela__delta.tone-verde {
+  color: var(--color-green);
+}
+
+.sim-tabela__delta.tone-vermelho {
+  color: var(--color-red);
+}
+
+/* ─── @media print — ficha pra exportação PDF (window.print) ─────────── */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  /* Esconde tudo que não é a ficha do aluno. */
+  .sidebar,
+  .topbar,
+  .filter-strip,
+  .export-menu,
+  .sim-filtros,
+  .sim-calendario-toggle,
+  .empty-state__hint,
+  a[href^="#/"] {
+    display: none !important;
+  }
+
+  .layout {
+    display: block !important;
+  }
+
+  .main {
+    padding: 0 !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: 0 !important;
+    background: transparent !important;
+    page-break-inside: avoid;
+    margin-bottom: 12px !important;
+  }
+
+  .screen-stack {
+    gap: 8px !important;
+  }
+
+  .section {
+    padding: 6px 0 !important;
+  }
+
+  /* Tabela: mantém legível, evita quebra dentro de linha. */
+  .data-table tr {
+    page-break-inside: avoid;
+  }
+
+  /* Gráfico ocupa toda a largura disponível. */
+  .linha-evol__svg {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 90mm;
+  }
+
+  /* Esconde seções que não fazem sentido na impressão. */
+  .aluno-ficha__nao-imprimir {
+    display: none !important;
+  }
+}

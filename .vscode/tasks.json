@@ -1,0 +1,132 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "SAS: backend (uvicorn)",
+      "type": "shell",
+      "command": "${workspaceFolder}/api/.venv/bin/uvicorn",
+      "args": [
+        "app.main:app",
+        "--reload",
+        "--port",
+        "8000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/api"
+      },
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "group": "sas",
+        "reveal": "always",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "problemMatcher": {
+        "pattern": [
+          {
+            "regexp": ".",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Started reloader process",
+          "endsPattern": "Application startup complete"
+        }
+      }
+    },
+    {
+      "label": "SAS: frontend (http.server)",
+      "type": "shell",
+      "command": "python3",
+      "args": [
+        "-m",
+        "http.server",
+        "5173"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/web"
+      },
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "group": "sas",
+        "reveal": "always",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "problemMatcher": {
+        "pattern": [
+          {
+            "regexp": ".",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Serving HTTP",
+          "endsPattern": "Serving HTTP"
+        }
+      }
+    },
+    {
+      "label": "SAS: rodar tudo",
+      "dependsOn": [
+        "SAS: backend (uvicorn)",
+        "SAS: frontend (http.server)"
+      ],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "SAS: db · aplicar migrations pendentes",
+      "type": "shell",
+      "command": "${workspaceFolder}/api/.venv/bin/python",
+      "args": ["-m", "scripts.migrate", "up"],
+      "options": { "cwd": "${workspaceFolder}/api" },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "sas-db",
+        "reveal": "always",
+        "clear": true,
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SAS: db · downgrade (reverter última migration)",
+      "type": "shell",
+      "command": "${workspaceFolder}/api/.venv/bin/python",
+      "args": ["-m", "scripts.migrate", "down"],
+      "options": { "cwd": "${workspaceFolder}/api" },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "sas-db",
+        "reveal": "always",
+        "clear": true,
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SAS: db · limpar dados importados (TRUNCATE)",
+      "type": "shell",
+      "command": "${workspaceFolder}/api/.venv/bin/python",
+      "args": ["-m", "scripts.migrate", "wipe-dados"],
+      "options": { "cwd": "${workspaceFolder}/api" },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "sas-db",
+        "reveal": "always",
+        "clear": true,
+        "showReuseMessage": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}
