@@ -1,0 +1,518 @@
+/* ─── Painel — tela de dados (alunos × matérias × fases) ────────────────── */
+
+/* ─── Tabela de dados ───────────────────────────────────────────────────── */
+
+.painel-tabela-wrap {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.painel-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Thead: row 1 — nome da matéria ───────────────── */
+
+.painel-tabela__th-aluno {
+  position: sticky;
+  left: 0;
+  background: var(--color-surface);
+  z-index: 3;
+  text-align: left;
+  padding: 14px 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--color-border-strong);
+  min-width: 200px;
+  white-space: nowrap;
+}
+
+.painel-tabela__th-col {
+  text-align: center;
+  padding: 14px 10px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  min-width: 92px;
+}
+
+/* ── Thead: row 2 — indicador de fase ─────────────── */
+
+.painel-tabela__th-fase {
+  text-align: center;
+  padding: 4px 10px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  border-bottom: 2px solid var(--color-border-strong);
+}
+
+/* ── Separador entre F1 e F2 removido das células de dados ─── */
+
+/* ── Colunas de média (Média 1°F, Média Final) ─────── */
+
+.painel-tabela__th-col.col-destaque,
+.painel-tabela__th-fase.col-destaque {
+  background: rgba(27, 63, 139, 0.05);
+  color: var(--color-navy);
+}
+
+.painel-tabela__td-nota.col-destaque {
+  background: rgba(27, 63, 139, 0.03);
+}
+
+/* ── Linha de média da turma ────────────────────────── */
+
+.painel-tabela__tr-media {
+  background: var(--color-surface-inset);
+}
+
+.painel-tabela__tr-media .painel-tabela__td-aluno {
+  background: var(--color-surface-inset);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--color-border-strong);
+}
+
+.painel-tabela__tr-media .painel-tabela__td-nota {
+  border-bottom: 2px solid var(--color-border-strong);
+}
+
+/* ── Coluna de aluno (sticky) ───────────────────────── */
+
+.painel-tabela__td-aluno {
+  position: sticky;
+  left: 0;
+  background: var(--color-surface);
+  z-index: 1;
+  padding: 7px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  box-shadow: 2px 0 6px -2px rgba(20, 30, 80, 0.07);
+}
+
+/* ── Célula de nota ─────────────────────────────────── */
+
+.painel-tabela__td-nota {
+  text-align: center;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ── Hover ──────────────────────────────────────────── */
+
+.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover td {
+  background: rgba(27, 63, 139, 0.03);
+}
+
+.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-aluno {
+  background: #ecf0fa; /* sólido para não vazar notas ao rolar */
+}
+
+.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-nota.col-destaque {
+  background: rgba(27, 63, 139, 0.06);
+}
+
+/* ── Link do aluno ──────────────────────────────────── */
+
+.painel-tabela__aluno-link {
+  color: var(--color-text-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.painel-tabela__aluno-link:hover {
+  color: var(--color-navy);
+  text-decoration: underline;
+}
+
+/* ─── Badge de nota ─────────────────────────────────────────────────────── */
+
+.nota-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 52px;
+  text-align: center;
+}
+
+.nota-badge--verde    { background: var(--color-green-soft);  color: var(--color-green); }
+.nota-badge--ambar    { background: var(--color-amber-soft);  color: var(--color-amber); }
+.nota-badge--vermelho { background: var(--color-red-soft);    color: var(--color-red); }
+.nota-badge--vazia    { background: transparent; color: var(--color-text-tertiary); font-weight: 400; }
+
+.nota-badge--media {
+  font-weight: 700;
+}
+
+/* ─── Header do Painel ──────────────────────────────────────────────────── */
+
+.painel-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 20px 24px 4px;
+}
+
+.painel-header .screen-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+}
+
+.painel-header__esq {
+  min-width: 0;
+}
+
+.painel-header__dir {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+/* ─── Busca individual ──────────────────────────────────────────────────── */
+
+.painel-busca-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.painel-busca-wrap > svg {
+  position: absolute;
+  left: 10px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+  width: 14px;
+  height: 14px;
+}
+
+.painel-busca {
+  padding: 6px 10px 6px 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  width: 200px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.painel-busca::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.painel-busca:focus {
+  border-color: var(--color-navy-light);
+}
+
+/* ─── Top N ─────────────────────────────────────────────────────────────── */
+
+.painel-topn {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.painel-topn__btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: none;
+  border-left: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+
+.painel-topn__btn:first-child {
+  border-left: none;
+}
+
+.painel-topn__btn:hover {
+  background: var(--color-surface-inset);
+  color: var(--color-text-primary);
+}
+
+.painel-topn__btn.is-active {
+  background: var(--color-navy);
+  color: #fff;
+}
+
+/* ─── Sidebar do Painel (3 seções) ──────────────────────────────────────── */
+
+.psb-root {
+  padding: 8px 0;
+}
+
+.psb-secao {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.psb-secao:last-child {
+  border-bottom: none;
+}
+
+.psb-secao__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--color-text-secondary);
+  transition: background 0.1s;
+}
+
+.psb-secao__header:hover {
+  background: var(--color-surface-inset);
+}
+
+.psb-secao__icon {
+  display: flex;
+  align-items: center;
+  color: var(--color-navy-light);
+  flex-shrink: 0;
+}
+
+.psb-secao__label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-tertiary);
+}
+
+.psb-secao__chevron {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-tertiary);
+  transition: transform 0.2s;
+  transform: rotate(-90deg);
+}
+
+.psb-secao__chevron.is-aberto {
+  transform: rotate(0deg);
+}
+
+.psb-secao__corpo {
+  padding: 0 8px 8px;
+}
+
+/* ─── Itens dentro das seções ───────────────────────────────────────────── */
+
+.psb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: background 0.1s, color 0.1s;
+}
+
+.psb-item:hover {
+  background: var(--color-surface-inset);
+  color: var(--color-text-primary);
+}
+
+.psb-item.is-active {
+  background: rgba(27, 63, 139, 0.08);
+  color: var(--color-navy);
+}
+
+/* Checkbox visual para sede/turmas (multi-select) */
+
+.psb-item__check {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.psb-item__check.is-checked {
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpolyline points='2 6 5 9 10 3' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* ─── Status de corte no nome do aluno ──────────────────────────────────── */
+
+.painel-tabela__aluno-link.is-cortado {
+  color: var(--color-red);
+}
+
+.painel-tabela__aluno-link.is-aprovado {
+  color: var(--color-green);
+}
+
+/* ─── Linha separadora de ranking (Top 10 / 50 / 100) ───────────────────── */
+
+.painel-corte-row > td {
+  padding: 0;
+}
+
+.painel-corte__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.painel-corte__tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.painel-corte__btn {
+  font-size: 10px;
+  color: transparent;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+.painel-corte-row:hover .painel-corte__btn {
+  color: var(--color-text-tertiary);
+}
+
+.painel-corte__btn:hover {
+  color: var(--color-navy) !important;
+}
+
+/* ─── Botão de ajuda (?) e tooltip ──────────────────────────────────────── */
+
+.painel-help-wrap {
+  position: relative;
+}
+
+.painel-help-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.painel-help-btn:hover {
+  border-color: var(--color-navy-light);
+  color: var(--color-navy);
+}
+
+.painel-help-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+  z-index: 100;
+}
+
+.painel-help-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.painel-help-lista {
+  padding-left: 16px;
+  margin: 0 0 4px;
+}
+
+.painel-help-lista li {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 5px;
+  line-height: 1.45;
+}
+
+.painel-help-sep {
+  border-top: 1px solid var(--color-border);
+  margin: 10px 0;
+}
+
+.painel-help-legenda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+.painel-help-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.painel-help-dot--verde    { background: var(--color-green); }
+.painel-help-dot--vermelho { background: var(--color-red); }

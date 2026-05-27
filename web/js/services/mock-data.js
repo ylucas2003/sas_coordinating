@@ -22,14 +22,90 @@ export const ciclos = [
 ];
 
 export const simulados = [
-  { id: 'S01', nome: 'Simulado ITA Fase 1 — Fev/26', fase: '1a', dataAplicacao: '2026-02-15', cicloId: 'C1-26', notaMaxima: 10, anulado: false, media: 6.4, mediana: 6.3, desvioPadrao: 1.1, nPresentes: 248 },
-  { id: 'S02', nome: 'Simulado IME Fase 1 — Mar/26', fase: '1a', dataAplicacao: '2026-03-10', cicloId: 'C1-26', notaMaxima: 10, anulado: false, media: 6.1, mediana: 6.0, desvioPadrao: 1.2, nPresentes: 246 },
-  { id: 'S03', nome: 'Simulado ITA Fase 2 — Mar/26', fase: '2a', dataAplicacao: '2026-03-25', cicloId: 'C2-26', notaMaxima: 10, anulado: false, media: 5.8, mediana: 5.7, desvioPadrao: 1.4, nPresentes: 245 },
-  { id: 'S04', nome: 'Simulado IME Fase 2 — Abr/26', fase: '2a', dataAplicacao: '2026-04-15', cicloId: 'C2-26', notaMaxima: 10, anulado: false, media: 6.2, mediana: 6.1, desvioPadrao: 1.0, nPresentes: 244 },
-  { id: 'S05', nome: 'Simulado ITA Fase 1 — Abr/26', fase: '1a', dataAplicacao: '2026-04-28', cicloId: 'C3-26', notaMaxima: 10, anulado: false, media: 6.5, mediana: 6.4, desvioPadrao: 1.1, nPresentes: 247 },
-  { id: 'S06', nome: 'Simulado AFA — Abr/26', fase: '1a', dataAplicacao: '2026-05-02', cicloId: 'C3-26', notaMaxima: 10, anulado: false, media: 6.8, mediana: 6.9, desvioPadrao: 0.9, nPresentes: 240 },
-  { id: 'S07', nome: 'Simulado ITA Fase 2 — Mai/26', fase: '2a', dataAplicacao: '2026-05-07', cicloId: 'C3-26', notaMaxima: 10, anulado: false, media: 6.3, mediana: 6.2, desvioPadrao: 1.2, nPresentes: 246 },
-  { id: 'S08', nome: 'Simulado IME Fase 2 — Mai/26', fase: '2a', dataAplicacao: '2026-05-12', cicloId: 'C3-26', notaMaxima: 10, anulado: false, media: 5.9, mediana: 5.8, desvioPadrao: 2.1, nPresentes: 244 },
+  { id: 'S01', nome: 'Matemática Fase 1 — Fev/26', fase: '1a', tipo: 'fase_1', materia: { codigo: 'MAT', nome: 'Matemática' }, dataAplicacao: '2026-02-15', cicloId: 'C1-26', notaMaxima: 10, anulado: false, media: 6.4, mediana: 6.3, desvioPadrao: 1.1, nPresentes: 248 },
+  { id: 'S02', nome: 'Física Fase 1 — Mar/26',       fase: '1a', tipo: 'fase_1', materia: { codigo: 'FIS', nome: 'Física' },      dataAplicacao: '2026-03-10', cicloId: 'C1-26', notaMaxima: 10, anulado: false, media: 6.1, mediana: 6.0, desvioPadrao: 1.2, nPresentes: 246 },
+  { id: 'S03', nome: 'Matemática Fase 2 — Mar/26', fase: '2a', tipo: 'fase_2', materia: { codigo: 'MAT', nome: 'Matemática' }, dataAplicacao: '2026-03-25', cicloId: 'C2-26', notaMaxima: 10, anulado: false, media: 5.8, mediana: 5.7, desvioPadrao: 1.4, nPresentes: 245 },
+  { id: 'S04', nome: 'Física Fase 2 — Abr/26',       fase: '2a', tipo: 'fase_2', materia: { codigo: 'FIS', nome: 'Física' },      dataAplicacao: '2026-04-15', cicloId: 'C2-26', notaMaxima: 10, anulado: false, media: 6.2, mediana: 6.1, desvioPadrao: 1.0, nPresentes: 244 },
+  { id: 'S05', nome: 'Matemática Fase 1 — Abr/26', fase: '1a', tipo: 'fase_1', materia: { codigo: 'MAT', nome: 'Matemática' }, dataAplicacao: '2026-04-28', cicloId: 'C3-26', notaMaxima: 10, anulado: false, media: 6.5, mediana: 6.4, desvioPadrao: 1.1, nPresentes: 247 },
+  { id: 'S06', nome: 'Física Fase 1 — Mai/26',       fase: '1a', tipo: 'fase_1', materia: { codigo: 'FIS', nome: 'Física' },      dataAplicacao: '2026-05-02', cicloId: 'C3-26', notaMaxima: 10, anulado: false, media: 6.8, mediana: 6.9, desvioPadrao: 0.9, nPresentes: 240 },
+  { id: 'S07', nome: 'Matemática Fase 2 — Mai/26', fase: '2a', tipo: 'fase_2', materia: { codigo: 'MAT', nome: 'Matemática' }, dataAplicacao: '2026-05-07', cicloId: 'C3-26', notaMaxima: 10, anulado: false, media: 6.3, mediana: 6.2, desvioPadrao: 1.2, nPresentes: 246 },
+  { id: 'S08', nome: 'Física Fase 2 — Mai/26',       fase: '2a', tipo: 'fase_2', materia: { codigo: 'FIS', nome: 'Física' },      dataAplicacao: '2026-05-12', cicloId: 'C3-26', notaMaxima: 10, anulado: false, media: 5.9, mediana: 5.8, desvioPadrao: 2.1, nPresentes: 244 },
+];
+
+// Notas individuais: { simuladoId, alunoId, nota }
+export const notas = [
+  // S01 — Matemática F1, C1-26
+  { simuladoId: 'S01', alunoId: 'A023', nota: 6.1 },
+  { simuladoId: 'S01', alunoId: 'A047', nota: 6.5 },
+  { simuladoId: 'S01', alunoId: 'A015', nota: 8.5 },
+  { simuladoId: 'S01', alunoId: 'A081', nota: 5.8 },
+  { simuladoId: 'S01', alunoId: 'A102', nota: 7.2 },
+  { simuladoId: 'S01', alunoId: 'A056', nota: 9.0 },
+  { simuladoId: 'S01', alunoId: 'A089', nota: 5.5 },
+  { simuladoId: 'S01', alunoId: 'A034', nota: 7.0 },
+  // S02 — Física F1, C1-26
+  { simuladoId: 'S02', alunoId: 'A023', nota: 5.8 },
+  { simuladoId: 'S02', alunoId: 'A047', nota: 6.2 },
+  { simuladoId: 'S02', alunoId: 'A015', nota: 8.1 },
+  { simuladoId: 'S02', alunoId: 'A081', nota: 5.4 },
+  { simuladoId: 'S02', alunoId: 'A102', nota: 6.8 },
+  { simuladoId: 'S02', alunoId: 'A056', nota: 8.8 },
+  { simuladoId: 'S02', alunoId: 'A089', nota: 5.0 },
+  { simuladoId: 'S02', alunoId: 'A034', nota: 6.6 },
+  // S03 — Matemática F2, C2-26
+  { simuladoId: 'S03', alunoId: 'A023', nota: 5.5 },
+  { simuladoId: 'S03', alunoId: 'A047', nota: 6.0 },
+  { simuladoId: 'S03', alunoId: 'A015', nota: 8.4 },
+  { simuladoId: 'S03', alunoId: 'A081', nota: 6.2 },
+  { simuladoId: 'S03', alunoId: 'A102', nota: 5.8 },
+  { simuladoId: 'S03', alunoId: 'A056', nota: 8.7 },
+  { simuladoId: 'S03', alunoId: 'A089', nota: 5.1 },
+  { simuladoId: 'S03', alunoId: 'A034', nota: 6.9 },
+  // S04 — Física F2, C2-26
+  { simuladoId: 'S04', alunoId: 'A023', nota: 5.6 },
+  { simuladoId: 'S04', alunoId: 'A047', nota: 5.8 },
+  { simuladoId: 'S04', alunoId: 'A015', nota: 8.2 },
+  { simuladoId: 'S04', alunoId: 'A081', nota: 6.5 },
+  { simuladoId: 'S04', alunoId: 'A102', nota: 6.1 },
+  { simuladoId: 'S04', alunoId: 'A056', nota: 8.5 },
+  { simuladoId: 'S04', alunoId: 'A089', nota: 4.8 },
+  { simuladoId: 'S04', alunoId: 'A034', nota: 6.7 },
+  // S05 — Matemática F1, C3-26
+  { simuladoId: 'S05', alunoId: 'A023', nota: 5.2 },
+  { simuladoId: 'S05', alunoId: 'A047', nota: 5.8 },
+  { simuladoId: 'S05', alunoId: 'A015', nota: 8.3 },
+  { simuladoId: 'S05', alunoId: 'A081', nota: 6.8 },
+  { simuladoId: 'S05', alunoId: 'A102', nota: 6.5 },
+  { simuladoId: 'S05', alunoId: 'A056', nota: 8.9 },
+  { simuladoId: 'S05', alunoId: 'A089', nota: 4.9 },
+  { simuladoId: 'S05', alunoId: 'A034', nota: 6.8 },
+  // S06 — Física F1, C3-26
+  { simuladoId: 'S06', alunoId: 'A023', nota: 6.0 },
+  { simuladoId: 'S06', alunoId: 'A047', nota: 6.1 },
+  { simuladoId: 'S06', alunoId: 'A015', nota: 8.0 },
+  { simuladoId: 'S06', alunoId: 'A081', nota: 7.0 },
+  { simuladoId: 'S06', alunoId: 'A102', nota: 6.2 },
+  { simuladoId: 'S06', alunoId: 'A056', nota: 8.6 },
+  { simuladoId: 'S06', alunoId: 'A089', nota: 5.3 },
+  { simuladoId: 'S06', alunoId: 'A034', nota: 7.1 },
+  // S07 — Matemática F2, C3-26
+  { simuladoId: 'S07', alunoId: 'A023', nota: 4.8 },
+  { simuladoId: 'S07', alunoId: 'A047', nota: 5.4 },
+  { simuladoId: 'S07', alunoId: 'A015', nota: 8.4 },
+  { simuladoId: 'S07', alunoId: 'A081', nota: 7.2 },
+  { simuladoId: 'S07', alunoId: 'A102', nota: 6.9 },
+  { simuladoId: 'S07', alunoId: 'A056', nota: 9.1 },
+  { simuladoId: 'S07', alunoId: 'A089', nota: 4.6 },
+  { simuladoId: 'S07', alunoId: 'A034', nota: 7.0 },
+  // S08 — Física F2, C3-26
+  { simuladoId: 'S08', alunoId: 'A023', nota: 5.5 },
+  { simuladoId: 'S08', alunoId: 'A047', nota: 6.0 },
+  { simuladoId: 'S08', alunoId: 'A015', nota: 8.1 },
+  { simuladoId: 'S08', alunoId: 'A081', nota: 7.5 },
+  { simuladoId: 'S08', alunoId: 'A102', nota: 6.8 },
+  { simuladoId: 'S08', alunoId: 'A056', nota: 8.7 },
+  { simuladoId: 'S08', alunoId: 'A089', nota: 5.1 },
+  { simuladoId: 'S08', alunoId: 'A034', nota: 6.9 },
 ];
 
 export const alunos = [

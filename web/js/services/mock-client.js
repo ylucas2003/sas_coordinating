@@ -6,6 +6,7 @@ import {
   alertas as alertasMock,
   alunos as alunosMock,
   ciclos as ciclosMock,
+  notas as notasMock,
   sedes as sedesMock,
   simulados as simuladosMock,
   turmas as turmasMock,
@@ -44,6 +45,12 @@ export const mockClient = {
 
   async obterSimulado(id) {
     return simuladosMock.find((s) => s.id === id) ?? null;
+  },
+
+  async notasSimulado(id) {
+    return notasMock
+      .filter((n) => n.simuladoId === id)
+      .map(({ alunoId, nota }) => ({ alunoId, nota }));
   },
 
   async listarCiclos() {

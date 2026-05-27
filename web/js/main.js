@@ -19,7 +19,7 @@ import { renderImportar } from './screens/importar.js';
 import { montarChatLauncher } from './components/chat/launcher.js';
 
 const SCREENS = {
-  painel:    ()         => renderPainel(),
+  painel:    (_, ctx)   => renderPainel(ctx),
   alunos:    (_, ctx)   => renderAlunos({ recorte: ctx.recorte }),
   aluno:     (params)   => renderAlunoFicha({ id: params.id }),
   simulados: ()         => renderSimulados(),
@@ -40,9 +40,32 @@ async function render() {
   const recorte = recortePorTab[activeTab] || null;
 
   // Telas que substituem o filter-strip global por filtros locais próprios.
-  const ROTAS_SEM_FILTERSTRIP_GLOBAL = new Set(['simulados', 'simulado', 'ciclos', 'ciclo']);
+  const ROTAS_SEM_FILTERSTRIP_GLOBAL = new Set(['simulados', 'simulado', 'ciclos', 'ciclo', 'painel']);
   // Telas que escondem a sidebar contextual (têm layout próprio em tela cheia).
   const ROTAS_SEM_SIDEBAR = new Set(['importar']);
+
+  // Para o painel, a sidebar mostra ciclos (populada pelo próprio painel).
+  const isPainel = route.name === 'painel';
+  let sidebarPainelEl = null;
+  if (isPainel) {
+    sidebarPainelEl = el('aside', { class: 'card sidebar' }, [
+      el('div', { class: 'sidebar__label' }, ['Ciclos']),
+      el('div', { class: 'empty-state', style: 'padding: 20px 16px; font-size: 12px;' }, ['Carregando…']),
+    ]);
+  }
+
+  const sidebarEl = ROTAS_SEM_SIDEBAR.has(route.name)
+    ? null
+    : isPainel
+      ? sidebarPainelEl
+      : sidebar({
+          activeTab,
+          activeRecorte: recorte,
+          onSelect: (newRecorte) => {
+            recortePorTab[activeTab] = newRecorte;
+            render();
+          },
+        });
 
   // Esqueleto enquanto carrega.
   clear(root);
@@ -50,14 +73,7 @@ async function render() {
     topbar({ activeTab }),
     ROTAS_SEM_FILTERSTRIP_GLOBAL.has(route.name) ? null : filterStrip(),
     el('div', { class: 'app-body' }, [
-      ROTAS_SEM_SIDEBAR.has(route.name) ? null : sidebar({
-        activeTab,
-        activeRecorte: recorte,
-        onSelect: (newRecorte) => {
-          recortePorTab[activeTab] = newRecorte;
-          render();
-        },
-      }),
+      sidebarEl,
       el('main', { class: 'app-main' }, [
         el('div', { class: 'card' }, [
           el('div', { class: 'empty-state' }, ['Carregando…']),
@@ -68,7 +84,7 @@ async function render() {
   root.appendChild(shell);
 
   const renderScreen = SCREENS[route.name] || SCREENS.painel;
-  const screenEl = await renderScreen(route.params, { recorte });
+  const screenEl = await renderScreen(route.params, { recorte, sidebarEl: sidebarPainelEl });
 
   // Substitui o placeholder pelo conteúdo real.
   const main = shell.querySelector('.app-main');
