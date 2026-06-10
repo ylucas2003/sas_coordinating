@@ -29,7 +29,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--color-border-strong);
-  min-width: 200px;
+  width: 180px;
   white-space: nowrap;
 }
 
@@ -105,6 +105,8 @@
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
   box-shadow: 2px 0 6px -2px rgba(20, 30, 80, 0.07);
+  width: 180px;
+  max-width: 180px;
 }
 
 /* ── Célula de nota ─────────────────────────────────── */
@@ -132,6 +134,11 @@
 /* ── Link do aluno ──────────────────────────────────── */
 
 .painel-tabela__aluno-link {
+  display: block;
+  max-width: 148px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--color-text-primary);
   text-decoration: none;
   font-weight: 500;
@@ -186,10 +193,17 @@
 
 .painel-header__dir {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 12px;
   flex-shrink: 0;
   padding-bottom: 2px;
+}
+
+.painel-header__controles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* ─── Busca individual ──────────────────────────────────────────────────── */
@@ -263,6 +277,20 @@
 .painel-topn__btn.is-active {
   background: var(--color-navy);
   color: #fff;
+}
+
+/* ─── Filtro de fase (acima da tabela) ──────────────────────────────────── */
+
+.painel-fase-filtro {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.painel-fase-filtro .painel-topn__btn {
+  padding: 7px 16px;
+  font-size: 13px;
 }
 
 /* ─── Sidebar do Painel (3 seções) ──────────────────────────────────────── */

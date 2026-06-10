@@ -6,10 +6,31 @@
 
 const BASE_URL = 'http://localhost:8000';
 
-async function get(path) {
-  const res = await fetch(`${BASE_URL}${path}`);
-  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
-  return res.json();
+// Cache em memória das respostas GET. Os dados do SAS só mudam quando entra
+// uma planilha nova, então cachear evita rebuscar alunos/notas/simulados a
+// cada troca de aba. Guardamos a Promise (não o valor já resolvido) para
+// também deduplicar chamadas concorrentes ao mesmo path. Invalidado por
+// `limparCacheDados()` após um upload bem-sucedido.
+const cacheGet = new Map();
+
+async function get(path, { cache = true } = {}) {
+  if (cache && cacheGet.has(path)) return cacheGet.get(path);
+  const promessa = (async () => {
+    const res = await fetch(`${BASE_URL}${path}`);
+    if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
+    return res.json();
+  })();
+  if (cache) {
+    cacheGet.set(path, promessa);
+    // Não cacheia falhas — se der erro, libera o path pra nova tentativa.
+    promessa.catch(() => cacheGet.delete(path));
+  }
+  return promessa;
+}
+
+/** Limpa o cache de GET. Chamar quando os dados mudam (ex.: após upload). */
+function limparCacheDados() {
+  cacheGet.clear();
 }
 
 async function post(path, body) {
@@ -107,14 +128,16 @@ export const httpClient = {
   // Upload de planilha → POST /uploads
   enviarPlanilha: (arquivo, { autor, onProgress, onUploaded } = {}) =>
     postArquivo('/uploads', arquivo, { autor }, { onProgress, onUploaded }),
-  listarUploads: () => get('/uploads'),
-  obterUpload: (id) => get(`/uploads/${encodeURIComponent(id)}`),
+  // Uploads mudam a cada importação e são consultados em polling — sem cache.
+  listarUploads: () => get('/uploads', { cache: false }),
+  obterUpload: (id) => get(`/uploads/${encodeURIComponent(id)}`, { cache: false }),
 
   // ─── Chat ─────────────────────────────────────────────────────────────
+  // Threads e mensagens mudam em tempo real (envio/arquivamento) — sem cache.
   listarChatThreads: ({ incluirArquivadas = false } = {}) =>
-    get(`/chat/threads${incluirArquivadas ? '?incluir_arquivadas=true' : ''}`),
+    get(`/chat/threads${incluirArquivadas ? '?incluir_arquivadas=true' : ''}`, { cache: false }),
   criarChatThread: (titulo) => post('/chat/threads', { titulo: titulo || null }),
-  obterChatThread: (id) => get(`/chat/threads/${encodeURIComponent(id)}`),
+  obterChatThread: (id) => get(`/chat/threads/${encodeURIComponent(id)}`, { cache: false }),
   atualizarChatThread: (id, patch) => patchJson(`/chat/threads/${encodeURIComponent(id)}`, patch),
   apagarChatThread: (id) => del(`/chat/threads/${encodeURIComponent(id)}`),
   /**
@@ -127,6 +150,7 @@ export const httpClient = {
   enviarChatMensagem: (threadId, conteudo, onEvento) =>
     streamSSE(`/chat/threads/${encodeURIComponent(threadId)}/mensagens`, { conteudo }, onEvento),
 
+  limparCacheDados,
   baseUrl: () => BASE_URL,
 };
 
