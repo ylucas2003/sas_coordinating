@@ -33,6 +33,7 @@ import { httpClient } from './http-client.js';
  * @property {(id: string, patch: object) => Promise<object>} atualizarChatThread
  * @property {(id: string) => Promise<object>} apagarChatThread
  * @property {(id: string, conteudo: string, onEvento: Function) => Promise<void>} enviarChatMensagem
+ * @property {() => void} limparCacheDados
  */
 
 /** @returns {ApiClient} */

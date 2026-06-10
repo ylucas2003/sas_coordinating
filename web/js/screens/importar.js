@@ -217,6 +217,7 @@ export async function renderImportar() {
         renderLogVivo();
         renderRelatorio();
         recarregarHistorico();
+        invalidarCaches();
       } else if (statusServer === 'erro') {
         mensagemErro = detalhe.upload.erro_mensagem || 'Erro durante o processamento.';
         estado = 'erro';
@@ -307,6 +308,7 @@ export async function renderImportar() {
         renderProgresso();
         renderRelatorio();
         recarregarHistorico();
+        invalidarCaches();
       } else {
         // Caminho normal — começa polling pra acompanhar a ingestão.
         iniciarPolling();
@@ -415,6 +417,12 @@ export async function renderImportar() {
         ])
       );
     }
+  }
+
+  // Avisa o app que os dados mudaram: limpa os caches de telas e de dados
+  // para que Painel/Alunos/Simulados reflitam a planilha recém-importada.
+  function invalidarCaches() {
+    window.dispatchEvent(new CustomEvent('sas:dados-atualizados'));
   }
 
   recarregarHistorico();

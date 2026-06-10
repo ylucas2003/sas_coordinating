@@ -4,7 +4,10 @@
     {
       "label": "SAS: backend (uvicorn)",
       "type": "shell",
-      "command": "${workspaceFolder}/api/.venv/Scripts/uvicorn.exe",
+      "command": "${workspaceFolder}/api/.venv/bin/uvicorn",
+      "windows": {
+        "command": "${workspaceFolder}/api/.venv/Scripts/uvicorn.exe"
+      },
       "args": [
         "app.main:app",
         "--reload",
@@ -41,7 +44,10 @@
     {
       "label": "SAS: frontend (http.server)",
       "type": "shell",
-      "command": "python",
+      "command": "python3",
+      "windows": {
+        "command": "python"
+      },
       "args": [
         "-m",
         "http.server",
@@ -86,7 +92,10 @@
     {
       "label": "SAS: db · aplicar migrations pendentes",
       "type": "shell",
-      "command": "${workspaceFolder}/api/.venv/Scripts/python.exe",
+      "command": "${workspaceFolder}/api/.venv/bin/python",
+      "windows": {
+        "command": "${workspaceFolder}/api/.venv/Scripts/python.exe"
+      },
       "args": ["-m", "scripts.migrate", "up"],
       "options": { "cwd": "${workspaceFolder}/api" },
       "presentation": {
@@ -101,7 +110,10 @@
     {
       "label": "SAS: db · downgrade (reverter última migration)",
       "type": "shell",
-      "command": "${workspaceFolder}/api/.venv/Scripts/python.exe",
+      "command": "${workspaceFolder}/api/.venv/bin/python",
+      "windows": {
+        "command": "${workspaceFolder}/api/.venv/Scripts/python.exe"
+      },
       "args": ["-m", "scripts.migrate", "down"],
       "options": { "cwd": "${workspaceFolder}/api" },
       "presentation": {
@@ -116,7 +128,10 @@
     {
       "label": "SAS: db · limpar dados importados (TRUNCATE)",
       "type": "shell",
-      "command": "${workspaceFolder}/api/.venv/Scripts/python.exe",
+      "command": "${workspaceFolder}/api/.venv/bin/python",
+      "windows": {
+        "command": "${workspaceFolder}/api/.venv/Scripts/python.exe"
+      },
       "args": ["-m", "scripts.migrate", "wipe-dados"],
       "options": { "cwd": "${workspaceFolder}/api" },
       "presentation": {

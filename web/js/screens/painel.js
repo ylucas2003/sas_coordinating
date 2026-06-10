@@ -253,6 +253,7 @@ export async function renderPainel({ sidebarEl } = {}) {
     turmaIds: new Set(),
     busca: '',
     ordenacao: 'ranking',
+    fase: '1',
     limitesCollapsed: new Set(),
     aberto: { ciclos: true, sede: false, turmas: false },
   };
@@ -314,12 +315,46 @@ export async function renderPainel({ sidebarEl } = {}) {
           ]),
         ]),
         el('div', { class: 'painel-header__dir' }, [
-          buildHelpBtn(),
-          buildBusca(),
-          buildOrdenacaoPills(),
+          el('div', { class: 'painel-header__controles' }, [
+            buildHelpBtn(),
+            buildBusca(),
+            buildOrdenacaoPills(),
+          ]),
+          ...(fasesDisponiveis().length >= 2 ? [buildFaseFiltro()] : []),
         ]),
       ])
     );
+  }
+
+  // Fases presentes nos simulados do ciclo ativo ('1' e/ou '2').
+  function fasesDisponiveis() {
+    const ciclo = ciclos.find((c) => c.id === estado.cicloId);
+    if (!ciclo) return [];
+    const sims = simulados.filter((s) => ciclo.simuladoIds.includes(s.id));
+    const fases = [];
+    if (sims.some((s) => s.tipo === 'fase_1')) fases.push('1');
+    if (sims.some((s) => s.tipo === 'fase_2')) fases.push('2');
+    return fases;
+  }
+
+  function buildFaseFiltro() {
+    const fasesDisp = fasesDisponiveis();
+    if (!fasesDisp.includes(estado.fase)) estado.fase = fasesDisp[0];
+    const labels = { '1': '1ª Fase', '2': '2ª Fase' };
+    const wrap = el('div', { class: 'painel-fase-filtro' }, fasesDisp.map((f) => {
+      const btn = el('button', {
+        class: `painel-topn__btn${estado.fase === f ? ' is-active' : ''}`,
+      }, [labels[f]]);
+      btn.addEventListener('click', () => {
+        estado.fase = f;
+        Array.from(wrap.querySelectorAll('.painel-topn__btn')).forEach((b, i) => {
+          b.classList.toggle('is-active', fasesDisp[i] === f);
+        });
+        renderizarTabela();
+      });
+      return btn;
+    }));
+    return wrap;
   }
 
   function buildBusca() {
@@ -542,7 +577,9 @@ function renderTabelaDados(cicloAtivo, estado, todosSim, todosAlunos, filtrarAlu
     ]);
   }
 
-  const colunas = colunasDef.map((c) => ({
+  // Conjunto completo de colunas — usado para CALCULAR as médias (a média
+  // geral depende de matérias das duas fases, mesmo quando só uma é exibida).
+  const colunasFull = colunasDef.map((c) => ({
     ...c,
     sim: c.virtual ? null : encontrarSimulado(simsDociclo, c.simKey),
   }));
@@ -551,11 +588,20 @@ function renderTabelaDados(cicloAtivo, estado, todosSim, todosAlunos, filtrarAlu
   const alunosFiltrados = filtrarAlunos();
   const vestibular = cicloAtivo.vestibularAlvo;
 
-  // Médias virtuais por aluno (fórmulas por vestibular)
+  // Médias virtuais por aluno (fórmulas por vestibular) — sempre sobre o
+  // conjunto completo de colunas.
   const mediasVirtuaisAluno = {};
   for (const aluno of alunosFiltrados) {
-    mediasVirtuaisAluno[aluno.id] = calcularMediasVirtuais(aluno.id, colunas, notasAluno, vestibular);
+    mediasVirtuaisAluno[aluno.id] = calcularMediasVirtuais(aluno.id, colunasFull, notasAluno, vestibular);
   }
+
+  // Filtro de fase: cada fase exibe suas matérias + a média geral.
+  const fasesDisp = [];
+  if (temF1) fasesDisp.push('1');
+  if (temF2) fasesDisp.push('2');
+  const faseSel = fasesDisp.includes(estado.fase) ? estado.fase : fasesDisp[0];
+  estado.fase = faseSel;
+  const colunas = colunasExibidas(colunasFull, faseSel);
 
   // Ordenação
   if (estado.ordenacao === 'alfabetica') {
@@ -596,6 +642,15 @@ function renderTabelaDados(cicloAtivo, estado, todosSim, todosAlunos, filtrarAlu
       renderTbody(alunosFiltrados, colunas, notasAluno, mediasVirtuaisAluno, mediasPorCol, estado.limitesCollapsed, onToggleLimite),
     ]),
   ]);
+}
+
+// Colunas exibidas para a fase selecionada: matérias da fase + média geral.
+function colunasExibidas(colunasFull, faseSel) {
+  const faseLabel = faseSel === '1' ? '1°F' : '2°F';
+  const materias = colunasFull.filter((c) => !c.virtual && c.fase === faseLabel);
+  const virtuais = colunasFull.filter((c) => c.virtual);
+  const geral = virtuais[virtuais.length - 1] || null; // MED_FINAL (ou MED_F1 em ciclos só de 1ª fase)
+  return geral ? [...materias, geral] : materias;
 }
 
 function colClasses(...extras) {
@@ -680,7 +735,7 @@ function renderTbody(alunos, colunas, notasAluno, mediasVirtuaisAluno, mediasPor
 
     rows.push(el('tr', {}, [
       el('td', { class: 'painel-tabela__td-aluno' }, [
-        el('a', { class: `painel-tabela__aluno-link${linkExtra}`, href: `#/alunos/${aluno.id}` }, [aluno.nome]),
+        el('a', { class: `painel-tabela__aluno-link${linkExtra}`, href: `#/alunos/${aluno.id}`, title: aluno.nome }, [aluno.nome]),
       ]),
       ...colunas.map((col) => {
         const nota = col.virtual
