@@ -5,6 +5,7 @@
 
 import { getApiClient } from '../services/api.js';
 import { el, clear, fmtNota } from '../dom.js';
+import { abrirEdicaoNota } from '../components/ui/dialog.js';
 import { heatmap } from '../components/ui/heatmap.js';
 import { kpi } from '../components/ui/kpi.js';
 import { linhaEvolucao } from '../components/ui/linha-evolucao.js';
@@ -210,16 +211,14 @@ export async function renderAlunoFicha({ id }) {
   const sede = sedes.find((s) => s.id === aluno.sedeId);
   const alvos = aluno.vestibularesAlvo.length > 0 ? aluno.vestibularesAlvo.join(', ') : '—';
 
-  // Cruzamento: mapa simuladoId → nota do aluno.
-  const notasPorSimulado = new Map();
+  // Estado mutável das notas — atualizado após edições manuais.
+  let notasPorSimulado = new Map();
   for (const n of trajetoria) {
     if (n.simuladoId != null) notasPorSimulado.set(n.simuladoId, n.pontuacao);
   }
 
-  // Universo: só simulados que o aluno fez. Os filtros operam sobre esse
-  // universo, não sobre todos os simulados existentes.
-  const simuladosDoAluno = todosSimulados.filter((s) => notasPorSimulado.has(s.id));
-  const opcoesDisponiveis = montarOpcoes(simuladosDoAluno);
+  let simuladosDoAluno = todosSimulados.filter((s) => notasPorSimulado.has(s.id));
+  let opcoesDisponiveis = montarOpcoes(simuladosDoAluno);
 
   const estado = {
     ciclos: new Set(),
@@ -294,6 +293,7 @@ export async function renderAlunoFicha({ id }) {
       simulados: filtrados,
       notasAluno: notasPorSimulado,
       compacto: true,
+      onEditarNota,
     }));
 
     clear(subtituloHist);
@@ -303,6 +303,48 @@ export async function renderAlunoFicha({ id }) {
   }
 
   rerender();
+
+  // Recarrega trajetória + simulados após uma edição de nota e chama rerender().
+  async function recarregarNotas() {
+    api.limparCacheDados();
+    const [novaTrajetoria, novosSimulados] = await Promise.all([
+      api.trajetoriaAluno(id).catch(() => []),
+      api.listarSimulados().catch(() => []),
+    ]);
+    notasPorSimulado = new Map();
+    for (const n of novaTrajetoria) {
+      if (n.simuladoId != null) notasPorSimulado.set(n.simuladoId, n.pontuacao);
+    }
+    simuladosDoAluno = novosSimulados.filter((s) => notasPorSimulado.has(s.id));
+    opcoesDisponiveis = montarOpcoes(simuladosDoAluno);
+    rerender();
+  }
+
+  // Callback de edição de nota a partir do histórico.
+  // `simulado` é o objeto simulado; `notaAtual` é a nota normalizada (0–10).
+  async function onEditarNota(simulado, notaAtual) {
+    // Back-calcula pontuação bruta para exibir no form.
+    const pontuacaoRaw = notaAtual != null && simulado.notaMaxima > 0
+      ? Math.round(notaAtual / 10 * simulado.notaMaxima * 100) / 100
+      : null;
+    const presenteAtual = notaAtual != null;
+
+    const resultado = await abrirEdicaoNota({
+      nomeAluno: aluno.nome,
+      nomeSimulado: simulado.rotuloCurto || simulado.nome,
+      pontuacaoAtual: pontuacaoRaw,
+      presenteAtual,
+      notaMaxima: simulado.notaMaxima,
+    });
+    if (!resultado) return;
+
+    try {
+      await api.editarNota(id, simulado.id, resultado);
+      await recarregarNotas();
+    } catch (err) {
+      alert(`Erro ao salvar: ${err.message}`);
+    }
+  }
 
   // Helpers de exportação — acessam o estado atual e o SVG ao vivo do gráfico.
   function exportarPNG() {

@@ -37,8 +37,10 @@ function celulaDelta(nota, media) {
  * @param {Array} opcoes.simulados
  * @param {Map<string, number>} [opcoes.notasAluno] - se presente, mostra colunas do aluno
  * @param {boolean} [opcoes.compacto] - oculta colunas mediana/sigma quando true
+ * @param {(simulado: object, notaAtual: number|null) => void} [opcoes.onEditarNota] -
+ *   callback de edição manual; quando fornecido, adiciona botão "Editar" por linha
  */
-export function tabelaSimulados({ simulados, notasAluno = null, compacto = false }) {
+export function tabelaSimulados({ simulados, notasAluno = null, compacto = false, onEditarNota = null }) {
   if (!simulados.length) {
     return el('div', { class: 'sim-tabela__vazio' }, [
       'Nenhum simulado bate com os filtros.',
@@ -46,6 +48,8 @@ export function tabelaSimulados({ simulados, notasAluno = null, compacto = false
   }
 
   const temAluno = !!notasAluno;
+
+  const temEditar = !!onEditarNota;
 
   const cabecalho = el('tr', {}, [
     el('th', {}, ['Pn']),
@@ -61,10 +65,21 @@ export function tabelaSimulados({ simulados, notasAluno = null, compacto = false
     !compacto ? el('th', {}, ['σ']) : null,
     !compacto ? el('th', {}, ['n']) : null,
     el('th', {}, ['']),
+    temEditar ? el('th', {}, ['']) : null,
   ].filter(Boolean));
 
   const linhas = simulados.map((s) => {
     const notaAluno = temAluno ? notasAluno.get(s.id) : null;
+
+    const tdEditar = temEditar
+      ? el('td', { onclick: (ev) => ev.stopPropagation() }, [
+          el('button', {
+            class: 'btn-editar',
+            onclick: () => onEditarNota(s, notaAluno ?? null),
+          }, ['Editar']),
+        ])
+      : null;
+
     return el(
       'tr',
       { onclick: () => { window.location.hash = `#/simulados/${s.id}`; } },
@@ -82,6 +97,7 @@ export function tabelaSimulados({ simulados, notasAluno = null, compacto = false
         !compacto ? el('td', {}, [fmtNota(s.desvioPadrao)]) : null,
         !compacto ? el('td', {}, [s.nPresentes == null ? '—' : String(s.nPresentes)]) : null,
         el('td', {}, [el('a', { href: `#/simulados/${s.id}` }, ['Ver →'])]),
+        tdEditar,
       ].filter(Boolean)
     );
   });

@@ -3,6 +3,7 @@
 
 import { getApiClient } from '../services/api.js';
 import { clear, el, fmtNota } from '../dom.js';
+import { abrirFichaNota } from '../components/ui/dialog.js';
 
 // ─── SVG helper (el() usa createElement, não createElementNS) ────────────
 
@@ -246,7 +247,7 @@ export async function renderPainel({ sidebarEl } = {}) {
   const root = el('section', { class: 'card' }, []);
 
   const estado = {
-    cicloId: ciclos[ciclos.length - 1]?.id ?? null,
+    cicloId: ciclos[0]?.id ?? null,
     notasPorSim: {},
     carregando: false,
     sedeIds: new Set(),
@@ -298,7 +299,7 @@ export async function renderPainel({ sidebarEl } = {}) {
       renderizarTabela();
     }
     const toggler = estado.ordenacao === 'ranking' ? onToggleLimite : null;
-    tabelaEl.appendChild(renderTabelaDados(cicloAtivo, estado, simulados, alunos, filtrarAlunos, toggler));
+    tabelaEl.appendChild(renderTabelaDados(cicloAtivo, estado, simulados, alunos, filtrarAlunos, toggler, editarNota));
   }
 
   // ── Renderizar header (muda só ao trocar de ciclo) ─────────────────────
@@ -479,22 +480,38 @@ export async function renderPainel({ sidebarEl } = {}) {
     });
   }
 
+  const NOMES_SEDE = {
+    'AD':                 'Aldeota',
+    'MF':                 'Major Facundo',
+    'ONLINE':             'Online',
+    'PROPOSITO':          'Propósito',
+    'ONLINE_E_PROPOSITO': 'Online e Propósito',
+    'PB':                 'Parangaba',
+    '3O_ITA_MF_E_ONLINE': 'Terceiro Ano ITA',
+  };
+
+  function nomeSede(raw) {
+    return NOMES_SEDE[raw] ?? raw.replace(/_/g, ' ').replace(/\b3O\b/g, '3°');
+  }
+
   function buildSedeItems() {
-    return sedes.map((s) => {
-      const checked = estado.sedeIds.has(s.id);
-      const item = el('button', { class: `psb-item psb-item--check${checked ? ' is-active' : ''}` }, [
-        el('span', { class: `psb-item__check${checked ? ' is-checked' : ''}` }, []),
-        s.nome,
-      ]);
-      item.addEventListener('click', () => {
-        if (estado.sedeIds.has(s.id)) estado.sedeIds.delete(s.id);
-        else estado.sedeIds.add(s.id);
-        item.classList.toggle('is-active', estado.sedeIds.has(s.id));
-        item.querySelector('.psb-item__check').classList.toggle('is-checked', estado.sedeIds.has(s.id));
-        renderizarTabela();
+    return sedes
+      .filter((s) => !s.nome.startsWith('2025_'))
+      .map((s) => {
+        const checked = estado.sedeIds.has(s.id);
+        const item = el('button', { class: `psb-item psb-item--check${checked ? ' is-active' : ''}` }, [
+          el('span', { class: `psb-item__check${checked ? ' is-checked' : ''}` }, []),
+          nomeSede(s.nome),
+        ]);
+        item.addEventListener('click', () => {
+          if (estado.sedeIds.has(s.id)) estado.sedeIds.delete(s.id);
+          else estado.sedeIds.add(s.id);
+          item.classList.toggle('is-active', estado.sedeIds.has(s.id));
+          item.querySelector('.psb-item__check').classList.toggle('is-checked', estado.sedeIds.has(s.id));
+          renderizarTabela();
+        });
+        return item;
       });
-      return item;
-    });
   }
 
   function buildTurmaItems() {
@@ -513,6 +530,56 @@ export async function renderPainel({ sidebarEl } = {}) {
       });
       return item;
     });
+  }
+
+  // ── Estatísticas de comparação para a ficha de nota ──────────────────
+  function computarEstatisticasSimulado(simId, alunoId) {
+    const notas = estado.notasPorSim[simId] || [];
+    const presentes = notas
+      .filter((n) => n.presente && n.nota != null)
+      .map((n) => n.nota)
+      .sort((a, b) => b - a);
+    if (!presentes.length) return null;
+    const n = presentes.length;
+    const entrada = notas.find((x) => x.alunoId === alunoId);
+    const nota = entrada?.nota ?? null;
+    const posicao = nota != null ? presentes.filter((v) => v > nota).length + 1 : null;
+    const media = presentes.reduce((a, b) => a + b, 0) / n;
+    const maiorNota = presentes[0];
+    const q = Math.max(1, Math.ceil(n * 0.15));
+    const mediaTop15 = presentes.slice(0, q).reduce((a, b) => a + b, 0) / q;
+    const mediaBottom15 = presentes.slice(-q).reduce((a, b) => a + b, 0) / q;
+    const mediana = n % 2 === 0
+      ? (presentes[n / 2 - 1] + presentes[n / 2]) / 2
+      : presentes[Math.floor(n / 2)];
+    return { posicao, totalPresentes: n, nota, media, maiorNota, mediaTop15, mediaBottom15, mediana };
+  }
+
+  // ── Edição de nota direto do painel ───────────────────────────────────
+  async function editarNota(alunoId, simId) {
+    const aluno = alunos.find((a) => a.id === alunoId);
+    const sim = simulados.find((s) => s.id === simId);
+    if (!aluno || !sim) return;
+
+    const notaAtual = (estado.notasPorSim[simId] || []).find((n) => n.alunoId === alunoId);
+    const resultado = await abrirFichaNota({
+      nomeAluno: aluno.nome,
+      nomeSimulado: sim.rotuloCurto || sim.nome,
+      pontuacaoAtual: notaAtual?.acertos ?? null,
+      presenteAtual: notaAtual?.presente ?? true,
+      notaMaxima: notaAtual?.total ?? sim.notaMaxima ?? null,
+      stats: computarEstatisticasSimulado(simId, alunoId),
+    });
+    if (!resultado) return;
+
+    try {
+      await api.editarNota(alunoId, simId, resultado);
+      api.limparCacheDados();
+      await carregarNotas();
+      renderizarTabela();
+    } catch (err) {
+      alert(`Erro ao salvar: ${err.message}`);
+    }
   }
 
   // ── Troca de ciclo ─────────────────────────────────────────────────────
@@ -556,7 +623,7 @@ export async function renderPainel({ sidebarEl } = {}) {
 
 // ─── Tabela de dados ──────────────────────────────────────────────────────
 
-function renderTabelaDados(cicloAtivo, estado, todosSim, todosAlunos, filtrarAlunos, onToggleLimite) {
+function renderTabelaDados(cicloAtivo, estado, todosSim, todosAlunos, filtrarAlunos, onToggleLimite, onEditarNota) {
   if (!cicloAtivo) {
     return el('div', { class: 'empty-state' }, ['Selecione um ciclo na barra lateral.']);
   }
@@ -639,7 +706,7 @@ function renderTabelaDados(cicloAtivo, estado, todosSim, todosAlunos, filtrarAlu
   return el('div', { class: 'painel-tabela-wrap' }, [
     el('table', { class: 'painel-tabela' }, [
       renderThead(colunas),
-      renderTbody(alunosFiltrados, colunas, notasAluno, mediasVirtuaisAluno, mediasPorCol, estado.limitesCollapsed, onToggleLimite),
+      renderTbody(alunosFiltrados, colunas, notasAluno, mediasVirtuaisAluno, mediasPorCol, estado.limitesCollapsed, onToggleLimite, onEditarNota),
     ]),
   ]);
 }
@@ -659,6 +726,7 @@ function colClasses(...extras) {
 
 function renderThead(colunas) {
   const row1 = [
+    el('th', { class: 'painel-tabela__th-pos', rowspan: '2' }, ['#']),
     el('th', { class: 'painel-tabela__th-aluno', rowspan: '2' }, ['Aluno']),
     ...colunas.map((col) =>
       el('th', {
@@ -706,15 +774,20 @@ function renderSeparadorRow(pos, colCount, limitesCollapsed, onToggleLimite) {
   const btn = el('button', { class: 'painel-corte__btn' }, [btnLabel]);
   btn.addEventListener('click', () => onToggleLimite(pos));
   return el('tr', { class: 'painel-corte-row' }, [
-    el('td', { class: 'painel-corte__label', colspan: String(colCount + 1) }, [
+    el('td', { class: 'painel-corte__label', colspan: String(colCount + 2) }, [
       el('span', { class: 'painel-corte__tag' }, [`Top ${pos}`]),
       btn,
     ]),
   ]);
 }
 
-function renderTbody(alunos, colunas, notasAluno, mediasVirtuaisAluno, mediasPorCol, limitesCollapsed, onToggleLimite) {
+function posicaoBadge(pos) {
+  return el('span', { class: 'pos-badge' }, [String(pos)]);
+}
+
+function renderTbody(alunos, colunas, notasAluno, mediasVirtuaisAluno, mediasPorCol, limitesCollapsed, onToggleLimite, onEditarNota) {
   const trMedia = el('tr', { class: 'painel-tabela__tr-media' }, [
+    el('td', { class: 'painel-tabela__td-pos' }, []),
     el('td', { class: 'painel-tabela__td-aluno' }, ['Média da turma']),
     ...colunas.map((col) =>
       el('td', { class: tdClass(col) }, [notaBadge(mediasPorCol[col.id] ?? null, true)])
@@ -734,6 +807,7 @@ function renderTbody(alunos, colunas, notasAluno, mediasVirtuaisAluno, mediasPor
     const linkExtra = status === 'cortado' ? ' is-cortado' : status === 'aprovado' ? ' is-aprovado' : '';
 
     rows.push(el('tr', {}, [
+      el('td', { class: 'painel-tabela__td-pos' }, [posicaoBadge(pos)]),
       el('td', { class: 'painel-tabela__td-aluno' }, [
         el('a', { class: `painel-tabela__aluno-link${linkExtra}`, href: `#/alunos/${aluno.id}`, title: aluno.nome }, [aluno.nome]),
       ]),
@@ -741,7 +815,11 @@ function renderTbody(alunos, colunas, notasAluno, mediasVirtuaisAluno, mediasPor
         const nota = col.virtual
           ? (mediasVirtuaisAluno[aluno.id]?.[col.id] ?? null)
           : (col.sim ? (notasAluno[aluno.id]?.[col.sim.id] ?? null) : null);
-        return el('td', { class: tdClass(col) }, [notaBadge(nota)]);
+        const editavel = !col.virtual && col.sim && onEditarNota;
+        return el('td', {
+          class: tdClass(col) + (editavel ? ' is-editavel' : ''),
+          onclick: editavel ? (ev) => { ev.stopPropagation(); onEditarNota(aluno.id, col.sim.id); } : null,
+        }, [notaBadge(nota)]);
       }),
     ]));
 

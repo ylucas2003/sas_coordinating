@@ -1,0 +1,6 @@
+.env
+.venv
+cdk.out/
+__pycache__/
+*.py[cod]
+.DS_Store

@@ -307,11 +307,14 @@ class SectionParsed:
     modalidade: Literal["presencial", "online"]
 
 
-PADRAO_SECTION = re.compile(r"^(?P<serie>\d+)o\s+(?P<trilha>\w+)\s+(?P<sede>\w+)$", re.IGNORECASE)
+# `trilha` aceita "/" porque as Sections do Canvas vêm como "3o ITA/IME AD"
+# (a planilha sempre trouxe trilha singular, "3o ITA AD" — ambos casam).
+PADRAO_SECTION = re.compile(r"^(?P<serie>\d+)o\s+(?P<trilha>[\w/]+)\s+(?P<sede>\w+)$", re.IGNORECASE)
 
 
 def parsear_section(section: str) -> SectionParsed:
-    """Decompõe '3o ITA AD' em (3, 'ITA', 'AD', 'presencial').
+    """Decompõe '3o ITA AD' (planilha) ou '3o ITA/IME AD' (Canvas) em
+    (3, trilha, 'AD', 'presencial').
 
     Casos especiais:
       - 'Online' → sede_codigo='ONLINE', modalidade='online'.

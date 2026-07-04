@@ -290,3 +290,62 @@
     display: none !important;
   }
 }
+
+/* ─── Painel do aluno autenticado ───────────────────────────────────────── */
+
+.aluno-painel__tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Nome do aluno logado na topbar */
+.topbar__aluno-nome {
+  margin-left: auto;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #666);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+/* ─── Tabela de desempenho vs corte ─────────────────────────────────────── */
+
+.tabela-corte {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.tabela-corte__th {
+  text-align: left;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #888);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.tabela-corte__th--num {
+  text-align: center;
+}
+
+.tabela-corte__tr:hover {
+  background: var(--color-surface-hover, #f9fafb);
+}
+
+.tabela-corte__td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border, #f0f0f0);
+  vertical-align: middle;
+}
+
+.tabela-corte__td--num {
+  text-align: center;
+}

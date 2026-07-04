@@ -68,12 +68,12 @@ def recalcular_tudo(cliente: Client) -> int:
             cliente,
             simulado_id=simulado["id"],
             nota_maxima=como_float(simulado.get("nota_maxima")) or 10.0,
-            corte=_corte_aplicavel(simulado),
+            corte=corte_aplicavel(simulado),
         )
     return len(simulados)
 
 
-def _corte_aplicavel(simulado: dict) -> float:
+def corte_aplicavel(simulado: dict) -> float:
     """Decide o corte (escala 0–10) que define "aprovado" pra esse simulado.
 
     Regra: corte padrão 4,0 (Fase 2 por matéria, aplicado também em Fase 1

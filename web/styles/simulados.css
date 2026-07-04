@@ -99,6 +99,31 @@
   font-style: italic;
 }
 
+/* ─── Filtros dentro da sidebar ────────────────────────────────────────── */
+
+/* When chip filters are rendered inside the narrow sidebar (220px), switch to
+   a stacked layout: category label above its chips, no extra card padding. */
+
+.sidebar .sim-filtros {
+  padding: 4px 0 8px;
+  border-bottom: none;
+  gap: 12px;
+}
+
+.sidebar .sim-filtros__linha {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.sidebar .sim-filtros__rotulo {
+  width: auto;
+}
+
+.sidebar .sim-filtros__reset {
+  margin-left: 0;
+}
+
 /* ─── Toggle do calendário ─────────────────────────────────────────────── */
 
 .sim-calendario-toggle {

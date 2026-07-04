@@ -98,6 +98,10 @@ def exportar_csv(
         rows = _csv_alunos_por_zona(cliente, zona)
     elif fonte == "trajetoria_aluno" and fonte_id:
         rows = _csv_trajetoria(cliente, fonte_id)
+    elif fonte == "relatorio_aluno" and fonte_id:
+        rows = _csv_relatorio_aluno(cliente, fonte_id)
+    elif fonte == "relatorio_ciclo" and fonte_id:
+        rows = _csv_relatorio_ciclo(cliente, fonte_id)
     else:
         return {"erro": f"fonte/argumentos inválidos: fonte={fonte}, fonte_id={fonte_id}, zona={zona}"}
 
@@ -128,7 +132,13 @@ _SCHEMA_EXPORTAR_CSV = {
         "properties": {
             "fonte": {
                 "type": "string",
-                "enum": ["notas_simulado", "alunos_por_zona", "trajetoria_aluno"],
+                "enum": [
+                    "notas_simulado",
+                    "alunos_por_zona",
+                    "trajetoria_aluno",
+                    "relatorio_aluno",
+                    "relatorio_ciclo",
+                ],
             },
             "fonte_id": {"type": "string", "description": "UUID quando fonte exige (não usado em alunos_por_zona)."},
             "zona": {
@@ -317,7 +327,7 @@ def _csv_trajetoria(cliente: Client, aluno_id: str) -> list[dict]:
         .select(
             "pontuacao, presente, simulado("
             "nome, rotulo_curto, data_aplicacao, anulado, e_agregado, "
-            "nota_maxima, tipo, fase, materia_id)"
+            "nota_maxima, tipo, materia_id)"
         )
         .eq("aluno_id", aluno_id)
         .execute()
@@ -336,11 +346,52 @@ def _csv_trajetoria(cliente: Client, aluno_id: str) -> list[dict]:
             "simulado": sim.get("nome", ""),
             "rotulo": sim.get("rotulo_curto") or "",
             "materia": nome_mat.get(sim.get("materia_id"), ""),
-            "fase": sim.get("fase") or "",
             "presente": "sim" if linha.get("presente") else "nao",
             "nota": round(nota, 2) if nota is not None else "",
         })
     rows.sort(key=lambda r: r["data"])
+    return rows
+
+
+def _csv_relatorio_aluno(cliente: Client, aluno_id: str) -> list[dict]:
+    """CSV do relatório do aluno: uma linha por nota, com ciclo e matéria."""
+    from .relatorios import historico_aluno
+    hist = historico_aluno(cliente, aluno_id=aluno_id)
+    if "erro" in hist:
+        return []
+    rows = []
+    for ciclo_bloco in hist.get("ciclos") or []:
+        ciclo_nome = (ciclo_bloco.get("ciclo") or {}).get("nome", "")
+        for n in ciclo_bloco.get("notas") or []:
+            rows.append({
+                "ciclo": ciclo_nome,
+                "data": n.get("data") or "",
+                "simulado": n.get("simulado") or "",
+                "materia": n.get("materia") or "",
+                "tipo": n.get("tipo") or "",
+                "presente": "sim" if n.get("presente") else "nao",
+                "nota": n.get("nota") if n.get("nota") is not None else "",
+            })
+    return rows
+
+
+def _csv_relatorio_ciclo(cliente: Client, ciclo_id: str) -> list[dict]:
+    """CSV do relatório do ciclo: uma linha por aluno × matéria com médias."""
+    from .relatorios import relatorio_ciclo
+    rel = relatorio_ciclo(cliente, ciclo_id=ciclo_id)
+    if "erro" in rel:
+        return []
+    ciclo_nome = (rel.get("ciclo") or {}).get("nome", "")
+    rows = []
+    for mat in rel.get("porMateria") or []:
+        rows.append({
+            "ciclo": ciclo_nome,
+            "materia": mat.get("materia") or "",
+            "nAlunos": mat.get("nAlunos") or "",
+            "media": mat.get("media") or "",
+            "pctAbaixoCorte": mat.get("pctAbaixoCorte") or "",
+            "abaixoCorte": mat.get("abaixoCorte") or "",
+        })
     return rows
 
 

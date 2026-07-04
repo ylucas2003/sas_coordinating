@@ -9,9 +9,21 @@ OpenAPI: http://localhost:8000/docs
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .canvas_sync import rotas as canvas_sync_rotas
 from .chat import rotas as chat_rotas
 from .config import get_settings
-from .routes import alertas, alunos, ciclos, dimensoes, simulados, uploads
+from .routes import (
+    alertas,
+    alunos,
+    auth,
+    ciclos,
+    cobranca,
+    dimensoes,
+    me,
+    notas,
+    simulados,
+    uploads,
+)
 
 
 def create_app() -> FastAPI:
@@ -29,13 +41,18 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.include_router(auth.router)
+    app.include_router(me.router)
     app.include_router(alertas.router)
     app.include_router(alunos.router)
     app.include_router(simulados.router)
+    app.include_router(notas.router)
     app.include_router(ciclos.router)
     app.include_router(dimensoes.router)
     app.include_router(uploads.router)
     app.include_router(chat_rotas.router)
+    app.include_router(canvas_sync_rotas.router)
+    app.include_router(cobranca.router)
 
     @app.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:

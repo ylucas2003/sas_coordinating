@@ -116,7 +116,7 @@ def trajetoria_aluno(cliente: Client, *, aluno_id: str, limite: int = 40) -> dic
         .select(
             "pontuacao, presente, simulado("
             "id, nome, rotulo_curto, data_aplicacao, anulado, e_agregado, "
-            "materia_id, nota_maxima, tipo, fase, ciclo_id)"
+            "materia_id, nota_maxima, tipo, ciclo_id)"
         )
         .eq("aluno_id", aluno_id)
         .execute()
@@ -146,7 +146,6 @@ def trajetoria_aluno(cliente: Client, *, aluno_id: str, limite: int = 40) -> dic
                 "dataAplicacao": sim.get("data_aplicacao"),
                 "materia": nome_mat.get(sim.get("materia_id")) if sim.get("materia_id") else None,
                 "tipo": sim.get("tipo"),
-                "fase": sim.get("fase"),
                 "cicloId": sim.get("ciclo_id"),
                 "nota": round(nota, 2),
             }

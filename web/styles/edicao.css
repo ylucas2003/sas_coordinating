@@ -1,0 +1,331 @@
+/* ─── Modal de edição ────────────────────────────────────────────────────
+   Usado pelos flows de edição manual de nota e de simulado.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 29, 36, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+  padding: 24px;
+  animation: overlay-in 0.12s ease;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 40px rgba(20, 30, 80, 0.2);
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  animation: dialog-in 0.14s ease;
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dialog__header {
+  padding: 20px 24px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dialog__titulo {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 3px;
+}
+
+.dialog__subtitulo {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* ─── Corpo do form ───────────────────────────────────────────────────── */
+
+.dialog__body {
+  padding: 18px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialog__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dialog__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dialog__input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.dialog__input:focus {
+  border-color: var(--color-navy-light);
+  box-shadow: 0 0 0 3px rgba(74, 120, 201, 0.14);
+}
+
+.dialog__input--erro {
+  border-color: var(--color-red) !important;
+  box-shadow: 0 0 0 3px rgba(217, 53, 74, 0.12) !important;
+}
+
+.dialog__input:disabled {
+  background: var(--color-surface-inset);
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+}
+
+.dialog__checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dialog__checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--color-navy);
+}
+
+.dialog__checkbox-label {
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.dialog__hint {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+/* ─── Step de confirmação ─────────────────────────────────────────────── */
+
+.dialog__confirmacao {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dialog__confirmacao-titulo {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.dialog__diff {
+  background: var(--color-surface-inset);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dialog__diff-linha {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.dialog__diff-campo {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-width: 80px;
+}
+
+.dialog__diff-de {
+  color: var(--color-red);
+  text-decoration: line-through;
+}
+
+.dialog__diff-seta {
+  color: var(--color-text-tertiary);
+}
+
+.dialog__diff-para {
+  color: var(--color-green);
+  font-weight: 500;
+}
+
+/* ─── Footer ──────────────────────────────────────────────────────────── */
+
+.dialog__footer {
+  padding: 12px 24px 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* ─── Botões ──────────────────────────────────────────────────────────── */
+
+.btn {
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.12s, opacity 0.12s;
+  line-height: 1.4;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--color-surface-inset);
+}
+
+.btn--primary {
+  background: var(--color-navy);
+  color: #fff;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--color-navy-mid);
+}
+
+/* ─── Botão de editar inline nas linhas de tabela ─────────────────────── */
+
+.btn-editar {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-weight: 500;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.btn-editar:hover {
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+  color: #fff;
+}
+
+/* Botão de editar no header do simulado */
+.btn-editar-sim {
+  font-size: 12px;
+  padding: 5px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-weight: 500;
+  transition: background 0.1s, color 0.1s;
+}
+
+.btn-editar-sim:hover {
+  background: var(--color-surface-inset);
+  color: var(--color-text-primary);
+}
+
+/* ─── Grid de KPIs de comparação (ficha de nota) ─────────────────────── */
+
+.dialog--largo {
+  max-width: 480px;
+}
+
+.dialog__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.dialog__kpi {
+  background: var(--color-surface-inset);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dialog__kpi-rotulo {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dialog__kpi-valor {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.dialog__kpi-valor.tone-verde    { color: var(--color-green); }
+.dialog__kpi-valor.tone-ambar    { color: var(--color-amber); }
+.dialog__kpi-valor.tone-vermelho { color: var(--color-red); }
+
+.dialog__hint--ambar {
+  color: var(--color-amber);
+}
+
+.dialog__sep {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 4px 0 2px;
+}
+
+/* Tag "Anulado" */
+.tag.tone-anulado {
+  background: var(--color-red-soft);
+  color: var(--color-red);
+}

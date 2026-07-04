@@ -18,7 +18,7 @@
 
 .painel-tabela__th-aluno {
   position: sticky;
-  left: 0;
+  left: 48px;
   background: var(--color-surface);
   z-index: 3;
   text-align: left;
@@ -91,11 +91,58 @@
   border-bottom: 2px solid var(--color-border-strong);
 }
 
+/* ── Coluna de posição ──────────────────────────────── */
+
+.painel-tabela__th-pos {
+  position: sticky;
+  left: 0;
+  background: var(--color-surface);
+  z-index: 3;
+  width: 48px;
+  min-width: 48px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--color-border-strong);
+  padding: 14px 4px;
+}
+
+.painel-tabela__td-pos {
+  position: sticky;
+  left: 0;
+  background: var(--color-surface);
+  z-index: 1;
+  width: 48px;
+  min-width: 48px;
+  text-align: center;
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ── Badge de posição ─────────────────────────────── */
+
+.pos-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  background: rgba(27, 63, 139, 0.08);
+  color: var(--color-navy);
+  border: 1.5px solid rgba(27, 63, 139, 0.2);
+}
+
 /* ── Coluna de aluno (sticky) ───────────────────────── */
 
 .painel-tabela__td-aluno {
   position: sticky;
-  left: 0;
+  left: 48px;
   background: var(--color-surface);
   z-index: 1;
   padding: 7px 16px;
@@ -123,12 +170,23 @@
   background: rgba(27, 63, 139, 0.03);
 }
 
-.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-aluno {
+.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-aluno,
+.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-pos {
   background: #ecf0fa; /* sólido para não vazar notas ao rolar */
 }
 
 .painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-nota.col-destaque {
   background: rgba(27, 63, 139, 0.06);
+}
+
+/* ── Célula editável (clique abre dialog de edição) ─── */
+
+.painel-tabela__td-nota.is-editavel {
+  cursor: pointer;
+}
+
+.painel-tabela__td-nota.is-editavel:hover {
+  background: rgba(27, 63, 139, 0.08) !important;
 }
 
 /* ── Link do aluno ──────────────────────────────────── */
@@ -288,10 +346,6 @@
   overflow: hidden;
 }
 
-.painel-fase-filtro .painel-topn__btn {
-  padding: 7px 16px;
-  font-size: 13px;
-}
 
 /* ─── Sidebar do Painel (3 seções) ──────────────────────────────────────── */
 

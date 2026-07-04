@@ -5,8 +5,6 @@
 import { parseHash, topbarTabFor } from './router.js';
 import { getApiClient } from './services/api.js';
 import { topbar } from './components/topbar.js';
-import { filterStrip } from './components/filter-strip.js';
-import { sidebar } from './components/sidebar.js';
 import { clear, el } from './dom.js';
 
 import { renderPainel } from './screens/painel.js';
@@ -18,50 +16,61 @@ import { renderCiclos } from './screens/ciclos.js';
 import { renderCicloFicha } from './screens/ciclo-ficha.js';
 import { renderImportar } from './screens/importar.js';
 import { montarChatLauncher } from './components/chat/launcher.js';
+import { renderAlunoShell } from './screens/aluno/shell.js';
 
 const SCREENS = {
   painel:    (_, ctx)   => renderPainel(ctx),
-  alunos:    (_, ctx)   => renderAlunos({ recorte: ctx.recorte }),
+  alunos:    (_, ctx)   => renderAlunos(ctx),
   aluno:     (params)   => renderAlunoFicha({ id: params.id }),
-  simulados: ()         => renderSimulados(),
+  simulados: (_, ctx)   => renderSimulados(ctx),
   simulado:  (params)   => renderSimuladoFicha({ id: params.id }),
-  ciclos:    ()         => renderCiclos(),
+  ciclos:    (_, ctx)   => renderCiclos(ctx),
   ciclo:     (params)   => renderCicloFicha({ id: params.id }),
   importar:  ()         => renderImportar(),
 };
 
-const recortePorTab = {}; // estado da sidebar, resetado quando troca de aba
-
 // Cache das telas já montadas (DOM + dados), por rota. Voltar para uma aba
 // reusa o elemento em vez de remontá-lo e rebuscar tudo — navegação fica
-// instantânea. Cada entrada guarda o conteúdo da tela e, para o painel, a
-// sidebar de ciclos que ele mesmo populou. Invalidado em massa quando entra
-// uma planilha nova (evento 'sas:dados-atualizados').
+// instantânea. Cada entrada guarda o conteúdo da tela e, para rotas com
+// sidebar dinâmica, o elemento de sidebar já populado. Invalidado em massa
+// quando entra uma planilha nova (evento 'sas:dados-atualizados').
 const telaCache = new Map();
 
 // Importar tem timers/polling e estado vivo próprio — não vale a pena cachear.
 const ROTAS_SEM_CACHE = new Set(['importar']);
 
+// Rotas onde a tela popula uma sidebar de filtros (em vez de recortes estáticos).
+const ROTAS_COM_FILTROS = new Set(['alunos', 'simulados', 'ciclos']);
+
+async function renderAlunoApp() {
+  const root = document.getElementById('root');
+  if (!root) return;
+  clear(root);
+  const shell = await renderAlunoShell();
+  root.appendChild(shell);
+}
+
 async function render() {
   const root = document.getElementById('root');
   if (!root) return;
 
+  // Alunos autenticados veem apenas o próprio painel.
+  if (sessionStorage.getItem('sas_tipo') === 'aluno') {
+    return renderAlunoApp();
+  }
+
   const route = parseHash(window.location.hash);
   const activeTab = topbarTabFor(route.name);
-  const recorte = recortePorTab[activeTab] || null;
 
-  // Chave de cache: rota + id + recorte (filtros diferentes = telas diferentes).
-  const routeKey = `${route.name}:${route.params.id || ''}:${recorte || ''}`;
+  // Chave de cache: rota + id. Filtragem é client-side dentro das telas.
+  const routeKey = `${route.name}:${route.params.id || ''}`;
   const podeCachear = !ROTAS_SEM_CACHE.has(route.name);
   const cacheado = podeCachear ? telaCache.get(routeKey) : null;
 
-  // Telas que substituem o filter-strip global por filtros locais próprios.
-  const ROTAS_SEM_FILTERSTRIP_GLOBAL = new Set(['simulados', 'simulado', 'ciclos', 'ciclo', 'painel']);
-  // Telas que escondem a sidebar contextual (têm layout próprio em tela cheia).
+  // Telas que escondem a sidebar (têm layout próprio em tela cheia).
   const ROTAS_SEM_SIDEBAR = new Set(['importar']);
 
   // Para o painel, a sidebar mostra ciclos (populada pelo próprio painel).
-  // No hit de cache, reusamos a sidebar já populada em vez do placeholder.
   const isPainel = route.name === 'painel';
   let sidebarPainelEl = null;
   if (isPainel) {
@@ -71,24 +80,28 @@ async function render() {
     ]);
   }
 
+  // Para alunos/simulados/ciclos, a sidebar mostra filtros (populada pela tela).
+  const temFiltros = ROTAS_COM_FILTROS.has(route.name);
+  let sidebarFiltrosEl = null;
+  if (temFiltros) {
+    sidebarFiltrosEl = cacheado?.sidebarFiltrosEl || el('aside', { class: 'card sidebar' }, [
+      el('div', { class: 'sidebar__label' }, ['Filtros']),
+      el('div', { class: 'empty-state', style: 'padding: 12px 16px; font-size: 12px;' }, ['Carregando…']),
+    ]);
+  }
+
   const sidebarEl = ROTAS_SEM_SIDEBAR.has(route.name)
     ? null
     : isPainel
       ? sidebarPainelEl
-      : sidebar({
-          activeTab,
-          activeRecorte: recorte,
-          onSelect: (newRecorte) => {
-            recortePorTab[activeTab] = newRecorte;
-            render();
-          },
-        });
+      : temFiltros
+        ? sidebarFiltrosEl
+        : null;
 
   // Esqueleto enquanto carrega.
   clear(root);
+  root.appendChild(topbar({ activeTab }));
   const shell = el('div', { class: 'app-shell' }, [
-    topbar({ activeTab }),
-    ROTAS_SEM_FILTERSTRIP_GLOBAL.has(route.name) ? null : filterStrip(),
     el('div', { class: 'app-body' }, [
       sidebarEl,
       el('main', { class: 'app-main' }, [
@@ -107,8 +120,9 @@ async function render() {
     screenEl = cacheado.screenEl;
   } else {
     const renderScreen = SCREENS[route.name] || SCREENS.painel;
-    screenEl = await renderScreen(route.params, { recorte, sidebarEl: sidebarPainelEl });
-    if (podeCachear) telaCache.set(routeKey, { screenEl, sidebarPainelEl });
+    const sidebarCtx = sidebarPainelEl || sidebarFiltrosEl || null;
+    screenEl = await renderScreen(route.params, { sidebarEl: sidebarCtx });
+    if (podeCachear) telaCache.set(routeKey, { screenEl, sidebarPainelEl, sidebarFiltrosEl });
   }
 
   // Substitui o placeholder pelo conteúdo real.

@@ -8,7 +8,7 @@ import { calendarioAnual } from '../components/calendario-anual.js';
 import { tabelaSimulados } from '../components/tabela-simulados.js';
 import { aplicarFiltros, montarOpcoes, contarPorChip } from '../components/sim-filtros-logica.js';
 
-export async function renderSimulados() {
+export async function renderSimulados({ sidebarEl } = {}) {
   const api = getApiClient();
   const simulados = await api.listarSimulados();
   const opcoesDisponiveis = montarOpcoes(simulados);
@@ -24,7 +24,6 @@ export async function renderSimulados() {
   // UI state: calendário começa oculto, usuário decide quando mostrar.
   let calendarioVisivel = false;
 
-  const containerFiltros = el('div', {}, []);
   const containerCalendario = el('div', {}, []);
   const containerTabela = el('div', { class: 'section' }, []);
 
@@ -39,22 +38,25 @@ export async function renderSimulados() {
       aplicarFiltros(simulados, estadoSemDatas).map((s) => s.dataAplicacao).filter(Boolean)
     );
 
-    clear(containerFiltros);
-    containerFiltros.appendChild(simFiltros({
-      opcoesDisponiveis,
-      estado,
-      contagens,
-      onToggle: (grupo, valor) => {
-        const set = estado[grupo];
-        if (set.has(valor)) set.delete(valor);
-        else set.add(valor);
-        rerender();
-      },
-      onReset: () => {
-        for (const k of Object.keys(estado)) estado[k].clear();
-        rerender();
-      },
-    }));
+    if (sidebarEl) {
+      clear(sidebarEl);
+      sidebarEl.appendChild(el('div', { class: 'sidebar__label' }, ['Filtros']));
+      sidebarEl.appendChild(simFiltros({
+        opcoesDisponiveis,
+        estado,
+        contagens,
+        onToggle: (grupo, valor) => {
+          const set = estado[grupo];
+          if (set.has(valor)) set.delete(valor);
+          else set.add(valor);
+          rerender();
+        },
+        onReset: () => {
+          for (const k of Object.keys(estado)) estado[k].clear();
+          rerender();
+        },
+      }));
+    }
 
     clear(containerCalendario);
     const labelBotao = calendarioVisivel
@@ -105,7 +107,6 @@ export async function renderSimulados() {
         el('h1', { class: 'screen-title' }, ['Simulados aplicados']),
         el('p', { class: 'screen-subtitle', id: 'sim-subtitulo' }, [`${simulados.length} simulados`]),
       ]),
-      containerFiltros,
       containerCalendario,
     ]),
     el('section', { class: 'card' }, [

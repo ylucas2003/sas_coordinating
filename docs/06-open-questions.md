@@ -126,11 +126,12 @@ Lista viva de decisões que precisam ser tomadas antes ou durante a implementaç
 ### 10. Hospedagem e infraestrutura
 
 **Decisões necessárias:**
-- Hospedagem em nuvem ou on-premise?
-- Restrições de dados (LGPD — dados de menores de idade)?
-- Backup e recuperação?
+- ✅ **Backend (necessidade técnica imediata) — decidido em 2026-07-04: Render**, via `render.yaml`. Fly.io/Railway saíram de cogitação por terem deixado de ter tier gratuito real. Agendamento de jobs (sync Canvas, alertas, cobrança de professor) decidido como AWS (EventBridge), ver `infra/`.
+- ❓ Nuvem ou on-premise, no sentido mais amplo (onde os dados sensíveis realmente residem)?
+- ❓ Restrições de dados (LGPD — dados de menores de idade)?
+- ❓ Backup e recuperação?
 
-**Como validar:** conversa com TI do colégio.
+**Como validar:** conversa com TI do colégio. A decisão do Render acima resolve o "onde roda o código" por ora, mas não substitui essa conversa sobre política de dados/compliance.
 
 ---
 

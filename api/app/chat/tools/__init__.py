@@ -20,11 +20,11 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from . import artefato, comparar, heuristicas, lookup, stats
+from . import artefato, comparar, heuristicas, lookup, relatorios, stats
 
 # ─── Registry ─────────────────────────────────────────────────────────────
 
-_MODULOS = (lookup, stats, comparar, heuristicas, artefato)
+_MODULOS = (lookup, stats, comparar, heuristicas, relatorios, artefato)
 
 SCHEMAS: list[dict[str, Any]] = []
 HANDLERS: dict[str, Callable] = {}

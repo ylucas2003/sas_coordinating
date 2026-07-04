@@ -60,10 +60,8 @@ Se for necessário usar AWS S3 mesmo, descomentar as variáveis `AWS_*` no `.env
 
 ## Deploy
 
-Não fica no Vercel. Opções recomendadas (todas com tier gratuito):
+Não fica no Vercel. **Decidido em 2026-07-04: Render**, via o `render.yaml` na raiz do repo (Blueprint) — free tier real (750h/mês, sem cartão), hiberna após 15 min sem tráfego. Isso deixou de ser um problema na prática: o scheduler da AWS (`infra/`) chama o backend a cada 5 min, o que mantém a instância sempre acordada.
 
-- **Render** — `render.yaml` com `python -m uvicorn app.main:app`, free tier hiberna após 15min de ociosidade
-- **Fly.io** — `fly.toml` + Dockerfile, sem hibernação
-- **Railway** — detecta `requirements.txt` automaticamente, free tier de 500h/mês
+Fly.io e Railway (cotados antes) deixaram de ter tier gratuito de verdade — verificado direto nos sites oficiais em 2026-07-04, então não são mais opção pra esse projeto.
 
-A decisão final fica em aberto até saber se a TI do Ari de Sá prefere on-premise (questão 10).
+A questão de nuvem-vs-on-premise / LGPD (dados de menor de idade) continua em aberto e depende de conversa com a TI do Ari de Sá (questão 10 em `docs/06-open-questions.md`) — o Render resolve a necessidade técnica imediata, mas não substitui essa conversa.

@@ -144,7 +144,7 @@ function tabelaCiclos(ciclos) {
   ]);
 }
 
-export async function renderCiclos() {
+export async function renderCiclos({ sidebarEl } = {}) {
   const api = getApiClient();
   const ciclos = await api.listarCiclos();
   const opcoes = montarOpcoes(ciclos);
@@ -154,29 +154,31 @@ export async function renderCiclos() {
     anos: new Set(),
   };
 
-  const containerFiltros = el('div', {}, []);
   const containerTabela = el('div', { class: 'section' }, []);
 
   function rerender() {
     const filtrados = aplicarFiltros(ciclos, estado);
     const contagens = contarPorChip(ciclos, estado);
 
-    clear(containerFiltros);
-    containerFiltros.appendChild(filtrosCiclos({
-      opcoes,
-      estado,
-      contagens,
-      onToggle: (grupo, valor) => {
-        const set = estado[grupo];
-        if (set.has(valor)) set.delete(valor);
-        else set.add(valor);
-        rerender();
-      },
-      onReset: () => {
-        for (const k of Object.keys(estado)) estado[k].clear();
-        rerender();
-      },
-    }));
+    if (sidebarEl) {
+      clear(sidebarEl);
+      sidebarEl.appendChild(el('div', { class: 'sidebar__label' }, ['Filtros']));
+      sidebarEl.appendChild(filtrosCiclos({
+        opcoes,
+        estado,
+        contagens,
+        onToggle: (grupo, valor) => {
+          const set = estado[grupo];
+          if (set.has(valor)) set.delete(valor);
+          else set.add(valor);
+          rerender();
+        },
+        onReset: () => {
+          for (const k of Object.keys(estado)) estado[k].clear();
+          rerender();
+        },
+      }));
+    }
 
     clear(containerTabela);
     containerTabela.appendChild(tabelaCiclos(filtrados));
@@ -196,7 +198,6 @@ export async function renderCiclos() {
         el('h1', { class: 'screen-title' }, ['Ciclos do ano letivo']),
         el('p', { class: 'screen-subtitle', id: 'ciclo-subtitulo' }, [`${ciclos.length} ciclos`]),
       ]),
-      containerFiltros,
     ]),
     el('section', { class: 'card' }, [
       containerTabela,

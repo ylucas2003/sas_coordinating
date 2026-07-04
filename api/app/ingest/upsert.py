@@ -403,3 +403,34 @@ def registrar_evento(
             "coluna_planilha": coluna_planilha,
         }
     ).execute()
+
+
+# ─── Sincronização Canvas (auditoria) ─────────────────────────────────────
+
+
+def criar_execucao_sync(cliente: Client, *, tipo: str) -> str:
+    """Abre uma linha em canvas_sync_execucao (tipo: 'backfill' | 'incremental')."""
+    resposta = (
+        cliente.table("canvas_sync_execucao")
+        .insert({"tipo": tipo, "status": "processando"})
+        .execute()
+    )
+    return resposta.data[0]["id"]
+
+
+def finalizar_execucao_sync(
+    cliente: Client,
+    *,
+    execucao_id: str,
+    status: str,
+    resumo: dict[str, Any] | None = None,
+    erro_mensagem: str | None = None,
+) -> None:
+    cliente.table("canvas_sync_execucao").update(
+        {
+            "status": status,
+            "resumo": resumo,
+            "erro_mensagem": erro_mensagem,
+            "finalizado_em": "now()",
+        }
+    ).eq("id", execucao_id).execute()

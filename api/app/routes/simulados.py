@@ -6,12 +6,17 @@ fim de cada upload — frontend nunca calcula nada.
 """
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from supabase import Client
 
 from ..schemas.domain import MateriaResumo, Simulado
+from ..stats.classificacao import recalcular_tudo as recalcular_classificacoes
 from ..stats.metricas import (
     carregar_metrica_geral,
+    corte_aplicavel,
     mapa_metrica_geral_por_simulado,
+    recalcular_simulado,
+    recalcular_tudo as recalcular_metricas,
 )
 from ..stats.utils import como_float, nota_real
 from ..supabase_client import get_supabase
@@ -246,3 +251,92 @@ async def metricas_por_sede(simulado_id: str) -> list[dict]:
         )
     linhas.sort(key=lambda r: -(r["media"] or 0))
     return linhas
+
+
+# ─── Edição manual ────────────────────────────────────────────────────────
+
+
+class PatchSimuladoBody(BaseModel):
+    anulado: bool | None = None
+    nota_maxima: float | None = None
+    rotulo_curto: str | None = None
+    nome: str | None = None
+
+
+@router.patch("/{simulado_id}", response_model=Simulado)
+async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado:
+    """Edita campos de um simulado.
+
+    Campos aceitos: anulado, nota_maxima, rotulo_curto, nome.
+
+    - anulado=true  → métricas do simulado são removidas do cache; classificações
+                       recalculadas (o simulado sai das janelas de notas).
+    - anulado=false → simulado reativado; métricas e classificações recalculadas.
+    - nota_maxima   → escala de normalização muda; métricas e classificações
+                       recalculadas.
+    - rotulo_curto / nome → sem impacto em estatísticas.
+    """
+    cliente = get_supabase()
+
+    resp = (
+        cliente.table("simulado")
+        .select(_CAMPOS_SIMULADO)
+        .eq("id", simulado_id)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail=f"simulado {simulado_id} não encontrado")
+
+    simulado_atual = resp.data[0]
+    anulado_antes = bool(simulado_atual.get("anulado"))
+
+    atualizacao: dict = {}
+    if body.anulado is not None:
+        atualizacao["anulado"] = body.anulado
+    if body.nota_maxima is not None:
+        if body.nota_maxima <= 0:
+            raise HTTPException(status_code=422, detail="nota_maxima deve ser positiva")
+        atualizacao["nota_maxima"] = body.nota_maxima
+    if body.rotulo_curto is not None:
+        atualizacao["rotulo_curto"] = body.rotulo_curto
+    if body.nome is not None:
+        atualizacao["nome"] = body.nome
+
+    if not atualizacao:
+        raise HTTPException(status_code=422, detail="Nenhum campo informado para atualizar")
+
+    cliente.table("simulado").update(atualizacao).eq("id", simulado_id).execute()
+
+    anulado_novo = atualizacao.get("anulado", anulado_antes)
+    muda_stats = "anulado" in atualizacao or "nota_maxima" in atualizacao
+
+    if muda_stats:
+        if anulado_novo:
+            # Remove cache de métricas — recalcular_tudo ignora anulados mas
+            # não limpa registros anteriores. Limpamos manualmente.
+            cliente.table("metrica_simulado").delete().eq("simulado_id", simulado_id).execute()
+        else:
+            # Reativado ou nota_maxima mudou: recalcula métricas deste simulado.
+            simulado_para_corte = {**simulado_atual, **atualizacao}
+            nota_maxima = como_float(simulado_para_corte.get("nota_maxima")) or 10.0
+            corte = corte_aplicavel(simulado_para_corte)
+            recalcular_simulado(
+                cliente,
+                simulado_id=simulado_id,
+                nota_maxima=nota_maxima,
+                corte=corte,
+            )
+        recalcular_classificacoes(cliente)
+
+    resp_novo = (
+        cliente.table("simulado")
+        .select(_CAMPOS_SIMULADO)
+        .eq("id", simulado_id)
+        .limit(1)
+        .execute()
+    )
+    metrica = carregar_metrica_geral(cliente, simulado_id)
+    materias = _mapa_materias(cliente)
+    ciclos = _mapa_ciclos(cliente)
+    return _linha_para_simulado(resp_novo.data[0], metrica, materias, ciclos)

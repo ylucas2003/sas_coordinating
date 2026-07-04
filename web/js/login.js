@@ -111,26 +111,44 @@ function setModo(modo) {
 }
 
 // ─── Submissão ────────────────────────────────────────────────────────────
-function handleSubmit(e) {
+async function handleSubmit(e) {
   e.preventDefault();
-  const m    = MODOS[modoAtual];
   const user = els.inputUser.value.trim();
   const pass = els.inputSenha.value;
 
-  if (user === m.credUser && pass === m.credSenha) {
-    els.error.style.display = 'none';
-    // Marca sessão autenticada e redireciona para a plataforma
-    sessionStorage.setItem('sas_auth', '1');
+  const submitBtn = document.getElementById('js-submit');
+  submitBtn.disabled = true;
+  els.error.style.display = 'none';
+
+  try {
+    const res = await fetch('http://localhost:8000/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: modoAtual, usuario: user, senha: pass }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Credenciais inválidas. Verifique seus dados e tente novamente.');
+    }
+
+    const dados = await res.json();
+    sessionStorage.setItem('sas_token',    dados.access_token);
+    sessionStorage.setItem('sas_tipo',     dados.tipo);
+    sessionStorage.setItem('sas_nome',     dados.nome);
+    sessionStorage.setItem('sas_auth',     '1');
+    if (dados.aluno_id) sessionStorage.setItem('sas_aluno_id', dados.aluno_id);
+
     window.location.href = './index.html';
-  } else {
+  } catch (err) {
     els.error.style.display = 'block';
-    els.error.textContent   = 'Credenciais inválidas. Verifique seus dados e tente novamente.';
-    // Shake no formulário
+    els.error.textContent   = err.message || 'Credenciais inválidas. Verifique seus dados e tente novamente.';
     const form = document.getElementById('js-form');
     form.style.animation = 'none';
-    // Trigger reflow
     void form.offsetHeight;
     form.style.animation = 'lp-shake 0.4s ease';
+  } finally {
+    submitBtn.disabled = false;
   }
 }
 

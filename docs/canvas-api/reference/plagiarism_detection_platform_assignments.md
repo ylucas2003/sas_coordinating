@@ -1,0 +1,38 @@
+# Plagiarism Detection Platform Assignments API
+
+**Plagiarism Detection Platform API for Assignments (Must use [JWT access tokens](jwt_access_tokens.html) with this API).**
+
+### A LtiAssignment object looks like:
+
+``` example
+// A Canvas assignment
+{
+  "id": 4,
+  "name": "Midterm Review",
+  "description": "<p>Do the following:</p>...",
+  "points_possible": 10,
+  // The due date for the assignment. If a user id is supplied and an assignment
+  // override is in place this field will reflect the due date as it applies to
+  // the user.
+  "due_at": "2012-07-01T23:59:00-06:00",
+  "lti_id": "86157096483e6b3a50bfedc6bac902c0b20a824f",
+  "course_id": 10000000000060,
+  "lti_course_id": "66157096483e6b3a50bfedc6bac902c0b20a8241"
+}
+```
+
+## Get a single assignment (lti)
+
+### GET /api/lti/assignments/:assignment_id
+
+**Scope:** `url:GET|/api/lti/assignments/:assignment_id`
+
+Get a single Canvas assignment by Canvas id or LTI id. Tool providers may only access assignments that are associated with their tool.
+
+#### Request Parameters:
+
+| Parameter |  | Type | Description |
+|----|----|----|----|
+| user_id |  | string | The id of the user. Can be a Canvas or LTI id for the user. |
+
+Returns a [LtiAssignment](plagiarism_detection_platform_assignments.html#LtiAssignment) object

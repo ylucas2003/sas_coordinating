@@ -13,10 +13,23 @@ const BASE_URL = 'http://localhost:8000';
 // `limparCacheDados()` após um upload bem-sucedido.
 const cacheGet = new Map();
 
+function _authHeaders() {
+  const token = sessionStorage.getItem('sas_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function _onUnauthorized(res) {
+  if (res.status === 401) {
+    sessionStorage.clear();
+    window.location.replace('./login.html');
+  }
+}
+
 async function get(path, { cache = true } = {}) {
   if (cache && cacheGet.has(path)) return cacheGet.get(path);
   const promessa = (async () => {
-    const res = await fetch(`${BASE_URL}${path}`);
+    const res = await fetch(`${BASE_URL}${path}`, { headers: _authHeaders() });
+    _onUnauthorized(res);
     if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
     return res.json();
   })();
@@ -36,9 +49,10 @@ function limparCacheDados() {
 async function post(path, body) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ..._authHeaders() },
     body: body ? JSON.stringify(body) : undefined,
   });
+  _onUnauthorized(res);
   if (!res.ok) throw new Error(`POST ${path} → ${res.status}`);
   return res.json();
 }
@@ -53,6 +67,9 @@ function postArquivo(path, arquivo, campos = {}, { onProgress, onUploaded } = {}
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${BASE_URL}${path}`);
+
+    const token = sessionStorage.getItem('sas_token');
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
     // Progresso do upload de bytes (0%–100%).
     if (onProgress) {
@@ -95,7 +112,7 @@ export const httpClient = {
   listarAlertas: () => get('/alertas'),
   resolverAlerta: (id) => post(`/alertas/${encodeURIComponent(id)}/resolver`),
 
-  // Alunos
+  // Alunos (visão do coordenador)
   listarAlunos: (filtros = {}) => {
     const qs = new URLSearchParams(filtros).toString();
     return get(`/alunos${qs ? `?${qs}` : ''}`);
@@ -105,6 +122,15 @@ export const httpClient = {
   heatmapAluno: (id) => get(`/alunos/${encodeURIComponent(id)}/heatmap`),
   alunosSimilares: (id, k = 5) => get(`/alunos/${encodeURIComponent(id)}/similares?k=${k}`),
 
+  // Aluno autenticado (visão do próprio aluno)
+  obterMe: () => get('/me', { cache: false }),
+  trajetoriaMe: () => get('/me/trajetoria', { cache: false }),
+  heatmapMe: () => get('/me/heatmap', { cache: false }),
+  streakMe: () => get('/me/streak', { cache: false }),
+  listarSimuladosMe: () => get('/me/simulados', { cache: false }),
+  obterSimuladoMe: (id) => get(`/me/simulado/${encodeURIComponent(id)}`, { cache: false }),
+  evolucaoMe: () => get('/me/evolucao', { cache: false }),
+
   // Simulados
   listarSimulados: () => get('/simulados'),
   obterSimulado: (id) => get(`/simulados/${encodeURIComponent(id)}`),
@@ -112,6 +138,11 @@ export const httpClient = {
   notasSimulado: (id) => get(`/simulados/${encodeURIComponent(id)}/notas`),
   simuladoPorMateria: (id) => get(`/simulados/${encodeURIComponent(id)}/por-materia`),
   simuladoPorSede: (id) => get(`/simulados/${encodeURIComponent(id)}/por-sede`),
+  editarSimulado: (id, body) => patchJson(`/simulados/${encodeURIComponent(id)}`, body),
+
+  // Notas (edição manual)
+  editarNota: (alunoId, simuladoId, body) =>
+    patchJson(`/notas/${encodeURIComponent(alunoId)}/${encodeURIComponent(simuladoId)}`, body),
 
   // Ciclos
   listarCiclos: () => get('/ciclos'),
@@ -159,15 +190,17 @@ export const httpClient = {
 async function patchJson(path, body) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ..._authHeaders() },
     body: JSON.stringify(body),
   });
+  _onUnauthorized(res);
   if (!res.ok) throw new Error(`PATCH ${path} → ${res.status}`);
   return res.json();
 }
 
 async function del(path) {
-  const res = await fetch(`${BASE_URL}${path}`, { method: 'DELETE' });
+  const res = await fetch(`${BASE_URL}${path}`, { method: 'DELETE', headers: _authHeaders() });
+  _onUnauthorized(res);
   if (!res.ok) throw new Error(`DELETE ${path} → ${res.status}`);
   return res.json();
 }
@@ -176,7 +209,7 @@ async function del(path) {
 async function streamSSE(path, body, onEvento) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ..._authHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) {

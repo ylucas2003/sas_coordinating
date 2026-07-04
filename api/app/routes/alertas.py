@@ -9,10 +9,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from ..auth import exigir_scheduler_secret
 from ..schemas.domain import Alerta
-from ..supabase_client import get_supabase
+from ..supabase_client import criar_cliente_supabase, get_supabase
 
 router = APIRouter(prefix="/alertas", tags=["alertas"])
 
@@ -111,3 +112,20 @@ async def resolver_alerta(alerta_id: str) -> dict:
     if not resp.data:
         raise HTTPException(status_code=404, detail=f"alerta {alerta_id} não encontrado")
     return {"id": alerta_id, "resolvido": True}
+
+
+@router.post("/verificar")
+def verificar_alertas(_: None = Depends(exigir_scheduler_secret)) -> dict:
+    """Recalcula métricas/classificação e reavalia as regras de alerta.
+
+    Chamado pelo scheduler (EventBridge, a cada 1h) — mesma sequência que o
+    pipeline de import executa ao final. Handler síncrono: roda no threadpool,
+    sem segurar o event loop.
+    """
+    from ..stats import alertas as alertas_stats, classificacao, metricas
+
+    cliente = criar_cliente_supabase()
+    metricas.recalcular_tudo(cliente)
+    classificacao.recalcular_tudo(cliente)
+    n_alertas = alertas_stats.avaliar_tudo(cliente)
+    return {"status": "ok", "alertas_emitidos": n_alertas}

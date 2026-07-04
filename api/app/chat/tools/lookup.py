@@ -170,7 +170,7 @@ def listar_simulados(
     q = (
         cliente.table("simulado")
         .select(
-            "id, nome, rotulo_curto, tipo, fase, data_aplicacao, ciclo_id, "
+            "id, nome, rotulo_curto, tipo, data_aplicacao, ciclo_id, "
             "materia_id, anulado, e_agregado"
         )
         .order("data_aplicacao", desc=True)
@@ -205,7 +205,6 @@ def listar_simulados(
                 "nome": s["nome"],
                 "rotuloCurto": s.get("rotulo_curto"),
                 "tipo": s.get("tipo"),
-                "fase": s.get("fase"),
                 "dataAplicacao": s.get("data_aplicacao"),
                 "cicloId": s.get("ciclo_id"),
                 "materia": mat,
@@ -246,7 +245,7 @@ def obter_simulado(cliente: Client, *, simulado_id: str) -> dict:
     resp = (
         cliente.table("simulado")
         .select(
-            "id, nome, rotulo_curto, tipo, fase, data_aplicacao, ciclo_id, "
+            "id, nome, rotulo_curto, tipo, data_aplicacao, ciclo_id, "
             "materia_id, nota_maxima, anulado, e_agregado"
         )
         .eq("id", simulado_id)
@@ -285,7 +284,6 @@ def obter_simulado(cliente: Client, *, simulado_id: str) -> dict:
         "nome": s["nome"],
         "rotuloCurto": s.get("rotulo_curto"),
         "tipo": s.get("tipo"),
-        "fase": s.get("fase"),
         "dataAplicacao": s.get("data_aplicacao"),
         "cicloId": s.get("ciclo_id"),
         "materia": mat,
