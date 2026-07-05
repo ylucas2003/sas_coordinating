@@ -53,18 +53,26 @@ def executar_sync(_: None = Depends(exigir_scheduler_secret)) -> dict:
     if not _trava_execucao.acquire(blocking=False):
         return {"status": "ignorado", "motivo": "sync anterior ainda em andamento"}
 
-    cliente = criar_cliente_supabase()
-    execucao_id = criar_execucao_sync(cliente, tipo="incremental")
+    # TUDO depois do acquire fica dentro do try — se qualquer passo (inclusive
+    # criar a linha de auditoria) falhar, a trava é liberada mesmo assim.
+    # Sem isso, uma falha aqui deixaria todos os syncs futuros em "ignorado".
+    execucao_id: str | None = None
     try:
+        cliente = criar_cliente_supabase()
+        execucao_id = criar_execucao_sync(cliente, tipo="incremental")
         resumo = asyncio.run(_executar())
         finalizar_execucao_sync(
             cliente, execucao_id=execucao_id, status="sucesso", resumo=resumo.como_dict()
         )
         return {"status": "ok", "execucao_id": execucao_id, **resumo.como_dict()}
     except Exception as exc:
-        finalizar_execucao_sync(
-            cliente, execucao_id=execucao_id, status="erro", erro_mensagem=str(exc)
-        )
+        if execucao_id is not None:
+            try:
+                finalizar_execucao_sync(
+                    cliente, execucao_id=execucao_id, status="erro", erro_mensagem=str(exc)
+                )
+            except Exception:
+                pass  # auditoria não pode mascarar o erro original
         raise HTTPException(status_code=500, detail=f"sync falhou: {exc}")
     finally:
         _trava_execucao.release()
