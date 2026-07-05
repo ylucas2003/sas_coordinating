@@ -22,6 +22,14 @@ const NOME_LEGIVEL = {
   materias_problematicas: 'Identificando matérias problemáticas',
   gerar_grafico:          'Gerando gráfico',
   exportar_csv:           'Gerando CSV',
+
+  // Tools do chat do aluno (mentor)
+  minhas_notas:              'Buscando suas notas',
+  meu_desempenho_em_simulado: 'Analisando seu simulado',
+  minha_evolucao:            'Calculando sua evolução',
+  meu_streak:                'Conferindo sua sequência',
+  minhas_questoes_erradas:   'Revisando suas questões',
+  meu_insight_do_ciclo:      'Gerando seu insight do ciclo',
 };
 
 /**

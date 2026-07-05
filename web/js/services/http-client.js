@@ -58,7 +58,11 @@ async function post(path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   _onUnauthorized(res);
-  if (!res.ok) throw new Error(`POST ${path} → ${res.status}`);
+  if (!res.ok) {
+    let detalhe = '';
+    try { detalhe = (await res.json()).detail || ''; } catch {}
+    throw new Error(detalhe || `POST ${path} → ${res.status}`);
+  }
   return res.json();
 }
 
@@ -134,7 +138,14 @@ export const httpClient = {
   streakMe: () => get('/me/streak', { cache: false }),
   listarSimuladosMe: () => get('/me/simulados', { cache: false }),
   obterSimuladoMe: (id) => get(`/me/simulado/${encodeURIComponent(id)}`, { cache: false }),
+  questoesSimuladoMe: (id) => get(`/me/simulado/${encodeURIComponent(id)}/questoes`, { cache: false }),
   evolucaoMe: () => get('/me/evolucao', { cache: false }),
+  insightMe: () => get('/me/insight', { cache: false }),
+  trocarSenhaMe: (body) => post('/me/senha', body),
+
+  // Acesso do aluno (staff): zera a senha e libera novo primeiro acesso.
+  resetarAcessoAluno: (id, body = {}) =>
+    post(`/alunos/${encodeURIComponent(id)}/resetar-acesso`, body),
 
   // Simulados
   listarSimulados: () => get('/simulados'),

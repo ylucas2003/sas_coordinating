@@ -20,7 +20,11 @@ import { httpClient } from './http-client.js';
  * @property {() => Promise<{count: number, label: string}>} streakMe
  * @property {() => Promise<Array>} listarSimuladosMe
  * @property {(id: string) => Promise<object>} obterSimuladoMe
+ * @property {(id: string) => Promise<object>} questoesSimuladoMe
  * @property {() => Promise<{ciclos: Array, materias: object}>} evolucaoMe
+ * @property {() => Promise<{disponivel: boolean, cicloOrdem: number|null, cicloNome: string|null, bullets: string[]}>} insightMe
+ * @property {(body: {senha_atual: string, senha_nova: string}) => Promise<object>} trocarSenhaMe
+ * @property {(id: string, body?: {email?: string}) => Promise<object>} resetarAcessoAluno
  * @property {() => Promise<Array>} listarSimulados
  * @property {(id: string) => Promise<object | null>} obterSimulado
  * @property {(id: string) => Promise<object>} histogramaSimulado

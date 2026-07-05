@@ -3,8 +3,11 @@
 // Toda navegação interna passa pelo objeto `nav` — sem hash routing.
 
 import { el, clear } from '../../dom.js';
+import { getApiClient } from '../../services/api.js';
 import { renderPainelAluno } from './painel.js';
 import { renderSimuladosAluno } from './simulados.js';
+
+const api = getApiClient();
 
 // ─── SVG helpers ─────────────────────────────────────────────────────────
 
@@ -48,6 +51,92 @@ function _logo(size = 34) {
   return wrap;
 }
 
+// ─── Conta: sair / trocar senha ───────────────────────────────────────────
+
+function _sair() {
+  sessionStorage.clear();
+  window.location.replace('./login.html');
+}
+
+function _fecharModal(overlay) {
+  overlay.remove();
+}
+
+// Modal de troca de senha (POST /me/senha).
+function _abrirModalTrocarSenha() {
+  const campo = (label, id) => el('label', { class: 'alu-modal__campo' }, [
+    el('span', { class: 'alu-modal__label' }, [label]),
+    el('input', { class: 'alu-modal__input', id, type: 'password', autocomplete: 'new-password' }),
+  ]);
+
+  const erroEl = el('div', { class: 'alu-modal__erro', style: 'display:none' });
+  const okEl = el('div', { class: 'alu-modal__ok', style: 'display:none' }, ['Senha alterada com sucesso.']);
+  const btnSalvar = el('button', { class: 'alu-modal__btn alu-modal__btn--primario', type: 'submit' }, ['Salvar nova senha']);
+
+  const form = el('form', { class: 'alu-modal__form' }, [
+    campo('Senha atual', 'alu-senha-atual'),
+    campo('Nova senha (mínimo 8 caracteres)', 'alu-senha-nova'),
+    campo('Confirmar nova senha', 'alu-senha-confirmar'),
+    erroEl,
+    okEl,
+    btnSalvar,
+  ]);
+
+  const overlay = _montarModal('Trocar senha', form);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const atual = form.querySelector('#alu-senha-atual').value;
+    const nova = form.querySelector('#alu-senha-nova').value;
+    const confirmar = form.querySelector('#alu-senha-confirmar').value;
+
+    erroEl.style.display = 'none';
+    okEl.style.display = 'none';
+    const mostrarErro = (msg) => { erroEl.style.display = ''; erroEl.textContent = msg; };
+
+    if (nova.length < 8) return mostrarErro('A nova senha precisa ter pelo menos 8 caracteres.');
+    if (nova !== confirmar) return mostrarErro('As senhas não conferem.');
+
+    btnSalvar.disabled = true;
+    try {
+      await api.trocarSenhaMe({ senha_atual: atual, senha_nova: nova });
+      okEl.style.display = '';
+      setTimeout(() => _fecharModal(overlay), 900);
+    } catch (err) {
+      mostrarErro(err.message || 'Não foi possível trocar a senha.');
+    } finally {
+      btnSalvar.disabled = false;
+    }
+  });
+}
+
+// Menu de conta (mobile): trocar senha / sair.
+function _abrirModalConta() {
+  const corpo = el('div', { class: 'alu-modal__form' }, [
+    el('button', {
+      class: 'alu-modal__btn',
+      onclick: () => { _fecharModal(document.querySelector('.alu-modal-overlay')); _abrirModalTrocarSenha(); },
+    }, ['Trocar senha']),
+    el('button', { class: 'alu-modal__btn', onclick: _sair }, ['Sair da conta']),
+  ]);
+  _montarModal('Minha conta', corpo);
+}
+
+function _montarModal(titulo, corpoEl) {
+  const overlay = el('div', { class: 'alu-modal-overlay' });
+  const card = el('div', { class: 'alu-modal' }, [
+    el('div', { class: 'alu-modal__header' }, [
+      el('span', { class: 'alu-modal__titulo' }, [titulo]),
+      el('button', { class: 'alu-modal__fechar', onclick: () => _fecharModal(overlay) }, ['×']),
+    ]),
+    corpoEl,
+  ]);
+  overlay.appendChild(card);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) _fecharModal(overlay); });
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
 // ─── Header desktop ───────────────────────────────────────────────────────
 
 function _headerDesktop({ nome, primeiro, tabEls }) {
@@ -67,10 +156,8 @@ function _headerDesktop({ nome, primeiro, tabEls }) {
         el('div', { class: 'alu-header__user-name' }, [nome || '']),
       ]),
       el('div', { class: 'alu-avatar' }, [inicial]),
-      el('button', {
-        class: 'alu-header__sair',
-        onclick: () => { sessionStorage.clear(); window.location.replace('./login.html'); },
-      }, ['Sair']),
+      el('button', { class: 'alu-header__sair', onclick: _abrirModalTrocarSenha }, ['Trocar senha']),
+      el('button', { class: 'alu-header__sair', onclick: _sair }, ['Sair']),
     ]),
   ]);
 
@@ -90,11 +177,12 @@ function _headerMobile({ nome }) {
       ]),
     ]),
     el('div', { class: 'alu-header__user', style: 'margin-left:auto' }, [
-      el('div', { class: 'alu-avatar', style: 'width:30px;height:30px;font-size:13px' }, [inicial]),
-      el('button', {
-        class: 'alu-header__sair',
-        onclick: () => { sessionStorage.clear(); window.location.replace('./login.html'); },
-      }, ['Sair']),
+      // No mobile o avatar abre o menu de conta (trocar senha / sair).
+      el('div', {
+        class: 'alu-avatar',
+        style: 'width:30px;height:30px;font-size:13px;cursor:pointer',
+        onclick: _abrirModalConta,
+      }, [inicial]),
     ]),
   ]);
 }

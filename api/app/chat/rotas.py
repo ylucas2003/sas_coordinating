@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 
 from ..auth import get_current_user
 from ..supabase_client import get_supabase
-from . import agente
+from . import agente, perfis
 
 log = logging.getLogger("sas.chat.rotas")
 
@@ -283,8 +283,15 @@ async def enviar_mensagem(
     if len(texto) > 4000:
         raise HTTPException(status_code=400, detail="mensagem muito longa (max 4000 chars)")
 
+    # Perfil define prompt/tools/modelo: aluno conversa com o mentor (tools
+    # restritas ao próprio aluno_id); coordenador com o assistente staff.
+    if user.get("tipo") == "aluno":
+        perfil = perfis.perfil_aluno(user["aluno_id"], user.get("nome") or "")
+    else:
+        perfil = perfis.perfil_coordenador()
+
     return StreamingResponse(
-        _stream_mensagem(cliente, thread_id, usuario, texto),
+        _stream_mensagem(cliente, thread_id, usuario, texto, perfil),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -301,6 +308,7 @@ async def _stream_mensagem(
     thread_id: str,
     usuario: str,
     texto_user: str,
+    perfil,
 ) -> AsyncIterator[bytes]:
     """Roda o agente e persiste tudo ao final.
 
@@ -343,6 +351,7 @@ async def _stream_mensagem(
         thread_id=thread_id,
         historico=historico,
         nova_msg_user=texto_user,
+        perfil=perfil,
     ):
         # Emite o evento bruto pro front.
         yield evt.formatar_sse().encode("utf-8")

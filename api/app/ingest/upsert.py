@@ -341,6 +341,90 @@ def upsert_notas_em_lote(
     return total
 
 
+# ─── Questões de quiz (Canvas — Fase 2 do sync) ───────────────────────────
+
+
+def upsert_questoes_em_lote(
+    cliente: Client,
+    *,
+    questoes: list[dict[str, Any]],
+) -> dict[str, str]:
+    """Upsert em lote de `questao`. Devolve {canvas_question_id: questao_id}.
+
+    Espera dicts com simulado_id, canvas_question_id, posicao, texto, pontos.
+    Nunca envia `assunto` — a classificação futura não pode ser sobrescrita
+    pelo sync.
+    """
+    if not questoes:
+        return {}
+
+    canvas_para_id: dict[str, str] = {}
+    TAMANHO_LOTE = 200
+    for inicio in range(0, len(questoes), TAMANHO_LOTE):
+        lote = questoes[inicio : inicio + TAMANHO_LOTE]
+        resposta = (
+            cliente.table("questao")
+            .upsert(lote, on_conflict="simulado_id,canvas_question_id", returning="representation")
+            .execute()
+        )
+        for linha in resposta.data or []:
+            canvas_para_id[linha["canvas_question_id"]] = linha["id"]
+    return canvas_para_id
+
+
+def upsert_alternativas_em_lote(
+    cliente: Client,
+    *,
+    alternativas: list[dict[str, Any]],
+) -> dict[tuple[str, str], str]:
+    """Upsert em lote de `questao_alternativa`.
+
+    Devolve {(questao_id, canvas_answer_id): alternativa_id}. Espera dicts com
+    questao_id, canvas_answer_id, texto, correta.
+    """
+    if not alternativas:
+        return {}
+
+    chave_para_id: dict[tuple[str, str], str] = {}
+    TAMANHO_LOTE = 500
+    for inicio in range(0, len(alternativas), TAMANHO_LOTE):
+        lote = alternativas[inicio : inicio + TAMANHO_LOTE]
+        resposta = (
+            cliente.table("questao_alternativa")
+            .upsert(lote, on_conflict="questao_id,canvas_answer_id", returning="representation")
+            .execute()
+        )
+        for linha in resposta.data or []:
+            chave_para_id[(linha["questao_id"], linha["canvas_answer_id"])] = linha["id"]
+    return chave_para_id
+
+
+def upsert_respostas_questao_em_lote(
+    cliente: Client,
+    *,
+    respostas: list[dict[str, Any]],
+) -> int:
+    """Upsert em lote de `questao_resposta_aluno` (PK aluno_id+questao_id).
+
+    Espera dicts com aluno_id, questao_id, alternativa_id (ou None) e correta.
+    Retorna o número de linhas enviadas.
+    """
+    if not respostas:
+        return 0
+
+    total = 0
+    TAMANHO_LOTE = 500
+    for inicio in range(0, len(respostas), TAMANHO_LOTE):
+        lote = respostas[inicio : inicio + TAMANHO_LOTE]
+        (
+            cliente.table("questao_resposta_aluno")
+            .upsert(lote, on_conflict="aluno_id,questao_id", returning="minimal")
+            .execute()
+        )
+        total += len(lote)
+    return total
+
+
 # ─── Upload (auditoria) ───────────────────────────────────────────────────
 
 

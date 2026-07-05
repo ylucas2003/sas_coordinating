@@ -42,6 +42,7 @@ from ..ingest.upsert import (
 )
 from . import mapeador
 from .cliente import ClienteCanvas
+from .questoes import sincronizar_questoes_do_quiz
 
 
 @dataclass
@@ -53,6 +54,8 @@ class ResumoSincronizacao:
     simulados_processados: int = 0
     notas_gravadas: int = 0
     emails_preenchidos: int = 0
+    quizzes_sincronizados: int = 0
+    respostas_questao_gravadas: int = 0
     avisos: list[str] = field(default_factory=list)
 
     def como_dict(self) -> dict[str, Any]:
@@ -278,8 +281,98 @@ async def _sincronizar_curso_simulados(
             )
     resumo.notas_gravadas += upsert_notas_em_lote(cliente, notas=list(nota_por_chave.values()))
 
+    # ── (6) Questões dos quizzes (gated — Quiz Statistics é 1 chamada/quiz) ──
+    simulado_ids_com_notas_novas = {simulado_id for (_, simulado_id) in nota_por_chave}
+    await _sincronizar_questoes_gated(
+        cliente=cliente,
+        canvas=canvas,
+        course_id=course_id,
+        simulado_ids_do_curso=set(external_para_simulado_id.values()),
+        simulado_ids_com_notas_novas=simulado_ids_com_notas_novas,
+        aluno_por_canvas_user=aluno_por_canvas_user,
+        resumo=resumo,
+    )
+
     resumo.cursos_processados += 1
     return aluno_por_canvas_user
+
+
+# ─── Questões dos quizzes (Fase 2) ────────────────────────────────────────
+
+# Além dos quizzes com notas novas na rodada, o incremental vai puxando o
+# backlog de quizzes nunca sincronizados — poucos por rodada para caber no
+# ciclo de 5 min.
+MAX_QUIZZES_PENDENTES_POR_RODADA = 3
+
+
+async def _sincronizar_questoes_gated(
+    *,
+    cliente: Client,
+    canvas: ClienteCanvas,
+    course_id: str,
+    simulado_ids_do_curso: set[str],
+    simulado_ids_com_notas_novas: set[str],
+    aluno_por_canvas_user: dict[str, str],
+    resumo: ResumoSincronizacao,
+) -> None:
+    """Sincroniza questões só de quem precisa: (a) quizzes cujas notas mudaram
+    nesta rodada; (b) até MAX_QUIZZES_PENDENTES_POR_RODADA quizzes já aplicados
+    e nunca sincronizados (backlog)."""
+    if not simulado_ids_do_curso:
+        return
+
+    ids = list(simulado_ids_do_curso)
+    com_quiz: list[dict[str, Any]] = []
+    for inicio in range(0, len(ids), 100):
+        resp = (
+            cliente.table("simulado")
+            .select("id, quiz_id, data_aplicacao, questoes_sincronizadas_em")
+            .in_("id", ids[inicio : inicio + 100])
+            .not_.is_("quiz_id", "null")
+            .execute()
+        )
+        com_quiz.extend(resp.data or [])
+
+    hoje = date.today().isoformat()
+    # Backlog do mais recente para o mais antigo: se um quiz antigo falhar
+    # permanentemente (statistics indisponível), ele afunda para o fim da
+    # fila em vez de ocupar um slot toda rodada — o resgate é o script
+    # canvas_backfill_questoes.py.
+    com_quiz.sort(key=lambda s: s.get("data_aplicacao") or "", reverse=True)
+    alvo: list[dict[str, Any]] = []
+    pendentes_usados = 0
+    for sim in com_quiz:
+        if sim["id"] in simulado_ids_com_notas_novas:
+            alvo.append(sim)
+        elif (
+            sim.get("questoes_sincronizadas_em") is None
+            and sim.get("data_aplicacao") is not None
+            and sim["data_aplicacao"] <= hoje
+            and pendentes_usados < MAX_QUIZZES_PENDENTES_POR_RODADA
+        ):
+            alvo.append(sim)
+            pendentes_usados += 1
+
+    for sim in alvo:
+        try:
+            resultado = await sincronizar_questoes_do_quiz(
+                cliente,
+                canvas,
+                course_id=course_id,
+                simulado_id=sim["id"],
+                quiz_id=str(sim["quiz_id"]),
+                aluno_por_canvas_user=aluno_por_canvas_user,
+            )
+        except Exception as exc:
+            resumo.avisos.append(f"Questões do quiz {sim['quiz_id']} falharam: {exc}")
+            continue
+        resumo.quizzes_sincronizados += 1
+        resumo.respostas_questao_gravadas += resultado["respostas"]
+        if resultado["questoes"] and not resultado["tem_user_ids"]:
+            resumo.avisos.append(
+                f"Quiz {sim['quiz_id']}: statistics sem user_ids por alternativa — "
+                "respostas por aluno não sincronizadas (avaliar plano B: Quiz Submissions)."
+            )
 
 
 # ─── E-mail dos alunos no sync incremental ────────────────────────────────

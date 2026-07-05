@@ -1,26 +1,76 @@
-"""Endpoints do aluno autenticado — proxy seguro para /alunos/{id}.
+"""Endpoints do aluno autenticado — proxy seguro para os dados do próprio aluno.
 
-O aluno só consegue ver os próprios dados: o JWT carrega o aluno_id e
-os handlers repassam direto para as funções de /alunos sem expor o ID
-na URL ou permitir acesso a outros alunos.
+O aluno só consegue ver os próprios dados: o JWT carrega o aluno_id e os
+handlers repassam para as extrações de stats/aluno_dados.py (compartilhadas
+com as tools do chat do aluno) sem expor o ID na URL nem permitir acesso a
+outros alunos.
 """
 
 from __future__ import annotations
 
-import statistics as st
-from collections import defaultdict
-
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, field_validator
 
-from ..auth import get_current_aluno
-from ..stats.metricas import mapa_metrica_geral_por_simulado
-from ..stats.utils import como_float, nota_real
+from ..auth import get_current_aluno, hash_senha, verificar_senha
+from ..stats.aluno_dados import (
+    detalhe_simulado_do_aluno,
+    evolucao_do_aluno,
+    payload_insight_ciclo,
+    questoes_do_aluno_no_simulado,
+    simulados_do_aluno,
+    streak_do_aluno,
+)
+from ..stats.insight_aluno import gerar_para_aluno_ciclo
+from ..supabase_client import get_supabase
 from .alunos import heatmap_aluno, obter_aluno, trajetoria_aluno
 
 router = APIRouter(prefix="/me", tags=["me"])
 
 
-# ── Endpoints existentes ──────────────────────────────────────────────────
+def _ou_404(resultado: dict) -> dict:
+    """{"erro": ...} das extrações compartilhadas vira 404 na camada HTTP."""
+    if isinstance(resultado, dict) and "erro" in resultado:
+        raise HTTPException(status_code=404, detail=resultado["erro"])
+    return resultado
+
+
+# ── Conta ─────────────────────────────────────────────────────────────────
+
+
+class TrocarSenhaBody(BaseModel):
+    senha_atual: str
+    senha_nova: str
+
+    @field_validator("senha_nova")
+    @classmethod
+    def _senha_minima(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("a senha precisa ter pelo menos 8 caracteres")
+        return v
+
+
+@router.post("/senha")
+async def me_trocar_senha(body: TrocarSenhaBody, user: dict = Depends(get_current_aluno)) -> dict:
+    cliente = get_supabase()
+    resp = (
+        cliente.table("aluno")
+        .select("id, senha_hash")
+        .eq("id", user["aluno_id"])
+        .limit(1)
+        .execute()
+    )
+    # 400 (não 401): o http-client do front desloga a sessão em qualquer 401,
+    # e errar a senha atual não pode derrubar o aluno logado.
+    if not resp.data or not verificar_senha(body.senha_atual, resp.data[0].get("senha_hash")):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta")
+
+    cliente.table("aluno").update(
+        {"senha_hash": hash_senha(body.senha_nova)}
+    ).eq("id", user["aluno_id"]).execute()
+    return {"ok": True}
+
+
+# ── Perfil e dados (proxies das funções de /alunos) ───────────────────────
 
 
 @router.get("")
@@ -38,291 +88,63 @@ async def me_heatmap(user: dict = Depends(get_current_aluno)):
     return await heatmap_aluno(user["aluno_id"])
 
 
-# ── Novos endpoints da área do aluno ─────────────────────────────────────
+# ── Área do aluno (extrações compartilhadas em stats/aluno_dados.py) ──────
 
 
 @router.get("/streak")
 async def me_streak(user: dict = Depends(get_current_aluno)):
     """Ciclos consecutivos recentes onde o aluno ficou acima da média da turma."""
-    aluno_id = user["aluno_id"]
-    from ..supabase_client import get_supabase
-
-    cliente = get_supabase()
-    resp = (
-        cliente.table("nota")
-        .select(
-            "pontuacao, presente, simulado("
-            "id, nota_maxima, anulado, e_agregado, "
-            "ciclo:ciclo_id(id, ordem)"
-            ")"
-        )
-        .eq("aluno_id", aluno_id)
-        .eq("presente", True)
-        .execute()
-    )
-
-    metricas = mapa_metrica_geral_por_simulado(cliente)
-
-    por_ciclo: dict[int, dict] = defaultdict(lambda: {"minhas": [], "turma": []})
-    for linha in resp.data or []:
-        sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
-            continue
-        nota = nota_real(como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima")))
-        if nota is None:
-            continue
-        ciclo = sim.get("ciclo") or {}
-        ordem = ciclo.get("ordem")
-        if ordem is None:
-            continue
-        por_ciclo[ordem]["minhas"].append(nota)
-        media_turma = (metricas.get(sim["id"]) or {}).get("media")
-        if media_turma is not None:
-            por_ciclo[ordem]["turma"].append(media_turma)
-
-    if not por_ciclo:
-        return {"count": 0, "label": "ciclos acima da média da turma"}
-
-    streak = 0
-    for ordem in sorted(por_ciclo.keys(), reverse=True):
-        d = por_ciclo[ordem]
-        if not d["minhas"] or not d["turma"]:
-            break
-        if st.mean(d["minhas"]) > st.mean(d["turma"]):
-            streak += 1
-        else:
-            break
-
-    return {"count": streak, "label": "ciclos acima da média da turma"}
+    return streak_do_aluno(get_supabase(), user["aluno_id"])
 
 
 @router.get("/simulados")
 async def me_simulados(user: dict = Depends(get_current_aluno)):
     """Lista de simulados do aluno com nota, delta vs próprio padrão e média da turma."""
-    aluno_id = user["aluno_id"]
-    from ..supabase_client import get_supabase
-
-    cliente = get_supabase()
-    resp = (
-        cliente.table("nota")
-        .select(
-            "pontuacao, presente, simulado("
-            "id, nome, rotulo_curto, data_aplicacao, nota_maxima, materia_id, tipo, anulado, e_agregado, "
-            "ciclo:ciclo_id(id, ordem, vestibular_alvo)"
-            ")"
-        )
-        .eq("aluno_id", aluno_id)
-        .eq("presente", True)
-        .execute()
-    )
-
-    metricas = mapa_metrica_geral_por_simulado(cliente)
-    mats_resp = cliente.table("materia").select("id, nome").execute()
-    nome_mat = {m["id"]: m["nome"] for m in (mats_resp.data or [])}
-
-    itens: list[dict] = []
-    for linha in resp.data or []:
-        sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
-            continue
-        nota = nota_real(como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima")))
-        if nota is None:
-            continue
-        ciclo = sim.get("ciclo") or {}
-        met = metricas.get(sim["id"]) or {}
-        itens.append(
-            {
-                "id": sim["id"],
-                "nome": sim.get("nome"),
-                "rotulo": sim.get("rotulo_curto") or sim.get("nome"),
-                "dataAplicacao": sim.get("data_aplicacao"),
-                "tipo": sim.get("tipo"),
-                "materia": nome_mat.get(sim.get("materia_id")),
-                "nota": round(nota, 2),
-                "deltaSelf": None,
-                "mediaGeral": round(met["media"], 2) if met.get("media") is not None else None,
-                "nPresentes": met.get("n_presentes", 0),
-                "cicloOrdem": ciclo.get("ordem"),
-                "vestibularAlvo": ciclo.get("vestibular_alvo"),
-                "novo": False,
-            }
-        )
-
-    # Ordena ASC para calcular delta acumulativo
-    itens.sort(key=lambda s: s.get("dataAplicacao") or "")
-    notas_ant: list[float] = []
-    for item in itens:
-        if notas_ant:
-            item["deltaSelf"] = round(item["nota"] - sum(notas_ant) / len(notas_ant), 2)
-        notas_ant.append(item["nota"])
-
-    # Ordena DESC para a resposta; marca o mais recente
-    itens.sort(key=lambda s: s.get("dataAplicacao") or "", reverse=True)
-    if itens:
-        itens[0]["novo"] = True
-
-    return itens
+    return simulados_do_aluno(get_supabase(), user["aluno_id"])
 
 
 @router.get("/simulado/{simulado_id}")
 async def me_simulado(simulado_id: str, user: dict = Depends(get_current_aluno)):
     """Detalhe de um simulado: nota do aluno, ranking e comparação com grupos."""
-    aluno_id = user["aluno_id"]
-    from ..supabase_client import get_supabase
+    return _ou_404(detalhe_simulado_do_aluno(get_supabase(), user["aluno_id"], simulado_id))
 
-    cliente = get_supabase()
 
-    sim_resp = (
-        cliente.table("simulado")
-        .select("id, nome, rotulo_curto, data_aplicacao, nota_maxima, materia_id, tipo")
-        .eq("id", simulado_id)
-        .limit(1)
-        .execute()
-    )
-    if not sim_resp.data:
-        raise HTTPException(status_code=404, detail="Simulado não encontrado")
-
-    sim = sim_resp.data[0]
-    nota_maxima = como_float(sim.get("nota_maxima")) or 10.0
-
-    mats_resp = cliente.table("materia").select("id, nome").execute()
-    nome_mat = {m["id"]: m["nome"] for m in (mats_resp.data or [])}
-
-    notas_resp = (
-        cliente.table("nota")
-        .select("aluno_id, pontuacao")
-        .eq("simulado_id", simulado_id)
-        .eq("presente", True)
-        .execute()
-    )
-
-    todas_notas: list[float] = []
-    minha_nota: float | None = None
-    for linha in notas_resp.data or []:
-        n = nota_real(como_float(linha.get("pontuacao")), nota_maxima)
-        if n is None:
-            continue
-        todas_notas.append(n)
-        if linha["aluno_id"] == aluno_id:
-            minha_nota = n
-
-    if minha_nota is None:
-        raise HTTPException(status_code=404, detail="Nota não encontrada para este simulado")
-
-    total = len(todas_notas)
-    desc = sorted(todas_notas, reverse=True)
-    # Posição = posição do aluno entre os melhores (1 = melhor)
-    posicao = next((i + 1 for i, v in enumerate(desc) if v <= minha_nota + 0.001), total)
-    percentil = round((total - posicao) / total * 100) if total > 1 else 50
-
-    n15 = max(1, int(total * 0.15))
-    geral = st.mean(todas_notas)
-    top15 = st.mean(sorted(todas_notas)[-n15:])
-    bottom15 = st.mean(sorted(todas_notas)[:n15])
-
-    # Delta vs média de todos os outros simulados do aluno
-    outras_resp = (
-        cliente.table("nota")
-        .select("pontuacao, presente, simulado(nota_maxima, anulado, e_agregado)")
-        .eq("aluno_id", aluno_id)
-        .eq("presente", True)
-        .neq("simulado_id", simulado_id)
-        .execute()
-    )
-    outras: list[float] = []
-    for linha in outras_resp.data or []:
-        s = linha.get("simulado") or {}
-        if s.get("anulado") or s.get("e_agregado"):
-            continue
-        n = nota_real(como_float(linha.get("pontuacao")), como_float(s.get("nota_maxima")))
-        if n is not None:
-            outras.append(n)
-    delta_self = round(minha_nota - st.mean(outras), 2) if outras else None
-
-    return {
-        "id": sim["id"],
-        "nome": sim.get("nome"),
-        "rotulo": sim.get("rotulo_curto") or sim.get("nome"),
-        "dataAplicacao": sim.get("data_aplicacao"),
-        "tipo": sim.get("tipo"),
-        "materia": nome_mat.get(sim.get("materia_id")),
-        "nota": round(minha_nota, 2),
-        "deltaSelf": delta_self,
-        "posicao": posicao,
-        "total": total,
-        "percentil": percentil,
-        "grupos": {
-            "voce": round(minha_nota, 2),
-            "geral": round(geral, 2),
-            "top15": round(top15, 2),
-            "bottom15": round(bottom15, 2),
-        },
-    }
+@router.get("/simulado/{simulado_id}/questoes")
+async def me_simulado_questoes(simulado_id: str, user: dict = Depends(get_current_aluno)):
+    """Resultado questão a questão do aluno num simulado (dados do Canvas)."""
+    return _ou_404(questoes_do_aluno_no_simulado(get_supabase(), user["aluno_id"], simulado_id))
 
 
 @router.get("/evolucao")
 async def me_evolucao(user: dict = Depends(get_current_aluno)):
     """Dados para o gráfico de evolução por matéria ao longo dos ciclos."""
-    aluno_id = user["aluno_id"]
-    from ..supabase_client import get_supabase
+    return evolucao_do_aluno(get_supabase(), user["aluno_id"])
 
+
+@router.get("/insight")
+def me_insight(user: dict = Depends(get_current_aluno)) -> dict:
+    """Insight de IA do ciclo mais recente do aluno (card do painel).
+
+    On-demand com cache em insight_aluno_ciclo — primeira chamada por
+    aluno×ciclo×dados chama o LLM; as seguintes voltam do banco. Handler
+    síncrono de propósito: a chamada LLM roda no threadpool, não no event loop.
+    """
     cliente = get_supabase()
-    resp = (
-        cliente.table("nota")
-        .select(
-            "pontuacao, presente, simulado("
-            "id, nota_maxima, materia_id, anulado, e_agregado, "
-            "ciclo:ciclo_id(id, ordem)"
-            ")"
-        )
-        .eq("aluno_id", aluno_id)
-        .eq("presente", True)
-        .execute()
+    resultado = payload_insight_ciclo(cliente, user["aluno_id"])
+    if resultado is None:
+        return {"disponivel": False, "cicloOrdem": None, "cicloNome": None, "bullets": []}
+
+    ciclo, stats_payload = resultado
+    bullets = gerar_para_aluno_ciclo(
+        cliente,
+        aluno_id=user["aluno_id"],
+        ciclo_id=ciclo["id"],
+        stats_payload=stats_payload,
+        contexto={"nomeAluno": user.get("nome") or ""},
     )
-
-    metricas = mapa_metrica_geral_por_simulado(cliente)
-    mats_resp = cliente.table("materia").select("id, nome").execute()
-    nome_mat = {m["id"]: m["nome"] for m in (mats_resp.data or [])}
-
-    # {ciclo_ordem: {materia_nome: {aluno: [...], turma: [...]}}}
-    dados: dict[int, dict[str, dict]] = defaultdict(lambda: defaultdict(lambda: {"aluno": [], "turma": []}))
-
-    for linha in resp.data or []:
-        sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
-            continue
-        ciclo = sim.get("ciclo") or {}
-        ordem = ciclo.get("ordem")
-        if ordem is None:
-            continue
-        materia = nome_mat.get(sim.get("materia_id"))
-        if not materia:
-            continue
-        nota = nota_real(como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima")))
-        if nota is None:
-            continue
-        dados[ordem][materia]["aluno"].append(nota)
-        media_turma = (metricas.get(sim["id"]) or {}).get("media")
-        if media_turma is not None:
-            dados[ordem][materia]["turma"].append(media_turma)
-
-    if not dados:
-        return {"ciclos": [], "materias": {}}
-
-    ordens = sorted(dados.keys())
-    ciclos = [{"ordem": o, "label": f"C{o}"} for o in ordens]
-    todas_mats = sorted({m for cd in dados.values() for m in cd.keys()})
-
-    materias_out: dict[str, dict] = {}
-    for mat in todas_mats:
-        aluno_vals = []
-        turma_vals = []
-        for ordem in ordens:
-            vals = dados[ordem].get(mat, {})
-            al = vals.get("aluno", [])
-            tu = vals.get("turma", [])
-            aluno_vals.append(round(st.mean(al), 2) if al else None)
-            turma_vals.append(round(st.mean(tu), 2) if tu else None)
-        materias_out[mat] = {"aluno": aluno_vals, "turma": turma_vals}
-
-    return {"ciclos": ciclos, "materias": materias_out}
+    return {
+        "disponivel": bool(bullets),
+        "cicloOrdem": ciclo["ordem"],
+        "cicloNome": ciclo["nome"],
+        "bullets": bullets,
+    }

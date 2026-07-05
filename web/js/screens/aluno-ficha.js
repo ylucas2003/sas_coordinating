@@ -480,5 +480,55 @@ export async function renderAlunoFicha({ id }) {
         ]),
       ]),
     ]),
+
+    secaoAcessoDoAluno(api, aluno),
+  ]);
+}
+
+// ─── Acesso do aluno (área do aluno) ─────────────────────────────────────
+// O aluno cria a própria senha validando matrícula + e-mail do Canvas.
+// Aqui a coordenação corrige o e-mail e libera um novo primeiro acesso
+// (zera a senha) quando o aluno perde o acesso ou está sem e-mail.
+
+function secaoAcessoDoAluno(api, aluno) {
+  const statusEl = el('div', { class: 'section__subtitle', style: 'margin-top: 8px;' }, []);
+  const emailInput = el('input', {
+    class: 'dialog__input',
+    type: 'email',
+    placeholder: aluno.email || 'e-mail não cadastrado — informe para corrigir',
+    style: 'max-width: 320px;',
+  });
+
+  const btn = el('button', { class: 'btn' }, ['Liberar primeiro acesso']);
+  btn.addEventListener('click', async () => {
+    const confirmado = window.confirm(
+      'Zerar a senha deste aluno? Ele precisará criar uma nova pelo "Primeiro acesso" na tela de login.'
+    );
+    if (!confirmado) return;
+    btn.disabled = true;
+    statusEl.textContent = '';
+    try {
+      const corpo = emailInput.value.trim() ? { email: emailInput.value.trim() } : {};
+      const resp = await api.resetarAcessoAluno(aluno.id, corpo);
+      statusEl.textContent = `Acesso liberado. E-mail para validação: ${resp.email || '— (sem e-mail; corrija acima)'}.`;
+    } catch (err) {
+      statusEl.textContent = `Erro ao liberar acesso: ${err.message}`;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  return el('section', { class: 'card aluno-ficha__nao-imprimir' }, [
+    el('div', { class: 'section' }, [
+      el('div', { class: 'section__title' }, ['Acesso do aluno']),
+      el('div', { class: 'section__subtitle' }, [
+        `E-mail do Canvas: ${aluno.email || '— não cadastrado'}. O aluno usa matrícula + este e-mail para criar a senha na tela de login.`,
+      ]),
+      el('div', { style: 'display: flex; gap: 8px; align-items: center; flex-wrap: wrap;' }, [
+        emailInput,
+        btn,
+      ]),
+      statusEl,
+    ]),
   ]);
 }

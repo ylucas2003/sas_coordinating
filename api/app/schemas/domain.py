@@ -45,6 +45,7 @@ class Aluno(BaseModel):
     sedeId: str
     vestibularesAlvo: list[Vestibular]
     ativo: bool = True
+    email: str | None = None   # e-mail do Canvas — valida o primeiro acesso
     perfil: Perfil = "regular"
     tendencia: Tendencia = "estavel"
     zona: Zona = "cinzenta"

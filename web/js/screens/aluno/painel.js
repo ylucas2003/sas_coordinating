@@ -453,23 +453,43 @@ function _secaoEvolucao(evolucao) {
   ]);
 }
 
-// ─── Seção: AI insight (placeholder) ─────────────────────────────────────
+// ─── Seção: AI insight do ciclo ──────────────────────────────────────────
+// Carrega fora do Promise.all inicial: a primeira geração chama o LLM e pode
+// levar alguns segundos — o painel não espera por ela.
 
-function _secaoAI() {
-  return el('div', { class: 'alu-ai-card' }, [
-    el('div', { class: 'alu-ai-card__header' }, [
-      el('div', { class: 'alu-ai-card__badge' }, [
-        icon('M12 3l1.6 4.3L18 9l-4.4 1.7L12 15l-1.6-4.3L6 9l4.4-1.7z', 12, '#fff'),
-        'IA · Insight do ciclo',
-      ]),
-      el('span', { class: 'alu-ai-card__soon' }, ['em breve, automático']),
-    ]),
-    el('div', { class: 'alu-ai-card__title' }, ['Análise personalizada do seu desempenho.']),
-    el('div', { class: 'alu-ai-card__body' }, [
-      'Em breve o assistente identificará automaticamente onde você pode melhorar mais com menos esforço — e vai sugerir o que revisar antes do próximo simulado.',
-    ]),
-    el('button', { class: 'alu-ai-card__cta', disabled: true }, ['Em breve']),
+function _secaoAI(api) {
+  const badgeEl = el('div', { class: 'alu-ai-card__badge' }, [
+    icon('M12 3l1.6 4.3L18 9l-4.4 1.7L12 15l-1.6-4.3L6 9l4.4-1.7z', 12, '#fff'),
+    'IA · Insight do ciclo',
   ]);
+  const soonEl = el('span', { class: 'alu-ai-card__soon' }, ['analisando…']);
+  const tituloEl = el('div', { class: 'alu-ai-card__title' }, ['Análise personalizada do seu desempenho.']);
+  const corpoEl = el('div', { class: 'alu-ai-card__body' }, ['Analisando seu ciclo…']);
+
+  const card = el('div', { class: 'alu-ai-card' }, [
+    el('div', { class: 'alu-ai-card__header' }, [badgeEl, soonEl]),
+    tituloEl,
+    corpoEl,
+  ]);
+
+  const placeholder = () => {
+    soonEl.textContent = 'em breve, automático';
+    corpoEl.textContent = 'Em breve o assistente identificará automaticamente onde você pode '
+      + 'melhorar mais com menos esforço — e vai sugerir o que revisar antes do próximo simulado.';
+  };
+
+  api.insightMe()
+    .then((insight) => {
+      if (!insight?.disponivel || !insight.bullets?.length) return placeholder();
+      soonEl.textContent = insight.cicloNome || '';
+      tituloEl.textContent = 'O que o seu ciclo mostra:';
+      corpoEl.textContent = '';
+      corpoEl.appendChild(el('ul', { class: 'alu-ai-card__bullets' },
+        insight.bullets.map(b => el('li', {}, [b]))));
+    })
+    .catch(placeholder);
+
+  return card;
 }
 
 // ─── Seção: conquistas (badges) ───────────────────────────────────────────
@@ -579,7 +599,7 @@ export async function renderPainelAluno({ nav, nome }) {
   if (evolEl) colMain.appendChild(evolEl);
   if (compEl) colMain.appendChild(compEl);
 
-  colSide.appendChild(_secaoAI());
+  colSide.appendChild(_secaoAI(api));
   if (simulados.length > 0 || streak.count > 0) {
     colSide.appendChild(_secaoBadges(streak, simulados, detalhe));
   }

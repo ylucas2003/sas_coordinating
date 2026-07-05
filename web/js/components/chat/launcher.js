@@ -10,7 +10,7 @@ import { getApiClient } from '../../services/api.js';
 import { conversaPanel } from './conversa.js';
 import { listaThreads } from './lista-threads.js';
 
-export function montarChatLauncher(parent) {
+export function montarChatLauncher(parent, { rotuloFab = 'Assistente', tituloDrawer = 'Assistente' } = {}) {
   let drawerAberto = false;
   let listaThreadsAberta = false;
   let threads = [];
@@ -21,11 +21,11 @@ export function montarChatLauncher(parent) {
   // ── FAB ────────────────────────────────────────────────────────────────
   const fab = el('button', {
     class: 'chat-fab',
-    title: 'Conversar com o assistente',
+    title: `Conversar com o ${rotuloFab.toLowerCase()}`,
     onclick: _toggle,
   }, [
     el('span', { class: 'chat-fab__icone' }, ['💬']),
-    el('span', { class: 'chat-fab__label' }, ['Assistente']),
+    el('span', { class: 'chat-fab__label' }, [rotuloFab]),
   ]);
 
   // ── Drawer ─────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ export function montarChatLauncher(parent) {
           onclick: _toggleListaThreads,
         }, ['☰']),
         el('div', { class: 'chat-drawer__titulo-bloco' }, [
-          el('div', { class: 'chat-drawer__pequeno' }, ['Assistente']),
+          el('div', { class: 'chat-drawer__pequeno' }, [tituloDrawer]),
           el('h2', { class: 'chat-drawer__titulo' }, [detalheAtual?.titulo || 'Conversa']),
         ]),
       ]),

@@ -35,8 +35,8 @@ from typing import Any, AsyncIterator
 from supabase import Client
 
 from ..config import get_settings
-from .prompt import PROMPT_TITULO, system_message
-from .tools import HANDLERS, SCHEMAS, executar
+from .perfis import PerfilAgente
+from .prompt import PROMPT_TITULO
 
 try:
     from openai import OpenAI
@@ -48,8 +48,7 @@ log = logging.getLogger("sas.chat.agente")
 
 MAX_TURNOS = 8
 MAX_MENSAGENS_HISTORICO = 30
-TEMPERATURA = 0.2          # Determinístico — coordenador quer respostas reprodutíveis.
-MODELO_PADRAO = "gpt-4o"   # Sweet spot custo/raciocínio. Override em settings.
+TEMPERATURA = 0.2          # Determinístico — respostas reprodutíveis.
 
 
 # ─── Eventos SSE ─────────────────────────────────────────────────────────
@@ -73,14 +72,16 @@ def gerar_resposta(
     thread_id: str,
     historico: list[dict],
     nova_msg_user: str,
+    perfil: PerfilAgente,
     modelo: str | None = None,
 ) -> AsyncIterator[Evento]:
     """Streaming SSE da resposta do agente.
 
     `historico` no formato OpenAI: lista de dicts {role, content, tool_calls?, tool_call_id?, name?}.
     `nova_msg_user` é o texto que o usuário acabou de mandar — adicionado ao histórico aqui.
+    `perfil` define prompt, tools e modelo (coordenador ou aluno — ver perfis.py).
     """
-    return _gerar(cliente_db, thread_id, historico, nova_msg_user, modelo)
+    return _gerar(cliente_db, thread_id, historico, nova_msg_user, perfil, modelo)
 
 
 async def _gerar(
@@ -88,6 +89,7 @@ async def _gerar(
     thread_id: str,
     historico: list[dict],
     nova_msg_user: str,
+    perfil: PerfilAgente,
     modelo_override: str | None,
 ) -> AsyncIterator[Evento]:
     settings = get_settings()
@@ -95,11 +97,11 @@ async def _gerar(
         yield Evento("erro", {"mensagem": "OpenAI não configurada (OPENAI_API_KEY ausente)."})
         return
 
-    modelo = modelo_override or _modelo_padrao()
+    modelo = modelo_override or perfil.modelo
     client = OpenAI(api_key=settings.openai_api_key)
 
     # ── Histórico final que vai pra OpenAI ──
-    mensagens: list[dict] = [system_message()]
+    mensagens: list[dict] = [perfil.system_message]
     # Janela: mantém só as últimas N (mais o system fixo na frente).
     mensagens.extend(historico[-MAX_MENSAGENS_HISTORICO:])
     mensagens.append({"role": "user", "content": nova_msg_user})
@@ -119,7 +121,7 @@ async def _gerar(
                 model=modelo,
                 temperature=TEMPERATURA,
                 messages=mensagens,
-                tools=SCHEMAS,
+                tools=perfil.schemas,
                 tool_choice="auto",
                 stream=False,  # Streaming + tools no MVP é mais simples sem token-streaming.
             )
@@ -168,7 +170,7 @@ async def _gerar(
                     "args": args,
                 })
 
-                resultado = executar(nome, cliente_db, args)
+                resultado = perfil.executar(nome, cliente_db, args)
                 tool_calls_executadas.append({
                     "id": tc.id, "nome": nome, "args": args, "resultado": resultado,
                 })
@@ -240,16 +242,6 @@ def gerar_titulo(primeira_pergunta: str, primeira_resposta: str) -> str | None:
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────
-
-
-def _modelo_padrao() -> str:
-    settings = get_settings()
-    # Reusa o setting do insights se ele apontar pra um modelo "potente";
-    # senão, default seguro.
-    modelo = (settings.openai_modelo_insights or "").lower()
-    if modelo and "mini" not in modelo:
-        return settings.openai_modelo_insights
-    return MODELO_PADRAO
 
 
 def _quebra_chunks(texto: str, *, tamanho: int) -> list[str]:

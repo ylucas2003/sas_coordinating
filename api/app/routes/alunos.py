@@ -13,6 +13,7 @@ import statistics as st
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from ..auth import get_current_coordenador
 from ..schemas.domain import Aluno
@@ -132,7 +133,7 @@ async def obter_aluno(aluno_id: str) -> Aluno:
     cliente = get_supabase()
     resp = (
         cliente.table("aluno")
-        .select("id, nome, ativo")
+        .select("id, nome, ativo, email")
         .eq("id", aluno_id)
         .limit(1)
         .execute()
@@ -158,6 +159,7 @@ async def obter_aluno(aluno_id: str) -> Aluno:
         sedeId=id_sede,
         vestibularesAlvo=vestibulares.get(aluno_id, []),
         ativo=bool(linha.get("ativo", True)),
+        email=linha.get("email"),
         perfil=classif.get("perfil", "regular"),
         tendencia=classif.get("tendencia", "estavel"),
         zona=classif.get("zona", "cinzenta"),
@@ -424,3 +426,36 @@ def _distancia(a: list[float | None], b: list[float | None]) -> float | None:
         return None
     # Normaliza pela dimensão pra não penalizar alunos com matérias faltando.
     return math.sqrt(soma / dimensoes_validas)
+
+
+# ─── Acesso do aluno (área do aluno) ─────────────────────────────────────
+
+
+class ResetarAcessoBody(BaseModel):
+    email: str | None = None  # corrige o e-mail do Canvas quando divergente/ausente
+
+
+@router.post("/{aluno_id}/resetar-acesso")
+async def resetar_acesso_aluno(aluno_id: str, body: ResetarAcessoBody) -> dict:
+    """Zera a senha do aluno, liberando um novo "primeiro acesso".
+
+    Fallback da coordenação para alunos sem e-mail no Canvas (ou com e-mail
+    divergente): opcionalmente grava o e-mail correto junto.
+    """
+    cliente = get_supabase()
+    resp = (
+        cliente.table("aluno")
+        .select("id, email")
+        .eq("id", aluno_id)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail=f"aluno {aluno_id} não encontrado")
+
+    patch: dict = {"senha_hash": None}
+    if body.email and body.email.strip():
+        patch["email"] = body.email.strip().lower()
+    cliente.table("aluno").update(patch).eq("id", aluno_id).execute()
+
+    return {"ok": True, "email": patch.get("email") or resp.data[0].get("email")}

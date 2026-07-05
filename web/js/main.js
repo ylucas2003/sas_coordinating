@@ -145,8 +145,11 @@ window.addEventListener('sas:dados-atualizados', () => {
 render();
 
 // Chat launcher (FAB + drawer) — montado uma vez, persiste entre rotas.
-// O aluno ganha um launcher próprio ("Mentor") dentro da área dele; o da
-// coordenação não deve aparecer para ele.
-if (sessionStorage.getItem('sas_tipo') !== 'aluno') {
+// Aluno conversa com o "Mentor" (tools restritas aos próprios dados);
+// coordenação com o "Assistente" (tools staff). O backend escolhe o perfil
+// pelo tipo do JWT — aqui só muda o rótulo.
+if (sessionStorage.getItem('sas_tipo') === 'aluno') {
+  montarChatLauncher(document.body, { rotuloFab: 'Mentor', tituloDrawer: 'Mentor de estudos' });
+} else {
   montarChatLauncher(document.body);
 }

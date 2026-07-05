@@ -1,5 +1,6 @@
 // Tela Simulados do aluno: lista + detalhe.
-// Detalhe mostra ranking, range bar e dot grid com PRNG seeded (sem gabarito real).
+// Detalhe mostra ranking, range bar e o resultado questão a questão real
+// (via /me/simulado/{id}/questoes — dados do Canvas Quiz Statistics).
 
 import { el, clear } from '../../dom.js';
 import { getApiClient } from '../../services/api.js';
@@ -35,34 +36,6 @@ function icon(d, size = 18, color = 'currentColor', sw = 1.8) {
   svg.style.cssText = 'display:block;flex-shrink:0';
   svg.appendChild(svgEl('path', { d }));
   return svg;
-}
-
-// ─── PRNG seeded (gabarito simulado) ─────────────────────────────────────
-
-function seededRng(seed) {
-  let s = typeof seed === 'string'
-    ? [...seed].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 0)
-    : (seed | 0);
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0xFFFFFFFF;
-  };
-}
-
-function mockDotGrid(simuladoId, nota) {
-  const totalQ = 45;
-  const certas = Math.round((nota / 10) * totalQ);
-  const erradas = totalQ - certas;
-  const rng = seededRng(simuladoId);
-
-  const order = Array.from({ length: totalQ }, (_, i) => i);
-  order.sort(() => rng() - 0.5);
-  const certasIdx = new Set(order.slice(0, certas));
-
-  return Array.from({ length: totalQ }, (_, i) => ({
-    num: i + 1,
-    correct: certasIdx.has(i),
-  }));
 }
 
 // ─── Cores por matéria e vestibular ──────────────────────────────────────
@@ -255,9 +228,19 @@ async function _renderLista({ nav }) {
 
 // ─── Detalhe de um simulado ───────────────────────────────────────────────
 
+function _fmtDuracao(segundos) {
+  if (segundos == null) return null;
+  const min = Math.round(segundos / 60);
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+}
+
 async function _renderDetalhe({ nav, simId, simNome }) {
   const api = getApiClient();
-  const detalhe = await api.obterSimuladoMe(simId);
+  const [detalhe, questoes] = await Promise.all([
+    api.obterSimuladoMe(simId),
+    api.questoesSimuladoMe(simId).catch(() => null),
+  ]);
 
   const wrap = el('div', { style: 'display:flex;flex-direction:column;gap:18px' });
 
@@ -300,6 +283,9 @@ async function _renderDetalhe({ nav, simId, simNome }) {
         { r: 'Posição', v: `${detalhe.posicao}º de ${detalhe.total}` },
         { r: 'Percentil', v: `${detalhe.percentil}%` },
         { r: 'Média da turma', v: fmt(detalhe.grupos?.geral) },
+        ...(questoes?.duracaoMediaSegundos != null
+          ? [{ r: 'Tempo médio da turma', v: _fmtDuracao(questoes.duracaoMediaSegundos) }]
+          : []),
       ].map(x => el('div', {}, [
         el('div', { style: 'font-size:10.5px;color:var(--color-text-tertiary);margin-bottom:2px;white-space:nowrap' }, [x.r]),
         el('div', { style: 'font-size:15px;font-weight:600;color:var(--color-text-primary);font-variant-numeric:tabular-nums' }, [x.v]),
@@ -332,58 +318,80 @@ async function _renderDetalhe({ nav, simId, simNome }) {
     ]));
   }
 
-  // Dot grid layout (2 col: dot grid esquerda, revisar lista direita)
-  const dots = mockDotGrid(simId, detalhe.nota);
-  const wrongDots = dots.filter(d => !d.correct);
+  // Resultado questão a questão (2 col: dot grid esquerda, revisar direita).
+  // Só com dados reais do Canvas — sem gabarito sincronizado, mostra um
+  // aviso limpo em vez de grid.
+  const temQuestoes = questoes?.temGabarito && questoes?.temMinhasRespostas;
+
+  if (!temQuestoes) {
+    wrap.appendChild(el('div', { class: 'alu-card' }, [
+      el('div', { class: 'alu-section-title' }, ['Resultado questão a questão']),
+      el('div', { class: 'alu-empty', style: 'padding:24px 0' }, [
+        questoes?.temGabarito
+          ? 'Suas respostas deste simulado ainda não foram sincronizadas.'
+          : 'Detalhe questão a questão disponível apenas para simulados aplicados online.',
+      ]),
+    ]));
+    return wrap;
+  }
+
+  const itens = questoes.questoes;
+  const paraRevisar = itens.filter(q => q.resultado === 'errada' || q.resultado === 'em_branco');
 
   const gridEl = el('div', { class: 'alu-sim-detail__grid' });
 
-  // Dot grid
+  const DOT_CLASSE = { correta: 'correct', errada: 'wrong', em_branco: 'blank' };
+  const legenda = (corBg, corBorda, label) => el('div', { style: 'display:flex;align-items:center;gap:5px' }, [
+    el('span', { style: `width:10px;height:10px;border-radius:3px;background:${corBg};display:inline-block;border:1px solid ${corBorda}` }),
+    label,
+  ]);
+
   const dotGridCard = el('div', { class: 'alu-card' }, [
     el('div', { class: 'alu-section-title' }, ['Resultado questão a questão']),
     el('div', { class: 'alu-dot-grid' },
-      dots.map(d => el('div', { class: `alu-dot alu-dot--${d.correct ? 'correct' : 'wrong'}` }, [String(d.num)])),
+      itens.map(q => el('div', {
+        class: `alu-dot alu-dot--${DOT_CLASSE[q.resultado] || 'blank'}`,
+        title: q.textoResumo || '',
+      }, [String(q.posicao ?? '')])),
     ),
-    el('div', { style: 'display:flex;gap:14px;margin-top:4px;font-size:12px;color:var(--color-text-secondary)' }, [
-      el('div', { style: 'display:flex;align-items:center;gap:5px' }, [
-        el('span', { style: 'width:10px;height:10px;border-radius:3px;background:var(--alu-up-soft);display:inline-block;border:1px solid var(--alu-up)' }),
-        `${dots.filter(d => d.correct).length} corretas`,
-      ]),
-      el('div', { style: 'display:flex;align-items:center;gap:5px' }, [
-        el('span', { style: 'width:10px;height:10px;border-radius:3px;background:var(--alu-calm-soft);display:inline-block;border:1px solid var(--alu-calm)' }),
-        `${wrongDots.length} erradas`,
-      ]),
-    ]),
-    el('div', { style: 'font-size:10.5px;color:var(--color-text-tertiary);margin-top:6px;font-style:italic' }, [
-      '* Distribuição estimada com base na nota. Gabarito detalhado em breve.',
+    el('div', { style: 'display:flex;gap:14px;margin-top:4px;font-size:12px;color:var(--color-text-secondary);flex-wrap:wrap' }, [
+      legenda('var(--alu-up-soft)', 'var(--alu-up)', `${questoes.acertos} corretas`),
+      legenda('var(--alu-calm-soft)', 'var(--alu-calm)', `${questoes.erros} erradas`),
+      ...(questoes.emBranco ? [legenda('var(--color-surface-inset)', 'var(--color-border-strong)', `${questoes.emBranco} em branco`)] : []),
     ]),
   ]);
   gridEl.appendChild(dotGridCard);
 
-  // Lista de questões para revisar
+  // Lista de questões para revisar (erradas + em branco, dados reais)
   const revisarCard = el('div', { class: 'alu-card' }, [
-    el('div', { class: 'alu-section-title' }, [`Para revisar (${wrongDots.length})`]),
+    el('div', { class: 'alu-section-title' }, [`Para revisar (${paraRevisar.length})`]),
   ]);
 
-  if (!wrongDots.length) {
+  if (!paraRevisar.length) {
     revisarCard.appendChild(el('div', { class: 'alu-empty', style: 'padding:24px 0' }, [
       'Nenhuma questão errada? Perfeito!',
     ]));
   } else {
-    const assuntos = _mockAssuntos(simId, wrongDots.length, detalhe.materia);
     const lista = el('div', { class: 'alu-revisar-list' });
-    wrongDots.slice(0, 12).forEach((d, idx) => {
+    paraRevisar.slice(0, 12).forEach(q => {
+      const hint = q.resultado === 'em_branco'
+        ? 'Deixada em branco'
+        : q.alternativaCorreta
+          ? `Correta: ${q.alternativaCorreta}`
+          : 'Análise por assunto em breve';
       lista.appendChild(el('div', { class: 'alu-revisar-item' }, [
-        el('div', { class: 'alu-revisar-item__num' }, [String(d.num)]),
+        el('div', { class: 'alu-revisar-item__num' }, [String(q.posicao ?? '')]),
         el('div', { class: 'alu-revisar-item__info' }, [
-          el('div', { class: 'alu-revisar-item__assunto' }, [assuntos[idx] || `Questão ${d.num}`]),
-          el('div', { class: 'alu-revisar-item__hint' }, ['Análise por assunto em breve']),
+          el('div', { class: 'alu-revisar-item__assunto' }, [
+            q.assunto || q.textoResumo || `Questão ${q.posicao}`,
+          ]),
+          el('div', { class: 'alu-revisar-item__hint' }, [hint]),
         ]),
       ]));
     });
-    if (wrongDots.length > 12) {
+    if (paraRevisar.length > 12) {
       lista.appendChild(el('div', { style: 'font-size:12px;color:var(--color-text-tertiary);text-align:center;padding-top:6px' }, [
-        `+ ${wrongDots.length - 12} mais`,
+        `+ ${paraRevisar.length - 12} mais`,
       ]));
     }
     revisarCard.appendChild(lista);
@@ -393,24 +401,6 @@ async function _renderDetalhe({ nav, simId, simNome }) {
   wrap.appendChild(gridEl);
 
   return wrap;
-}
-
-// Gera assuntos fictícios mas determinísticos para as questões erradas
-function _mockAssuntos(simId, count, materia) {
-  const ASSUNTOS = {
-    'Matemática': ['Progressão Aritmética', 'Probabilidade', 'Geometria Analítica', 'Matrizes', 'Funções', 'Trigonometria', 'Logaritmos', 'Polinômios', 'Geometria Espacial', 'Sequências', 'Estatística', 'Álgebra Linear'],
-    'Física':     ['Cinemática', 'Dinâmica', 'Termodinâmica', 'Ondas', 'Óptica', 'Eletromagnetismo', 'Gravitação', 'Hidrostática', 'Calorimetria', 'Eletrostática', 'Circuitos', 'Física Moderna'],
-    'Química':    ['Estequiometria', 'Equilíbrio Químico', 'Cinética Química', 'Eletroquímica', 'Soluções', 'Termoquímica', 'Gases', 'Radioatividade', 'Ligações Químicas', 'Tabela Periódica', 'Oxidorredução', 'Isomeria'],
-    'Português':  ['Interpretação de Texto', 'Análise Sintática', 'Coesão e Coerência', 'Semântica', 'Pontuação', 'Regência', 'Concordância', 'Morfologia', 'Funções da Linguagem', 'Literatura', 'Redação', 'Ortografia'],
-    'Inglês':     ['Reading Comprehension', 'Vocabulary', 'Grammar', 'Text Cohesion', 'Inference', 'Synonyms', 'Prepositions', 'Verb Tenses', 'Discourse Markers', 'Figurative Language', 'Idiomatic Expressions', 'Context Clues'],
-  };
-  const pool = ASSUNTOS[materia] || ASSUNTOS['Matemática'];
-  const rng = seededRng(simId + '_assuntos');
-  const result = [];
-  for (let i = 0; i < count; i++) {
-    result.push(pool[Math.floor(rng() * pool.length)]);
-  }
-  return result;
 }
 
 // ─── Render principal ─────────────────────────────────────────────────────

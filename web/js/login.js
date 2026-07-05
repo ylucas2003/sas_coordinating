@@ -150,6 +150,66 @@ async function handleSubmit(e) {
   }
 }
 
+// ─── Primeiro acesso / esqueci minha senha ────────────────────────────────
+// Valida RA + e-mail do Canvas no backend e cria a senha na hora.
+
+function _alternarFormularios(mostrarPrimeiroAcesso) {
+  document.getElementById('js-form').style.display = mostrarPrimeiroAcesso ? 'none' : '';
+  document.getElementById('js-form-pa').style.display = mostrarPrimeiroAcesso ? '' : 'none';
+  document.getElementById('js-first-access-wrap').style.display = mostrarPrimeiroAcesso ? 'none' : '';
+  els.error.style.display = 'none';
+  document.getElementById('js-pa-error').style.display = 'none';
+  if (mostrarPrimeiroAcesso && modoAtual !== 'aluno') setModo('aluno');
+}
+
+async function handlePrimeiroAcesso(e) {
+  e.preventDefault();
+  const erroEl = document.getElementById('js-pa-error');
+  const submitBtn = document.getElementById('js-pa-submit');
+  const matricula = document.getElementById('js-pa-matricula').value.trim();
+  const email = document.getElementById('js-pa-email').value.trim();
+  const senha = document.getElementById('js-pa-senha').value;
+  const confirmar = document.getElementById('js-pa-confirmar').value;
+
+  erroEl.style.display = 'none';
+
+  const mostrarErro = (msg) => {
+    erroEl.style.display = 'block';
+    erroEl.textContent = msg;
+  };
+
+  if (!matricula || !email) return mostrarErro('Preencha matrícula e e-mail.');
+  if (senha.length < 8) return mostrarErro('A senha precisa ter pelo menos 8 caracteres.');
+  if (senha !== confirmar) return mostrarErro('As senhas não conferem.');
+
+  submitBtn.disabled = true;
+  try {
+    const res = await fetch(`${httpClient.baseUrl()}/auth/primeiro-acesso`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ matricula, email, senha_nova: senha }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const detalhe = typeof err.detail === 'string' ? err.detail : '';
+      throw new Error(detalhe || 'Não foi possível validar seus dados.');
+    }
+
+    // Mesmo shape do login — entra direto na área do aluno.
+    const dados = await res.json();
+    sessionStorage.setItem('sas_token', dados.access_token);
+    sessionStorage.setItem('sas_tipo',  dados.tipo);
+    sessionStorage.setItem('sas_nome',  dados.nome);
+    sessionStorage.setItem('sas_auth',  '1');
+    if (dados.aluno_id) sessionStorage.setItem('sas_aluno_id', dados.aluno_id);
+    window.location.href = './index.html';
+  } catch (err) {
+    mostrarErro(err.message || 'Não foi possível validar seus dados.');
+  } finally {
+    submitBtn.disabled = false;
+  }
+}
+
 // ─── Toggle senha visível ─────────────────────────────────────────────────
 function toggleSenha() {
   const input = els.inputSenha;
@@ -171,6 +231,10 @@ els.btnAluno.addEventListener('click', () => setModo('aluno'));
 els.btnCoord.addEventListener('click', () => setModo('coordenador'));
 $('js-form').addEventListener('submit', handleSubmit);
 $('js-eye-btn').addEventListener('click', toggleSenha);
+$('js-form-pa').addEventListener('submit', handlePrimeiroAcesso);
+$('js-primeiro-acesso').addEventListener('click', (e) => { e.preventDefault(); _alternarFormularios(true); });
+$('js-esqueci').addEventListener('click', (e) => { e.preventDefault(); _alternarFormularios(true); });
+$('js-pa-voltar').addEventListener('click', (e) => { e.preventDefault(); _alternarFormularios(false); });
 
 // ─── Animação de shake (erro de login) ───────────────────────────────────
 const style = document.createElement('style');
