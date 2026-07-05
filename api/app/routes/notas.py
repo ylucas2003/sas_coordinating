@@ -5,15 +5,20 @@ PATCH /notas/{aluno_id}/{simulado_id}
     as métricas do simulado e a classificação de todos os alunos.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, model_validator
 
+from ..auth import get_current_coordenador
 from ..stats.classificacao import recalcular_tudo as recalcular_classificacoes
 from ..stats.metricas import corte_aplicavel, recalcular_simulado
 from ..stats.utils import como_float
 from ..supabase_client import get_supabase
 
-router = APIRouter(prefix="/notas", tags=["notas"])
+router = APIRouter(
+    prefix="/notas",
+    tags=["notas"],
+    dependencies=[Depends(get_current_coordenador)],
+)
 
 _CAMPOS_SIMULADO = (
     "id, nota_maxima, anulado, e_agregado, tipo, materia_id, "

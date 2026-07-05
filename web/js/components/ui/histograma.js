@@ -15,6 +15,22 @@ import { el } from '../../dom.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+// Curva suave (Bézier) — mesmo algoritmo do gráfico da área do aluno
+// (chartLine em screens/aluno/painel.js), pra unificar a linguagem visual.
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M ${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const cx = (x0 + x1) / 2;
+    d += ` C ${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  }
+  return d;
+}
+
+let _gradSeq = 0;
+
 export function histograma(payload, opts = {}) {
   const {
     width = 480,
@@ -104,16 +120,37 @@ export function histograma(payload, opts = {}) {
     }
   }
 
+  // ── Gradiente vertical das barras (topo mais opaco que a base) ──
+  const gradId = `hist-grad-${_gradSeq++}`;
+  const defs = document.createElementNS(SVG_NS, 'defs');
+  const grad = document.createElementNS(SVG_NS, 'linearGradient');
+  grad.setAttribute('id', gradId);
+  grad.setAttribute('x1', '0'); grad.setAttribute('y1', '0');
+  grad.setAttribute('x2', '0'); grad.setAttribute('y2', '1');
+  const stop1 = document.createElementNS(SVG_NS, 'stop');
+  stop1.setAttribute('offset', '0%');
+  stop1.setAttribute('stop-color', color);
+  stop1.setAttribute('stop-opacity', '0.95');
+  const stop2 = document.createElementNS(SVG_NS, 'stop');
+  stop2.setAttribute('offset', '100%');
+  stop2.setAttribute('stop-color', color);
+  stop2.setAttribute('stop-opacity', '0.6');
+  grad.appendChild(stop1);
+  grad.appendChild(stop2);
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
   // ── Barras (ciclo atual) ──
   contagens.forEach((c, i) => {
     const h = (c / maxContagem) * plotH;
+    const larguraBarra = Math.max(1, binW - 2);
     const r = document.createElementNS(SVG_NS, 'rect');
     r.setAttribute('x', (padLeft + i * binW + 1).toFixed(1));
     r.setAttribute('y', (padTop + plotH - h).toFixed(1));
-    r.setAttribute('width', Math.max(1, binW - 2).toFixed(1));
+    r.setAttribute('width', larguraBarra.toFixed(1));
     r.setAttribute('height', h.toFixed(1));
-    r.setAttribute('fill', color);
-    r.setAttribute('opacity', '0.85');
+    r.setAttribute('rx', Math.min(3, larguraBarra / 2).toFixed(1));
+    r.setAttribute('fill', `url(#${gradId})`);
     const tip = document.createElementNS(SVG_NS, 'title');
     const inicio = (i * larguraBin).toFixed(1);
     const fim = ((i + 1) * larguraBin).toFixed(1);
@@ -122,15 +159,15 @@ export function histograma(payload, opts = {}) {
     svg.appendChild(r);
   });
 
-  // ── Overlay ciclo anterior (tracejado) ──
+  // ── Overlay ciclo anterior (tracejado, curva suave) ──
   if (cicloAnterior?.contagens?.length === nBins) {
     const pontos = cicloAnterior.contagens.map((c, i) => {
       const x = padLeft + (i + 0.5) * binW;
       const h = (c / maxContagem) * plotH;
-      return `${x.toFixed(1)},${(padTop + plotH - h).toFixed(1)}`;
-    }).join(' ');
-    const linha = document.createElementNS(SVG_NS, 'polyline');
-    linha.setAttribute('points', pontos);
+      return [x, padTop + plotH - h];
+    });
+    const linha = document.createElementNS(SVG_NS, 'path');
+    linha.setAttribute('d', smoothPath(pontos));
     linha.setAttribute('fill', 'none');
     linha.setAttribute('stroke', 'var(--color-text-tertiary)');
     linha.setAttribute('stroke-width', '1.5');

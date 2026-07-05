@@ -78,7 +78,7 @@
 
 .alu-header__brand-name {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.3px;
   color: var(--color-navy-deep);
 }
@@ -87,7 +87,7 @@
   font-size: 9px;
   font-weight: 500;
   letter-spacing: 0.5px;
-  text-transform: uppercase;
+  text-transform: none;
   color: var(--color-text-tertiary);
 }
 
@@ -121,7 +121,7 @@
 
 .alu-tab.is-active {
   color: var(--color-navy);
-  font-weight: 600;
+  font-weight: 500;
   background: rgba(27, 63, 139, 0.08);
 }
 
@@ -140,7 +140,7 @@
 
 .alu-header__user-name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
   max-width: 160px;
   overflow: hidden;
@@ -162,7 +162,7 @@
   display: grid;
   place-items: center;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   border: 1px solid rgba(27, 63, 139, 0.15);
   flex-shrink: 0;
 }
@@ -245,7 +245,7 @@
 
 .alu-nav-item.is-active {
   color: var(--color-navy);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* ── Responsivo ── */
@@ -281,7 +281,7 @@
 
 .alu-section-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
   letter-spacing: -0.2px;
   margin-bottom: 14px;
@@ -308,7 +308,7 @@
 
 .alu-greeting__nome {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.4px;
   color: var(--color-text-primary);
   line-height: 1.2;
@@ -329,7 +329,7 @@
   background: var(--alu-calm-soft);
   color: var(--alu-calm-deep);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -393,7 +393,7 @@
 
 .alu-hero__nota {
   font-size: 58px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 0.9;
   letter-spacing: -2px;
   font-variant-numeric: tabular-nums;
@@ -416,7 +416,7 @@
   background: rgba(255,255,255,0.15);
   color: #fff;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -447,7 +447,7 @@
 
 .alu-hero__stat-valor {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: #fff;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -477,7 +477,7 @@
 
 .alu-ring__pos {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -493,7 +493,7 @@
 
 .alu-ring__label {
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: #fff;
 }
 
@@ -513,7 +513,7 @@
   padding: 2px 7px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -588,7 +588,7 @@
   background: rgba(27, 63, 139, 0.08);
   border-color: transparent;
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .alu-mat-dot {
@@ -640,7 +640,7 @@
 }
 
 .alu-range-kpi__value {
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -674,7 +674,7 @@
   background: #4E79B5;
   color: #fff;
   font-size: 10.5px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .alu-ai-card__soon {
@@ -685,7 +685,7 @@
 
 .alu-ai-card__title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
   margin-bottom: 5px;
   letter-spacing: -0.2px;
@@ -707,7 +707,7 @@
   background: #4E79B5;
   color: #fff;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   border: none;
   font-family: inherit;
@@ -740,7 +740,7 @@
 
 .alu-badge__label {
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
   line-height: 1.25;
   margin-bottom: 3px;
@@ -821,7 +821,7 @@
 
 .alu-sim-nome {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -833,7 +833,7 @@
 
 .alu-sim-novo {
   font-size: 9.5px;
-  font-weight: 700;
+  font-weight: 500;
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--alu-up);
@@ -855,7 +855,7 @@
 
 .alu-sim-nota {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.5px;
@@ -885,7 +885,7 @@
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   line-height: 1.7;
 }
@@ -918,7 +918,7 @@
 
 .alu-sim-detail__titulo {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.4px;
   color: var(--color-text-primary);
   margin-bottom: 4px;
@@ -970,7 +970,7 @@
   display: grid;
   place-items: center;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .alu-dot--correct {
@@ -1008,7 +1008,7 @@
   display: grid;
   place-items: center;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   flex-shrink: 0;
 }
 

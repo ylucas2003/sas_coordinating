@@ -13,7 +13,7 @@ services:
       - key: APP_ENV
         value: production
       - key: CORS_ALLOW_ORIGINS
-        value: https://sas.vercel.app
+        value: https://sas-web.onrender.com,http://localhost:5173
       - key: STORAGE_BUCKET
         value: sas-uploads
       # Segredos — preencher no dashboard do Render após o primeiro deploy
@@ -32,3 +32,19 @@ services:
         sync: false
       - key: CANVAS_API_TOKEN
         sync: false
+      - key: SCHEDULER_SECRET
+        sync: false
+      # Exigidos quando APP_ENV != dev/test (guard de boot em app/main.py):
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: COORDENADOR_SENHA
+        sync: false
+
+  # Frontend estático (grátis no Render). O http-client.js detecta o host e
+  # aponta pra sas-api automaticamente quando não está em localhost.
+  - type: web
+    name: sas-web
+    runtime: static
+    rootDir: web
+    buildCommand: ""
+    staticPublishPath: .

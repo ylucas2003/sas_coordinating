@@ -12,14 +12,19 @@ import math
 import statistics as st
 from collections import defaultdict
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from ..auth import get_current_coordenador
 from ..schemas.domain import Aluno
 from ..stats import classificacao as _classif
 from ..stats.utils import como_float, nota_real
 from ..supabase_client import get_supabase
 
-router = APIRouter(prefix="/alunos", tags=["alunos"])
+router = APIRouter(
+    prefix="/alunos",
+    tags=["alunos"],
+    dependencies=[Depends(get_current_coordenador)],
+)
 
 
 # ─── Helpers de mapeamento ────────────────────────────────────────────────

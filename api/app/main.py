@@ -28,6 +28,17 @@ from .routes import (
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    if settings.app_env not in ("dev", "test"):
+        if settings.jwt_secret_key == "dev-secret-change-in-production":
+            raise RuntimeError(
+                "JWT_SECRET_KEY está no default de dev — configure um segredo forte "
+                "antes de subir com APP_ENV != dev/test."
+            )
+        if settings.coordenador_senha == "tioleo123":
+            raise RuntimeError(
+                "COORDENADOR_SENHA está no default demo — configure uma senha real "
+                "antes de subir com APP_ENV != dev/test."
+            )
     app = FastAPI(
         title="SAS · API",
         description="Backend da interface de coordenação ITM do Colégio Ari de Sá.",

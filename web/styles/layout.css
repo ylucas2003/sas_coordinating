@@ -30,7 +30,7 @@
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
 }
 
@@ -71,7 +71,7 @@
 
 .topbar__brand-name {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.3px;
   line-height: 1.2;
   color: var(--color-navy-deep);
@@ -83,7 +83,7 @@
   letter-spacing: 0.06em;
   color: var(--color-text-tertiary);
   line-height: 1.2;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .topbar__nav {
@@ -124,7 +124,7 @@
   right: 14px;
   bottom: 0;
   height: 2px;
-  background: var(--color-navy);
+  background: var(--color-gold);
   border-radius: 2px 2px 0 0;
 }
 
@@ -161,6 +161,101 @@
   color: #fff;
   background: var(--color-navy-deep);
   border-color: var(--color-navy-deep);
+}
+
+/* ─── Busca global (topbar) ──────────────────────────────────────────── */
+
+.topbar__busca {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-inset);
+  color: var(--color-text-tertiary);
+  width: 200px;
+  transition: border-color 150ms, width 150ms;
+}
+
+.topbar__busca:focus-within {
+  border-color: var(--color-navy-light);
+  width: 240px;
+}
+
+.topbar__busca-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.topbar__busca-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.topbar__busca-atalho {
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.topbar__busca-resultados {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  min-width: 260px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  padding: 4px;
+  z-index: 60;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.topbar__busca-resultados.is-aberto {
+  display: block;
+}
+
+.topbar__busca-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.topbar__busca-item:hover,
+.topbar__busca-item.is-ativo {
+  background: var(--color-surface-inset);
+  text-decoration: none;
+}
+
+.topbar__busca-item-nome {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.topbar__busca-item-sub {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.topbar__busca-vazio {
+  padding: 10px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
 }
 
 /* ─── Tela de Importar ──────────────────────────────────────────────── */
@@ -348,7 +443,7 @@
 }
 
 .importar__log-nivel {
-  text-transform: uppercase;
+  text-transform: none;
   font-weight: 500;
   font-size: 11px;
   padding: 1px 6px;
@@ -468,71 +563,6 @@
   color: var(--color-text-primary);
 }
 
-/* ─── Filter strip ──────────────────────────────────────────────────── */
-
-.filter-strip {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-}
-
-.filter-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 12px;
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  border: 1px solid var(--color-border-strong);
-  transition: background 150ms, color 150ms, border-color 150ms;
-  cursor: pointer;
-}
-
-.filter-pill:hover {
-  border-color: var(--color-navy-light);
-  color: var(--color-text-primary);
-}
-
-.filter-pill.is-active {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  color: #fff;
-}
-
-.filter-pill__chevron {
-  width: 12px;
-  height: 12px;
-  opacity: 0.5;
-}
-
-.filter-pill.is-active .filter-pill__chevron {
-  opacity: 0.8;
-}
-
-.filter-strip__sep {
-  width: 1px;
-  height: 16px;
-  background: var(--color-border-strong);
-}
-
-.filter-strip__clear {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: var(--radius-sm);
-  transition: color 150ms;
-}
-
-.filter-strip__clear:hover {
-  color: var(--color-navy);
-}
-
 /* ─── Sidebar contextual ────────────────────────────────────────────── */
 
 .sidebar {
@@ -542,6 +572,9 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  align-self: flex-start;
+  position: sticky;
+  top: 20px;
 }
 
 .sidebar__label {
@@ -552,6 +585,7 @@
 }
 
 .sidebar__item {
+  position: relative;
   padding: 9px 12px;
   border-radius: var(--radius-sm);
   font-size: 13px;
@@ -569,6 +603,17 @@
   background: rgba(27, 63, 139, 0.08);
   color: var(--color-navy);
   font-weight: 500;
+}
+
+.sidebar__item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--color-gold);
 }
 
 /* ─── Screen header ─────────────────────────────────────────────────── */
@@ -599,7 +644,7 @@
 
 .screen-title {
   font-size: 24px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.3px;
   color: var(--color-text-primary);
 }
@@ -937,8 +982,8 @@
 
 .heatmap__head-ciclo .heatmap__th-ciclo {
   font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-weight: 500;
+  text-transform: none;
   letter-spacing: 0.04em;
   color: var(--color-navy);
   padding: 6px 6px 4px 6px;
@@ -954,9 +999,9 @@
 
 .heatmap__head-fase .heatmap__th-fase {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-secondary);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.05em;
   padding: 4px 6px;
   text-align: center;
@@ -970,7 +1015,7 @@
 
 .heatmap__th-pn {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-secondary);
 }
 
@@ -1003,9 +1048,9 @@
 
 .export-menu__secao {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.06em;
-  text-transform: uppercase;
+  text-transform: none;
   color: var(--color-text-tertiary);
   padding: 8px 12px 4px 12px;
 }
@@ -1051,7 +1096,7 @@
 
 .panorama__marca-titulo {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--color-navy);
   text-align: right;
 }
@@ -1071,9 +1116,9 @@
 .panorama__h {
   margin: 0 0 8px 0;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: none;
   color: var(--color-text-secondary);
   border-bottom: 1px solid var(--color-border-strong);
   padding-bottom: 4px;
@@ -1093,7 +1138,7 @@
 
 .panorama__tag {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
   background: var(--color-surface-inset);
@@ -1119,13 +1164,13 @@
 .panorama__kpi-rotulo {
   font-size: 10px;
   color: var(--color-text-secondary);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.04em;
 }
 
 .panorama__kpi-valor {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
 }
@@ -1154,16 +1199,16 @@
 
 .panorama__heatmap-ciclo {
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--color-navy);
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .panorama__heatmap-fase {
   font-size: 8px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-secondary);
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .panorama__heatmap-pn {
@@ -1202,8 +1247,8 @@
 
 .panorama__tabela th {
   font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-weight: 500;
+  text-transform: none;
   letter-spacing: 0.04em;
   color: var(--color-text-tertiary);
 }
@@ -1322,14 +1367,14 @@
 .ciclo-hero__rotulo {
   font-size: 12px;
   color: var(--color-text-secondary);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.04em;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .ciclo-hero__valor {
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -1420,7 +1465,7 @@
 
 .ciclo-materia__seta {
   color: var(--color-text-tertiary);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .mini-badge {
@@ -1438,7 +1483,7 @@
 }
 
 .mini-badge__valor {
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1475,7 +1520,7 @@
 
 .ciclo-materia__hist-label {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-secondary);
 }
 
@@ -1510,13 +1555,13 @@
 .mini-card__rotulo {
   font-size: 11px;
   color: var(--color-text-secondary);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.03em;
 }
 
 .mini-card__valor {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -1538,7 +1583,7 @@
   padding: 10px 24px;
   font-size: 13px;
   font-family: inherit;
-  font-weight: 600;
+  font-weight: 500;
   background: var(--color-surface-inset);
   color: var(--color-navy);
   border: 1px solid var(--color-border-strong);
@@ -1595,9 +1640,9 @@
 
 .ciclo-avancado__fase-label {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--color-text-secondary);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.06em;
   margin-bottom: 8px;
 }
@@ -1610,9 +1655,9 @@
 
 .ciclo-avancado__grupo-titulo {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: none;
   color: var(--color-text-tertiary);
   margin-bottom: 4px;
 }
@@ -1664,7 +1709,7 @@
 .insights-painel__titulo {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-primary);
 }
 

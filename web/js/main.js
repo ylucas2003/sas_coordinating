@@ -145,4 +145,8 @@ window.addEventListener('sas:dados-atualizados', () => {
 render();
 
 // Chat launcher (FAB + drawer) — montado uma vez, persiste entre rotas.
-montarChatLauncher(document.body);
+// O aluno ganha um launcher próprio ("Mentor") dentro da área dele; o da
+// coordenação não deve aparecer para ele.
+if (sessionStorage.getItem('sas_tipo') !== 'aluno') {
+  montarChatLauncher(document.body);
+}

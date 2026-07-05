@@ -2,13 +2,18 @@
 
 from collections import defaultdict
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from ..auth import get_current_coordenador
 from ..schemas.domain import Ciclo
 from ..stats import ciclo_estatisticas, insights
 from ..supabase_client import get_supabase
 
-router = APIRouter(prefix="/ciclos", tags=["ciclos"])
+router = APIRouter(
+    prefix="/ciclos",
+    tags=["ciclos"],
+    dependencies=[Depends(get_current_coordenador)],
+)
 
 
 def _agrupar_simulados_por_ciclo(cliente) -> dict[str, list[str]]:

@@ -34,7 +34,7 @@
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.4px;
-  text-transform: uppercase;
+  text-transform: none;
   color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
@@ -224,7 +224,7 @@
 .calendario__mes-titulo {
   font-size: 10px;
   font-weight: 500;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
   color: var(--color-text-tertiary);
   text-align: center;

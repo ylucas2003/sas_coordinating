@@ -12,6 +12,22 @@ import { el } from '../../dom.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+// Curva suave (Bézier) — mesmo algoritmo do gráfico da área do aluno
+// (chartLine em screens/aluno/painel.js), pra unificar a linguagem visual.
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M ${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const cx = (x0 + x1) / 2;
+    d += ` C ${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  }
+  return d;
+}
+
+let _gradSeq = 0;
+
 /**
  * @param {Array<{simuladoId?, nome, rotuloCurto?, data, media, cicloAnteriorMedia?, materia?}>} pontos
  * @param {object} opts
@@ -106,8 +122,8 @@ export function linhaTemporal(pontos, opts = {}) {
       .map((p, i) => (p.cicloAnteriorMedia != null ? [xDe(i), yDe(p.cicloAnteriorMedia)] : null))
       .filter(Boolean);
     if (pontosAnt.length >= 2) {
-      const path = document.createElementNS(SVG_NS, 'polyline');
-      path.setAttribute('points', pontosAnt.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' '));
+      const path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('d', smoothPath(pontosAnt));
       path.setAttribute('fill', 'none');
       path.setAttribute('stroke', 'var(--color-text-tertiary)');
       path.setAttribute('stroke-width', '1.5');
@@ -117,13 +133,37 @@ export function linhaTemporal(pontos, opts = {}) {
     }
   }
 
-  // ── Linha principal (ciclo atual) ──
+  // ── Linha principal (ciclo atual) — curva suave com área em gradiente ──
   const pontosAtual = pontos.map((p, i) => [xDe(i), yDe(p.media)]);
-  const linhaAtual = document.createElementNS(SVG_NS, 'polyline');
-  linhaAtual.setAttribute(
-    'points',
-    pontosAtual.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' '),
-  );
+  const pathAtual = smoothPath(pontosAtual);
+
+  const gradId = `linha-temporal-grad-${_gradSeq++}`;
+  const defs = document.createElementNS(SVG_NS, 'defs');
+  const grad = document.createElementNS(SVG_NS, 'linearGradient');
+  grad.setAttribute('id', gradId);
+  grad.setAttribute('x1', '0'); grad.setAttribute('y1', '0');
+  grad.setAttribute('x2', '0'); grad.setAttribute('y2', '1');
+  const stop1 = document.createElementNS(SVG_NS, 'stop');
+  stop1.setAttribute('offset', '0%');
+  stop1.setAttribute('stop-color', 'var(--color-navy)');
+  stop1.setAttribute('stop-opacity', '0.16');
+  const stop2 = document.createElementNS(SVG_NS, 'stop');
+  stop2.setAttribute('offset', '100%');
+  stop2.setAttribute('stop-color', 'var(--color-navy)');
+  stop2.setAttribute('stop-opacity', '0');
+  grad.appendChild(stop1);
+  grad.appendChild(stop2);
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  const area = document.createElementNS(SVG_NS, 'path');
+  const ultimo = pontosAtual[pontosAtual.length - 1];
+  area.setAttribute('d', `${pathAtual} L ${ultimo[0].toFixed(1)},${(padTop + plotH).toFixed(1)} L ${pontosAtual[0][0].toFixed(1)},${(padTop + plotH).toFixed(1)} Z`);
+  area.setAttribute('fill', `url(#${gradId})`);
+  svg.appendChild(area);
+
+  const linhaAtual = document.createElementNS(SVG_NS, 'path');
+  linhaAtual.setAttribute('d', pathAtual);
   linhaAtual.setAttribute('fill', 'none');
   linhaAtual.setAttribute('stroke', 'var(--color-navy)');
   linhaAtual.setAttribute('stroke-width', '2');
@@ -142,8 +182,8 @@ export function linhaTemporal(pontos, opts = {}) {
     circ.setAttribute('cx', x.toFixed(1));
     circ.setAttribute('cy', y.toFixed(1));
     circ.setAttribute('r', '4');
-    circ.setAttribute('fill', 'var(--color-navy)');
-    circ.setAttribute('stroke', 'var(--color-bg)');
+    circ.setAttribute('fill', '#fff');
+    circ.setAttribute('stroke', 'var(--color-navy)');
     circ.setAttribute('stroke-width', '2');
     g.appendChild(circ);
 

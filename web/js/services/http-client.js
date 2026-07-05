@@ -4,7 +4,12 @@
 // **não** fala direto com o Supabase. Toda leitura passa pela API.
 // Ver decisão pendente #10 em ../../../docs/06-open-questions.md.
 
-const BASE_URL = 'http://localhost:8000';
+// Dev local (localhost/127.*) fala com o uvicorn local; qualquer outro host
+// (Render, etc.) fala com a API publicada. Sem build step, então a detecção
+// é em runtime mesmo.
+const BASE_URL = /^(localhost|127\.)/.test(window.location.hostname)
+  ? 'http://localhost:8000'
+  : 'https://sas-coordinating.onrender.com';
 
 // Cache em memória das respostas GET. Os dados do SAS só mudam quando entra
 // uma planilha nova, então cachear evita rebuscar alunos/notas/simulados a
@@ -212,6 +217,7 @@ async function streamSSE(path, body, onEvento) {
     headers: { 'Content-Type': 'application/json', ..._authHeaders() },
     body: JSON.stringify(body),
   });
+  _onUnauthorized(res);
   if (!res.ok) {
     let detalhe = '';
     try { detalhe = (await res.json()).detail || ''; } catch {}

@@ -111,7 +111,7 @@
 .chat-drawer__pequeno {
   font-size: 11px;
   color: var(--color-text-tertiary);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.4px;
   font-weight: 500;
 }
@@ -201,7 +201,7 @@
 
 .chat-threads__titulo {
   font-size: 12px;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.4px;
   color: var(--color-text-tertiary);
   font-weight: 500;
@@ -457,7 +457,7 @@
   font-weight: 500;
   color: var(--color-text-secondary);
   margin-bottom: 8px;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.4px;
 }
 

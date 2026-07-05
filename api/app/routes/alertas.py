@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..auth import exigir_scheduler_secret
+from ..auth import exigir_scheduler_secret, get_current_coordenador
 from ..schemas.domain import Alerta
 from ..supabase_client import criar_cliente_supabase, get_supabase
 
@@ -83,7 +83,9 @@ def _linha_para_alerta(linha: dict) -> Alerta:
     )
 
 
-@router.get("", response_model=list[Alerta])
+# A proteção aqui é por endpoint (não no router): POST /alertas/verificar é
+# rota de máquina do scheduler e usa X-Scheduler-Secret, não JWT.
+@router.get("", response_model=list[Alerta], dependencies=[Depends(get_current_coordenador)])
 async def listar_alertas() -> list[Alerta]:
     cliente = get_supabase()
     resp = (
@@ -99,7 +101,7 @@ async def listar_alertas() -> list[Alerta]:
     return [_linha_para_alerta(linha) for linha in linhas]
 
 
-@router.post("/{alerta_id}/resolver")
+@router.post("/{alerta_id}/resolver", dependencies=[Depends(get_current_coordenador)])
 async def resolver_alerta(alerta_id: str) -> dict:
     """Marca o alerta como resolvido. Tela do painel remove o card."""
     cliente = get_supabase()

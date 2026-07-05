@@ -160,7 +160,7 @@
 }
 
 .linha-evol__tt-cab {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 12px;
   padding-bottom: 6px;
   margin-bottom: 6px;
@@ -185,7 +185,7 @@
 }
 
 .linha-evol__tt-nota {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .linha-evol__tt-val.tone-verde { color: #5ed896; }
@@ -209,7 +209,7 @@
 /* ─── Tabela do aluno — colunas extras ─────────────────────────────────── */
 
 .sim-tabela__sua {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-navy-deep);
 }
 
@@ -240,7 +240,6 @@
   /* Esconde tudo que não é a ficha do aluno. */
   .sidebar,
   .topbar,
-  .filter-strip,
   .export-menu,
   .sim-filtros,
   .sim-calendario-toggle,
@@ -324,10 +323,10 @@
 .tabela-corte__th {
   text-align: left;
   padding: 6px 12px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 11px;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
+  text-transform: none;
   color: var(--color-text-secondary, #888);
   border-bottom: 1px solid var(--color-border, #e5e7eb);
 }

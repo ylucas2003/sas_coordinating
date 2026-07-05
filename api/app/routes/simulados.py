@@ -5,10 +5,11 @@ As métricas (media, mediana, desvioPadrao, nPresentes) vêm da tabela de cache
 fim de cada upload — frontend nunca calcula nada.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from supabase import Client
 
+from ..auth import get_current_coordenador
 from ..schemas.domain import MateriaResumo, Simulado
 from ..stats.classificacao import recalcular_tudo as recalcular_classificacoes
 from ..stats.metricas import (
@@ -21,7 +22,11 @@ from ..stats.metricas import (
 from ..stats.utils import como_float, nota_real
 from ..supabase_client import get_supabase
 
-router = APIRouter(prefix="/simulados", tags=["simulados"])
+router = APIRouter(
+    prefix="/simulados",
+    tags=["simulados"],
+    dependencies=[Depends(get_current_coordenador)],
+)
 
 
 _CAMPOS_SIMULADO = (

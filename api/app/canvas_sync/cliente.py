@@ -27,7 +27,7 @@ class ClienteCanvas:
         *,
         base_url: str,
         token: str,
-        timeout: float = 30.0,
+        timeout: float = 60.0,
         concorrencia_maxima: int = 8,
     ) -> None:
         if not base_url or not token:
@@ -52,15 +52,24 @@ class ClienteCanvas:
 
     async def _get(self, url: str, *, params: dict[str, Any] | None = None) -> httpx.Response:
         async with self._semaforo:
+            ultima_excecao: Exception | None = None
             resposta: httpx.Response | None = None
             for tentativa in range(_TENTATIVAS):
-                resposta = await self._http.get(url, params=params)
+                try:
+                    resposta = await self._http.get(url, params=params)
+                except (httpx.TimeoutException, httpx.TransportError) as exc:
+                    # Página lenta em paginação profunda / rede instável —
+                    # tão retryável quanto um 5xx.
+                    ultima_excecao = exc
+                    await asyncio.sleep(2**tentativa)
+                    continue
                 if resposta.status_code in (403, 429) or resposta.status_code >= 500:
                     await asyncio.sleep(2**tentativa)
                     continue
                 resposta.raise_for_status()
                 return resposta
-            assert resposta is not None
+            if resposta is None:
+                raise ultima_excecao or RuntimeError("GET ao Canvas falhou sem resposta")
             resposta.raise_for_status()
             return resposta
 
@@ -127,9 +136,23 @@ class ClienteCanvas:
             f"/courses/{course_id}/students/submissions", params=params
         )
 
+    async def listar_usuarios_do_curso(self, course_id: str) -> list[dict[str, Any]]:
+        """Alunos do curso com e-mail incluído — UMA chamada paginada cobre o
+        curso inteiro (barato o bastante para o incremental de 5 min).
+
+        O campo `email` só vem se o token tiver permissão de ler perfis; para
+        os que vierem sem, o fallback é Communication Channels."""
+        return await self._get_paginado(
+            f"/courses/{course_id}/users",
+            params={
+                "enrollment_type[]": ["student"],
+                "include[]": ["email"],
+            },
+        )
+
     async def listar_canais_de_comunicacao(self, user_id: str) -> list[dict[str, Any]]:
         """Canais de contato do usuário (email/push). Uma chamada POR aluno —
-        usar só no backfill, nunca no incremental de 5 min."""
+        usar só no backfill ou em lotes pequenos no incremental."""
         return await self._get_paginado(f"/users/{user_id}/communication_channels")
 
     async def obter_estatisticas_quiz(self, course_id: str, quiz_id: str) -> dict[str, Any]:

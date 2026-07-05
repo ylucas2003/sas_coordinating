@@ -4,6 +4,7 @@
 import { getApiClient } from '../services/api.js';
 import { clear, el, fmtNota } from '../dom.js';
 import { abrirFichaNota } from '../components/ui/dialog.js';
+import { kpi } from '../components/ui/kpi.js';
 
 // ─── SVG helper (el() usa createElement, não createElementNS) ────────────
 
@@ -259,10 +260,12 @@ export async function renderPainel({ sidebarEl } = {}) {
     aberto: { ciclos: true, sede: false, turmas: false },
   };
 
-  // ── DOM split: header e tabela separados ───────────────────────────────
+  // ── DOM split: header, KPIs e tabela separados ──────────────────────────
   const headerEl = el('div', {}, []);
+  const kpisEl = el('div', {}, []);
   const tabelaEl = el('div', {}, []);
   root.appendChild(headerEl);
+  root.appendChild(kpisEl);
   root.appendChild(tabelaEl);
 
   // ── Filtrar alunos (sem ordenação — a ordem é feita em renderTabelaDados) ─
@@ -281,10 +284,11 @@ export async function renderPainel({ sidebarEl } = {}) {
     return lista;
   }
 
-  // ── Renderizar só a tabela ─────────────────────────────────────────────
+  // ── Renderizar tabela + KPIs do ciclo ───────────────────────────────────
   function renderizarTabela() {
     const cicloAtivo = ciclos.find((c) => c.id === estado.cicloId);
     clear(tabelaEl);
+    clear(kpisEl);
     if (estado.carregando) {
       tabelaEl.appendChild(
         el('div', { class: 'section' }, [
@@ -299,7 +303,9 @@ export async function renderPainel({ sidebarEl } = {}) {
       renderizarTabela();
     }
     const toggler = estado.ordenacao === 'ranking' ? onToggleLimite : null;
-    tabelaEl.appendChild(renderTabelaDados(cicloAtivo, estado, simulados, alunos, filtrarAlunos, toggler, editarNota));
+    const { elemento, resumo } = renderTabelaDados(cicloAtivo, estado, simulados, alunos, filtrarAlunos, toggler, editarNota);
+    if (resumo) kpisEl.appendChild(renderKpisCiclo(resumo));
+    tabelaEl.appendChild(elemento);
   }
 
   // ── Renderizar header (muda só ao trocar de ciclo) ─────────────────────
@@ -625,7 +631,7 @@ export async function renderPainel({ sidebarEl } = {}) {
 
 function renderTabelaDados(cicloAtivo, estado, todosSim, todosAlunos, filtrarAlunos, onToggleLimite, onEditarNota) {
   if (!cicloAtivo) {
-    return el('div', { class: 'empty-state' }, ['Selecione um ciclo na barra lateral.']);
+    return { elemento: el('div', { class: 'empty-state' }, ['Selecione um ciclo na barra lateral.']), resumo: null };
   }
 
   const simsDociclo = todosSim
@@ -639,9 +645,12 @@ function renderTabelaDados(cicloAtivo, estado, todosSim, todosAlunos, filtrarAlu
   const colunasDef = esquema ?? buildColunasDinamicas(simsDociclo);
 
   if (colunasDef.length === 0) {
-    return el('div', { class: 'empty-state' }, [
-      'Nenhum simulado com matéria e fase definidos neste ciclo.',
-    ]);
+    return {
+      elemento: el('div', { class: 'empty-state' }, [
+        'Nenhum simulado com matéria e fase definidos neste ciclo.',
+      ]),
+      resumo: null,
+    };
   }
 
   // Conjunto completo de colunas — usado para CALCULAR as médias (a média
@@ -703,11 +712,56 @@ function renderTabelaDados(cicloAtivo, estado, todosSim, todosAlunos, filtrarAlu
     }
   }
 
-  return el('div', { class: 'painel-tabela-wrap' }, [
-    el('table', { class: 'painel-tabela' }, [
-      renderThead(colunas),
-      renderTbody(alunosFiltrados, colunas, notasAluno, mediasVirtuaisAluno, mediasPorCol, estado.limitesCollapsed, onToggleLimite, onEditarNota),
+  // ── Resumo do ciclo (KPIs) — média geral e nº de alunos em zona de corte ─
+  const valoresGerais = alunosFiltrados
+    .map((a) => {
+      const mv = mediasVirtuaisAluno[a.id] || {};
+      if (mv['MED_FINAL'] != null) return mv['MED_FINAL'];
+      if (mv['MED_F1'] != null) return mv['MED_F1'];
+      return mediaGeralAluno(a.id, notasAluno, colunas);
+    })
+    .filter((v) => v != null);
+  const mediaGeralTurma = valoresGerais.length
+    ? valoresGerais.reduce((acc, v) => acc + v, 0) / valoresGerais.length
+    : null;
+  const cortados = alunosFiltrados.filter(
+    (a) => statusNomeAluno(a.id, colunas, notasAluno) === 'cortado'
+  ).length;
+
+  const resumo = {
+    totalAlunos: alunosFiltrados.length,
+    totalSimulados: simsDociclo.length,
+    mediaGeral: mediaGeralTurma,
+    cortados,
+  };
+
+  return {
+    elemento: el('div', { class: 'painel-tabela-wrap' }, [
+      el('table', { class: 'painel-tabela' }, [
+        renderThead(colunas),
+        renderTbody(alunosFiltrados, colunas, notasAluno, mediasVirtuaisAluno, mediasPorCol, estado.limitesCollapsed, onToggleLimite, onEditarNota),
+      ]),
     ]),
+    resumo,
+  };
+}
+
+// ─── KPIs do ciclo (fileira acima da tabela) ─────────────────────────────
+
+function toneMedia(media) {
+  if (media == null) return '';
+  return media >= 7 ? 'tone-verde' : media >= 5 ? 'tone-ambar' : 'tone-vermelho';
+}
+
+function renderKpisCiclo(resumo) {
+  return el('div', { class: 'painel-kpis' }, [
+    kpi('Alunos no ciclo', resumo.totalAlunos),
+    kpi('Simulados aplicados', resumo.totalSimulados),
+    kpi('Média geral', fmtNota(resumo.mediaGeral), { tone: toneMedia(resumo.mediaGeral) }),
+    kpi('Em zona de corte', resumo.cortados, {
+      suffix: ` de ${resumo.totalAlunos}`,
+      tone: resumo.cortados > 0 ? 'tone-vermelho' : 'tone-verde',
+    }),
   ]);
 }
 

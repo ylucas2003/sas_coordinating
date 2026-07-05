@@ -25,6 +25,20 @@ function svgEl(tag, attrs = {}) {
   return node;
 }
 
+// Curva suave (Bézier) — mesmo algoritmo do gráfico da área do aluno
+// (chartLine em screens/aluno/painel.js), pra unificar a linguagem visual.
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M ${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const cx = (x0 + x1) / 2;
+    d += ` C ${cx.toFixed(1)},${y0.toFixed(1)} ${cx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  }
+  return d;
+}
+
 const FASE_LABEL = { fase_1: 'Fase 1', fase_2: 'Fase 2' };
 
 function fmtDataBR(iso) {
@@ -215,11 +229,11 @@ export function linhaEvolucao({
 
     if (ordenados.length === 0) return;
 
-    // Linha (polyline)
+    // Linha — curva suave (Bézier), no mesmo estilo da área do aluno.
     if (ordenados.length >= 2) {
-      const pts = ordenados.map((p) => `${xDe(p.cicloOrdem).toFixed(1)},${yDe(p.nota).toFixed(1)}`).join(' ');
-      svg.appendChild(svgEl('polyline', {
-        points: pts,
+      const pts = ordenados.map((p) => [xDe(p.cicloOrdem), yDe(p.nota)]);
+      svg.appendChild(svgEl('path', {
+        d: smoothPath(pts),
         fill: 'none',
         stroke: cor,
         'stroke-width': 2,
@@ -228,16 +242,16 @@ export function linhaEvolucao({
       }));
     }
 
-    // Pontos (com hover)
+    // Pontos (com hover) — dot branco com contorno colorido; abandono
+    // provável vira um marcador sólido vermelho, pra saltar aos olhos.
     for (const p of ordenados) {
       const cx = xDe(p.cicloOrdem);
       const cy = yDe(p.nota);
-      // ponto cheio normal, círculo aberto se abandono provável
       const ponto = svgEl('circle', {
         cx, cy,
-        r: 4.5,
-        fill: p.abandonoProvavel ? '#fff' : cor,
-        stroke: cor,
+        r: 4,
+        fill: p.abandonoProvavel ? 'var(--color-red, #c44)' : '#fff',
+        stroke: p.abandonoProvavel ? '#fff' : cor,
         'stroke-width': 2,
         class: 'linha-evol__ponto',
       });

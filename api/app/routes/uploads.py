@@ -4,15 +4,28 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+)
 from pydantic import BaseModel
 
+from ..auth import get_current_coordenador
 from ..ingest.pipeline import processar_planilha
 from ..ingest.upsert import criar_upload
 from ..storage import salvar_planilha
 from ..supabase_client import criar_cliente_supabase, get_supabase
 
-router = APIRouter(prefix="/uploads", tags=["uploads"])
+router = APIRouter(
+    prefix="/uploads",
+    tags=["uploads"],
+    dependencies=[Depends(get_current_coordenador)],
+)
 
 
 # ─── Schemas de resposta ──────────────────────────────────────────────────

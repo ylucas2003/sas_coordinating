@@ -1,30 +1,28 @@
+import { httpClient } from './services/http-client.js';
+
 // Configuração dos dois modos (aluno / coordenador)
 const MODOS = {
   aluno: {
-    label:         'ACESSO · ALUNO',
+    label:         'Acesso · aluno',
     hl1:           'Sua jornada,',
     hlEm:          'medida',
     hl2:           ' a cada passo.',
     subtitle:      'Veja cada simulado, cada nota e cada avanço até a sua aprovação. Sua devolutiva, sua evolução, seu painel.',
-    fieldLabel:    'MATRÍCULA',
+    fieldLabel:    'Matrícula',
     placeholder:   'matrícula ou e-mail institucional',
     submitText:    'Entrar no painel do aluno',
-    credUser:      '16409338',
-    credSenha:     'tioleo123',
     rightHl:       'A tradição que aprova.<br>Agora, acompanhada<br>com <em>precisão.</em>',
     rightSub:      'Cada simulado ganha contexto, cada nota vira direção e cada aluno acompanha sua evolução até a aprovação.',
   },
   coordenador: {
-    label:         'ACESSO · COORDENAÇÃO',
+    label:         'Acesso · coordenação',
     hl1:           'Gestão clara,',
     hlEm:          'decisões',
     hl2:           ' com profundidade.',
     subtitle:      'Acompanhe dados individuais e gerais, compare turmas, ciclos e desempenhos, identifique alertas e transforme informação em ação pedagógica.',
-    fieldLabel:    'USUÁRIO',
+    fieldLabel:    'Usuário',
     placeholder:   'usuário institucional',
     submitText:    'Entrar no painel da coordenação',
-    credUser:      'leonardobruno@aridesa.com',
-    credSenha:     'tioleo123',
     rightHl:       'Diagnóstico que organiza<br>a visão. Dados que orientam<br>a <em>decisão.</em>',
     rightSub:      'Do aluno individual ao panorama da rede, a plataforma cruza resultados, evidencia prioridades e apoia intervenções pedagógicas com clareza.',
   },
@@ -121,7 +119,7 @@ async function handleSubmit(e) {
   els.error.style.display = 'none';
 
   try {
-    const res = await fetch('http://localhost:8000/auth/login', {
+    const res = await fetch(`${httpClient.baseUrl()}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tipo: modoAtual, usuario: user, senha: pass }),
@@ -167,6 +165,12 @@ function toggleSenha() {
       <line x1="1" y1="1" x2="23" y2="23"/>`;
   }
 }
+
+// ─── Listeners (o script é module — sem handlers inline no HTML) ─────────
+els.btnAluno.addEventListener('click', () => setModo('aluno'));
+els.btnCoord.addEventListener('click', () => setModo('coordenador'));
+$('js-form').addEventListener('submit', handleSubmit);
+$('js-eye-btn').addEventListener('click', toggleSenha);
 
 // ─── Animação de shake (erro de login) ───────────────────────────────────
 const style = document.createElement('style');

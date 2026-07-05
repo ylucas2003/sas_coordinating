@@ -139,9 +139,13 @@ async def _sincronizar_curso_simulados(
 
     # Um aluno aparece uma vez POR SECTION — dedup por matrícula, senão o
     # upsert em lote falha ("ON CONFLICT cannot affect row a second time").
+    # Só entram alunos de sections reconhecidas: as sections-lixo ("2022",
+    # "AFA", nomes de curso) carregam alunos arquivados de anos anteriores.
     aluno_por_matricula: dict[str, dict[str, Any]] = {}
     matricula_por_canvas_user: dict[str, str] = {}
     for enrollment in enrollments:
+        if str(enrollment.get("course_section_id")) not in turma_por_section_id:
+            continue
         aluno = mapeador.mapear_aluno(enrollment.get("user") or {})
         if aluno is None:
             continue
@@ -278,6 +282,74 @@ async def _sincronizar_curso_simulados(
     return aluno_por_canvas_user
 
 
+# ─── E-mail dos alunos no sync incremental ────────────────────────────────
+
+# Fallback por Communication Channels é 1 chamada POR aluno — limitado por
+# rodada para não estourar o ciclo de 5 min. Alunos já tentados são marcados
+# em aluno.email_verificado_em e não são re-tentados.
+MAX_CANAIS_POR_RODADA = 15
+
+
+async def _preencher_emails_incremental(
+    *,
+    cliente: Client,
+    canvas: ClienteCanvas,
+    course_id: str,
+    resumo: ResumoSincronizacao,
+) -> None:
+    """Preenche aluno.email onde estiver NULL (validação do primeiro acesso).
+
+    Passo 1: /courses/{id}/users?include[]=email — uma chamada paginada cobre
+    todos os alunos do curso. Passo 2 (fallback): Communication Channels para
+    quem continuar sem e-mail, até MAX_CANAIS_POR_RODADA por rodada.
+    Nunca sobrescreve e-mail já preenchido.
+    """
+    resp = (
+        cliente.table("aluno")
+        .select("id, canvas_user_id, email_verificado_em")
+        .is_("email", "null")
+        .eq("ativo", True)
+        .not_.is_("canvas_user_id", "null")
+        .execute()
+    )
+    pendentes = resp.data or []
+    if not pendentes:
+        return
+
+    try:
+        usuarios = await canvas.listar_usuarios_do_curso(course_id)
+    except Exception as exc:
+        resumo.avisos.append(f"Falha ao listar usuários do curso p/ e-mail: {exc}")
+        usuarios = []
+    email_por_canvas_user = {
+        str(u["id"]): u.get("email") for u in usuarios if u.get("email")
+    }
+
+    ainda_sem_email: list[dict[str, Any]] = []
+    for aluno in pendentes:
+        email = email_por_canvas_user.get(str(aluno["canvas_user_id"]))
+        if email:
+            cliente.table("aluno").update({"email": email}).eq("id", aluno["id"]).execute()
+            resumo.emails_preenchidos += 1
+        else:
+            ainda_sem_email.append(aluno)
+
+    nao_tentados = [a for a in ainda_sem_email if not a.get("email_verificado_em")]
+    for aluno in nao_tentados[:MAX_CANAIS_POR_RODADA]:
+        patch: dict[str, Any] = {
+            "email_verificado_em": datetime.now(timezone.utc).isoformat()
+        }
+        try:
+            canais = await canvas.listar_canais_de_comunicacao(str(aluno["canvas_user_id"]))
+            email = mapeador.extrair_email(canais)
+            if email:
+                patch["email"] = email
+                resumo.emails_preenchidos += 1
+        except Exception:
+            pass  # marca a tentativa mesmo assim — sem loop infinito de retry
+        cliente.table("aluno").update(patch).eq("id", aluno["id"]).execute()
+
+
 # ─── Recalcular métricas/classificação/alertas (mesma sequência do pipeline) ──
 
 
@@ -311,6 +383,9 @@ async def sincronizar_ano_atual(
     await _sincronizar_curso_simulados(
         cliente=cliente, canvas=canvas, curso=curso, ano=ano,
         graded_since=graded_since, resumo=resumo,
+    )
+    await _preencher_emails_incremental(
+        cliente=cliente, canvas=canvas, course_id=str(curso["id"]), resumo=resumo,
     )
     _recalcular_stats(cliente)
     return resumo

@@ -1,11 +1,15 @@
 """Sedes e turmas — entidades de "contexto" usadas em filtros."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from ..auth import get_current_coordenador
 from ..schemas.domain import Sede, Turma
 from ..supabase_client import get_supabase
 
-router = APIRouter(tags=["dimensoes"])
+router = APIRouter(
+    tags=["dimensoes"],
+    dependencies=[Depends(get_current_coordenador)],
+)
 
 
 @router.get("/sedes", response_model=list[Sede])

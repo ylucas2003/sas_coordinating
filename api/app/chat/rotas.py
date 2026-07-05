@@ -8,12 +8,12 @@ Endpoints:
   DELETE /chat/threads/{thread_id}              — apaga (cascade nas msgs)
   POST /chat/threads/{thread_id}/mensagens      — envia msg, devolve SSE
 
-Autenticação no MVP é só um header `X-Usuario-Id` (handle/email do coord).
-Sem login real ainda — toda a autorização passa pela rota.
+Autenticação: JWT (Bearer) — aceita aluno E coordenador. As threads vivem em
+namespaces separados por tipo (`coord:<sub>` / `aluno:<aluno_id>`), então um
+aluno nunca enxerga threads da coordenação nem de outro aluno.
 
-Threads são privadas por usuário; um coord não vê threads de outro.
-Tools (executadas dentro do agente) podem ler dados de qualquer aluno —
-todos os coordenadores enxergam tudo (decisão do produto).
+Tools do coordenador podem ler dados de qualquer aluno (decisão do produto);
+o aluno recebe um perfil de tools restrito aos próprios dados.
 """
 
 from __future__ import annotations
@@ -23,10 +23,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator
 
-from fastapi import APIRouter, Header, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from ..auth import get_current_user
 from ..supabase_client import get_supabase
 from . import agente
 
@@ -34,8 +35,12 @@ log = logging.getLogger("sas.chat.rotas")
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-USUARIO_HEADER = "X-Usuario-Id"
-USUARIO_DEFAULT = "coordenador"  # fallback no MVP enquanto não tem login
+
+def _usuario_do_token(user: dict) -> str:
+    """Namespace do dono da thread em chat_thread.usuario_id."""
+    if user.get("tipo") == "aluno":
+        return f"aluno:{user['aluno_id']}"
+    return f"coord:{user.get('sub', 'coordenador')}"
 
 
 # ─── Schemas ─────────────────────────────────────────────────────────────
@@ -91,11 +96,11 @@ class NovaMensagem(BaseModel):
 
 @router.get("/threads", response_model=list[ThreadResumo])
 async def listar_threads(
-    x_usuario_id: str | None = Header(default=None, alias=USUARIO_HEADER),
     incluir_arquivadas: bool = False,
+    user: dict = Depends(get_current_user),
 ) -> list[dict]:
     cliente = get_supabase()
-    usuario = x_usuario_id or USUARIO_DEFAULT
+    usuario = _usuario_do_token(user)
     q = (
         cliente.table("chat_thread")
         .select("id, titulo, arquivada, criada_em, ultima_msg_em")
@@ -124,10 +129,10 @@ async def listar_threads(
 @router.post("/threads", response_model=ThreadResumo)
 async def criar_thread(
     body: NovaThread,
-    x_usuario_id: str | None = Header(default=None, alias=USUARIO_HEADER),
+    user: dict = Depends(get_current_user),
 ) -> dict:
     cliente = get_supabase()
-    usuario = x_usuario_id or USUARIO_DEFAULT
+    usuario = _usuario_do_token(user)
     titulo = (body.titulo or "Nova conversa").strip()[:80] or "Nova conversa"
     resp = (
         cliente.table("chat_thread")
@@ -150,10 +155,10 @@ async def criar_thread(
 @router.get("/threads/{thread_id}", response_model=ThreadDetalhe)
 async def obter_thread(
     thread_id: str = Path(...),
-    x_usuario_id: str | None = Header(default=None, alias=USUARIO_HEADER),
+    user: dict = Depends(get_current_user),
 ) -> dict:
     cliente = get_supabase()
-    usuario = x_usuario_id or USUARIO_DEFAULT
+    usuario = _usuario_do_token(user)
     t = _carregar_thread_ou_404(cliente, thread_id, usuario)
 
     msgs_resp = (
@@ -214,10 +219,10 @@ async def obter_thread(
 async def atualizar_thread(
     body: PatchThread,
     thread_id: str = Path(...),
-    x_usuario_id: str | None = Header(default=None, alias=USUARIO_HEADER),
+    user: dict = Depends(get_current_user),
 ) -> dict:
     cliente = get_supabase()
-    usuario = x_usuario_id or USUARIO_DEFAULT
+    usuario = _usuario_do_token(user)
     _carregar_thread_ou_404(cliente, thread_id, usuario)
 
     patch: dict[str, Any] = {}
@@ -251,10 +256,10 @@ async def atualizar_thread(
 @router.delete("/threads/{thread_id}")
 async def apagar_thread(
     thread_id: str = Path(...),
-    x_usuario_id: str | None = Header(default=None, alias=USUARIO_HEADER),
+    user: dict = Depends(get_current_user),
 ) -> dict:
     cliente = get_supabase()
-    usuario = x_usuario_id or USUARIO_DEFAULT
+    usuario = _usuario_do_token(user)
     _carregar_thread_ou_404(cliente, thread_id, usuario)
     cliente.table("chat_thread").delete().eq("id", thread_id).execute()
     return {"removido": thread_id}
@@ -267,10 +272,10 @@ async def apagar_thread(
 async def enviar_mensagem(
     body: NovaMensagem,
     thread_id: str = Path(...),
-    x_usuario_id: str | None = Header(default=None, alias=USUARIO_HEADER),
+    user: dict = Depends(get_current_user),
 ):
     cliente = get_supabase()
-    usuario = x_usuario_id or USUARIO_DEFAULT
+    usuario = _usuario_do_token(user)
     _carregar_thread_ou_404(cliente, thread_id, usuario)
     texto = (body.conteudo or "").strip()
     if not texto:
