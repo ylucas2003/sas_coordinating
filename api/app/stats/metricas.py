@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import statistics as st
 from collections import defaultdict
+from collections.abc import Iterable
 from typing import Any
 
 from supabase import Client
@@ -44,25 +45,52 @@ LARGURA_BIN = 0.5
 NOTA_MAXIMA_NORMALIZADA = 10.0
 
 
+# Metadados de simulado necessários pra decidir corte + normalização.
+_SELECT_SIMULADO_META = (
+    "id, nota_maxima, anulado, e_agregado, tipo, materia_id, "
+    "ciclo:ciclo_id(vestibular_alvo), materia:materia_id(codigo)"
+)
+
+
 def recalcular_tudo(cliente: Client) -> int:
     """Recalcula métricas de todos os simulados válidos.
 
     Retorna a quantidade de simulados processados. Chamado pelo pipeline
-    após o upload acabar.
+    após o upload acabar e pelo reconcile diário.
     """
     resp = (
         cliente.table("simulado")
-        .select(
-            "id, nota_maxima, anulado, e_agregado, tipo, materia_id, "
-            "ciclo:ciclo_id(vestibular_alvo), materia:materia_id(codigo)"
-        )
+        .select(_SELECT_SIMULADO_META)
         .eq("anulado", False)
         .eq("e_agregado", False)
         .execute()
     )
-    simulados = resp.data or []
-    log.info("recalculando métricas de %d simulados", len(simulados))
+    return _recalcular_lote(cliente, resp.data or [])
 
+
+def recalcular_simulados(cliente: Client, simulado_ids: Iterable[str]) -> int:
+    """Recalcula métricas só dos simulados dados — usado pelo sync incremental.
+
+    Aplica o MESMO filtro de `recalcular_tudo` (anulado=False, e_agregado=False):
+    um id anulado/agregado passado aqui simplesmente não volta na query e é
+    ignorado, mantendo a semântica idêntica ao recálculo completo.
+    """
+    ids = list(dict.fromkeys(simulado_ids))  # dedup preservando ordem
+    if not ids:
+        return 0
+    resp = (
+        cliente.table("simulado")
+        .select(_SELECT_SIMULADO_META)
+        .in_("id", ids)
+        .eq("anulado", False)
+        .eq("e_agregado", False)
+        .execute()
+    )
+    return _recalcular_lote(cliente, resp.data or [])
+
+
+def _recalcular_lote(cliente: Client, simulados: list[dict]) -> int:
+    log.info("recalculando métricas de %d simulados", len(simulados))
     for simulado in simulados:
         recalcular_simulado(
             cliente,

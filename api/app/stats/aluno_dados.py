@@ -415,6 +415,45 @@ def questoes_do_aluno_no_simulado(
     }
 
 
+def arquivo_do_simulado_do_aluno(
+    cliente: Client, aluno_id: str, simulado_id: str
+) -> dict[str, Any]:
+    """Path do PDF da prova no Storage — mesma resposta de
+    GET /me/simulado/{id}/arquivo. Só o path/nome; gerar a signed URL é
+    responsabilidade da rota (I/O de Storage não mora nesse módulo)."""
+    # O aluno só consulta simulados em que tem nota (mesma guarda das outras
+    # extrações deste módulo).
+    nota_resp = (
+        cliente.table("nota")
+        .select("aluno_id")
+        .eq("aluno_id", aluno_id)
+        .eq("simulado_id", simulado_id)
+        .eq("presente", True)
+        .limit(1)
+        .execute()
+    )
+    if not nota_resp.data:
+        return {"erro": "Nota não encontrada para este simulado"}
+
+    sim_resp = (
+        cliente.table("simulado")
+        .select("nome, arquivo_storage_path")
+        .eq("id", simulado_id)
+        .limit(1)
+        .execute()
+    )
+    if not sim_resp.data:
+        return {"erro": "Simulado não encontrado"}
+    sim = sim_resp.data[0]
+    if not sim.get("arquivo_storage_path"):
+        return {"erro": "Arquivo do simulado ainda não disponível"}
+
+    return {
+        "caminhoStorage": sim["arquivo_storage_path"],
+        "nomeArquivo": sim["nome"],
+    }
+
+
 def payload_insight_ciclo(
     cliente: Client, aluno_id: str
 ) -> tuple[dict[str, Any], dict[str, Any]] | None:

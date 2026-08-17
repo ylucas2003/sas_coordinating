@@ -36,6 +36,10 @@ class ClienteCanvas:
             base_url=f"{base_url.rstrip('/')}/api/v1",
             headers={"Authorization": f"Bearer {token}"},
             timeout=timeout,
+            # Download de Course File redireciona (302) pro host de CDN
+            # (canvas-user-content.com) com auth via verifier na própria URL —
+            # sem seguir redirect, baixar_bytes() nunca chega no arquivo.
+            follow_redirects=True,
         )
         self._semaforo = asyncio.Semaphore(concorrencia_maxima)
 
@@ -158,3 +162,20 @@ class ClienteCanvas:
     async def obter_estatisticas_quiz(self, course_id: str, quiz_id: str) -> dict[str, Any]:
         resposta = await self._get(f"/courses/{course_id}/quizzes/{quiz_id}/statistics")
         return resposta.json()
+
+    async def listar_pastas(self, course_id: str) -> list[dict[str, Any]]:
+        """Árvore inteira de pastas do curso, achatada (campo `full_name` dá o
+        caminho). Anos antigos ficam em subpasta (`1° CICLO/2025`) — quem usa
+        isso filtra pelo último segmento do `full_name` pra ignorá-las."""
+        return await self._get_paginado(f"/courses/{course_id}/folders")
+
+    async def listar_arquivos_da_pasta(self, folder_id: str) -> list[dict[str, Any]]:
+        """Arquivos DIRETOS da pasta — não recursa em subpastas (é assim que
+        as pastas de ano antigo dentro de uma pasta de ciclo ficam de fora)."""
+        return await self._get_paginado(f"/folders/{folder_id}/files")
+
+    async def baixar_bytes(self, url: str) -> bytes:
+        """Baixa o conteúdo bruto de uma download URL absoluta do Canvas —
+        reaproveita o mesmo retry/semáforo de `_get` usado pro Link de paginação."""
+        resposta = await self._get(url)
+        return resposta.content

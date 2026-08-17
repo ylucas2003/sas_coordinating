@@ -13,6 +13,7 @@ A interface deve parecer **ferramenta analítica e investigativa**, não ERP esc
 ```
 sas/
 ├── docs/   → toda a documentação (visão de produto, design system, telas, dados)
+├── docker-compose.yml → stack local (api + web + migrate) — ver docs/09-docker.md
 ├── web/    → frontend — HTML + CSS + JavaScript puro (Vercel)
 └── api/    → backend — Python + FastAPI + Supabase
     ├── app/         → código da aplicação (routes, ingest, stats, chat)
@@ -44,6 +45,27 @@ Toda a documentação fica em [docs/](docs/). Comece pelo índice:
 - **Recém-chegado:** tudo na ordem numérica
 
 ## Rodando localmente
+
+### Com Docker (caminho curto)
+
+```sh
+cp api/.env.example api/.env   # preencher os segredos
+docker compose up
+```
+
+- Front: `http://localhost:8080`
+- API: `http://localhost:8000` · docs em `/docs` · health em `/health`
+
+O código é montado por volume, então salvar um `.py` recarrega o uvicorn e salvar um `.js`/`.css` já reflete no reload do browser. Migrations rodam pela mesma imagem:
+
+```sh
+docker compose run --rm migrate status
+docker compose run --rm migrate up
+```
+
+O Supabase continua sendo o gerenciado na nuvem — ele não sobe em container. Detalhes, incluindo como testar a imagem de produção, em [docs/09-docker.md](docs/09-docker.md).
+
+### Sem Docker
 
 **Frontend** (qualquer servidor estático):
 

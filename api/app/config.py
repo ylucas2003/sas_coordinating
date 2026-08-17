@@ -15,6 +15,18 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
     supabase_db_url: str = ""   # usado só pelo migration runner
 
+    # --- Modo local (docker compose) -------------------------------------
+    # Preenchidas → o backend fala com o PostgREST/filesystem locais em vez do
+    # Supabase hospedado. Vazias → comportamento original. Ver
+    # app/supabase_client.py, app/storage.py e docker-compose.yml.
+    postgrest_url: str = ""
+    postgrest_token: str = ""   # JWT do PostgREST; vazio = papel anônimo (só dev)
+    storage_dir: str = ""       # diretório do Storage local
+
+    # Endereço público da API — usado para montar a URL de download do Storage
+    # local. Precisa ser o host que o browser enxerga, não o do container.
+    api_base_url: str = "http://localhost:8000"
+
     storage_bucket: str = "sas-uploads"
 
     cors_allow_origins: str = "http://localhost:5173"

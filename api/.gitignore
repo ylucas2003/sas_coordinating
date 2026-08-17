@@ -6,3 +6,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .DS_Store
+
+# Protótipo de correção automatizada — dados de alunos são sensíveis
+grading_prototype/dados_exemplo/
+grading_prototype/resultados/

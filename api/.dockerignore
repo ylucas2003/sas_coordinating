@@ -1,0 +1,22 @@
+# Ambiente local — o venv do host tem paths absolutos do macOS e quebraria
+# dentro do container.
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+
+# Segredos nunca entram na imagem. Em dev vêm via `env_file` do compose;
+# em produção, pelas variáveis de ambiente da plataforma.
+.env
+.env.*
+!.env.example
+
+# Dados sensíveis de alunos (mesma regra do api/.gitignore).
+grading_prototype/dados_exemplo/
+grading_prototype/resultados/
+
+Dockerfile
+.dockerignore

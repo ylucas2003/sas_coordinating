@@ -76,3 +76,49 @@ def executar_sync(_: None = Depends(exigir_scheduler_secret)) -> dict:
         raise HTTPException(status_code=500, detail=f"sync falhou: {exc}")
     finally:
         _trava_execucao.release()
+
+
+@router.post("/reconciliar")
+def executar_reconcile(_: None = Depends(exigir_scheduler_secret)) -> dict:
+    """Recálculo COMPLETO do cache estatístico — rede de segurança diária.
+
+    Chamado pelo EventBridge 1x/dia (madrugada). Recomputa métricas +
+    classificação + alertas de tudo, curando o drift que o recompute-alvo do
+    sync de 5 min deixa (ex.: `perfil` de alunos não-tocados numa turma cuja
+    métrica mudou). É pesado (60-100 min) mas roda quando ninguém está usando.
+
+    Não busca nada no Canvas — só recomputa a partir do que já está no banco.
+    Divide a trava com o sync incremental pra não escreverem o cache ao mesmo
+    tempo. Reusa tipo='backfill' na auditoria (o CHECK da tabela só aceita
+    'backfill'|'incremental' — decisão de não migrar).
+    """
+    if not _trava_execucao.acquire(blocking=False):
+        return {"status": "ignorado", "motivo": "sync/reconcile anterior ainda em andamento"}
+
+    execucao_id: str | None = None
+    try:
+        cliente = criar_cliente_supabase()
+        execucao_id = criar_execucao_sync(cliente, tipo="backfill")
+        from ..stats import alertas as _alertas, classificacao as _classif, metricas as _metricas
+
+        resumo = {
+            "modo": "reconcile",
+            "simulados": _metricas.recalcular_tudo(cliente),
+            "alunos_classificados": _classif.recalcular_tudo(cliente),
+            "alertas_emitidos": _alertas.avaliar_tudo(cliente),
+        }
+        finalizar_execucao_sync(
+            cliente, execucao_id=execucao_id, status="sucesso", resumo=resumo
+        )
+        return {"status": "ok", "execucao_id": execucao_id, **resumo}
+    except Exception as exc:
+        if execucao_id is not None:
+            try:
+                finalizar_execucao_sync(
+                    cliente, execucao_id=execucao_id, status="erro", erro_mensagem=str(exc)
+                )
+            except Exception:
+                pass
+        raise HTTPException(status_code=500, detail=f"reconcile falhou: {exc}")
+    finally:
+        _trava_execucao.release()

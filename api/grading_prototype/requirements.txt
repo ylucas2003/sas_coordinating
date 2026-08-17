@@ -1,0 +1,13 @@
+# Dependências extras do protótipo de correção discursiva por IA.
+# Instalar dentro do venv já existente da API:
+#   cd api && pip install -r grading_prototype/requirements.txt
+#
+# openai e python-dotenv já estão pinados em api/requirements.txt e são
+# reaproveitados aqui (listados só para este arquivo ser autocontido/legível
+# isoladamente) — não há conflito de versão.
+openai==1.55.0
+python-dotenv==1.0.1
+
+# Única dependência REALMENTE nova: abrir/redimensionar/codificar as fotos
+# de resposta em base64 antes de mandar pra API de visão.
+Pillow==10.4.0

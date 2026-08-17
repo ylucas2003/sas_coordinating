@@ -1,0 +1,125 @@
+# Stack de desenvolvimento do SAS — roda 100% local, sem depender do Supabase.
+#
+#   docker compose up                      → API em :8000, front em :8080
+#   docker compose run --rm migrate up     → cria/atualiza o schema
+#   docker compose restart postgrest       → recarrega o cache de schema (ver abaixo)
+#
+# O backend nunca fala SQL: ele fala HTTP com o PostgREST, que é justamente o
+# que o Supabase hospeda por baixo. Por isso a stack local sobe o par
+# `db` + `postgrest` em vez de um Postgres solto — assim os 210 call sites de
+# `cliente.table(...)` continuam funcionando sem alteração nenhuma.
+#
+# Para voltar a apontar para o Supabase hospedado, basta remover POSTGREST_URL
+# e STORAGE_DIR do serviço `api` (ver api/app/supabase_client.py).
+
+name: sas
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: sas
+      # Lido pelo init em infra/postgres/init/ para criar o papel do PostgREST.
+      POSTGREST_PASSWORD: ${POSTGREST_PASSWORD:-postgrest}
+    ports:
+      # Só no loopback: a stack não usa RLS e o papel do PostgREST tem acesso
+      # total, então o banco não pode ficar exposto na rede.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-dados:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # O postgrest só conecta depois que o init dos papéis terminou.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sas"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGREST_PASSWORD:-postgrest}@db:5432/sas
+      PGRST_DB_SCHEMAS: public
+      # Requisição sem JWT assume este papel. É o que permite a API local não
+      # mandar Authorization nenhum. Em produção isto NÃO serve: lá o papel
+      # anônimo tem que ser sem privilégio e o acesso vem de um JWT assinado
+      # (PGRST_JWT_SECRET + POSTGREST_TOKEN na API).
+      PGRST_DB_ANON_ROLE: sas_service
+      PGRST_DB_POOL: "10"
+      PGRST_SERVER_PORT: "3000"
+    ports:
+      # Loopback pelo mesmo motivo do db. Útil para depurar no curl:
+      #   curl 'http://localhost:3000/materia?select=id,nome&limit=3'
+      - "127.0.0.1:3000:3000"
+
+  api:
+    build:
+      context: ./api
+      target: dev
+    depends_on:
+      - postgrest
+    env_file: ./api/.env
+    environment:
+      APP_ENV: dev
+      # O front é servido em :8080 e o http-client.js chama a API em :8000 —
+      # portas diferentes são cross-origin pro browser, então essa origem
+      # precisa estar liberada no CORS. Sobrescreve o valor de api/.env.
+      CORS_ALLOW_ORIGINS: http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173
+      # Presentes = modo local. Vazios/ausentes = Supabase hospedado.
+      POSTGREST_URL: http://postgrest:3000
+      STORAGE_DIR: /dados/storage
+      # Usada para montar a URL de download dos PDFs. Precisa ser o endereço
+      # que o BROWSER usa para chegar na API, não o nome do serviço.
+      API_BASE_URL: http://localhost:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      # Código montado do host: salvar um .py recarrega o uvicorn.
+      - ./api:/app
+      # O .venv do host é do macOS e não serve dentro do container; este
+      # volume anônimo o esconde caso alguém o crie em /app/.venv.
+      - /app/.venv
+      # Bind mount (e não volume nomeado) para dar pra abrir os PDFs baixados
+      # direto no Finder. Ignorado pelo git.
+      - ./.dados/storage:/dados/storage
+
+  web:
+    build: ./web
+    ports:
+      - "8080:8080"
+    volumes:
+      # Sem build step: editar um .js/.css no host já reflete no reload.
+      - ./web:/usr/share/nginx/html:ro
+
+  # One-shot, não sobe com `up`. Usa a mesma imagem da API porque o runner
+  # precisa do psycopg e de api/migrations/.
+  #
+  # IMPORTANTE: o PostgREST cacheia o schema na inicialização. Depois de
+  # aplicar migrations que criam/alteram tabelas, rode
+  # `docker compose restart postgrest`, senão as mudanças voltam 404.
+  migrate:
+    build:
+      context: ./api
+      target: dev
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: ./api/.env
+    environment:
+      # Conecta como dono do schema (postgres), não como o papel do PostgREST.
+      # Sobrescreve o SUPABASE_DB_URL de api/.env.
+      SUPABASE_DB_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/sas
+    volumes:
+      - ./api:/app
+      - /app/.venv
+    profiles: ["tools"]
+    entrypoint: ["python", "-m", "scripts.migrate"]
+    command: ["status"]
+
+volumes:
+  db-dados:

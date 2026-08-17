@@ -118,16 +118,16 @@ async def resolver_alerta(alerta_id: str) -> dict:
 
 @router.post("/verificar")
 def verificar_alertas(_: None = Depends(exigir_scheduler_secret)) -> dict:
-    """Recalcula métricas/classificação e reavalia as regras de alerta.
+    """Reavalia as 7 regras de alerta sobre o estado atual do cache.
 
-    Chamado pelo scheduler (EventBridge, a cada 1h) — mesma sequência que o
-    pipeline de import executa ao final. Handler síncrono: roda no threadpool,
-    sem segurar o event loop.
+    Chamado pelo scheduler (EventBridge, a cada 1h). NÃO recalcula
+    métricas/classificação — o sync incremental (5 min) mantém esse cache
+    fresco de forma incremental, e o reconcile diário
+    (POST /canvas-sync/reconciliar) faz o recálculo completo. Handler
+    síncrono: roda no threadpool, sem segurar o event loop.
     """
-    from ..stats import alertas as alertas_stats, classificacao, metricas
+    from ..stats import alertas as alertas_stats
 
     cliente = criar_cliente_supabase()
-    metricas.recalcular_tudo(cliente)
-    classificacao.recalcular_tudo(cliente)
     n_alertas = alertas_stats.avaliar_tudo(cliente)
     return {"status": "ok", "alertas_emitidos": n_alertas}

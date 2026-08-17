@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+.vite
+*.local
+.DS_Store
+.vscode/
+
+# Não são conteúdo do site.
+# nginx.conf NÃO entra aqui: o Dockerfile precisa dele no contexto de build.
+# Quem impede que ele seja servido é a regra de 404 no próprio nginx.conf.
+Dockerfile
+.dockerignore
+README.md

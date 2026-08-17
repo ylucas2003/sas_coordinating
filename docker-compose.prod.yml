@@ -1,0 +1,29 @@
+# Override pra rodar as imagens de produção localmente, do jeito que elas
+# vão rodar no deploy: alvo `prod`, usuário não-root, sem volumes e sem
+# --reload. Serve pra pegar o clássico "funciona em dev, quebra em prod".
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+#
+# Em produção de verdade as variáveis não vêm de api/.env — vêm do painel da
+# plataforma (Render, Fly, Cloud Run). Aqui o env_file é mantido só pra você
+# conseguir subir a imagem prod na sua máquina.
+
+services:
+  api:
+    build:
+      target: prod
+    environment:
+      APP_ENV: production
+    # Sem volumes: a imagem prod é imutável. Efeito colateral: o bind mount de
+    # /dados/storage some, então os arquivos gravados aqui ficam dentro do
+    # container e morrem com ele. Para smoke test de prod isso basta; se
+    # precisar inspecionar os PDFs, use a stack de dev.
+    volumes: !override []
+
+  web:
+    volumes: !override []
+
+  migrate:
+    build:
+      target: prod
+    volumes: !override []

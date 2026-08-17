@@ -41,6 +41,29 @@ PADRAO_CURSO_SIMULADOS = re.compile(
     re.IGNORECASE,
 )
 
+# "course files/1° CICLO" → 1 (só o ÚLTIMO segmento do full_name importa —
+# subpastas de ano antigo tipo "1° CICLO/2025" têm último segmento "2025",
+# que não bate aqui, e ficam de fora sem lógica extra).
+PADRAO_PASTA_CICLO = re.compile(r"^(?P<ciclo>\d+)\s*[°ºo]\s*CICLO$", re.IGNORECASE)
+
+# "1472-26 - P2 - MATEMÁTICA (1º CICLO) - 3ª SÉRIE - ..." → P2 + "MATEMÁTICA".
+# Não tenta capturar o ciclo daqui (o parênteses às vezes traz outra coisa,
+# ex. "QUÍMICA  (2ª FASE)" — o ciclo vem de fora, da pasta onde o arquivo está).
+PADRAO_ARQUIVO_SIMULADO = re.compile(
+    r"""
+    ^
+    (?:\d+-\d+\s*-\s*)?           # código sequencial opcional: "1472-26 - "
+    P(?P<numero>\d+)\s*-\s*
+    (?P<materias>.+?)
+    \s*\(                          # para na primeira abertura de parênteses
+    """,
+    re.VERBOSE | re.IGNORECASE,
+)
+
+# Separa "MATEMÁTICA, FÍSICA E QUÍMICA" em tokens — cadernos combinados de
+# ciclo cedo têm mais de uma matéria no mesmo arquivo.
+_PADRAO_SEPARADOR_MATERIAS = re.compile(r"\s*,\s*|\s+[Ee]\s+")
+
 
 # ─── Parsing de nomes ─────────────────────────────────────────────────────
 
@@ -75,6 +98,40 @@ def parsear_nome_assignment(nome: str) -> dict[str, Any] | None:
         "rotulo_curto": m.group("rotulo_curto"),
         "materia_codigo": codigo_materia(m.group("materia")),
         "data_aplicacao": parse_data_br(m.group("data")),
+    }
+
+
+def parsear_pasta_ciclo(full_name: str) -> int | None:
+    """`full_name` de uma pasta do Canvas (`GET /courses/:id/folders`) → ordem
+    do ciclo, ou None se não for uma pasta de ciclo (ou for subpasta de ano
+    antigo dentro de uma)."""
+    ultimo_segmento = full_name.strip().split("/")[-1].strip()
+    m = PADRAO_PASTA_CICLO.match(ultimo_segmento)
+    return int(m.group("ciclo")) if m else None
+
+
+def _dividir_materias(bruto: str) -> list[str]:
+    return [token.strip() for token in _PADRAO_SEPARADOR_MATERIAS.split(bruto) if token.strip()]
+
+
+def parsear_nome_arquivo_simulado(nome_arquivo: str) -> dict[str, Any] | None:
+    """Extrai (rotulo_curto, materias_codigos) do nome de um Course File de
+    prova. None para nomes fora da gramática — o chamador decide se registra
+    aviso. Matéria(s) que não mapeiam em `codigo_materia` são descartadas;
+    se nenhuma sobrar, o arquivo inteiro é tratado como não reconhecido."""
+    m = PADRAO_ARQUIVO_SIMULADO.match(nome_arquivo.strip())
+    if not m:
+        return None
+    materias_codigos = [
+        codigo
+        for token in _dividir_materias(m.group("materias"))
+        if (codigo := codigo_materia(token)) is not None
+    ]
+    if not materias_codigos:
+        return None
+    return {
+        "rotulo_curto": f"P{m.group('numero')}",
+        "materias_codigos": materias_codigos,
     }
 
 

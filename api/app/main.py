@@ -15,6 +15,7 @@ from .config import get_settings
 from .routes import (
     alertas,
     alunos,
+    arquivos,
     auth,
     ciclos,
     cobranca,
@@ -61,6 +62,10 @@ def create_app() -> FastAPI:
     app.include_router(ciclos.router)
     app.include_router(dimensoes.router)
     app.include_router(uploads.router)
+    if settings.storage_dir:
+        # Só faz sentido com o Storage local; no modo Supabase o download vai
+        # direto pro bucket. Ver app/routes/arquivos.py.
+        app.include_router(arquivos.router)
     app.include_router(chat_rotas.router)
     app.include_router(canvas_sync_rotas.router)
     app.include_router(cobranca.router)

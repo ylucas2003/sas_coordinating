@@ -2,21 +2,15 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "SAS: backend (uvicorn)",
+      "label": "SAS: backend",
       "type": "shell",
-      "command": "${workspaceFolder}/api/.venv/bin/uvicorn",
-      "windows": {
-        "command": "${workspaceFolder}/api/.venv/Scripts/uvicorn.exe"
-      },
-      "args": [
-        "app.main:app",
-        "--reload",
-        "--port",
-        "8000"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/api"
-      },
+      // Sobe db + postgrest junto, por causa do depends_on do compose.
+      //
+      // O printf existe porque o uvicorn dentro do container loga
+      // `http://0.0.0.0:8000` — o endereço de dentro da rede do compose, que
+      // não é clicável nem acessível do host. As URLs abaixo são as reais.
+      "command": "printf '\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && docker compose up api",
+      "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "presentation": {
         "panel": "dedicated",
@@ -36,26 +30,17 @@
         ],
         "background": {
           "activeOnStart": true,
-          "beginsPattern": "Started reloader process",
+          "beginsPattern": "Container sas-",
           "endsPattern": "Application startup complete"
         }
       }
     },
     {
-      "label": "SAS: frontend (http.server)",
+      "label": "SAS: frontend",
       "type": "shell",
-      "command": "python3",
-      "windows": {
-        "command": "python"
-      },
-      "args": [
-        "-m",
-        "http.server",
-        "5173"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/web"
-      },
+      // O nginx não loga porta nenhuma na subida — daí o printf.
+      "command": "printf '\\n  front  http://localhost:8080\\n\\n' && docker compose up web",
+      "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "presentation": {
         "panel": "dedicated",
@@ -75,29 +60,54 @@
         ],
         "background": {
           "activeOnStart": true,
-          "beginsPattern": "Serving HTTP",
-          "endsPattern": "Serving HTTP"
+          "beginsPattern": "Container sas-",
+          "endsPattern": "start worker process"
         }
       }
     },
     {
       "label": "SAS: rodar tudo",
-      "dependsOn": [
-        "SAS: backend (uvicorn)",
-        "SAS: frontend (http.server)"
-      ],
-      "dependsOrder": "parallel",
-      "problemMatcher": []
+      "type": "shell",
+      // Sem dependsOn: um `up` só já sobe api, web, db e postgrest. Roda em
+      // foreground de propósito — encerrar a task derruba os containers, então
+      // não sobra stack órfã depois de fechar o VS Code.
+      //
+      // O front é o endereço que você abre no browser; a API é chamada por ele
+      // em :8000 (é essa a origem cruzada que o CORS_ALLOW_ORIGINS libera).
+      "command": "printf '\\n  front      http://localhost:8080\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && docker compose up",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "sas",
+        "reveal": "always",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "problemMatcher": {
+        "pattern": [
+          {
+            "regexp": ".",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Container sas-",
+          "endsPattern": "Application startup complete"
+        }
+      }
     },
     {
       "label": "SAS: db · aplicar migrations pendentes",
       "type": "shell",
-      "command": "${workspaceFolder}/api/.venv/bin/python",
-      "windows": {
-        "command": "${workspaceFolder}/api/.venv/Scripts/python.exe"
-      },
-      "args": ["-m", "scripts.migrate", "up"],
-      "options": { "cwd": "${workspaceFolder}/api" },
+      // O restart do postgrest vem no mesmo comando de propósito: ele lê o
+      // schema uma vez, ao subir, então sem isso a coluna nova volta 404.
+      "command": "docker compose run --rm migrate up && docker compose restart postgrest",
+      "options": { "cwd": "${workspaceFolder}" },
       "presentation": {
         "panel": "dedicated",
         "group": "sas-db",
@@ -110,12 +120,8 @@
     {
       "label": "SAS: db · downgrade (reverter última migration)",
       "type": "shell",
-      "command": "${workspaceFolder}/api/.venv/bin/python",
-      "windows": {
-        "command": "${workspaceFolder}/api/.venv/Scripts/python.exe"
-      },
-      "args": ["-m", "scripts.migrate", "down"],
-      "options": { "cwd": "${workspaceFolder}/api" },
+      "command": "docker compose run --rm migrate down && docker compose restart postgrest",
+      "options": { "cwd": "${workspaceFolder}" },
       "presentation": {
         "panel": "dedicated",
         "group": "sas-db",
@@ -128,12 +134,8 @@
     {
       "label": "SAS: db · limpar dados importados (TRUNCATE)",
       "type": "shell",
-      "command": "${workspaceFolder}/api/.venv/bin/python",
-      "windows": {
-        "command": "${workspaceFolder}/api/.venv/Scripts/python.exe"
-      },
-      "args": ["-m", "scripts.migrate", "wipe-dados"],
-      "options": { "cwd": "${workspaceFolder}/api" },
+      "command": "docker compose run --rm migrate wipe-dados",
+      "options": { "cwd": "${workspaceFolder}" },
       "presentation": {
         "panel": "dedicated",
         "group": "sas-db",

@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import statistics as st
 from collections import defaultdict
+from collections.abc import Iterable
 
 from supabase import Client
 
@@ -46,50 +47,119 @@ def recalcular_tudo(cliente: Client) -> int:
 
     classificados = 0
     for aluno in alunos_ativos:
-        aluno_id = aluno["id"]
-        notas = notas_por_aluno.get(aluno_id, [])
-        if len(notas) < 2:
-            continue
-
-        valores = [n["pontuacao"] for n in notas]
-        media_recente = st.mean(valores)
-        desvio_recente = st.stdev(valores) if len(valores) > 1 else 0.0
-
-        slope, t_stat = regressao_linear(valores)
-        tendencia = _classificar_tendencia(slope, t_stat, n=len(valores))
-
-        turma_id = turmas_por_aluno.get(aluno_id)
-        perfil = _classificar_perfil(
-            media_recente=media_recente,
-            desvio_recente=desvio_recente,
-            metrica_turma=metricas_turma.get(turma_id),
-        )
-
-        zona = _classificar_zona_por_materia(
-            notas_por_materia_codigo=_resumir_notas_por_materia(
-                notas_fase2_por_aluno_materia.get(aluno_id, {}),
-                codigo_materia_por_id,
-            ),
-            media_recente=media_recente,
-        )
-
-        cliente.table("classificacao_aluno").upsert(
-            {
-                "aluno_id": aluno_id,
-                "perfil": perfil,
-                "tendencia": tendencia,
-                "zona": zona,
-                "media_recente": round(media_recente, 2),
-                "desvio_recente": round(desvio_recente, 2),
-                "coef_tendencia": round(slope, 3),
-                "p_valor_tendencia": None,
-                "janela_simulados": th.JANELA_CLASSIFICACAO,
-            },
-            on_conflict="aluno_id",
-        ).execute()
-        classificados += 1
+        if _classificar_e_salvar(
+            cliente,
+            aluno_id=aluno["id"],
+            notas_por_aluno=notas_por_aluno,
+            turmas_por_aluno=turmas_por_aluno,
+            metricas_turma=metricas_turma,
+            notas_fase2_por_aluno_materia=notas_fase2_por_aluno_materia,
+            codigo_materia_por_id=codigo_materia_por_id,
+        ):
+            classificados += 1
 
     return classificados
+
+
+def recalcular_alunos(cliente: Client, aluno_ids: Iterable[str]) -> int:
+    """Recalcula classificação só dos alunos dados — usado pelo sync incremental.
+
+    Para o `perfil` sair correto, as métricas de turma (p85/desvio) precisam ser
+    computadas sobre a turma INTEIRA, não só os alunos tocados. Então o escopo
+    de leitura são todos os alunos das turmas afetadas; mas só os alunos tocados
+    têm a linha de `classificacao_aluno` regravada. Alunos não-tocados dessas
+    turmas mantêm o `perfil` levemente defasado até o reconcile diário — `zona`
+    e `tendencia` (o que guia a coordenação) são per-aluno e ficam exatos.
+    """
+    ids = list(dict.fromkeys(aluno_ids))
+    if not ids:
+        return 0
+
+    turmas_afetadas = set(_turma_ativa_por_aluno(cliente, aluno_ids=ids).values())
+    escopo = set(ids) | _alunos_das_turmas(cliente, turmas_afetadas)
+
+    notas_por_aluno = _notas_recentes_por_aluno(
+        cliente, janela=th.JANELA_CLASSIFICACAO, aluno_ids=escopo
+    )
+    turmas_por_aluno = _turma_ativa_por_aluno(cliente, aluno_ids=escopo)
+    metricas_turma = _metricas_por_turma(cliente, notas_por_aluno, turmas_por_aluno)
+    # Só os tocados são regravados → só as notas fase-2 deles importam aqui.
+    notas_fase2_por_aluno_materia = _notas_fase2_por_aluno_materia(
+        cliente, janela=th.JANELA_CLASSIFICACAO, aluno_ids=ids
+    )
+    codigo_materia_por_id = _mapa_codigo_materia(cliente)
+
+    classificados = 0
+    for aluno_id in ids:
+        if _classificar_e_salvar(
+            cliente,
+            aluno_id=aluno_id,
+            notas_por_aluno=notas_por_aluno,
+            turmas_por_aluno=turmas_por_aluno,
+            metricas_turma=metricas_turma,
+            notas_fase2_por_aluno_materia=notas_fase2_por_aluno_materia,
+            codigo_materia_por_id=codigo_materia_por_id,
+        ):
+            classificados += 1
+
+    return classificados
+
+
+def _classificar_e_salvar(
+    cliente: Client,
+    *,
+    aluno_id: str,
+    notas_por_aluno: dict[str, list[dict]],
+    turmas_por_aluno: dict[str, str],
+    metricas_turma: dict[str, dict],
+    notas_fase2_por_aluno_materia: dict[str, dict[str, list[float]]],
+    codigo_materia_por_id: dict[str, str],
+) -> bool:
+    """Classifica um aluno e upserta em `classificacao_aluno`.
+
+    Devolve True se classificou (>= 2 notas na janela), False se pulou.
+    """
+    notas = notas_por_aluno.get(aluno_id, [])
+    if len(notas) < 2:
+        return False
+
+    valores = [n["pontuacao"] for n in notas]
+    media_recente = st.mean(valores)
+    desvio_recente = st.stdev(valores) if len(valores) > 1 else 0.0
+
+    slope, t_stat = regressao_linear(valores)
+    tendencia = _classificar_tendencia(slope, t_stat, n=len(valores))
+
+    turma_id = turmas_por_aluno.get(aluno_id)
+    perfil = _classificar_perfil(
+        media_recente=media_recente,
+        desvio_recente=desvio_recente,
+        metrica_turma=metricas_turma.get(turma_id),
+    )
+
+    zona = _classificar_zona_por_materia(
+        notas_por_materia_codigo=_resumir_notas_por_materia(
+            notas_fase2_por_aluno_materia.get(aluno_id, {}),
+            codigo_materia_por_id,
+        ),
+        media_recente=media_recente,
+    )
+
+    cliente.table("classificacao_aluno").upsert(
+        {
+            "aluno_id": aluno_id,
+            "perfil": perfil,
+            "tendencia": tendencia,
+            "zona": zona,
+            "media_recente": round(media_recente, 2),
+            "desvio_recente": round(desvio_recente, 2),
+            "coef_tendencia": round(slope, 3),
+            "p_valor_tendencia": None,
+            "janela_simulados": th.JANELA_CLASSIFICACAO,
+        },
+        on_conflict="aluno_id",
+    ).execute()
+    return True
 
 
 # ─── Classificadores ─────────────────────────────────────────────────────
@@ -195,7 +265,40 @@ def _carregar_alunos_ativos(cliente: Client) -> list[dict]:
     return resp.data or []
 
 
-def _notas_recentes_por_aluno(cliente: Client, *, janela: int) -> dict[str, list[dict]]:
+_SELECT_NOTA_SIMULADO = (
+    "aluno_id, pontuacao, simulado("
+    "id, data_aplicacao, anulado, e_agregado, materia_id, tipo, nota_maxima)"
+)
+_TAMANHO_PAGINA = 1000
+
+
+def _carregar_notas_com_simulado(
+    cliente: Client, *, aluno_ids: Iterable[str] | None
+) -> list[dict]:
+    """Todas as notas presentes (+ dados do simulado), PAGINANDO.
+
+    O PostgREST corta a resposta em 1000 linhas; sem paginar, a classificação
+    de todos os alunos rodava sobre uma fatia arbitrária de ~1000 das ~44k
+    notas (bug silencioso). `aluno_ids` restringe a varredura (sync
+    incremental, poucas linhas → sai na 1ª página); None = tudo.
+    """
+    linhas: list[dict] = []
+    ids = list(aluno_ids) if aluno_ids is not None else None
+    offset = 0
+    while True:
+        query = cliente.table("nota").select(_SELECT_NOTA_SIMULADO).eq("presente", True)
+        if ids is not None:
+            query = query.in_("aluno_id", ids)
+        lote = query.range(offset, offset + _TAMANHO_PAGINA - 1).execute().data or []
+        linhas.extend(lote)
+        if len(lote) < _TAMANHO_PAGINA:
+            return linhas
+        offset += _TAMANHO_PAGINA
+
+
+def _notas_recentes_por_aluno(
+    cliente: Client, *, janela: int, aluno_ids: Iterable[str] | None = None
+) -> dict[str, list[dict]]:
     """{aluno_id: [{pontuacao, data_aplicacao, simulado_id, materia_id, tipo}]}.
 
     Notas em **escala 0–10 já normalizada** — `pontuacao` aqui é `nota_real`
@@ -203,21 +306,10 @@ def _notas_recentes_por_aluno(cliente: Client, *, janela: int) -> dict[str, list
     somar/comparar valores entre simulados de matérias diferentes.
 
     Filtra simulados anulados e agregados. Mantém só as últimas `janela` notas
-    por aluno.
+    por aluno. `aluno_ids` restringe a varredura (sync incremental); None = tudo.
     """
-    resp = (
-        cliente.table("nota")
-        .select(
-            "aluno_id, pontuacao, simulado("
-            "id, data_aplicacao, anulado, e_agregado, materia_id, tipo, nota_maxima"
-            ")"
-        )
-        .eq("presente", True)
-        .execute()
-    )
-
     bruto: dict[str, list[dict]] = defaultdict(list)
-    for linha in resp.data or []:
+    for linha in _carregar_notas_com_simulado(cliente, aluno_ids=aluno_ids):
         sim = linha.get("simulado") or {}
         if sim.get("anulado") or sim.get("e_agregado"):
             continue
@@ -244,14 +336,21 @@ def _notas_recentes_por_aluno(cliente: Client, *, janela: int) -> dict[str, list
     return resultado
 
 
-def _turma_ativa_por_aluno(cliente: Client) -> dict[str, str]:
-    """{aluno_id: turma_id} a partir da matrícula com ativo_ate IS NULL."""
-    resp = (
+def _turma_ativa_por_aluno(
+    cliente: Client, *, aluno_ids: Iterable[str] | None = None
+) -> dict[str, str]:
+    """{aluno_id: turma_id} a partir da matrícula com ativo_ate IS NULL.
+
+    `aluno_ids` restringe a varredura (sync incremental); None = todos.
+    """
+    query = (
         cliente.table("matricula_turma")
         .select("aluno_id, turma_id, ativo_desde")
         .is_("ativo_ate", "null")
-        .execute()
     )
+    if aluno_ids is not None:
+        query = query.in_("aluno_id", list(aluno_ids))
+    resp = query.execute()
     mapa: dict[str, tuple[str, str]] = {}
     for linha in resp.data or []:
         aluno_id = linha["aluno_id"]
@@ -260,6 +359,25 @@ def _turma_ativa_por_aluno(cliente: Client) -> dict[str, str]:
         if existente is None or ativo_desde > existente[1]:
             mapa[aluno_id] = (linha["turma_id"], ativo_desde)
     return {aluno_id: v[0] for aluno_id, v in mapa.items()}
+
+
+def _alunos_das_turmas(cliente: Client, turma_ids: Iterable[str]) -> set[str]:
+    """{aluno_id} de todos os alunos com matrícula ativa nas turmas dadas.
+
+    Usado pelo recompute-alvo: as métricas de turma (p85/desvio) precisam da
+    turma inteira, não só dos alunos tocados.
+    """
+    ids = list(turma_ids)
+    if not ids:
+        return set()
+    resp = (
+        cliente.table("matricula_turma")
+        .select("aluno_id")
+        .is_("ativo_ate", "null")
+        .in_("turma_id", ids)
+        .execute()
+    )
+    return {linha["aluno_id"] for linha in (resp.data or [])}
 
 
 def _metricas_por_turma(
@@ -302,26 +420,17 @@ def _notas_fase2_por_aluno_materia(
     cliente: Client,
     *,
     janela: int,
+    aluno_ids: Iterable[str] | None = None,
 ) -> dict[str, dict[str, list[float]]]:
     """{aluno_id: {materia_id: [notas normalizadas recentes em 0-10]}}.
 
     Restringido a simulados de **Fase 2** (onde vale a regra do corte por
     matéria). Fase 1 fica de fora porque ela tem nota combinada — não dá pra
     falar "matemática da Fase 1 abaixo de 4" do mesmo jeito.
+    `aluno_ids` restringe a varredura (sync incremental); None = todos.
     """
-    resp = (
-        cliente.table("nota")
-        .select(
-            "aluno_id, pontuacao, simulado("
-            "id, data_aplicacao, anulado, e_agregado, materia_id, tipo, nota_maxima"
-            ")"
-        )
-        .eq("presente", True)
-        .execute()
-    )
-
     bruto: dict[str, dict[str, list[tuple[str, float]]]] = defaultdict(lambda: defaultdict(list))
-    for linha in resp.data or []:
+    for linha in _carregar_notas_com_simulado(cliente, aluno_ids=aluno_ids):
         sim = linha.get("simulado") or {}
         if sim.get("anulado") or sim.get("e_agregado"):
             continue

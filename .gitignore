@@ -1,0 +1,5 @@
+# Dados locais do docker compose (Postgres tem volume nomeado; o Storage local
+# é bind mount para dar pra abrir os PDFs no Finder). Ver docs/09-docker.md.
+.dados/
+
+.DS_Store

@@ -41,6 +41,7 @@ from ..ingest.upsert import (
     upsert_turma,
 )
 from . import mapeador
+from .arquivos import sincronizar_arquivos_do_curso
 from .cliente import ClienteCanvas
 from .questoes import sincronizar_questoes_do_quiz
 
@@ -56,10 +57,18 @@ class ResumoSincronizacao:
     emails_preenchidos: int = 0
     quizzes_sincronizados: int = 0
     respostas_questao_gravadas: int = 0
+    arquivos_sincronizados: int = 0
     avisos: list[str] = field(default_factory=list)
+    # Controle interno do recompute-alvo (NÃO vão pro audit jsonb — ver como_dict).
+    simulados_tocados: set[str] = field(default_factory=set)
+    alunos_tocados: set[str] = field(default_factory=set)
 
     def como_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        # set não serializa em JSON, e são estado de controle, não auditoria.
+        d.pop("simulados_tocados", None)
+        d.pop("alunos_tocados", None)
+        return d
 
 
 # ─── Descoberta de cursos e ano vigente ───────────────────────────────────
@@ -281,6 +290,10 @@ async def _sincronizar_curso_simulados(
             )
     resumo.notas_gravadas += upsert_notas_em_lote(cliente, notas=list(nota_por_chave.values()))
 
+    # Simulados/alunos tocados nesta rodada → recompute-alvo em sincronizar_ano_atual.
+    resumo.simulados_tocados.update(simulado_id for (_, simulado_id) in nota_por_chave)
+    resumo.alunos_tocados.update(aluno_id for (aluno_id, _) in nota_por_chave)
+
     # ── (6) Questões dos quizzes (gated — Quiz Statistics é 1 chamada/quiz) ──
     simulado_ids_com_notas_novas = {simulado_id for (_, simulado_id) in nota_por_chave}
     await _sincronizar_questoes_gated(
@@ -290,6 +303,15 @@ async def _sincronizar_curso_simulados(
         simulado_ids_do_curso=set(external_para_simulado_id.values()),
         simulado_ids_com_notas_novas=simulado_ids_com_notas_novas,
         aluno_por_canvas_user=aluno_por_canvas_user,
+        resumo=resumo,
+    )
+
+    # ── (7) Arquivo (PDF) da prova — gated, casado por nome contra Course Files ──
+    await _sincronizar_arquivos_gated(
+        cliente=cliente,
+        canvas=canvas,
+        course_id=course_id,
+        simulado_ids_do_curso=set(external_para_simulado_id.values()),
         resumo=resumo,
     )
 
@@ -373,6 +395,71 @@ async def _sincronizar_questoes_gated(
                 f"Quiz {sim['quiz_id']}: statistics sem user_ids por alternativa — "
                 "respostas por aluno não sincronizadas (avaliar plano B: Quiz Submissions)."
             )
+
+
+# ─── Arquivo (PDF) da prova (Fase 3) ──────────────────────────────────────
+
+# PDFs são bem maiores que Quiz Statistics (download + upload pro Storage) —
+# poucos por rodada pra caber no ciclo de 5 min. O backfill dedicado
+# (scripts/canvas_backfill_arquivos.py) zera o backlog sem esse limite.
+MAX_ARQUIVOS_PENDENTES_POR_RODADA = 5
+
+
+async def _sincronizar_arquivos_gated(
+    *,
+    cliente: Client,
+    canvas: ClienteCanvas,
+    course_id: str,
+    simulado_ids_do_curso: set[str],
+    resumo: ResumoSincronizacao,
+) -> None:
+    """Sincroniza o arquivo (PDF) só de simulados já aplicados e sem arquivo
+    ainda, até MAX_ARQUIVOS_PENDENTES_POR_RODADA arquivos por rodada."""
+    if not simulado_ids_do_curso:
+        return
+
+    hoje = date.today().isoformat()
+    ids = list(simulado_ids_do_curso)
+    pendentes: list[dict[str, Any]] = []
+    for inicio in range(0, len(ids), 100):
+        resp = (
+            cliente.table("simulado")
+            .select("id, rotulo_curto, data_aplicacao, ciclo(ordem), materia(codigo)")
+            .in_("id", ids[inicio : inicio + 100])
+            .is_("arquivo_storage_path", "null")
+            .not_.is_("rotulo_curto", "null")
+            .not_.is_("materia_id", "null")
+            .lte("data_aplicacao", hoje)
+            .execute()
+        )
+        pendentes.extend(resp.data or [])
+    if not pendentes:
+        return
+
+    simulados_pendentes = [
+        {
+            "id": p["id"],
+            "ciclo_ordem": (p.get("ciclo") or {}).get("ordem"),
+            "rotulo_curto": p["rotulo_curto"],
+            "materia_codigo": (p.get("materia") or {}).get("codigo"),
+        }
+        for p in pendentes
+    ]
+    simulados_pendentes = [
+        p for p in simulados_pendentes if p["ciclo_ordem"] is not None and p["materia_codigo"]
+    ]
+    if not simulados_pendentes:
+        return
+
+    resultado = await sincronizar_arquivos_do_curso(
+        cliente,
+        canvas,
+        course_id=course_id,
+        simulados_pendentes=simulados_pendentes,
+        limite_arquivos=MAX_ARQUIVOS_PENDENTES_POR_RODADA,
+    )
+    resumo.arquivos_sincronizados += resultado["arquivos_baixados"]
+    resumo.avisos.extend(resultado["avisos"])
 
 
 # ─── E-mail dos alunos no sync incremental ────────────────────────────────
@@ -480,7 +567,18 @@ async def sincronizar_ano_atual(
     await _preencher_emails_incremental(
         cliente=cliente, canvas=canvas, course_id=str(curso["id"]), resumo=resumo,
     )
-    _recalcular_stats(cliente)
+    # Recompute-ALVO: recalcula só os simulados/alunos tocados nesta rodada,
+    # em vez do cache multi-ano inteiro (que era ~3300 round-trips → 60-100 min
+    # na instância free do Render). Sem notas novas, ambos os conjuntos são
+    # vazios e nada roda. Alertas NÃO rodam aqui — o job horário
+    # POST /alertas/verificar os avalia, e o reconcile diário
+    # POST /canvas-sync/reconciliar recomputa tudo pra curar drift de turma.
+    from ..stats import classificacao as _classif, metricas as _metricas
+
+    if resumo.simulados_tocados:
+        _metricas.recalcular_simulados(cliente, resumo.simulados_tocados)
+    if resumo.alunos_tocados:
+        _classif.recalcular_alunos(cliente, resumo.alunos_tocados)
     return resumo
 
 

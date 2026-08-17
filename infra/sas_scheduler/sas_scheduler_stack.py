@@ -4,9 +4,14 @@ Cada schedule só chama uma URL do FastAPI via HTTPS — toda a lógica de negó
 (sincronizar Canvas, avaliar alertas, cobrar professor) continua vivendo no
 backend Python, não aqui. Ver docs/08-integracao-canvas.md para o contexto.
 
-As rotas abaixo (`/canvas-sync/run`, `/alertas/verificar`, `/cobranca/verificar`)
-ainda não existem no FastAPI — precisam ser criadas e validar o header
-`X-Scheduler-Secret` contra o mesmo valor guardado no parâmetro SSM.
+Rules:
+  - CanvasSync         5 min   → /canvas-sync/run         (sync incremental, recompute-alvo)
+  - AlertasCheck       1 h     → /alertas/verificar       (só reavalia alertas)
+  - CobrancaProfessor  1 h     → /cobranca/verificar      (placeholder)
+  - ReconcileDiario    ~3h BRT → /canvas-sync/reconciliar (recálculo completo, cura drift)
+
+Todas autenticam com o header `X-Scheduler-Secret` (mesmo valor do SSM
+/sas/scheduler/secret).
 """
 
 from aws_cdk import (
@@ -49,21 +54,30 @@ class SasSchedulerStack(Stack):
         self._criar_schedule(
             id_prefix="CanvasSync",
             path="/canvas-sync/run",
-            rate=Duration.minutes(5),
+            schedule=events.Schedule.rate(Duration.minutes(5)),
             connection=connection,
             api_base_url=api_base_url,
         )
         self._criar_schedule(
             id_prefix="AlertasCheck",
             path="/alertas/verificar",
-            rate=Duration.hours(1),
+            schedule=events.Schedule.rate(Duration.hours(1)),
             connection=connection,
             api_base_url=api_base_url,
         )
         self._criar_schedule(
             id_prefix="CobrancaProfessor",
             path="/cobranca/verificar",
-            rate=Duration.hours(1),
+            schedule=events.Schedule.rate(Duration.hours(1)),
+            connection=connection,
+            api_base_url=api_base_url,
+        )
+        # Reconcile completo 1x/dia às 6 UTC (~3h BRT) — cura o drift que o
+        # recompute-alvo do sync incremental deixa. Pesado, mas de madrugada.
+        self._criar_schedule(
+            id_prefix="ReconcileDiario",
+            path="/canvas-sync/reconciliar",
+            schedule=events.Schedule.cron(hour="6", minute="0"),
             connection=connection,
             api_base_url=api_base_url,
         )
@@ -73,7 +87,7 @@ class SasSchedulerStack(Stack):
         *,
         id_prefix: str,
         path: str,
-        rate: Duration,
+        schedule: events.Schedule,
         connection: events.Connection,
         api_base_url: str,
     ) -> None:
@@ -89,6 +103,6 @@ class SasSchedulerStack(Stack):
         events.Rule(
             self,
             f"{id_prefix}Rule",
-            schedule=events.Schedule.rate(rate),
+            schedule=schedule,
             targets=[targets.ApiDestination(destino)],
         )
