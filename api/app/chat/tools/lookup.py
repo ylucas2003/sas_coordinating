@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from datetime import date
+
 from supabase import Client
 
 
@@ -173,6 +175,9 @@ def listar_simulados(
             "id, nome, rotulo_curto, tipo, data_aplicacao, ciclo_id, "
             "materia_id, anulado, e_agregado"
         )
+        # Agendados (P1, data futura) ficam de fora: "o último simulado" do
+        # assistente deve ser um que já aconteceu.
+        .lte("data_aplicacao", date.today().isoformat())
         .order("data_aplicacao", desc=True)
     )
     if ciclo_id:

@@ -219,6 +219,20 @@ def reverter_uma(conn: psycopg.Connection, migracao: Migracao) -> None:
     print("ok")
 
 
+def _avisar_postgrest(conn: psycopg.Connection) -> None:
+    """Manda o PostgREST recarregar o schema cache.
+
+    Sem isso, tabela criada por migration fica meio-viva no PostgREST: SELECT
+    funciona, mas INSERT/UPDATE devolvem 404 vazio até o container reiniciar
+    (descoberto na 0019 — ver docs/12-plano-p2-motor-lembretes.md §7). O canal
+    'pgrst' é o padrão do PostgREST e do Supabase; onde não houver ouvinte, o
+    NOTIFY é inofensivo.
+    """
+    with conn.cursor() as cur:
+        cur.execute("NOTIFY pgrst, 'reload schema';")
+    conn.commit()
+
+
 def cmd_up(conn: psycopg.Connection, ate: str | None) -> None:
     aplicadas = versoes_aplicadas(conn)
     migs = listar_migracoes()
@@ -234,6 +248,7 @@ def cmd_up(conn: psycopg.Connection, ate: str | None) -> None:
     print()
     for m in pendentes:
         aplicar_uma(conn, m)
+    _avisar_postgrest(conn)
 
 
 def cmd_wipe_dados(conn: psycopg.Connection) -> None:
@@ -316,6 +331,7 @@ def cmd_down(conn: psycopg.Connection, ate: str | None) -> None:
     print()
     for m in candidatas:
         reverter_uma(conn, m)
+    _avisar_postgrest(conn)
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────

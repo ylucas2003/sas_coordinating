@@ -1,0 +1,68 @@
+# Conjunto EXATO que a imagem de produção resolve — gerado dentro do
+# container (linux/amd64), não no venv do macOS, que resolve diferente.
+#
+# Regenerar:  docker compose run --rm --no-deps api pip freeze
+#
+# requirements.txt continua sendo a fonte de intenção; este arquivo é a
+# prova do que foi testado. Ver docs/14 §4.5 — sem ele, 'imagem imutável'
+# não é verdade: um bump transitivo entra sozinho no próximo build.
+
+annotated-types==0.8.0
+anyio==4.14.2
+boto3==1.43.73
+botocore==1.43.77
+certifi==2026.7.22
+cffi==2.1.1
+click==8.4.2
+cryptography==50.0.0
+deprecation==2.1.0
+distro==1.9.0
+ecdsa==0.19.2
+et_xmlfile==2.0.0
+fastapi==0.115.0
+gotrue==2.12.4
+h11==0.16.0
+h2==4.4.1
+hpack==4.2.0
+httpcore==1.0.9
+httptools==0.8.0
+httpx==0.27.2
+hyperframe==6.1.0
+idna==3.19
+jiter==0.16.0
+jmespath==1.1.0
+openai==1.55.0
+openpyxl==3.1.5
+packaging==26.3
+postgrest==0.16.11
+psycopg==3.2.10
+psycopg-binary==3.2.10
+pyasn1==0.6.4
+pycparser==3.0
+pydantic==2.11.5
+pydantic-settings==2.7.0
+pydantic_core==2.33.2
+PyJWT==2.13.0
+python-dateutil==2.9.0.post0
+python-dotenv==1.0.1
+python-jose==3.5.0
+python-multipart==0.0.18
+PyYAML==6.0.3
+realtime==2.5.3
+rsa==4.9.1
+s3transfer==0.19.2
+six==1.17.0
+sniffio==1.3.1
+starlette==0.38.6
+storage3==0.7.7
+StrEnum==0.4.15
+supabase==2.7.4
+supafunc==0.5.1
+tqdm==4.70.0
+typing-inspection==0.4.4
+typing_extensions==4.16.0
+urllib3==2.7.0
+uvicorn==0.30.6
+uvloop==0.22.1
+watchfiles==1.2.0
+websockets==15.0.1

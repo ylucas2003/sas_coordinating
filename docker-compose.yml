@@ -66,9 +66,10 @@ services:
     env_file: ./api/.env
     environment:
       APP_ENV: dev
-      # O front é servido em :8080 e o http-client.js chama a API em :8000 —
-      # portas diferentes são cross-origin pro browser, então essa origem
-      # precisa estar liberada no CORS. Sobrescreve o valor de api/.env.
+      # O front chama a API por /api, que o dev server do Vite faz proxy para
+      # cá — mesma origem, como em produção. Estas origens ficam liberadas só
+      # para quem bate direto em :8000 (curl com Origin, ferramentas, um
+      # `npm run preview` fora do compose). Sobrescreve o valor de api/.env.
       CORS_ALLOW_ORIGINS: http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173
       # Presentes = modo local. Vazios/ausentes = Supabase hospedado.
       POSTGREST_URL: http://postgrest:3000
@@ -89,12 +90,30 @@ services:
       - ./.dados/storage:/dados/storage
 
   web:
-    build: ./web
+    # Dev server do Vite, não nginx: o front tem build step desde a migração
+    # para React, e é o Vite que dá HMR (salvar um .tsx atualiza a tela sem
+    # recarregar). A imagem de produção do front continua sendo web/Dockerfile.
+    image: node:22-alpine
+    working_dir: /app
+    depends_on:
+      - api
+    environment:
+      # Alvo do proxy de /api (ver web/vite.config.ts). Dentro da rede do
+      # compose a API atende pelo nome do serviço, não por localhost.
+      VITE_API_ALVO: http://api:8000
+    # Instala só quando o node_modules do volume está vazio (primeira subida
+    # ou depois de mexer no package.json) — nas demais, sobe direto.
+    command: >
+      sh -c "[ -d node_modules/vite ] || npm ci;
+             npm run dev -- --host 0.0.0.0 --port 8080"
     ports:
       - "8080:8080"
     volumes:
-      # Sem build step: editar um .js/.css no host já reflete no reload.
-      - ./web:/usr/share/nginx/html:ro
+      # Código montado do host: salvar um arquivo já reflete no browser.
+      - ./web:/app
+      # Volume anônimo: o node_modules do host é do macOS e não serve dentro
+      # do container (binários nativos). Este o esconde.
+      - /app/node_modules
 
   # One-shot, não sobe com `up`. Usa a mesma imagem da API porque o runner
   # precisa do psycopg e de api/migrations/.

@@ -3,3 +3,8 @@
 .dados/
 
 .DS_Store
+
+# Segredos locais (acesso ao VPS). Nunca vão para o git.
+.env
+.env.*
+!.env.example

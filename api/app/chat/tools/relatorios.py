@@ -14,6 +14,8 @@ Todas são READ-ONLY e seguem o padrão: retornam dict JSON-serializável ou
 
 from __future__ import annotations
 
+from datetime import date
+
 import statistics as st
 from collections import defaultdict
 from typing import Any
@@ -374,6 +376,7 @@ def relatorio_ciclo(cliente: Client, *, ciclo_id: str) -> dict:
         .select("id, nome, rotulo_curto, tipo, data_aplicacao, materia_id, nota_maxima")
         .eq("ciclo_id", ciclo_id)
         .eq("anulado", False)
+        .lte("data_aplicacao", date.today().isoformat())
         .execute()
     )
     sims = [s for s in (sim_resp.data or []) if not s.get("e_agregado")]

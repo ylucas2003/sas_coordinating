@@ -1,15 +1,19 @@
 """Endpoints de autenticação — login e primeiro acesso (criação de senha)."""
 
-import hmac
+import logging
 import time
+from datetime import datetime, timezone
 from collections import defaultdict
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
+from ..auditoria import registrar as auditar
 from ..auth import criar_token, hash_senha, verificar_senha
 from ..config import get_settings
 from ..supabase_client import get_supabase
+
+log = logging.getLogger("sas.auth")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -58,25 +62,61 @@ def _limitar_tentativas(chave: str) -> None:
 
 
 @router.post("/login")
-async def login(body: LoginBody) -> dict:
+async def login(body: LoginBody, request: Request) -> dict:
+    # O /login NÃO tinha limitador nenhum — só o /primeiro-acesso tinha
+    # (docs/14 §6.3). Com uma credencial compartilhada e token de 8h, isso
+    # deixava a porta da coordenação sem nada contra força bruta.
+    #
+    # A chave inclui o usuário, e não só o IP: atrás do nginx todo mundo tem o
+    # mesmo IP até o --forwarded-allow-ips estar certo, e chavear só por IP
+    # transformaria o limite num balde único para todos.
+    ip = request.client.host if request.client else "?"
+    _limitar_tentativas(f"login:{ip}:{body.usuario.strip().lower()}")
+
     settings = get_settings()
 
     if body.tipo == "coordenador":
-        usuario_ok = hmac.compare_digest(
-            body.usuario.encode(), settings.coordenador_email.encode()
+        # Uma conta por pessoa, com PBKDF2, em vez da credencial única do .env
+        # (migration 0021). O `sub` do token passa a ser o id do usuário, e não
+        # a string fixa "coordenador" — é o que torna auditoria possível.
+        cliente = get_supabase()
+        email = body.usuario.strip().lower()
+        resp = (
+            cliente.table("usuario_coordenacao")
+            .select("id, nome, senha_hash, ativo")
+            .eq("email", email)
+            .limit(1)
+            .execute()
         )
-        senha_ok = hmac.compare_digest(
-            body.senha.encode(), settings.coordenador_senha.encode()
-        )
-        if not (usuario_ok and senha_ok):
+        usuario = resp.data[0] if resp.data else None
+        if not usuario or not usuario.get("ativo"):
+            auditar(cliente, "login_falhou", ator_tipo="coordenador",
+                    ator_id=email, ip=ip, detalhe={"motivo": "inexistente_ou_inativo"})
             raise HTTPException(status_code=401, detail="Credenciais inválidas")
-        token = criar_token({"sub": "coordenador", "tipo": "coordenador", "nome": "Coordenação"})
+        if not verificar_senha(body.senha, usuario["senha_hash"]):
+            auditar(cliente, "login_falhou", ator_tipo="coordenador",
+                    ator_id=email, ip=ip, detalhe={"motivo": "senha_incorreta"})
+            raise HTTPException(status_code=401, detail="Credenciais inválidas")
+
+        # Melhor esforço: falhar aqui não pode impedir alguém de entrar.
+        try:
+            cliente.table("usuario_coordenacao").update(
+                {"ultimo_login_em": datetime.now(timezone.utc).isoformat()}
+            ).eq("id", usuario["id"]).execute()
+        except Exception:  # noqa: BLE001
+            log.warning("nao consegui registrar ultimo_login_em", exc_info=True)
+
+        auditar(cliente, "login_ok", ator_tipo="coordenador",
+                ator_id=usuario["id"], ip=ip, detalhe={"nome": usuario["nome"]})
+        token = criar_token(
+            {"sub": usuario["id"], "tipo": "coordenador", "nome": usuario["nome"]}
+        )
         return {
             "access_token": token,
             "token_type": "bearer",
             "tipo": "coordenador",
             "aluno_id": None,
-            "nome": "Coordenação",
+            "nome": usuario["nome"],
         }
 
     if body.tipo == "aluno":
@@ -103,6 +143,7 @@ async def login(body: LoginBody) -> dict:
             )
         if not verificar_senha(body.senha, aluno["senha_hash"]):
             raise HTTPException(status_code=401, detail="Credenciais inválidas")
+        auditar(cliente, "login_ok", ator_tipo="aluno", ator_id=aluno["id"], ip=ip)
         token = criar_token({
             "sub": aluno["id"],
             "tipo": "aluno",
@@ -134,6 +175,22 @@ async def primeiro_acesso(body: PrimeiroAcessoBody, request: Request) -> dict:
     validação é a mesma. Todas as falhas devolvem a MESMA mensagem 401 para
     não vazar existência de matrícula nem estado do e-mail.
     """
+    if not get_settings().primeiro_acesso_autosservico:
+        auditar(get_supabase(), "primeiro_acesso_bloqueado", ator_tipo="aluno",
+                ator_id=body.matricula.strip(),
+                ip=request.client.host if request.client else None)
+        # 403 e não 404: a rota existe e o frontend continua podendo chamá-la.
+        # Desligar é decisão de operação, não mudança de contrato — o que
+        # importa aqui é não deixar a migração do front sem rota enquanto ela
+        # acontece (docs/15 §Etapa 7, item 7.2).
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "O primeiro acesso é liberado pela coordenação. "
+                "Procure a coordenação para receber sua senha."
+            ),
+        )
+
     matricula = body.matricula.strip()
     ip = request.client.host if request.client else "?"
     _limitar_tentativas(f"{ip}:{matricula}")

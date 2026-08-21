@@ -48,6 +48,12 @@ log = logging.getLogger("sas.chat.agente")
 
 MAX_TURNOS = 8
 MAX_MENSAGENS_HISTORICO = 30
+
+# Teto de saída por chamada. Sem isto a resposta era ilimitada: o modelo podia
+# gerar até o limite da janela, e com MAX_TURNOS=8 o custo de UMA mensagem não
+# tinha teto superior nenhum (docs/14 §6.4). 1500 tokens cobrem com folga a
+# resposta pedagógica mais longa que o prompt pede.
+MAX_TOKENS_RESPOSTA = 1500
 TEMPERATURA = 0.2          # Determinístico — respostas reprodutíveis.
 
 
@@ -120,6 +126,7 @@ async def _gerar(
             response = client.chat.completions.create(
                 model=modelo,
                 temperature=TEMPERATURA,
+                max_tokens=MAX_TOKENS_RESPOSTA,
                 messages=mensagens,
                 tools=perfil.schemas,
                 tool_choice="auto",
