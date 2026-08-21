@@ -77,6 +77,51 @@ class ClienteCanvas:
             resposta.raise_for_status()
             return resposta
 
+    # ─── Escrita: POST sem retry, PUT/DELETE com ─────────────────────────
+    #
+    # POST não repete DE PROPÓSITO: (a) não há chave de idempotência na API
+    # do Canvas — repetir um POST que talvez tenha chegado cria objeto
+    # duplicado; (b) a política do _get trata 403 como rate limit, mas 403
+    # num POST é "sem permissão" e repetir só atrasa o erro. Falha de POST
+    # vira estado no banco (canvas_estado='falhou') e o reprocessamento do
+    # sync resolve — ver agendamento.py.
+
+    async def _post(self, caminho: str, *, json: dict[str, Any]) -> httpx.Response:
+        async with self._semaforo:
+            resposta = await self._http.post(caminho, json=json)
+            resposta.raise_for_status()
+            return resposta
+
+    async def _put(self, caminho: str, *, json: dict[str, Any]) -> httpx.Response:
+        """PUT é idempotente — repetir é seguro, mesma política de retry do _get."""
+        async with self._semaforo:
+            ultima_excecao: Exception | None = None
+            resposta: httpx.Response | None = None
+            for tentativa in range(_TENTATIVAS):
+                try:
+                    resposta = await self._http.put(caminho, json=json)
+                except (httpx.TimeoutException, httpx.TransportError) as exc:
+                    ultima_excecao = exc
+                    await asyncio.sleep(2**tentativa)
+                    continue
+                if resposta.status_code == 429 or resposta.status_code >= 500:
+                    await asyncio.sleep(2**tentativa)
+                    continue
+                resposta.raise_for_status()
+                return resposta
+            if resposta is None:
+                raise ultima_excecao or RuntimeError("PUT ao Canvas falhou sem resposta")
+            resposta.raise_for_status()
+            return resposta
+
+    async def _delete(self, caminho: str) -> httpx.Response:
+        """DELETE é idempotente; 404 conta como sucesso (o objeto já não existe)."""
+        async with self._semaforo:
+            resposta = await self._http.delete(caminho)
+            if resposta.status_code != 404:
+                resposta.raise_for_status()
+            return resposta
+
     async def _get_paginado(
         self,
         caminho: str,
@@ -173,6 +218,85 @@ class ClienteCanvas:
         """Arquivos DIRETOS da pasta — não recursa em subpastas (é assim que
         as pastas de ano antigo dentro de uma pasta de ciclo ficam de fora)."""
         return await self._get_paginado(f"/folders/{folder_id}/files")
+
+    # ─── Endpoints usados pelo agendamento (P1 — escrita SAS → Canvas) ────
+
+    async def criar_assignment_group(self, course_id: str, *, nome: str) -> dict[str, Any]:
+        resposta = await self._post(
+            f"/courses/{course_id}/assignment_groups", json={"name": nome}
+        )
+        return resposta.json()
+
+    async def criar_assignment(
+        self, course_id: str, *, assignment: dict[str, Any]
+    ) -> dict[str, Any]:
+        resposta = await self._post(
+            f"/courses/{course_id}/assignments", json={"assignment": assignment}
+        )
+        return resposta.json()
+
+    async def atualizar_assignment(
+        self, course_id: str, assignment_id: str, *, assignment: dict[str, Any]
+    ) -> dict[str, Any]:
+        resposta = await self._put(
+            f"/courses/{course_id}/assignments/{assignment_id}",
+            json={"assignment": assignment},
+        )
+        return resposta.json()
+
+    async def atualizar_nota_submission(
+        self,
+        course_id: str,
+        assignment_id: str,
+        user_id: str,
+        *,
+        posted_grade: float | str | None = None,
+        marcar_ausente: bool | None = None,
+    ) -> dict[str, Any]:
+        """Grava a nota de um aluno num Assignment.
+
+        `posted_grade` vai na escala de pontos do Assignment (a mesma que o SAS
+        guarda em nota.pontuacao); string vazia apaga a nota.
+
+        `marcar_ausente=True` seta late_policy_status='missing' — é o que o sync
+        lê de volta em derivar_presente(). Preferido a `excused`, que no Canvas
+        significa "dispensado, não conta", e não "faltou". False limpa a marca;
+        None não mexe.
+
+        Nota: marcar presente SEM enviar nota não gruda no round-trip — a
+        submission continua 'unsubmitted', que derivar_presente() lê como
+        ausente. Enviar nota move o workflow_state para 'graded' e resolve.
+        """
+        submission: dict[str, Any] = {}
+        if posted_grade is not None:
+            submission["posted_grade"] = posted_grade
+        if marcar_ausente is not None:
+            submission["late_policy_status"] = "missing" if marcar_ausente else "none"
+        if not submission:
+            raise ValueError("atualizar_nota_submission chamado sem nada para alterar")
+
+        resposta = await self._put(
+            f"/courses/{course_id}/assignments/{assignment_id}/submissions/{user_id}",
+            json={"submission": submission},
+        )
+        return resposta.json()
+
+    async def apagar_assignment(self, course_id: str, assignment_id: str) -> None:
+        await self._delete(f"/courses/{course_id}/assignments/{assignment_id}")
+
+    async def buscar_assignment_por_nome(
+        self, course_id: str, nome: str
+    ) -> dict[str, Any] | None:
+        """Match EXATO de nome, ou None. Usado pelo reprocessamento antes de
+        re-POSTar: um POST que deu timeout pode ter criado o Assignment mesmo
+        assim, e recriar às cegas duplicaria a prova no Canvas."""
+        candidatos = await self._get_paginado(
+            f"/courses/{course_id}/assignments", params={"search_term": nome}
+        )
+        for candidato in candidatos:
+            if (candidato.get("name") or "").strip() == nome:
+                return candidato
+        return None
 
     async def baixar_bytes(self, url: str) -> bytes:
         """Baixa o conteúdo bruto de uma download URL absoluta do Canvas —

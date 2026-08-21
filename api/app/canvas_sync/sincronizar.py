@@ -121,7 +121,9 @@ async def _sincronizar_curso_simulados(
     Devolve {canvas_user_id: aluno_id} — o backfill usa pra buscar e-mails.
     """
     course_id = str(curso["id"])
-    ano_letivo_id = upsert_ano_letivo(cliente, ano=ano)
+    # canvas_course_id: é aqui que o agendamento (P1) descobre em que curso
+    # criar Assignments — o sync é quem mantém o vínculo atualizado.
+    ano_letivo_id = upsert_ano_letivo(cliente, ano=ano, canvas_course_id=course_id)
 
     # ── (1) Sections → sede/turma ──
     sections = await canvas.listar_sections(course_id)
@@ -202,6 +204,7 @@ async def _sincronizar_curso_simulados(
             ordem=ordem,
             nome=f"Ciclo {ordem} · {vestibular} · {ano}",
             vestibular_alvo=vestibular,
+            canvas_assignment_group_id=str(grupo["id"]),
         )
         group_id = str(grupo["id"])
         ciclo_por_group_id[group_id] = ciclo_id
@@ -210,11 +213,52 @@ async def _sincronizar_curso_simulados(
 
     # ── (4) Assignments → simulado (fase inferida por agrupamento Pn) ──
     assignments = await canvas.listar_assignments(course_id)
+
+    # Regra P1: campo originado no SAS nunca é sobrescrito pelo sync.
+    # Simulados origem='sas' são casados por external_id ANTES da gramática
+    # de nome (renomear à mão no Canvas não os derruba do SAS) e seguem por
+    # um lote reduzido — só os campos que continuam sendo do Canvas.
+    ids_do_curso = [str(a["id"]) for a in assignments]
+    external_ids_sas: set[str] = set()
+    datas_sas: dict[str, list[date]] = {}   # ciclo_id → datas (p/ período)
+    hoje = date.today()
+    for inicio in range(0, len(ids_do_curso), 100):
+        resp_sas = (
+            cliente.table("simulado")
+            .select("external_id, ciclo_id, data_aplicacao")
+            .eq("origem", "sas")
+            .in_("external_id", ids_do_curso[inicio : inicio + 100])
+            .execute()
+        )
+        for linha in resp_sas.data or []:
+            external_ids_sas.add(str(linha["external_id"]))
+            # A data do simulado SAS conta pro período do ciclo — mas só
+            # depois de aplicada (agendamento futuro não estica periodo_fim).
+            d = date.fromisoformat(str(linha["data_aplicacao"]))
+            if d <= hoje:
+                datas_sas.setdefault(linha["ciclo_id"], []).append(d)
+
     cache_materia: dict[str, str | None] = {}
     colunas_fase: list[ColunaSimulado] = []
     contexto_por_external_id: dict[str, dict[str, Any]] = {}
+    simulados_payload_sas: list[dict[str, Any]] = []
 
     for assignment in assignments:
+        if str(assignment["id"]) in external_ids_sas:
+            # Lote reduzido: quiz_id/unlock/lock são produzidos pelo Canvas;
+            # identidade (nome, rótulo, data, escala, tipo, ciclo, matéria)
+            # é do SAS e fica intocada.
+            simulados_payload_sas.append(
+                {
+                    "external_id": str(assignment["id"]),
+                    "quiz_id": (
+                        str(assignment["quiz_id"]) if assignment.get("quiz_id") else None
+                    ),
+                    "unlock_at": assignment.get("unlock_at"),
+                    "lock_at": assignment.get("lock_at"),
+                }
+            )
+            continue
         group_id = str(assignment.get("assignment_group_id"))
         ciclo_id = ciclo_por_group_id.get(group_id)
         if ciclo_id is None or not assignment.get("published"):
@@ -271,8 +315,18 @@ async def _sincronizar_curso_simulados(
         datas_por_ciclo.setdefault(ctx["ciclo_id"], []).append(ctx["data_aplicacao"])
 
     external_para_simulado_id = upsert_simulados_em_lote(cliente, simulados=simulados_payload)
+
+    # Lote reduzido dos origem='sas' — chamada SEPARADA de propósito: o upsert
+    # em massa do PostgREST usa a união das chaves de todas as linhas do
+    # array, e misturar payload completo com reduzido zeraria os campos
+    # ausentes das linhas reduzidas (nome, nota_maxima, ...).
+    external_para_simulado_id.update(
+        upsert_simulados_em_lote(cliente, simulados=simulados_payload_sas)
+    )
     resumo.simulados_processados += len(external_para_simulado_id)
 
+    for ciclo_id, datas in datas_sas.items():
+        datas_por_ciclo.setdefault(ciclo_id, []).extend(datas)
     for ciclo_id, datas in datas_por_ciclo.items():
         atualizar_periodo_ciclo(
             cliente, ciclo_id=ciclo_id, periodo_inicio=min(datas), periodo_fim=max(datas)
@@ -560,6 +614,19 @@ async def sincronizar_ano_atual(
     graded_since = (
         datetime.now(timezone.utc) - timedelta(minutes=lookback_minutos)
     ).isoformat()
+
+    # Simulados agendados no SAS que ainda não existem no Canvas (POST falhou
+    # na hora do agendamento) — tenta de novo ANTES do sync de leitura, assim
+    # um que sincronize agora já entra no casamento por external_id da rodada.
+    from .agendamento import reprocessar_canvas_pendentes
+
+    pendencias = await reprocessar_canvas_pendentes(cliente, canvas)
+    if pendencias["sincronizados"] or pendencias["falharam"]:
+        resumo.avisos.append(
+            f"agendamentos reprocessados: {pendencias['sincronizados']} sincronizados, "
+            f"{pendencias['falharam']} ainda em falha"
+        )
+
     await _sincronizar_curso_simulados(
         cliente=cliente, canvas=canvas, curso=curso, ano=ano,
         graded_since=graded_since, resumo=resumo,

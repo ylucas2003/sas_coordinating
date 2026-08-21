@@ -10,6 +10,11 @@ export function el(tag, attrs = {}, children = []) {
   for (const [key, value] of Object.entries(attrs)) {
     if (value == null || value === false) continue;
     if (key === 'class') node.className = value;
+    // `style` vai por CSSOM, e não por setAttribute: a CSP de produção não
+    // permite atributo style inline (`style-src` sem 'unsafe-inline'), e um
+    // setAttribute aqui perderia as cores do heatmap no PDF exportado — em
+    // silêncio. Atribuir a `.style.cssText` não é bloqueado pela CSP.
+    else if (key === 'style') node.style.cssText = value;
     else if (key === 'dataset') Object.assign(node.dataset, value);
     else if (key.startsWith('on') && typeof value === 'function') {
       node.addEventListener(key.slice(2).toLowerCase(), value);

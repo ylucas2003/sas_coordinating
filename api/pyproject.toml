@@ -1,0 +1,83 @@
+# Ferramentas do backend do SAS. Não é pacote instalável — só configuração.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "migrations", "grading_prototype"]
+
+[tool.ruff.lint]
+# O conjunto é escolhido pelo que pega BUG, não pelo que pega estilo.
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes — nome indefinido, import não usado, f-string sem campo
+    "I",        # isort — ordem de imports
+    "UP",       # pyupgrade — sintaxe obsoleta para py311
+    "B",        # bugbear — default mutável, loop com variável de closure, except vazio
+    "ASYNC",    # armadilhas de async: chamada bloqueante dentro de `async def`
+    "S",        # bandit — subset de segurança
+    "DTZ",      # datetime sem timezone (o projeto trabalha em BRT e UTC juntos)
+    "T20",      # print() esquecido em código de produção
+    "SIM",      # simplificações que costumam esconder erro de lógica
+    "RUF",      # regras próprias do ruff
+]
+
+ignore = [
+    "E501",     # comprimento de linha — o projeto usa comentário longo explicativo de propósito
+    "S101",     # `assert` — usado nos testes
+    "B008",     # chamada no default do argumento: é o idioma do FastAPI (`Depends()`, `File()`)
+    "SIM108",   # ternário no lugar de if/else nem sempre fica mais legível
+
+    # O código e os comentários são em português. Estas três regras marcam
+    # todo "ç", "ã" e travessão como "caractere unicode ambíguo" — 58 avisos
+    # que nunca vão virar conserto e afogam o que importa.
+    "RUF001", "RUF002", "RUF003",
+
+    # Estilo, não bug.
+    "E701", "E702",   # dois statements na mesma linha
+    "E741",           # nome de variável ambíguo (l, I, O)
+
+    # `date.today()` é deliberado: o calendário escolar é em data local (BRT),
+    # não em instante UTC. O que ficou ligado é DTZ005/DTZ007 — `datetime.now()`
+    # sem timezone e `strptime` sem zona, que aí sim viram bug de fuso.
+    "DTZ011",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts de manutenção são CLI: print() é a interface deles, e vários rodam
+# comando/SQL montado a partir de argumento do operador.
+"scripts/*" = ["T20", "S603", "S607", "S608"]
+"tests/*" = ["S105", "S106", "T20"]
+
+# S105 ("possível senha hardcoded") nestes três é falso positivo, e são os
+# únicos do projeto:
+#   config.py  declara os defaults de dev DE PROPÓSITO — quem recusa subir
+#              com eles é `_validar_configuracao` em main.py;
+#   main.py    é justamente o guard, que compara contra esses valores;
+#   storage.py `_ALGORITMO_TOKEN`/`_TIPO_TOKEN_DOWNLOAD` são nome de
+#              algoritmo e de tipo de token, não segredo.
+"app/config.py" = ["S105"]
+"app/main.py" = ["S105"]
+"app/storage.py" = ["S105"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.File", "fastapi.Form", "fastapi.Body", "fastapi.Header", "fastapi.Path"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+# --------------------------------------------------------------------------
+# mypy NÃO faz parte do gate (nem do hook do Claude Code). Roda sob demanda:
+#
+#     ./.venv/bin/mypy app
+#
+# Motivo: dos 109 erros do primeiro run, 72 são `arg-type` com a mesma raiz —
+# `get_supabase()` devolve `ClienteDados` (= `Client | SyncPostgrestClient`,
+# ver app/supabase_client.py) e as funções anotam o parâmetro como `Client`.
+# Isso é decisão consciente ("as anotações continuam como documentação do
+# formato"), não bug. Trocar essas anotações por `ClienteDados` derruba os 72
+# de uma vez e aí vale promover o mypy a gate — antes disso, ele só afoga.
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true      # supabase-py, postgrest e boto3 não têm stubs
+exclude = ['^\.venv/', '^migrations/', '^grading_prototype/']

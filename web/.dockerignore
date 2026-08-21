@@ -1,14 +1,22 @@
+# O `npm ci` dentro da imagem instala do zero: mandar o node_modules do host
+# (binários compilados para macOS) só engorda o contexto e pode quebrar o build.
 node_modules
 dist
 dist-ssr
 .vite
+
+# `*.local` inclui `.env.local`, que o Vite lê no build — config de máquina de
+# desenvolvimento não pode vazar para a imagem de produção.
 *.local
+
+.git
 .DS_Store
 .vscode/
+*.log
 
-# Não são conteúdo do site.
-# nginx.conf NÃO entra aqui: o Dockerfile precisa dele no contexto de build.
-# Quem impede que ele seja servido é a regra de 404 no próprio nginx.conf.
+# Não são conteúdo do site. O nginx.conf NÃO entra aqui: o Dockerfile precisa
+# dele no contexto de build. (Antes o diretório inteiro virava a raiz servida;
+# hoje só o `dist/` é copiado, então isto é sobretudo enxugar o contexto.)
 Dockerfile
 .dockerignore
 README.md

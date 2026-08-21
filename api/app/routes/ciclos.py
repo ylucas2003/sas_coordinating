@@ -3,9 +3,13 @@
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from ..auth import get_current_coordenador
-from ..schemas.domain import Ciclo
+from ..canvas_sync import mapeador
+from ..canvas_sync.cliente import ClienteCanvas
+from ..config import get_settings
+from ..schemas.domain import Ciclo, VestibularAlvo
 from ..stats import ciclo_estatisticas, insights
 from ..supabase_client import get_supabase
 
@@ -35,6 +39,96 @@ def _linha_para_ciclo(linha: dict, simulado_ids: list[str]) -> Ciclo:
         periodoInicio=linha.get("periodo_inicio") or "",
         periodoFim=linha.get("periodo_fim") or "",
         simuladoIds=simulado_ids,
+    )
+
+
+class CriarCicloBody(BaseModel):
+    ordem: int = Field(gt=0, le=99)
+    vestibular: VestibularAlvo
+    ano: int | None = None   # None = ano vigente (maior ano com curso no Canvas)
+
+
+@router.post("", response_model=Ciclo, status_code=201)
+async def criar_ciclo(body: CriarCicloBody) -> Ciclo:
+    """Cria um ciclo no SAS E o Assignment Group correspondente no Canvas.
+
+    TRANSACIONAL (diferente do simulado, que é híbrido): um ciclo que existe
+    no SAS mas não no Canvas não serve pra nada — nenhum simulado pode nascer
+    nele. Se o Canvas recusar, nada é salvo e o coordenador vê o erro.
+    """
+    cliente = get_supabase()
+
+    # Ano letivo de destino: o pedido, ou o maior com curso conhecido.
+    consulta = cliente.table("ano_letivo").select("id, ano, canvas_course_id")
+    if body.ano is not None:
+        consulta = consulta.eq("ano", body.ano)
+    anos = (consulta.order("ano", desc=True).execute()).data or []
+    anos_com_curso = [a for a in anos if a.get("canvas_course_id")]
+    if not anos_com_curso:
+        raise HTTPException(
+            status_code=409,
+            detail="Nenhum ano letivo com curso do Canvas conhecido — rode o sync antes.",
+        )
+    ano_letivo = anos_com_curso[0]
+
+    existente = (
+        cliente.table("ciclo")
+        .select("id, vestibular_alvo")
+        .eq("ano_letivo_id", ano_letivo["id"])
+        .eq("ordem", body.ordem)
+        .limit(1)
+        .execute()
+    )
+    if existente.data:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Ciclo {body.ordem} de {ano_letivo['ano']} já existe "
+                f"({existente.data[0].get('vestibular_alvo') or 'sem vestibular'}). "
+                "Cada ordem de ciclo tem um único vestibular."
+            ),
+        )
+
+    settings = get_settings()
+    if not settings.canvas_base_url or not settings.canvas_api_token:
+        raise HTTPException(status_code=502, detail="Canvas não configurado no servidor.")
+
+    nome_grupo = mapeador.compor_nome_grupo_ciclo(ordem=body.ordem, vestibular=body.vestibular)
+    try:
+        async with ClienteCanvas(
+            base_url=settings.canvas_base_url, token=settings.canvas_api_token
+        ) as canvas:
+            grupo = await canvas.criar_assignment_group(
+                str(ano_letivo["canvas_course_id"]), nome=nome_grupo
+            )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Canvas recusou a criação do grupo: {exc}"
+        )
+
+    linha = (
+        cliente.table("ciclo")
+        .insert(
+            {
+                "ano_letivo_id": ano_letivo["id"],
+                "ordem": body.ordem,
+                "nome": f"Ciclo {body.ordem} · {body.vestibular} · {ano_letivo['ano']}",
+                "vestibular_alvo": body.vestibular,
+                "canvas_assignment_group_id": str(grupo["id"]),
+            },
+            returning="representation",
+        )
+        .execute()
+    ).data[0]
+
+    return Ciclo(
+        id=linha["id"],
+        nome=linha["nome"],
+        anoLetivo=ano_letivo["ano"],
+        vestibularAlvo=linha.get("vestibular_alvo"),
+        periodoInicio="",
+        periodoFim="",
+        simuladoIds=[],
     )
 
 

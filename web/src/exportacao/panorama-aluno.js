@@ -3,7 +3,7 @@
 // exportação PDF (via window.print + CSS de print) quanto para PNG (via
 // SVG + canvas).
 
-import { el, fmtNota } from '../dom.js';
+import { el, fmtNota } from './dom.js';
 
 const PERFIL_LABEL = { ancora: 'Âncora', misterio: 'Mistério', regular: 'Regular' };
 const TENDENCIA_LABEL = { subindo: '↑ Subindo', estavel: '→ Estável', caindo: '↓ Caindo' };

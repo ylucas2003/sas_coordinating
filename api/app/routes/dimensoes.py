@@ -41,3 +41,11 @@ async def listar_turmas() -> list[Turma]:
             )
         )
     return turmas
+
+
+@router.get("/materias")
+async def listar_materias() -> list[dict]:
+    """Matérias canônicas — usadas no formulário de agendamento (P1)."""
+    cliente = get_supabase()
+    resp = cliente.table("materia").select("id, codigo, nome").order("nome").execute()
+    return resp.data or []

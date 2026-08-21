@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from ..auth import exigir_scheduler_secret
 from ..config import get_settings
 from ..ingest.upsert import criar_execucao_sync, finalizar_execucao_sync
+from ..routes.disparos import despachar_se_livre
 from ..supabase_client import criar_cliente_supabase
 from .cliente import ClienteCanvas
 from .sincronizar import ResumoSincronizacao, sincronizar_ano_atual
@@ -64,7 +65,20 @@ def executar_sync(_: None = Depends(exigir_scheduler_secret)) -> dict:
         finalizar_execucao_sync(
             cliente, execucao_id=execucao_id, status="sucesso", resumo=resumo.como_dict()
         )
-        return {"status": "ok", "execucao_id": execucao_id, **resumo.como_dict()}
+        # Carona do despachante de lembretes (docs/13 §4.4): o tick próprio é
+        # horário, e um disparo materializado às 18:05 esperaria uma hora. A
+        # trava do despachante evita sobreposição; falha aqui não pode
+        # derrubar o sync, que é o trabalho principal desta rota.
+        try:
+            despacho = asyncio.run(despachar_se_livre())
+        except Exception as exc:   # noqa: BLE001 — acessório, nunca fatal
+            despacho = {"status": "erro", "detalhe": str(exc)[:200]}
+        return {
+            "status": "ok",
+            "execucao_id": execucao_id,
+            **resumo.como_dict(),
+            "despacho": despacho,
+        }
     except Exception as exc:
         if execucao_id is not None:
             try:
