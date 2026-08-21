@@ -135,6 +135,36 @@ def parsear_nome_arquivo_simulado(nome_arquivo: str) -> dict[str, Any] | None:
     }
 
 
+# ─── Composição de nomes (P1 — o SAS cria no Canvas) ─────────────────────
+#
+# Inversos exatos dos parsers acima. O agendamento compõe o nome que o
+# próprio sync vai ler de volta — o teste de round-trip em
+# tests/test_mapeador_roundtrip.py garante que as duas gramáticas não saem
+# de sincronia.
+
+
+def compor_nome_assignment(
+    *,
+    ciclo_ordem: int,
+    rotulo_curto: str,
+    materia_nome: str,
+    data_aplicacao: date,
+) -> str:
+    """(1, 'P2', 'Matemática', 2026-02-08) → '1_P2 - Matemática - 08/02/2026'.
+
+    `materia_nome` deve ser o nome CANÔNICO (materia.nome do banco), não o
+    que o usuário digitou — é ele que parsear_nome_assignment reconhece."""
+    return (
+        f"{ciclo_ordem}_{rotulo_curto} - {materia_nome} - "
+        f"{data_aplicacao.strftime('%d/%m/%Y')}"
+    )
+
+
+def compor_nome_grupo_ciclo(*, ordem: int, vestibular: str) -> str:
+    """(3, 'ITA') → '3° CICLO - ITA' — o padrão dos Assignment Groups do curso."""
+    return f"{ordem}° CICLO - {vestibular.upper()}"
+
+
 # ─── Helpers de data ──────────────────────────────────────────────────────
 
 

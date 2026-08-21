@@ -1,6 +1,21 @@
 // Exportação do histórico do aluno em PNG / CSV / PDF.
 
-import { fmtDataBR, rotuloCiclo } from '../components/tabela-simulados.js';
+// Os dois helpers vivem aqui desde que a tabela de simulados virou React —
+// eram a única coisa que ainda prendia este arquivo ao componente antigo.
+// (Espelham src/util/data.ts e src/dominio/simulados.ts.)
+
+/** "2026-03-08" → "08/03/2026". */
+function fmtDataBR(iso) {
+  if (!iso) return '—';
+  const [ano, mes, dia] = iso.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+/** Rótulo curto de um ciclo: "C3 · ITA". */
+function rotuloCiclo(ordem, vestibular) {
+  if (ordem == null) return 'Sem ciclo';
+  return vestibular ? `C${ordem} · ${vestibular}` : `C${ordem}`;
+}
 
 const TIPO_LABEL = { fase_1: 'Fase 1', fase_2: 'Fase 2' };
 

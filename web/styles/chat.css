@@ -1,4 +1,10 @@
-/* ─── Chat — FAB + Drawer lateral ──────────────────────────────────────── */
+/* ─── Chat — FAB + painel lateral ──────────────────────────────────────── */
+
+:root {
+  /* Largura do painel. Compartilhada com o padding que empurra o conteúdo,
+     pra que as duas não saiam de sincronia. */
+  --chat-largura: 460px;
+}
 
 /* Botão flutuante */
 .chat-fab {
@@ -44,29 +50,26 @@
   .chat-fab { padding: 14px; border-radius: 50%; }
 }
 
-/* Overlay (clique fora pra fechar) */
-.chat-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(20, 30, 80, 0.18);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms;
-  z-index: 940;
+/* O painel não cobre a página: empurra o conteúdo pra ele continuar
+   inteiro à vista. Só em telas largas — abaixo de 900px sobra pouco espaço
+   útil, e aí sobrepor é melhor que espremer. */
+@media (min-width: 900px) {
+  #root {
+    transition: padding-right 220ms cubic-bezier(0.3, 0.7, 0.3, 1);
+  }
+
+  .chat-aberto #root {
+    padding-right: var(--chat-largura);
+  }
 }
 
-.chat-overlay.is-aberto {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Drawer lateral à direita */
+/* Painel lateral à direita */
 .chat-drawer {
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 460px;
+  width: var(--chat-largura);
   max-width: 100vw;
   background: var(--color-surface);
   box-shadow: -12px 0 32px rgba(20, 30, 80, 0.16);
@@ -603,4 +606,62 @@
 .chat-composer__enviar:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* ─── Abertura: sugestões agrupadas por intenção ────────────────────────── */
+
+.chat-sugestoes__grupo {
+  margin-top: 14px;
+}
+
+.chat-sugestoes__grupo-titulo {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: 6px;
+}
+
+/* ─── Abertura: "o que mais você sabe fazer?" ───────────────────────────── */
+
+.chat-capacidades {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.chat-capacidades__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  transition: color 0.1s;
+}
+
+.chat-capacidades__toggle:hover {
+  color: var(--color-navy);
+}
+
+.chat-capacidades__seta {
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+}
+
+.chat-capacidades__lista {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+}
+
+.chat-capacidades__lista li {
+  margin-bottom: 2px;
 }

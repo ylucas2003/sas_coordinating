@@ -17,43 +17,51 @@ Monorepo simples baseado em pastas, sem ferramenta de workspaces. Frontend e bac
 
 | Camada | Escolha | Por quê |
 |--------|---------|---------|
-| Linguagem | **HTML + CSS + JavaScript puro (ES modules)** | Sem bundler, sem transpilador, sem `node_modules`. Deploy estático no Vercel sai grátis e instantâneo. Toda a stack roda direto no navegador. |
-| Tipagem | **JSDoc opcional** | Sem TypeScript. Tipos críticos (entidades do domínio) documentados via JSDoc no `services/api.js`. |
-| Roteamento | **Hash router próprio** ([js/router.js](../web/js/router.js)) | ~30 linhas, suficiente para o app. Hash routing dispensa rewrite no Vercel. |
-| Estilização | **CSS vanilla + CSS variables** | Tokens semânticos (`--color-navy`, `--color-amber`…) batem com o princípio "cor é linguagem". Três arquivos: [tokens.css](../web/styles/tokens.css), [base.css](../web/styles/base.css), [layout.css](../web/styles/layout.css). |
-| Tipografia | **Plus Jakarta Sans** via Google Fonts | Já em uso nos mockups e no design system. |
-| Gráficos | **SVG primitives escritos à mão** | Sparkline já está em [components/ui/sparkline.js](../web/js/components/ui/sparkline.js). Histograma, heatmap, etc. seguem a mesma abordagem (~50 linhas cada). Sem libs de gráfico. |
-| Camada de dados | **`ApiClient` interface** ([services/api.js](../web/js/services/api.js)) | Hoje aponta para `mockClient`; quando o backend estiver pronto, trocar para `httpClient`. As telas não mudam. |
+| Framework | **React 19** | As telas grandes (painel, chat) reimplementavam à mão reconciliação de DOM, estado derivado e cache — as três coisas que o React já resolve. |
+| Build | **Vite** | Dev server com HMR e build com assets hasheados, que é o que permite cachear o front (antes nada tinha hash, então nada podia ser cacheado). |
+| Linguagem | **TypeScript** | O contrato com a API vive em [src/tipos/dominio.ts](../web/src/tipos/dominio.ts) e espelha os schemas Pydantic. Erro de campo (`turmaId` vs `turma_id`) passa a aparecer no build, não em runtime. |
+| Roteamento | **React Router**, caminhos reais | `/alunos/A023`, não `#/alunos/A023`. Exige `try_files` com fallback no nginx — seguro porque todo asset real mora sob `/assets/`. |
+| Dados | **TanStack Query** | Substitui o cache manual de GETs do cliente HTTP e o cache de DOM por rota que existia no bootstrap. |
+| Estilização | **CSS Modules + CSS variables** | Tokens semânticos (`--color-navy`, `--color-amber`…) continuam globais em [tokens.css](../web/styles/tokens.css); o CSS de cada tela vira módulo conforme ela migra. |
+| Tipografia | **Plus Jakarta Sans**, servida localmente | Saiu do Google Fonts: mandava o IP de aluno menor de idade para o Google, e a CSS de produção a bloqueia. Ver [fontes.css](../web/styles/fontes.css). |
+| Gráficos | **SVG escrito à mão** | Sparkline, histograma, heatmap, linha de evolução, anel e barra de comparação — sem lib de gráfico. São funções puras `dados → SVG`, que em JSX ficam mais curtas que no DOM. |
+| Testes | **Vitest** sobre `src/dominio/` | Cobre a lógica de domínio (esquemas ITA/IME, médias, filtros, ranking, streaming), não markup. |
+| Camada de dados | **`servicos/api.ts`** | Operações tipadas sobre [servicos/http.ts](../web/src/servicos/http.ts) (fetch + auth + SSE + upload com progresso). |
 
 ### Estrutura
 
 ```
 web/
-├── index.html              entry point
-├── styles/                 tokens, reset, layout
-└── js/
-    ├── main.js             bootstrap (router + render)
-    ├── router.js           hash router
-    ├── dom.js              helpers (el, clear, fmtNota)
-    ├── services/
-    │   ├── api.js          contrato — getApiClient() escolhe mock vs HTTP
-    │   ├── mock-client.js
-    │   ├── mock-data.js
-    │   └── http-client.js  placeholder do client real
-    ├── components/
-    │   ├── topbar.js
-    │   ├── filter-strip.js
-    │   ├── sidebar.js
-    │   └── ui/             alert-card, sparkline, …
-    └── screens/            painel, alunos, aluno-ficha, simulados, …
+├── index.html              entrada única (o login é rota do SPA)
+├── vite.config.ts  tsconfig.json  package.json
+├── assets/                 fontes e logos
+├── styles/                 CSS global (tokens, base, layout e por tela)
+└── src/
+    ├── main.tsx            bootstrap: QueryClient + Router + CSS global
+    ├── App.tsx             rotas, guard de sessão, chat
+    ├── rotas.ts            que sidebar cada rota mostra
+    ├── tipos/              dominio.ts (espelha api/app/schemas/domain.py), aluno.ts, chat.ts
+    ├── dominio/            regras puras e testadas: painel, simulados, ciclos, chatStream…
+    ├── servicos/           http.ts · api.ts · sessao.ts
+    ├── hooks/              consultas.ts (leitura) · mutacoes.ts (escrita) · aluno.ts
+    ├── componentes/        layout/ · ui/ · filtros/ · dialogos/ · simulados/ · chat/ · aluno/
+    ├── telas/              uma pasta por tela
+    └── exportacao/         geradores de PDF/PNG/CSV — DOM cru, de propósito (ver LEIA-ME)
 ```
+
+### Onde ficam as regras de negócio
+
+`src/dominio/` é a parte do frontend que **não** desenha nada: esquema de
+colunas do painel por vestibular, fórmulas de média ITA/IME, cross-filtering,
+corte por matéria, reducer do streaming do chat. Está separada porque é o que
+tem regra de domínio de verdade — e é o que os testes cobrem (`npm test`).
 
 ### Convenções
 
-- **ES modules** com extensão `.js` nas importações (`import { x } from './x.js'`) — navegadores exigem.
-- **Sem build step.** Editar e recarregar.
-- **`async/await` em toda I/O.** O contrato com o backend já é assíncrono (`Promise`).
-- **`document.createElement`** via helper `el()` em vez de `innerHTML` — protege contra XSS por default.
+- **Nomes em português**, como no resto do projeto (`telas/`, `servicos/`, `consultas.ts`).
+- **Nada de `fetch` em componente.** Leitura passa por um hook de `hooks/consultas.ts`.
+- **Classes compartilhadas ficam globais** (`.card`, `.tone-*`, `.nota-badge`, `.btn`); só o CSS de prefixo próprio da tela vira módulo.
+- **`async/await` em toda I/O.**
 - **Sentence case em UI**, regra do design system (ver [03](03-design-system.md)).
 
 ## Backend (`/api`)

@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["vite/client"],
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    // `src/exportacao/` continua em JS (geradores de documento — ver o
+    // LEIA-ME de lá). `allowJs` deixa o TS resolver esses imports; `checkJs`
+    // desligado porque são funções de DOM sem contrato a proteger.
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["src", "vite.config.ts"]
+}

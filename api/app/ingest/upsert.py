@@ -74,8 +74,16 @@ def upsert_sede(
 # ─── Ano letivo ───────────────────────────────────────────────────────────
 
 
-def upsert_ano_letivo(cliente: Client, *, ano: int) -> str:
-    linha = _executar_upsert(cliente, "ano_letivo", {"ano": ano}, on_conflict="ano")
+def upsert_ano_letivo(
+    cliente: Client, *, ano: int, canvas_course_id: str | None = None
+) -> str:
+    """`canvas_course_id` (curso "{ano} 3o ITA/IME Simulados") só entra no
+    payload quando informado — omitido, o upsert preserva o valor existente.
+    É onde o agendamento (P1) descobre em que curso criar Assignments."""
+    valores: dict[str, Any] = {"ano": ano}
+    if canvas_course_id is not None:
+        valores["canvas_course_id"] = canvas_course_id
+    linha = _executar_upsert(cliente, "ano_letivo", valores, on_conflict="ano")
     return linha["id"]
 
 
@@ -219,6 +227,7 @@ def upsert_ciclo(
     ordem: int,
     nome: str,
     vestibular_alvo: str | None = None,
+    canvas_assignment_group_id: str | None = None,
 ) -> str:
     valores = {
         "ano_letivo_id": ano_letivo_id,
@@ -226,6 +235,10 @@ def upsert_ciclo(
         "nome": nome,
         "vestibular_alvo": vestibular_alvo,
     }
+    # Só entra quando informado (o caminho da planilha não conhece o Canvas) —
+    # omitido, o upsert preserva o valor existente em vez de anulá-lo.
+    if canvas_assignment_group_id is not None:
+        valores["canvas_assignment_group_id"] = canvas_assignment_group_id
     linha = _executar_upsert(
         cliente,
         "ciclo",

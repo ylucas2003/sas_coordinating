@@ -1,72 +1,66 @@
 ## SAS · web
 
-Frontend da interface de coordenação ITM. **HTML + CSS + JavaScript puro**, sem bundler, sem framework, sem dependências de build.
+Frontend da coordenação ITM e da área do aluno. **React + TypeScript, build com Vite.**
 
 ## Rodar localmente
 
-Qualquer servidor estático serve. Exemplos:
+Pela stack completa (recomendado — sobe API, banco e front juntos):
 
 ```sh
-# Python (já instalado no macOS)
-python3 -m http.server 5173
-
-# ou Node, se você tiver
-npx serve .
+docker compose up          # front em :8080, API em :8000
 ```
 
-Abre em `http://localhost:5173`.
+Só o front, contra uma API já rodando em `:8000`:
 
-> **Não abra `index.html` direto com `file://`.** Os módulos JS usam `import` e o navegador bloqueia ESM via `file://`.
+```sh
+npm install
+npm run dev                # http://localhost:8080
+```
+
+O dev server faz proxy de `/api` para a API, então o browser vê tudo na mesma
+origem — igual a produção, e sem CORS. Para apontar para outro endereço:
+`VITE_API_ALVO=http://outro-host:8000 npm run dev`.
+
+## Scripts
+
+| Comando | O que faz |
+|---------|-----------|
+| `npm run dev` | Dev server com HMR em `:8080` |
+| `npm run build` | `tsc --noEmit` e depois o build do Vite em `dist/` |
+| `npm run typecheck` | Só a checagem de tipos |
+| `npm run preview` | Serve o `dist/` (smoke test do build de produção) |
+| `npm test` | Vitest sobre a lógica de domínio (`src/dominio/`) |
 
 ## Estrutura
 
 ```
 web/
-├── index.html              entry point
-├── styles/
-│   ├── tokens.css          variáveis (cores, tipografia, sombras)
-│   ├── base.css            reset e tipografia
-│   └── layout.css          shell, topbar, sidebar, cards, etc.
-└── js/
-    ├── main.js             bootstrap (router + render)
-    ├── router.js           hash router
-    ├── dom.js              helpers (`el()`, `clear()`, `fmtNota()`)
-    ├── services/
-    │   ├── api.js          contrato (escolhe entre mock e HTTP)
-    │   ├── mock-client.js  implementação mock
-    │   ├── mock-data.js    dados sintéticos
-    │   └── http-client.js  placeholder do client real (FastAPI)
-    ├── components/
-    │   ├── topbar.js
-    │   ├── filter-strip.js
-    │   ├── sidebar.js
-    │   └── ui/
-    │       ├── alert-card.js
-    │       └── sparkline.js
-    └── screens/
-        ├── painel.js
-        ├── alunos.js
-        ├── aluno-ficha.js
-        ├── simulados.js
-        ├── simulado-ficha.js
-        ├── ciclos.js
-        └── ciclo-ficha.js
+├── index.html              entrada única — o login é a rota /login
+├── assets/                 fontes (Plus Jakarta Sans) e logos
+├── styles/                 CSS global (tokens, base, layout e por tela)
+└── src/
+    ├── main.tsx            bootstrap: QueryClient + Router + CSS global
+    ├── App.tsx             rotas e guard de sessão
+    ├── rotas.ts            que sidebar cada rota mostra
+    ├── tipos/              dominio.ts · aluno.ts · chat.ts
+    ├── dominio/            regras puras e testadas (painel, filtros, chat…)
+    ├── servicos/           http.ts · api.ts · sessao.ts
+    ├── hooks/              consultas.ts · mutacoes.ts · aluno.ts
+    ├── componentes/        layout/ · ui/ · dialogos/ · simulados/ · chat/ · aluno/
+    ├── telas/              uma pasta por tela
+    └── exportacao/         PDF/PNG/CSV do aluno — DOM cru, de propósito
 ```
 
-## Trocar mock por backend real
+## Convenções
 
-Quando o backend FastAPI estiver de pé, abrir [js/services/api.js](js/services/api.js) e alterar a função `getApiClient()`:
+- Nomes em português, como no resto do projeto.
+- Nenhum `fetch` dentro de componente: leitura passa por um hook de `hooks/consultas.ts`,
+  escrita por um de `hooks/mutacoes.ts`.
+- Regra de negócio não mora em componente: vai para `src/dominio/`, com teste.
+- Classes compartilhadas (`.card`, `.tone-*`, `.nota-badge`, `.btn`) ficam globais.
 
-```js
-import { httpClient } from './http-client.js';
+## Deploy
 
-export function getApiClient() {
-  return httpClient; // antes era mockClient
-}
-```
-
-A `BASE_URL` da API fica em [js/services/http-client.js](js/services/http-client.js).
-
-## Deploy (Vercel)
-
-O `vercel.json` na raiz do repositório aponta `outputDirectory` para `web/`. Conectar o repo ao Vercel e o build sai grátis — não há build de fato, é só copiar os arquivos estáticos.
+O front é construído pelo [Dockerfile](Dockerfile) (Vite → nginx) e servido em
+produção pelo nginx de borda em [infra/vps/nginx.conf](../infra/vps/nginx.conf),
+que também faz TLS e o proxy da API. Ver [docs/15-plano-hospedagem-vps.md](../docs/15-plano-hospedagem-vps.md).

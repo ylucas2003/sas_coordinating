@@ -5,12 +5,25 @@ As métricas (media, mediana, desvioPadrao, nPresentes) vêm da tabela de cache
 fim de cada upload — frontend nunca calcula nada.
 """
 
+import re
+from datetime import date, time
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from supabase import Client
 
 from ..auth import get_current_coordenador
-from ..schemas.domain import MateriaResumo, Simulado
+from ..canvas_sync import mapeador
+from ..canvas_sync.agendamento import (
+    carregar_simulado_para_canvas,
+    sincronizar_simulado_no_canvas,
+)
+from ..canvas_sync.cliente import ClienteCanvas
+from ..config import get_settings
+from ..lembretes import motor as lembretes
+from ..lembretes.aplicacoes import aluno_simulado
+from ..lembretes.email import email_configurado
+from ..schemas.domain import MateriaResumo, Simulado, TipoSimulado
 from ..stats.classificacao import recalcular_tudo as recalcular_classificacoes
 from ..stats.metricas import (
     carregar_metrica_geral,
@@ -31,7 +44,8 @@ router = APIRouter(
 
 _CAMPOS_SIMULADO = (
     "id, nome, rotulo_curto, tipo, data_aplicacao, ciclo_id, materia_id, "
-    "nota_maxima, anulado"
+    "nota_maxima, anulado, origem, canvas_estado, canvas_erro, evento_agenda_id, "
+    "external_id"
 )
 
 
@@ -68,6 +82,9 @@ def _linha_para_simulado(
         vestibularAlvo=ciclo.get("vestibular_alvo"),
         notaMaxima=float(linha.get("nota_maxima") or 0),
         anulado=bool(linha.get("anulado")),
+        origem=linha.get("origem") or "canvas",
+        canvasEstado=linha.get("canvas_estado") or "sincronizado",
+        canvasErro=linha.get("canvas_erro"),
         media=como_float((metrica or {}).get("media")),
         mediana=como_float((metrica or {}).get("mediana")),
         desvioPadrao=como_float((metrica or {}).get("desvio_padrao")),
@@ -91,6 +108,186 @@ async def listar_simulados() -> list[Simulado]:
         _linha_para_simulado(linha, metricas.get(linha["id"]), materias, ciclos)
         for linha in (resp.data or [])
     ]
+
+
+# ─── Agendamento (P1 — o simulado nasce no SAS) ───────────────────────────
+
+
+class AgendarSimuladoBody(BaseModel):
+    cicloId: str
+    rotuloCurto: str = Field(pattern=r"^P\d+$")   # "P2", "P27" — gramática do nome
+    materiaId: str
+    dataAplicacao: date
+    hora: time = time(7, 0)
+    notaMaxima: int = Field(gt=0, description="Número de questões da prova")
+    tipo: TipoSimulado
+    lembrarDiasAntes: int | None = Field(
+        default=None, ge=0,
+        description="Lembrete por e-mail pro coordenador X dias antes (P2). "
+                    "0 = no dia, na hora do simulado.",
+    )
+    avisarAlunos: bool = Field(
+        default=True,
+        description="Lembrete automático pros alunos na véspera (P3). A regra "
+                    "nasce aqui; os disparos, na véspera (docs/13 §1).",
+    )
+
+
+async def _tentar_canvas(cliente: Client, simulado_id: str) -> None:
+    """Melhor esforço de criar/atualizar o Assignment — falha vira estado no
+    banco (canvas_estado='falhou'), nunca exceção. É o que faz o agendamento
+    ser híbrido: feedback imediato quando o Canvas responde, limbo visível
+    (e reprocessado pelo sync de 5 min) quando não."""
+    settings = get_settings()
+    if not settings.canvas_base_url or not settings.canvas_api_token:
+        cliente.table("simulado").update(
+            {"canvas_estado": "falhou", "canvas_erro": "Canvas não configurado no servidor"}
+        ).eq("id", simulado_id).execute()
+        return
+    simulado = carregar_simulado_para_canvas(cliente, simulado_id)
+    if simulado is None:
+        return
+    async with ClienteCanvas(
+        base_url=settings.canvas_base_url, token=settings.canvas_api_token
+    ) as canvas:
+        await sincronizar_simulado_no_canvas(cliente, canvas, simulado=simulado)
+
+
+@router.post("/agendar", response_model=Simulado, status_code=201)
+async def agendar_simulado(body: AgendarSimuladoBody) -> Simulado:
+    """Cria um simulado no SAS (fase pré-aplicação) e o Assignment no Canvas.
+
+    Híbrido: a linha nasce sempre (com evento de agenda); a criação no Canvas
+    é tentada na hora e, se falhar, fica em canvas_estado='falhou' com retry
+    automático no sync de 5 min. O corpo da resposta traz o estado.
+    """
+    cliente = get_supabase()
+
+    # Antes de criar qualquer coisa: lembrete pedido sem SES configurado é
+    # 422 na cara — degradar em silêncio aqui seria um lembrete que nunca
+    # chega, pior que erro (docs/12 §1).
+    if body.lembrarDiasAntes is not None and not email_configurado():
+        raise HTTPException(
+            status_code=422,
+            detail="Lembrete por e-mail indisponível: SES não configurado no "
+                   "servidor (AWS_SES_* e EMAIL_REMETENTE). Agende sem lembrete "
+                   "ou configure o envio.",
+        )
+
+    ciclo_resp = (
+        cliente.table("ciclo")
+        .select("id, ordem, vestibular_alvo, canvas_assignment_group_id")
+        .eq("id", body.cicloId)
+        .limit(1)
+        .execute()
+    )
+    if not ciclo_resp.data:
+        raise HTTPException(status_code=404, detail=f"ciclo {body.cicloId} não encontrado")
+    ciclo = ciclo_resp.data[0]
+
+    materia_resp = (
+        cliente.table("materia")
+        .select("id, nome")
+        .eq("id", body.materiaId)
+        .limit(1)
+        .execute()
+    )
+    if not materia_resp.data:
+        raise HTTPException(status_code=404, detail=f"matéria {body.materiaId} não encontrada")
+    materia = materia_resp.data[0]
+
+    # Guarda de duplo clique — a checagem explícita cobre o que o índice
+    # parcial (que não vê materia_id NULL) cobre e mais um pouco.
+    duplicado = (
+        cliente.table("simulado")
+        .select("id")
+        .eq("ciclo_id", ciclo["id"])
+        .eq("rotulo_curto", body.rotuloCurto)
+        .eq("materia_id", materia["id"])
+        .limit(1)
+        .execute()
+    )
+    if duplicado.data:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{body.rotuloCurto} de {materia['nome']} já existe neste ciclo.",
+        )
+
+    # O nome é DERIVADO (ciclo, rótulo, matéria, data) — mesma gramática que o
+    # sync lê. É o que faz SAS e Canvas falarem a mesma língua.
+    nome = mapeador.compor_nome_assignment(
+        ciclo_ordem=ciclo["ordem"],
+        rotulo_curto=body.rotuloCurto,
+        materia_nome=materia["nome"],
+        data_aplicacao=body.dataAplicacao,
+    )
+
+    settings = get_settings()
+    evento = (
+        cliente.table("evento_agenda")
+        .insert(
+            {
+                "tipo": "simulado",
+                "titulo": nome,
+                "data_evento": body.dataAplicacao.isoformat(),
+                "hora_evento": body.hora.strftime("%H:%M"),
+                "criado_por": settings.coordenador_email,
+            },
+            returning="representation",
+        )
+        .execute()
+    ).data[0]
+
+    simulado_linha = (
+        cliente.table("simulado")
+        .insert(
+            {
+                "ciclo_id": ciclo["id"],
+                "materia_id": materia["id"],
+                "nome": nome,
+                "rotulo_curto": body.rotuloCurto,
+                "data_aplicacao": body.dataAplicacao.isoformat(),
+                "nota_maxima": body.notaMaxima,
+                "tipo": body.tipo,
+                "e_agregado": False,
+                "origem": "sas",
+                "canvas_estado": "pendente",
+                "evento_agenda_id": evento["id"],
+            },
+            returning="representation",
+        )
+        .execute()
+    ).data[0]
+
+    await _tentar_canvas(cliente, simulado_linha["id"])
+
+    # Lembretes por último: são acessórios do evento — se algo falhar aqui, o
+    # agendamento já está de pé (docs/12 §4.5).
+    if body.lembrarDiasAntes is not None:
+        lembretes.criar_regra_com_disparo(
+            cliente,
+            evento=evento,
+            dias_antes=body.lembrarDiasAntes,
+            destinatario=evento.get("criado_por") or settings.coordenador_email,
+        )
+
+    # Aluno: só a REGRA nasce aqui. Os disparos são materializados na véspera
+    # pela varredura (docs/13 §1) — o elenco de alunos de daqui a 40 dias não
+    # é o de hoje. Sem SES configurado a regra é criada mesmo assim: diferente
+    # do lembrete do coordenador (422), este é acessório do simulado e não
+    # pode impedir o agendamento; se o SES não existir na véspera, o disparo
+    # falha e fica registrado como estado.
+    if body.avisarAlunos:
+        cliente.table("regra_lembrete").insert(
+            {
+                "evento_agenda_id": evento["id"],
+                "destinatario_tipo": "aluno",
+                "canal": "email",
+                "dias_antes": aluno_simulado.DIAS_ANTES,
+            }
+        ).execute()
+
+    return await obter_simulado(simulado_linha["id"])
 
 
 @router.get("/{simulado_id}", response_model=Simulado)
@@ -266,13 +463,14 @@ class PatchSimuladoBody(BaseModel):
     nota_maxima: float | None = None
     rotulo_curto: str | None = None
     nome: str | None = None
+    data_aplicacao: date | None = None   # remarcar — só simulados origem='sas'
 
 
 @router.patch("/{simulado_id}", response_model=Simulado)
 async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado:
     """Edita campos de um simulado.
 
-    Campos aceitos: anulado, nota_maxima, rotulo_curto, nome.
+    Campos aceitos: anulado, nota_maxima, rotulo_curto, nome, data_aplicacao.
 
     - anulado=true  → métricas do simulado são removidas do cache; classificações
                        recalculadas (o simulado sai das janelas de notas).
@@ -280,6 +478,11 @@ async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado
     - nota_maxima   → escala de normalização muda; métricas e classificações
                        recalculadas.
     - rotulo_curto / nome → sem impacto em estatísticas.
+
+    Simulados origem='sas' (nascidos no agendamento): `nome` não é editável —
+    ele é DERIVADO de (ciclo, rótulo, matéria, data) e se recompõe quando as
+    partes mudam. `data_aplicacao` (remarcar) só existe pra eles, atualiza o
+    evento de agenda junto, e toda edição faz write-back no Canvas.
     """
     cliente = get_supabase()
 
@@ -295,6 +498,7 @@ async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado
 
     simulado_atual = resp.data[0]
     anulado_antes = bool(simulado_atual.get("anulado"))
+    e_do_sas = simulado_atual.get("origem") == "sas"
 
     atualizacao: dict = {}
     if body.anulado is not None:
@@ -304,14 +508,84 @@ async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado
             raise HTTPException(status_code=422, detail="nota_maxima deve ser positiva")
         atualizacao["nota_maxima"] = body.nota_maxima
     if body.rotulo_curto is not None:
+        if e_do_sas and not re.fullmatch(r"P\d+", body.rotulo_curto):
+            raise HTTPException(
+                status_code=422,
+                detail="rotulo_curto de simulado agendado deve seguir o padrão P<n> (ex.: P2)",
+            )
         atualizacao["rotulo_curto"] = body.rotulo_curto
     if body.nome is not None:
+        if e_do_sas:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "O nome de um simulado agendado é derivado de ciclo, rótulo, "
+                    "matéria e data — edite as partes, o nome se recompõe."
+                ),
+            )
         atualizacao["nome"] = body.nome
+    if body.data_aplicacao is not None:
+        if not e_do_sas:
+            raise HTTPException(
+                status_code=422,
+                detail="data_aplicacao de simulado do Canvas é do Canvas — não editável aqui.",
+            )
+        atualizacao["data_aplicacao"] = body.data_aplicacao.isoformat()
 
     if not atualizacao:
         raise HTTPException(status_code=422, detail="Nenhum campo informado para atualizar")
 
+    # Recompor o nome quando alguma parte dele mudou (só origem='sas').
+    if e_do_sas and ("rotulo_curto" in atualizacao or "data_aplicacao" in atualizacao):
+        ciclo_resp = (
+            cliente.table("ciclo").select("ordem")
+            .eq("id", simulado_atual["ciclo_id"]).limit(1).execute()
+        )
+        materia_resp = (
+            cliente.table("materia").select("nome")
+            .eq("id", simulado_atual["materia_id"]).limit(1).execute()
+        )
+        if ciclo_resp.data and materia_resp.data:
+            atualizacao["nome"] = mapeador.compor_nome_assignment(
+                ciclo_ordem=ciclo_resp.data[0]["ordem"],
+                rotulo_curto=atualizacao.get("rotulo_curto")
+                or simulado_atual["rotulo_curto"],
+                materia_nome=materia_resp.data[0]["nome"],
+                data_aplicacao=date.fromisoformat(
+                    atualizacao.get("data_aplicacao")
+                    or str(simulado_atual["data_aplicacao"])
+                ),
+            )
+
+    # Edição em simulado do SAS derruba o estado pra 'pendente' até o PUT
+    # confirmar — se o write-back falhar, o selo da UI mostra o descompasso
+    # e o sync de 5 min realinha.
+    if e_do_sas and simulado_atual.get("external_id") is not None:
+        atualizacao["canvas_estado"] = "pendente"
+
     cliente.table("simulado").update(atualizacao).eq("id", simulado_id).execute()
+
+    # Remarcar mantém o evento de agenda em dia — é dele que P2 vai derivar
+    # os disparos de lembrete.
+    if e_do_sas and simulado_atual.get("evento_agenda_id"):
+        patch_evento: dict = {}
+        if "data_aplicacao" in atualizacao:
+            patch_evento["data_evento"] = atualizacao["data_aplicacao"]
+        if "nome" in atualizacao:
+            patch_evento["titulo"] = atualizacao["nome"]
+        if patch_evento:
+            cliente.table("evento_agenda").update(patch_evento).eq(
+                "id", simulado_atual["evento_agenda_id"]
+            ).execute()
+        # Remarque invalida os disparos pendentes de lembrete — regera com a
+        # data nova (a guarda no envio cobre a corrida; docs/12 §4.3).
+        if "data_aplicacao" in atualizacao:
+            lembretes.regerar_disparos_do_evento(
+                cliente, simulado_atual["evento_agenda_id"]
+            )
+
+    if e_do_sas:
+        await _tentar_canvas(cliente, simulado_id)
 
     anulado_novo = atualizacao.get("anulado", anulado_antes)
     muda_stats = "anulado" in atualizacao or "nota_maxima" in atualizacao
@@ -345,3 +619,102 @@ async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado
     materias = _mapa_materias(cliente)
     ciclos = _mapa_ciclos(cliente)
     return _linha_para_simulado(resp_novo.data[0], metrica, materias, ciclos)
+
+
+@router.post("/{simulado_id}/retry-canvas", response_model=Simulado)
+async def retry_canvas(simulado_id: str) -> Simulado:
+    """Botão "tentar de novo" da UI — zera o contador de tentativas (o
+    reprocessamento automático desiste em 5) e tenta o Canvas na hora."""
+    cliente = get_supabase()
+    resp = (
+        cliente.table("simulado")
+        .select("id, origem")
+        .eq("id", simulado_id)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail=f"simulado {simulado_id} não encontrado")
+    if resp.data[0].get("origem") != "sas":
+        raise HTTPException(status_code=422, detail="Simulado do Canvas não precisa de retry.")
+
+    cliente.table("simulado").update({"canvas_tentativas": 0}).eq("id", simulado_id).execute()
+    await _tentar_canvas(cliente, simulado_id)
+    return await obter_simulado(simulado_id)
+
+
+@router.delete("/{simulado_id}", status_code=200)
+async def cancelar_simulado(simulado_id: str) -> dict:
+    """Desmarca um simulado agendado (origem='sas', sem notas).
+
+    O Assignment é apagado do Canvas (aluno não vê prova fantasma); a linha
+    de simulado sai do banco; o REGISTRO HISTÓRICO de que a prova chegou a
+    ser agendada fica em evento_agenda.cancelado_em — que é também o que P2
+    vai consultar pra matar os disparos pendentes.
+    """
+    cliente = get_supabase()
+    resp = (
+        cliente.table("simulado")
+        .select("id, origem, external_id, evento_agenda_id, "
+                "ciclo(ano_letivo(canvas_course_id))")
+        .eq("id", simulado_id)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail=f"simulado {simulado_id} não encontrado")
+    simulado = resp.data[0]
+
+    if simulado.get("origem") != "sas":
+        raise HTTPException(
+            status_code=422,
+            detail="Só simulados agendados pelo SAS podem ser desmarcados — "
+                   "os do Canvas usam 'anulado'.",
+        )
+
+    tem_nota = (
+        cliente.table("nota").select("aluno_id").eq("simulado_id", simulado_id)
+        .limit(1).execute()
+    )
+    if tem_nota.data:
+        raise HTTPException(
+            status_code=409,
+            detail="Simulado já tem notas — prova aplicada não se desmarca, se anula.",
+        )
+
+    # Canvas primeiro (DELETE é idempotente; 404 lá = já não existe = ok).
+    # Falha aqui aborta ANTES de mexer no banco — senão o Assignment ficaria
+    # órfão no Canvas sem nenhum registro no SAS apontando pra ele.
+    if simulado.get("external_id"):
+        settings = get_settings()
+        course_id = (
+            ((simulado.get("ciclo") or {}).get("ano_letivo") or {})
+        ).get("canvas_course_id")
+        if not course_id or not settings.canvas_base_url or not settings.canvas_api_token:
+            raise HTTPException(
+                status_code=502,
+                detail="Sem acesso ao Canvas pra apagar o Assignment — tente de novo.",
+            )
+        try:
+            async with ClienteCanvas(
+                base_url=settings.canvas_base_url, token=settings.canvas_api_token
+            ) as canvas:
+                await canvas.apagar_assignment(str(course_id), str(simulado["external_id"]))
+        except Exception as exc:
+            raise HTTPException(
+                status_code=502, detail=f"Canvas recusou a exclusão: {exc}"
+            )
+
+    cliente.table("metrica_simulado").delete().eq("simulado_id", simulado_id).execute()
+    cliente.table("simulado").delete().eq("id", simulado_id).execute()
+    if simulado.get("evento_agenda_id"):
+        from datetime import datetime, timezone
+
+        cliente.table("evento_agenda").update(
+            {"cancelado_em": datetime.now(timezone.utc).isoformat()}
+        ).eq("id", simulado["evento_agenda_id"]).execute()
+        # Evento morto não lembra ninguém: regras e disparos vivos caem junto
+        # (e a guarda no envio cobre quem escapar; docs/12 §4.5).
+        lembretes.cancelar_disparos_do_evento(cliente, simulado["evento_agenda_id"])
+
+    return {"status": "cancelado", "simuladoId": simulado_id}

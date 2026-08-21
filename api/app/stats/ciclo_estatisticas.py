@@ -37,6 +37,7 @@ from __future__ import annotations
 import logging
 import statistics as st
 from collections import defaultdict
+from datetime import date
 from typing import Any
 
 from supabase import Client
@@ -185,6 +186,8 @@ def _carregar_simulados(cliente: Client, *, ciclo_id: str) -> list[dict]:
         .eq("ciclo_id", ciclo_id)
         .eq("anulado", False)
         .eq("e_agregado", False)
+        # Agendados (P1) não entram na análise até a data passar.
+        .lte("data_aplicacao", date.today().isoformat())
         .order("data_aplicacao")
         .execute()
     )

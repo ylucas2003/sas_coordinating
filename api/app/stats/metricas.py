@@ -15,6 +15,7 @@ import logging
 import statistics as st
 from collections import defaultdict
 from collections.abc import Iterable
+from datetime import date
 from typing import Any
 
 from supabase import Client
@@ -63,6 +64,9 @@ def recalcular_tudo(cliente: Client) -> int:
         .select(_SELECT_SIMULADO_META)
         .eq("anulado", False)
         .eq("e_agregado", False)
+        # Agendados (P1) ficam de fora até a data passar — sem isso cada
+        # simulado futuro ganharia uma linha de métrica toda em NULL.
+        .lte("data_aplicacao", date.today().isoformat())
         .execute()
     )
     return _recalcular_lote(cliente, resp.data or [])
@@ -82,6 +86,7 @@ def recalcular_simulados(cliente: Client, simulado_ids: Iterable[str]) -> int:
         cliente.table("simulado")
         .select(_SELECT_SIMULADO_META)
         .in_("id", ids)
+        .lte("data_aplicacao", date.today().isoformat())
         .eq("anulado", False)
         .eq("e_agregado", False)
         .execute()

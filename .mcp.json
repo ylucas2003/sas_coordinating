@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "chrome": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--viewport", "1440x900",
+        "--screenshotFormat", "webp",
+        "--screenshotMaxWidth", "1400",
+        "--performanceCrux", "false",
+        "--usageStatistics", "false"
+      ],
+      "env": {}
+    },
+
+    "postgres": {
+      "command": "uvx",
+      "args": [
+        "--python", "3.12",
+        "--with", "mcp[cli]<2",
+        "postgres-mcp",
+        "--access-mode", "restricted"
+      ],
+      "env": {
+        "DATABASE_URI": "${SAS_DATABASE_URI:-postgresql://postgres:postgres@localhost:5432/sas}"
+      }
+    }
+  }
+}

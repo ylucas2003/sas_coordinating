@@ -80,6 +80,12 @@ class Simulado(BaseModel):
     vestibularAlvo: VestibularAlvo | None = None  # ITA | IME (herdado do ciclo)
     notaMaxima: float = 10
     anulado: bool = False
+    origem: Literal["canvas", "sas"] = "canvas"
+    # Sincronização SAS→Canvas (só relevante em origem='sas'): 'pendente' e
+    # 'falhou' = o Assignment ainda não existe/reflete o SAS — a UI mostra o
+    # limbo. canvasErro carrega o motivo da última falha.
+    canvasEstado: Literal["sincronizado", "pendente", "falhou"] = "sincronizado"
+    canvasErro: str | None = None
     media: float | None = None
     mediana: float | None = None
     desvioPadrao: float | None = None
