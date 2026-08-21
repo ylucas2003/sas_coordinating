@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, Path
@@ -28,12 +28,71 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..auth import get_current_user
+from ..config import get_settings
 from ..supabase_client import get_supabase
 from . import agente, perfis
 
 log = logging.getLogger("sas.chat.rotas")
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+def _verificar_teto_de_uso(cliente, usuario: str) -> None:
+    """Recusa a mensagem se o usuário passou do teto de uso do chat.
+
+    Os campos `tokens_in`/`tokens_out` já eram gravados em `chat_mensagem`
+    desde a 0008, mas nenhuma query os lia para decidir coisa alguma — eram
+    auditoria post-mortem, não freio (docs/14 §6.4). Aqui eles viram o freio.
+
+    Uma única leitura cobre os dois tetos: puxa as mensagens do usuário nas
+    últimas 24h e conta em memória. O `!inner` é embed do PostgREST pela FK
+    `chat_mensagem.thread_id → chat_thread.id`, porque quem carrega o dono é a
+    thread, não a mensagem.
+
+    Falha ABERTO de propósito: se a consulta der erro, a mensagem passa. Um
+    teto que derruba o chat inteiro quando o banco tosse é pior que um teto
+    que ocasionalmente não conta.
+    """
+    settings = get_settings()
+    agora = datetime.now(timezone.utc)
+    try:
+        resp = (
+            cliente.table("chat_mensagem")
+            .select("tokens_in,tokens_out,criada_em,chat_thread!inner(usuario_id)")
+            .eq("chat_thread.usuario_id", usuario)
+            .gte("criada_em", (agora - timedelta(hours=24)).isoformat())
+            .execute()
+        )
+        linhas = resp.data or []
+    except Exception:  # noqa: BLE001
+        log.exception("teto de uso do chat: consulta falhou, liberando a mensagem")
+        return
+
+    corte_hora = agora - timedelta(hours=1)
+    mensagens_hora = 0
+    tokens_dia = 0
+    for linha in linhas:
+        tokens_dia += (linha.get("tokens_in") or 0) + (linha.get("tokens_out") or 0)
+        criada = linha.get("criada_em")
+        if not criada:
+            continue
+        try:
+            quando = datetime.fromisoformat(criada.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if quando >= corte_hora:
+            mensagens_hora += 1
+
+    if mensagens_hora >= settings.chat_limite_mensagens_hora:
+        raise HTTPException(
+            status_code=429,
+            detail="Você atingiu o limite de mensagens desta hora. Tente de novo mais tarde.",
+        )
+    if tokens_dia >= settings.chat_limite_tokens_dia:
+        raise HTTPException(
+            status_code=429,
+            detail="Você atingiu o limite de uso do chat por hoje. Ele volta amanhã.",
+        )
 
 
 def _usuario_do_token(user: dict) -> str:
@@ -282,6 +341,7 @@ async def enviar_mensagem(
         raise HTTPException(status_code=400, detail="mensagem vazia")
     if len(texto) > 4000:
         raise HTTPException(status_code=400, detail="mensagem muito longa (max 4000 chars)")
+    _verificar_teto_de_uso(cliente, usuario)
 
     # Perfil define prompt/tools/modelo: aluno conversa com o mentor (tools
     # restritas ao próprio aluno_id); coordenador com o assistente staff.

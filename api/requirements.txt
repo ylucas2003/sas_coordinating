@@ -3,11 +3,17 @@ uvicorn[standard]==0.30.6
 pydantic==2.11.5
 pydantic-settings==2.7.0
 supabase==2.7.4
+# A biblioteca que atende os ~210 `cliente.table(...)` no modo PostgREST. Vinha
+# de carona no supabase-py; declarada porque um bump menor dele que troque ou
+# renomeie essa dependência quebraria a camada de dados inteira num build que
+# passou sem erro (docs/14 §4.5).
+postgrest==0.16.11
 python-dotenv==1.0.1
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.5.0   # 3.3.0 é de 2021 (CVE-2024-33663/33664)
 
 # Upload de planilhas
-python-multipart==0.0.9
+python-multipart==0.0.18   # 0.0.9 tem CVE-2024-53981 (DoS no parser) e é a
+                           # única rota multipart do projeto: POST /uploads
 openpyxl==3.1.5
 
 # Migration runner (conexão direta ao Postgres do Supabase)
@@ -19,3 +25,7 @@ openai==1.55.0
 
 # Sincronização com o Canvas (api/app/canvas_sync/) — cliente HTTP async.
 httpx==0.27.2
+
+# E-mail via AWS SES (api/app/lembretes/) — motor de lembretes (P2).
+# Import tardio: sem envio configurado, a API sobe sem tocar nisto.
+boto3==1.43.73

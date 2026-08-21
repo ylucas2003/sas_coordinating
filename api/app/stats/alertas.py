@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import statistics as st
 from collections import defaultdict
+from datetime import date
 from typing import Any
 
 from supabase import Client
@@ -32,10 +33,10 @@ log = logging.getLogger("sas.stats.alertas")
 
 def avaliar_tudo(cliente: Client) -> int:
     """Roda as 7 regras e upserta os alertas. Retorna o total emitido."""
-    limpar_caches()
+    ctx = _Contexto()
     todos: list[dict] = []
-    todos += regra_queda_rendimento(cliente)
-    todos += regra_subida_atipica(cliente)
+    todos += regra_queda_rendimento(cliente, ctx)
+    todos += regra_subida_atipica(cliente, ctx)
     todos += regra_prova_mal_calibrada(cliente)
     todos += regra_materia_em_risco(cliente)
     todos += regra_diferenca_entre_sedes(cliente)
@@ -55,10 +56,11 @@ def avaliar_tudo(cliente: Client) -> int:
 # ─── Regras ───────────────────────────────────────────────────────────────
 
 
-def regra_queda_rendimento(cliente: Client) -> list[dict]:
+def regra_queda_rendimento(cliente: Client, ctx: "_Contexto | None" = None) -> list[dict]:
     """Aluno: média(últimos 3) - média(3 anteriores) <= -DELTA. Vermelho."""
+    ctx = ctx or _Contexto()
     alertas: list[dict] = []
-    historico = _historico_notas_por_aluno(cliente)
+    historico = _historico_notas_por_aluno(cliente, ctx)
 
     for aluno_id, notas in historico.items():
         if len(notas) < 2 * th.JANELA_QUEDA_SUBIDA:
@@ -70,7 +72,7 @@ def regra_queda_rendimento(cliente: Client) -> list[dict]:
         delta = media_recente - media_anterior
 
         if delta <= -th.DELTA_QUEDA_SUBIDA:
-            nome = _nome_aluno(cliente, aluno_id)
+            nome = _nome_aluno(cliente, aluno_id, ctx)
             sparkline = [n["pontuacao"] for n in notas[-(2 * th.JANELA_QUEDA_SUBIDA) :]]
             janela_chave = "-".join(n.get("simulado_id", "") or "" for n in recentes)
             alertas.append(
@@ -93,10 +95,11 @@ def regra_queda_rendimento(cliente: Client) -> list[dict]:
     return alertas
 
 
-def regra_subida_atipica(cliente: Client) -> list[dict]:
+def regra_subida_atipica(cliente: Client, ctx: "_Contexto | None" = None) -> list[dict]:
     """Espelho da queda. Verde."""
+    ctx = ctx or _Contexto()
     alertas: list[dict] = []
-    historico = _historico_notas_por_aluno(cliente)
+    historico = _historico_notas_por_aluno(cliente, ctx)
 
     for aluno_id, notas in historico.items():
         if len(notas) < 2 * th.JANELA_QUEDA_SUBIDA:
@@ -108,7 +111,7 @@ def regra_subida_atipica(cliente: Client) -> list[dict]:
         delta = media_recente - media_anterior
 
         if delta >= th.DELTA_QUEDA_SUBIDA:
-            nome = _nome_aluno(cliente, aluno_id)
+            nome = _nome_aluno(cliente, aluno_id, ctx)
             sparkline = [n["pontuacao"] for n in notas[-(2 * th.JANELA_QUEDA_SUBIDA) :]]
             janela_chave = "-".join(n.get("simulado_id", "") or "" for n in recentes)
             alertas.append(
@@ -148,6 +151,7 @@ def regra_prova_mal_calibrada(cliente: Client) -> list[dict]:
         cliente.table("simulado")
         .select("id, nome, ciclo_id, tipo, anulado")
         .eq("anulado", False)
+        .lte("data_aplicacao", date.today().isoformat())
         .execute()
     )
     simulado_por_id = {s["id"]: s for s in (simulados_resp.data or [])}
@@ -222,6 +226,7 @@ def regra_materia_em_risco(cliente: Client) -> list[dict]:
         .select("id, nome, materia_id, data_aplicacao, anulado, e_agregado")
         .eq("anulado", False)
         .eq("e_agregado", False)
+        .lte("data_aplicacao", date.today().isoformat())
         .order("data_aplicacao")
         .execute()
     )
@@ -294,6 +299,7 @@ def regra_diferenca_entre_sedes(cliente: Client) -> list[dict]:
         .select("id, nome, anulado, e_agregado, nota_maxima")
         .eq("anulado", False)
         .eq("e_agregado", False)
+        .lte("data_aplicacao", date.today().isoformat())
         .execute()
     )
 
@@ -386,6 +392,7 @@ def regra_panorama_ciclo(cliente: Client) -> list[dict]:
         .select("id, ciclo_id, anulado, e_agregado")
         .eq("anulado", False)
         .eq("e_agregado", False)
+        .lte("data_aplicacao", date.today().isoformat())
         .execute()
     )
     sims_por_ciclo: dict[str, list[str]] = defaultdict(list)
@@ -439,14 +446,32 @@ def regra_panorama_ciclo(cliente: Client) -> list[dict]:
 # ─── Carregadores compartilhados ─────────────────────────────────────────
 
 
-# Cache *por execução* de avaliar_tudo. Limpado no início de cada upload,
-# então não vaza entre invocações da rota /uploads.
-_cache_historico: dict[str, list[dict]] = {}
-_cache_nomes: dict[str, str] = {}
-_historico_carregado = False
+class _Contexto:
+    """Cache de UMA execução de `avaliar_tudo`.
+
+    Isto era estado de módulo, zerado por um `limpar_caches()` no início. O
+    problema é que `avaliar_tudo` tem quatro chamadores e dois deles chegam
+    por threads diferentes, sem coordenação nenhuma: o ingest de planilha
+    (BackgroundTask do Starlette, routes/uploads.py) e o sync do Canvas de
+    5 min (canvas_sync/rotas.py). A trava `_trava_execucao` do canvas_sync
+    coordena sync↔reconcile — nunca o ingest.
+
+    Coordenador subindo planilha no mesmo minuto do sync: um thread chamava
+    `.clear()` enquanto o outro iterava o dicionário. No caso barulhento,
+    `RuntimeError: dictionary changed size during iteration`. No silencioso,
+    que é o pior, alertas calculados sobre histórico pela metade e gravados
+    na tabela — que a coordenação lê como verdade (docs/14 §4.3).
+
+    Uma instância por execução resolve os dois casos, e também o de N
+    réplicas, sem precisar de trava nenhuma.
+    """
+
+    def __init__(self) -> None:
+        self.historico: dict[str, list[dict]] | None = None
+        self.nomes: dict[str, str] = {}
 
 
-def _historico_notas_por_aluno(cliente: Client) -> dict[str, list[dict]]:
+def _historico_notas_por_aluno(cliente: Client, ctx: _Contexto) -> dict[str, list[dict]]:
     """{aluno_id: [{pontuacao, simulado_id, data_aplicacao}]} cronológico ascendente.
 
     Notas em escala 0–10 normalizada (`acertos / total * 10`). Crítico: as
@@ -454,9 +479,8 @@ def _historico_notas_por_aluno(cliente: Client) -> dict[str, list[dict]]:
     misturarmos escalas, todo aluno que migrar de uma matéria com 15 questões
     pra uma com 10 dispara alerta falso.
     """
-    global _historico_carregado
-    if _historico_carregado:
-        return _cache_historico
+    if ctx.historico is not None:
+        return ctx.historico
 
     resp = (
         cliente.table("nota")
@@ -491,23 +515,16 @@ def _historico_notas_por_aluno(cliente: Client) -> dict[str, list[dict]]:
     for notas in bruto.values():
         notas.sort(key=lambda n: n["data_aplicacao"])
 
-    _cache_historico.update(bruto)
-    _historico_carregado = True
-    return _cache_historico
+    ctx.historico = bruto
+    return bruto
 
 
-def _nome_aluno(cliente: Client, aluno_id: str) -> str:
-    if aluno_id in _cache_nomes:
-        return _cache_nomes[aluno_id]
+def _nome_aluno(cliente: Client, aluno_id: str, ctx: _Contexto) -> str:
+    if aluno_id in ctx.nomes:
+        return ctx.nomes[aluno_id]
     resp = cliente.table("aluno").select("nome").eq("id", aluno_id).limit(1).execute()
     nome = (resp.data[0]["nome"] if resp.data else aluno_id)
-    _cache_nomes[aluno_id] = nome
+    ctx.nomes[aluno_id] = nome
     return nome
 
 
-def limpar_caches() -> None:
-    """Chamar no início de `avaliar_tudo` pra garantir snapshot fresco."""
-    global _historico_carregado
-    _cache_historico.clear()
-    _cache_nomes.clear()
-    _historico_carregado = False

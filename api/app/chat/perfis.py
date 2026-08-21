@@ -17,7 +17,6 @@ from .prompt_aluno import system_message_aluno
 from .tools import SCHEMAS, executar
 from .tools_aluno import SCHEMAS_ALUNO, executar_para_aluno
 
-MODELO_COORDENADOR_PADRAO = "gpt-4o"   # Sweet spot custo/raciocínio.
 MODELO_ALUNO = "gpt-4o-mini"
 
 
@@ -30,13 +29,14 @@ class PerfilAgente:
 
 
 def _modelo_coordenador() -> str:
-    settings = get_settings()
-    # Reusa o setting do insights se ele apontar pra um modelo "potente";
-    # senão, default seguro.
-    modelo = (settings.openai_modelo_insights or "").lower()
-    if modelo and "mini" not in modelo:
-        return settings.openai_modelo_insights
-    return MODELO_COORDENADOR_PADRAO
+    """Modelo do chat da coordenação — configuração explícita, sem inferência.
+
+    A versão anterior deduzia o modelo a partir de `openai_modelo_insights`:
+    se contivesse "mini", assumia que não era potente o bastante e caía em
+    gpt-4o. Efeito prático invertido — configurar o barato ligava o caro.
+    Trocar por OPENAI_MODELO_COORDENADOR no ambiente (docs/14 §6.4).
+    """
+    return get_settings().openai_modelo_coordenador
 
 
 def perfil_coordenador() -> PerfilAgente:

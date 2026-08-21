@@ -1,0 +1,10 @@
+# Ferramentas de desenvolvimento. NÃO entram na imagem de produção
+# (api/Dockerfile instala só requirements.txt).
+#
+#   ./.venv/bin/pip install -r requirements-dev.txt
+
+-r requirements.txt
+
+pytest==8.3.3
+ruff==0.16.4       # lint — configurado em pyproject.toml
+mypy==2.3.1       # checagem de tipos sob demanda, fora do gate (ver pyproject.toml)
