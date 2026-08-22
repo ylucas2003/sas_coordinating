@@ -17,11 +17,12 @@
 
 ---
 
-> **Estado (22/08/2026): P1, P2, P3 implementadas e verificadas no browser
-> com dados reais; P4 implementada, com o SSO aguardando a Developer Key.**
-> Branch `feat/criterios-classificacao`, cinco commits, 114 testes no backend
-> e 91 no front. Migrations `0020`–`0026` aplicadas localmente. O que falta
-> está na [§10](#10--o-que-falta-22082026).
+> **Estado (22/08/2026, fim do dia): EM PRODUÇÃO.** PRs #11, #12 e #13
+> mergeados; deploy feito; migrations `0020`–`0027` aplicadas na VPS. P1–P3
+> verificadas no browser com dados reais; P2 verificada também contra o Canvas
+> real (curso de testes `694`); SSO verificado como aluno. 120 testes no
+> backend, 91 no front. O que sobrou é de produto, não de código — está no
+> [19-roadmap.md §2](19-roadmap.md#2--pendências-da-sprint-2--o-que-sobrou-sem-código).
 
 ## Divisão em 4 partes
 

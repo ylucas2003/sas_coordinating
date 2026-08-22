@@ -29,7 +29,7 @@ que decorrem disso:
 | Módulo | O que faz |
 |---|---|
 | `routes/` | 13 routers aqui, mais `chat/` e `canvas_sync/` (15 `include_router` no total). `main.py` registra `arquivos` só com Storage local e `email_eventos` só com `SES_WEBHOOK_TOKEN` preenchido |
-| `stats/` | Métricas por simulado em 3 recortes (geral/turma/sede), classificação de aluno, alertas, thresholds, insights via LLM |
+| `stats/` | Métricas por simulado em 3 recortes (geral/turma/sede), classificação de aluno, alertas, thresholds, insights via LLM. **`criterios.py` é a única definição de "quem passou"** — réguas do colégio, ITA e IME como dado, avaliador puro; o front não reimplementa |
 | `chat/` | Loop de agente com tools. `perfis.py` parametriza por usuário: coordenador tem 26 tools staff; aluno tem tools restritas com `aluno_id` injetado do JWT |
 | `canvas_sync/` | Sincronização com o Canvas LMS — fonte de verdade das notas. `mapeador.py` compõe **e** parseia os nomes de assignment; as duas gramáticas precisam casar |
 | `ingest/` | Pipeline de planilha (CSV/XLSX), idempotente por construção |
@@ -41,8 +41,13 @@ que decorrem disso:
 Três tipos de credencial, um JWT (HS256, 8h) — [app/auth.py](app/auth.py):
 
 - **Aluno**: matrícula + senha PBKDF2-HMAC-SHA256 (formato versionado).
-- **Coordenador**: e-mail + senha de env (`0021_usuario_coordenacao` já criou a
-  tabela; a credencial de env é o resquício demo).
+- **Coordenador**: e-mail + senha na tabela `usuario_coordenacao` (0021). A
+  credencial de env não é mais lida pelo login; contas nascem pelo painel
+  `/administracao` ou por `scripts/criar_coordenador.py`.
+- **Canvas (aluno e coordenador)**: OAuth2 por redirect, `routes/auth_canvas.py`.
+  O Canvas diz *quem é*; o banco decide *quem entra* — identidade sem linha em
+  `aluno`/`usuario_coordenacao` é recusada. Precisa de `CANVAS_CLIENT_ID` /
+  `CANVAS_CLIENT_SECRET` (Developer Key, OUTRA credencial que não o token).
 - **Scheduler** (EventBridge): segredo compartilhado no header
   `X-Scheduler-Secret`, não JWT.
 
@@ -62,7 +67,7 @@ inferência de modelo a partir de substring do nome.
 
 ## Migrations
 
-22 em [migrations/](migrations/), cada uma com par `.down.sql`. Runner próprio,
+27 em [migrations/](migrations/), cada uma com par `.down.sql`. Runner próprio,
 estado em `_migracoes_aplicadas`.
 
 ```sh
@@ -77,7 +82,7 @@ Depois de qualquer migration que toque `metrica_simulado`, rode
 ## Ferramentas
 
 ```sh
-./.venv/bin/python -m pytest tests/ -q   # 60 testes
+./.venv/bin/python -m pytest tests/ -q   # 120 testes
 ./.venv/bin/ruff check .                 # lint — configurado em pyproject.toml
 ./.venv/bin/ruff check . --fix
 ./.venv/bin/mypy app                     # sob demanda, fora do gate

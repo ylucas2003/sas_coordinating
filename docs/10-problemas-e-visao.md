@@ -1,6 +1,8 @@
 # 10 — Problemas observados e visão de futuro
 
-> **Status:** rascunho de discussão. Nada aqui é decisão fechada nem tarefa aberta.
+> **Status:** visão e planos. Boa parte já virou entrega — **o estado de cada
+> item está no [19-roadmap.md](19-roadmap.md)**, que é o documento a ler antes
+> de abrir sprint. Aqui as marcações ✅ indicam o que já está em produção.
 > **Propósito:** juntar num lugar só (a) o que incomoda hoje usando o sistema e
 > (b) o que o SAS precisa ser daqui a 6–18 meses, pra depois priorizar.
 >
@@ -1253,7 +1255,7 @@ recebe o e-mail. Ninguém de fora envolvido, e ele mesmo valida.
 
 ---
 
-#### P1 · O simulado nasce no SAS
+#### P1 · O simulado nasce no SAS  ✅ em produção (Sprint 1)
 
 Inverte a fonte da verdade. É a base de tudo — sem simulado agendado não há
 evento, sem evento não há disparo.
@@ -1270,7 +1272,7 @@ e o reconcile das 3h não desfaz nada.
 
 ---
 
-#### P2 · Motor + e-mail, com o coordenador como primeiro destinatário  ⭐ v0
+#### P2 · Motor + e-mail, com o coordenador como primeiro destinatário  ⭐ v0  ✅ em produção (Sprint 1)
 
 > **Estado (20/08/2026): implementada e verificada ponta a ponta, com envio
 > real** — plano e detalhes em [12-plano-p2-motor-lembretes.md](12-plano-p2-motor-lembretes.md).
@@ -1356,7 +1358,7 @@ passa a despachar lembrete de coordenador, de aluno e cobrança de professor.
 
 ---
 
-#### P3 · Lembrete de aluno
+#### P3 · Lembrete de aluno  ✅ em produção (Sprint 1)
 
 > **Plano de implementação (20/08/2026):** [13-plano-p3-lembrete-aluno.md](13-plano-p3-lembrete-aluno.md).
 > Decisões fechadas ali: **um e-mail por dia** (digest das provas do dia, não um
@@ -1379,7 +1381,7 @@ senão ele recebe dois.
 
 ---
 
-#### P4 · Professores, requerimentos e cobrança por e-mail
+#### P4 · Professores, requerimentos e cobrança por e-mail  ⏳ proposto para a Sprint 3 ([19 §3](19-roadmap.md#3--próximos-ciclos--proposta))
 
 O fluxo do áudio 2 inteiro, funcionando — só que num canal só.
 
@@ -1399,7 +1401,7 @@ requerimento — e o fluxo funciona sem ela.
 
 ---
 
-#### P5 · WhatsApp (Z-API)
+#### P5 · WhatsApp (Z-API)  ⏳ proposto para a Sprint 3 — decisão em aberto ([19 §4](19-roadmap.md#4--decisões-em-aberto))
 
 Deixado por último de propósito: quando chegar aqui, **tudo já está provado**. O
 WhatsApp entra como um canal a mais num motor que já funciona, não como parte de
@@ -1505,6 +1507,10 @@ sem elas, o resto do bloco não avança.
 | Pergunta | Resposta |
 |---|---|
 | Vestibular é filtro ou lente? | **Filtro** — os ciclos são criados por vestibular (Ciclo 1 · IME · 2026). A tela de Ciclos já separa; o Painel é a exceção. |
+| Fonte da verdade da nota: SAS ou Canvas? | **"Sempre o Canvas + alterações do SAS"** — as duas colunas convivem (`pontuacao_canvas`, `pontuacao_sas`); o SAS exibe a sua, marca a divergência, e nada sobe ao Canvas sem o coordenador escolher. Decidido em 22/08 ([18 §2.4](18-plano-sprint-2.md#24-nota-sempre-o-canvas--alterações-do-sas)). |
+| Qual a regra de corte? | **Dado, não código** — cinco réguas embutidas (Tio Leo · ITA F1/F2 · IME F1/F2) avaliadas no servidor, cada predicado com o artigo do edital. A do colégio corta com `E`, as dos editais com `OU`, de propósito ([18 §1.5](18-plano-sprint-2.md#15-os-três-critérios-embutidos)). |
+| Como o aluno entra? | **Pelo Canvas** (OAuth2). 876/876 já tinham `canvas_user_id` e só 1 tinha senha — trocar o método custou zero migração. Matrícula + senha fica como fallback ([18 §4](18-plano-sprint-2.md#p4--identidade-e-acesso)). |
+| Lembrete dispara se o simulado não está no Canvas? | **Sim** — o motor é do SAS e não depende de sistema externo (22/08). |
 
 ---
 
@@ -1517,7 +1523,7 @@ Os três blocos abaixo são independentes entre si e podem correr em qualquer or
 
 ## Plano B · Integridade do dado
 
-### B.1 — Ausência contando como zero na média  🔴 confirmado
+### B.1 — Ausência contando como zero na média  🔴 confirmado  ⏳ proposto para a Sprint 3
 
 **Diagnóstico.** Em [`calcularMediasVirtuais`](../web/js/screens/painel.js#L194-L210)
 o acesso à nota é:
@@ -1567,7 +1573,7 @@ externa, e conserta o número mais visível do produto.
 
 ---
 
-### B.2 — Write-back de notas no Canvas  ✅ implementado (17/08/2026)
+### B.2 — Write-back de notas no Canvas  ✅ implementado (17/08/2026) · refeito na Sprint 2 com escolha do coordenador ([18 §2](18-plano-sprint-2.md#p2--canvas-sob-controle))
 
 **Diagnóstico** em [§1.2](#12-dados-e-ingestão), desenho em
 [§2.7](#27-bloco-b--escrita-de-volta-no-canvas-write-back).
@@ -1634,7 +1640,7 @@ mais barato é aposentar o `importar` em vez de arbitrar precedência.
 Quatro itens, todos sem migration e sem dependência externa. **A ordem importa**
 só entre C.1 e os dois seguintes.
 
-### C.1 — Componente único de filtro lateral
+### C.1 — Componente único de filtro lateral  ✅ implementado (`PainelFiltros.tsx`)
 
 É a base de C.2 e C.3, e por isso vem primeiro.
 
@@ -1686,7 +1692,7 @@ ciclo.periodoInicio <= range.fim  E  ciclo.periodoFim >= range.inicio
 3. ❓ Convive com o filtro "Ano letivo" ou o substitui?
 4. ⬜ Presets ("este ano", "último trimestre") resolvem o caso comum sem digitar data.
 
-### C.4 — Ordenação por cabeçalho
+### C.4 — Ordenação por cabeçalho  ✅ implementado (`TabelaOrdenavel.tsx`)
 
 Independente de C.1 — pode ser feito em paralelo ou antes.
 

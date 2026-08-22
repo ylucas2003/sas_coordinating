@@ -13,11 +13,12 @@ A interface deve parecer **ferramenta analítica e investigativa**, não ERP esc
 ```
 sas/
 ├── docs/   → toda a documentação (visão de produto, design system, telas, dados)
-├── docker-compose.yml → stack local (api + web + migrate) — ver docs/09-docker.md
-├── web/    → frontend — HTML + CSS + JavaScript puro (Vercel)
-└── api/    → backend — Python + FastAPI + Supabase
-    ├── app/         → código da aplicação (routes, ingest, stats, chat)
-    ├── migrations/  → schema versionado (0001…0008), pareadas com .down.sql
+├── docker-compose.yml → stack de DESENVOLVIMENTO (db + postgrest + api + web) — ver docs/09-docker.md
+├── infra/vps/         → stack de PRODUÇÃO (VPS própria, portalsas.online) e o deploy.sh
+├── web/    → frontend — React 19 + TypeScript + Vite
+└── api/    → backend — Python + FastAPI sobre Postgres 16 + PostgREST (em container; sem Supabase desde 13/08/2026)
+    ├── app/         → código da aplicação (routes, ingest, stats, chat, canvas_sync, lembretes)
+    ├── migrations/  → schema versionado (0001…0027), pareadas com .down.sql
     └── scripts/     → migration runner + tasks de manutenção
 ```
 
@@ -63,7 +64,9 @@ docker compose run --rm migrate status
 docker compose run --rm migrate up
 ```
 
-O Supabase continua sendo o gerenciado na nuvem — ele não sobe em container. Detalhes, incluindo como testar a imagem de produção, em [docs/09-docker.md](docs/09-docker.md).
+O banco sobe junto: Postgres 16 + PostgREST em container — `get_supabase()` no código é nome herdado, o que ele devolve é um cliente PostgREST apontando para o container local. Detalhes em [docs/09-docker.md](docs/09-docker.md).
+
+> Nesta máquina de desenvolvimento o serviço `web` do compose pode não subir (Docker não puxa `node:22-alpine`); a task do VS Code **"SAS: rodar tudo"** (`⇧⌘B`) sobe o backend no compose e o front com o Vite no host, em `:8080`.
 
 ### Sem Docker
 
@@ -74,15 +77,15 @@ cd web
 python3 -m http.server 5173
 ```
 
-Abre em `http://localhost:5173`. Por padrão, [web/js/services/api.js](web/js/services/api.js) usa o `http-client` apontando para `http://localhost:8000` — suba o backend abaixo, ou troque pelo `mockClient` se quiser navegar só com dados sintéticos.
+Abre em `http://localhost:8080`. O Vite faz proxy de `/api` para `http://localhost:8000` (ver `web/vite.config.ts`) — suba o backend abaixo.
 
-**Backend** (FastAPI + Supabase):
+**Backend** (FastAPI + PostgREST):
 
 ```sh
 cd api
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # preencher SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_DB_URL, OPENAI_API_KEY
+cp .env.example .env   # SUPABASE_URL aponta para o PostgREST local (nome herdado); ver api/.env.example
 
 # aplicar migrations no banco (ver seção abaixo)
 python -m scripts.migrate up
@@ -110,6 +113,13 @@ Schema versionado em [api/migrations/](api/migrations/). Cada migration tem um p
 | `0006_metricas_avancadas_e_insights` | Estende `metrica_simulado` (skewness, curtose, P10/P90, moda, bimodalidade) + cria `insight_ciclo` (cache de insights LLM). |
 | `0007_insights_tecnico_e_pratico` | Insights em duas linguagens (`pratico` e `tecnico`) + recorte `todas` por fase. |
 | `0008_chat_agente` | `chat_thread`, `chat_mensagem`, `chat_artefato` para o chat coordenador ↔ LLM com tools. |
+| `0009`–`0014` | Autenticação (aluno e coordenação), expansão do sync do Canvas, senha PBKDF2, namespace do chat por usuário, controle de e-mail do aluno. |
+| `0015`–`0017` | Questões por assunto e controle de sync, insights por aluno e ciclo, arquivo do simulado. |
+| `0018`–`0020` | Sprint 1: agendamento (o simulado nasce no SAS), motor de lembretes, lembrete de aluno. |
+| `0021`–`0022` | Produção: `usuario_coordenacao` (conta por pessoa) e `evento_auditoria`. |
+| `0023`–`0027` | Sprint 2: critérios de classificação como dado, `pontuacao_canvas`/`pontuacao_sas` com trigger, `canal` na auditoria, `canvas_user_id` da coordenação, estado `divergente`. |
+
+A descrição completa de cada uma está no cabeçalho do próprio `.sql` — é o lugar que não envelhece.
 
 Comandos:
 
@@ -157,7 +167,8 @@ está em [docs/14](docs/14-plano-producao.md).
 
 ## Status
 
-- **Backend** funcional: ingest de planilha do Canvas, stats engine (métricas + classificação + alertas), insights via OpenAI (gpt-4o-mini) em duas linguagens, chat com agente (tools curadas sobre o banco), uploads versionados.
-- **Frontend** com as telas principais navegáveis (painel, alunos, ficha do aluno, simulados, ficha do simulado, ciclos, ficha do ciclo, importar) + chat embarcado, gráficos próprios (sparkline, histograma, heatmap, linha de evolução).
-- **Schema** em 8 migrations aplicadas, todas reversíveis.
-- Pontos abertos restantes em [06-open-questions.md](docs/06-open-questions.md).
+- **Em produção** em `https://portalsas.online` (VPS própria) desde 21/08/2026.
+- **Backend**: sync bidirecional com o Canvas (leitura a cada 5 min; escrita só quando o coordenador escolhe), stats engine, critérios de corte como dado (colégio · ITA · IME), motor de lembretes por e-mail, chat com agente, auditoria por canal, login pelo Canvas.
+- **Frontend**: painel, alunos, simulados, ciclos, auditoria, administração, área do aluno com chat mentor.
+- **Schema** em 27 migrations, todas reversíveis.
+- **O que está feito, o que falta e o que vem: [docs/19-roadmap.md](docs/19-roadmap.md).**
