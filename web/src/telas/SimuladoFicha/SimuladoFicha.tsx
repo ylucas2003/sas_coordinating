@@ -12,7 +12,8 @@ import {
   useHistogramaSimulado, useNotasSimulado, useSimulado,
   useSimuladoPorMateria, useSimuladoPorSede,
 } from '../../hooks/consultas';
-import { useEditarNota, useEditarSimulado, useRetrySimuladoCanvas } from '../../hooks/mutacoes';
+import { useCancelarSimulado, useEditarNota, useEditarSimulado, useRetrySimuladoCanvas } from '../../hooks/mutacoes';
+import { DialogoComDiff } from '../../componentes/dialogos/DialogoComDiff';
 import type { NotaSimulado, QuebraSimulado, Simulado } from '../../tipos/dominio';
 import { fmtNota } from '../../util/formato';
 
@@ -30,6 +31,9 @@ export function SimuladoFicha() {
 
   const editarSimulado = useEditarSimulado();
   const enviarCanvas = useRetrySimuladoCanvas();
+  const cancelar = useCancelarSimulado();
+  const navegar = useNavigate();
+  const [desmarcando, setDesmarcando] = useState(false);
   const editarNota = useEditarNota();
 
   const [editandoSimulado, setEditandoSimulado] = useState(false);
@@ -128,6 +132,13 @@ export function SimuladoFicha() {
                 {enviarCanvas.isPending ? 'Enviando…' : simulado.canvasEstado === 'divergente' ? '↑ Enviar ao Canvas' : '↻ Tentar de novo no Canvas'}
               </button>
             )}
+            {/* Só simulado do SAS sem nota se desmarca; com nota, anula (a API
+                devolve 409). Mesmo diálogo da lista de Agendados. */}
+            {simulado.origem === 'sas' && !simulado.nPresentes && (
+              <button className="btn-editar-sim" onClick={() => setDesmarcando(true)}>
+                ✕ Desmarcar
+              </button>
+            )}
           </div>
         </div>
 
@@ -169,6 +180,34 @@ export function SimuladoFicha() {
           )}
         </div>
       </section>
+
+      {desmarcando && (
+        <DialogoComDiff
+          titulo="Desmarcar simulado"
+          subtitulo={simulado.nome}
+          mudancas={[{ campo: 'Simulado', de: 'agendado', para: 'desmarcado' }]}
+          canvas={
+            simulado.canvasEstado === 'sincronizado'
+              ? { efeito: 'apaga o Assignment no Canvas, com as submissions dos alunos.', irreversivel: true }
+              : undefined
+          }
+          onCancelar={() => setDesmarcando(false)}
+          onVoltar={() => setDesmarcando(false)}
+          onSalvar={() => undefined}
+          onConfirmar={async (sincronizarCanvas) => {
+            setDesmarcando(false);
+            setErroSalvar('');
+            try {
+              await cancelar.mutateAsync({ id: simulado.id, sincronizarCanvas });
+              navegar('/simulados');
+            } catch (e) {
+              setErroSalvar((e as Error).message || 'Falha ao desmarcar.');
+            }
+          }}
+        >
+          {null}
+        </DialogoComDiff>
+      )}
 
       {editandoSimulado && (
         <EdicaoSimulado
