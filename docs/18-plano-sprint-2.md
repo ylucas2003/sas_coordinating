@@ -17,6 +17,12 @@
 
 ---
 
+> **Estado (22/08/2026): P1, P2, P3 implementadas e verificadas no browser
+> com dados reais; P4 implementada, com o SSO aguardando a Developer Key.**
+> Branch `feat/criterios-classificacao`, cinco commits, 114 testes no backend
+> e 91 no front. Migrations `0020`–`0026` aplicadas localmente. O que falta
+> está na [§10](#10--o-que-falta-22082026).
+
 ## Divisão em 4 partes
 
 Diferente da Sprint 1, **isto não é uma corrente**. Três partes são independentes
@@ -794,3 +800,36 @@ arquivo do logo do Ari ([§4.4](#44-a-topbar-da-coordenação)).
 - [Edital Vestibular ITA 2026 (retificado)](https://www.vestibular.ita.br/instrucoes/edital_2026_retificado.pdf)
 - [Edital CFG Ativa 2026/2027 — IME](https://inscricoes.ime.eb.br/documentos/Edital_CFG_ATIVA_2026_2027.pdf)
 - [CA/CFG — Instituto Militar de Engenharia](https://vestibular.ime.eb.br/cfg/)
+
+---
+
+## 10 · O que falta (22/08/2026)
+
+Nada de código nas quatro partes. O que sobrou é operacional ou depende de
+decisão fora do time:
+
+| | O quê | Quem |
+|---|---|---|
+| 1 | **Criar a Developer Key** no Canvas ([§0.3](#03-criar-a-developer-key-do-canvas)) e pôr `CANVAS_CLIENT_ID` / `CANVAS_CLIENT_SECRET` no `.env`. Sem ela o botão "Entrar com o Canvas" não aparece | Yan, 5 min |
+| 2 | **Testar o SSO com um aluno real** — é a única parte não verificada ponta a ponta | Yan |
+| 3 | **Preencher `canvas_user_id` do Leo** na conta de coordenação (painel de administrador) para ele entrar pelo Canvas | Yan |
+| 4 | **Verificar escrita no Canvas real** — nota com "enviar agora", simulado, ciclo. Todo teste do sprint usou mock ou "só no site"; o Canvas do colégio não foi tocado | Yan, deliberado |
+| 5 | **Deploy**: `./infra/vps/deploy.sh --migrar` (0020→0026) | Yan |
+| 6 | **Confirmar com o Leo** os ~50 alunos do [§7](#7--riscos), olhando a lista real | Leo |
+
+### Fora do sprint, anotado durante a implementação
+
+- **`ShellAluno` redireciona o logout para `/login.html`** — resquício da
+  migração React; a rota é `/login`. Não mexi porque está fora do escopo e
+  o aluno hoje não entra (1 senha em 876).
+- **Regra de corte na Fase 1 via `classificacao_aluno.zona`** —
+  `thresholds.py` e `_classificar_zona_por_materia` continuam existindo
+  para o stats engine (alertas, perfil). O painel não os usa mais; o
+  campo `zona` da lista de alunos ainda sim. Unificar é a A5 da Onda 3.
+- **Envio em lote ao Canvas** (C5) — cada objeto tem seu botão; "enviar N
+  pendências do ciclo" fica para depois.
+- **Container `web` do compose estava em nginx antigo** (imagem de 18/08)
+  e o Docker desta máquina não consegue puxar `node:22-alpine`
+  (credential helper quebrado — mesmo sintoma do symlink do CLAUDE.md).
+  O front foi verificado com o Vite rodando no host, na :8080.
+
