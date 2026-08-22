@@ -195,6 +195,7 @@ export interface FiltroAuditoria {
   ate?: string;
   limite?: number;
   antes_de_id?: number;
+  incluir_logins?: boolean;
 }
 
 export const listarAuditoria = (filtro: FiltroAuditoria) =>
