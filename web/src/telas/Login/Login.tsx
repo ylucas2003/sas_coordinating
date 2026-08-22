@@ -24,8 +24,17 @@ export function Login() {
   useEffect(() => {
     api.ssoCanvasDisponivel().then((r) => setSsoCanvas(r.disponivel)).catch(() => setSsoCanvas(false));
   }, []);
+  // Motivos que o Canvas devolve quando a CHAVE está errada — não o usuário.
+  // Aparecem porque o conserto é de quem administra, não de quem clicou.
+  const MOTIVO_CANVAS: Record<string, string> = {
+    unauthorized_client: 'a Developer Key do SAS está desligada no Canvas (Admin → Developer Keys → ON).',
+    invalid_scope: 'a Developer Key não permite o escopo que o SAS pede.',
+    invalid_request: 'a redirect URI configurada no Canvas não bate com a do servidor.',
+  };
+  const motivo = params.get('motivo') ?? '';
   const avisoCanvas = {
     cancelado: null,
+    recusado: `O Canvas recusou o login: ${MOTIVO_CANVAS[motivo] ?? motivo}`,
     falhou: 'O Canvas não confirmou o login. Tente de novo, ou entre com matrícula e senha.',
     'sem-conta': 'Sua conta do Canvas não está cadastrada no SAS. Procure a coordenação.',
   }[params.get('canvas') ?? ''] ?? null;

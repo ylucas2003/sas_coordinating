@@ -37,7 +37,7 @@ import contextlib
 import logging
 import secrets
 import time
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -114,11 +114,19 @@ async def callback(
     code: str | None = Query(None),
     state: str | None = Query(None),
     error: str | None = Query(None),
+    error_description: str | None = Query(None),
 ) -> RedirectResponse:
     if not _configurado():
         raise HTTPException(status_code=503, detail="Login pelo Canvas não está configurado.")
     if error or not code or not state:
-        # O usuário cancelou na tela do Canvas. Volta ao login sem drama.
+        # `access_denied` é o usuário recusando na tela do Canvas — volta sem
+        # drama. Qualquer outro `error` é configuração (chave desligada, URI
+        # errada, escopo não permitido) e precisa aparecer: foi engolir isso
+        # como "cancelado" que fez um `unauthorized_client` parecer que "nada
+        # acontece" ao clicar.
+        if error and error != "access_denied":
+            log.warning("canvas recusou o login: %s — %s", error, error_description)
+            return RedirectResponse(f"/login?canvas=recusado&motivo={quote(error)}")
         return RedirectResponse("/login?canvas=cancelado")
     proximo = _verificar_state(state)
     s = get_settings()
