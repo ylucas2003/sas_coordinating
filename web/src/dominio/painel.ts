@@ -5,7 +5,7 @@
 // (ITA e IME pesam as matérias de formas diferentes) e a definição de "em
 // zona de corte". Testada em painel.test.ts.
 
-import type { Aluno, Ciclo, Simulado, TipoSimulado } from '../tipos/dominio';
+import type { Aluno, AlunoClassificado, Ciclo, Simulado, TipoSimulado } from '../tipos/dominio';
 
 export interface ColunaPainel {
   id: string;
@@ -308,45 +308,18 @@ export function colunasExibidas(
 }
 
 /**
- * Aprovado / cortado / neutro pelo corte por matéria (nota < 5).
- *
- * Julga só as matérias que o aluno fez — mesma regra da média. Aluno sem nota
- * nenhuma é 'neutro', não 'cortado': antes, ausência total contava como corte
- * e inflava o KPI "em zona de corte" (800 de 873) com gente que simplesmente
- * não prestou os simulados.
+ * A regra de corte NÃO vive mais aqui. Veredito, motivo, cor e posição vêm
+ * de `GET /ciclos/{id}/classificacao` (app/stats/criterios.py — docs/18 §1.2).
+ * Este módulo só monta colunas e médias de exibição.
  */
-export function statusAluno(
-  alunoId: string,
-  colunas: readonly ColunaPainel[],
-  notasAluno: NotasPorAluno,
-): 'aprovado' | 'cortado' | 'neutro' {
-  const notas = colunas
-    .filter((c) => !c.virtual && c.sim)
-    .map((c) => notasAluno[alunoId]?.[c.sim!.id])
-    .filter((n): n is number => n != null);
-
-  if (notas.length === 0) return 'neutro';
-  return notas.every((n) => n >= 5) ? 'aprovado' : 'cortado';
-}
-
-/** Valor que ordena o ranking: média final, ou da 1ª fase, ou a média simples. */
-export function valorOrdenacao(
-  alunoId: string,
-  mediasVirtuais: Record<string, Record<string, number | null>>,
-  notasAluno: NotasPorAluno,
-  colunas: readonly ColunaPainel[],
-): number {
-  const mv = mediasVirtuais[alunoId] ?? {};
-  if (mv['MED_FINAL'] != null) return mv['MED_FINAL'];
-  if (mv['MED_F1'] != null) return mv['MED_F1'];
-  return mediaGeralAluno(alunoId, notasAluno, colunas) ?? -Infinity;
-}
+export type ClassificacaoPorAluno = Record<string, AlunoClassificado>;
 
 export interface ResumoCiclo {
   totalAlunos: number;
   totalSimulados: number;
   mediaGeral: number | null;
-  cortados: number;
+  /** Vem do servidor; `null` enquanto a classificação não chegou. */
+  cortados: number | null;
 }
 
 export interface DadosPainel {
@@ -370,7 +343,7 @@ export interface DadosPainel {
  * quando só uma fase está visível — a média final do ITA depende da 1ª fase.
  */
 export function montarPainel({
-  ciclo, simulados, alunos, notasPorSim, fase, ordenacao,
+  ciclo, simulados, alunos, notasPorSim, fase, ordenacao, classificacao,
 }: {
   ciclo: Ciclo | null;
   simulados: readonly Simulado[];
@@ -378,6 +351,8 @@ export function montarPainel({
   notasPorSim: NotasPorSimulado;
   fase: '1' | '2';
   ordenacao: 'ranking' | 'alfabetica';
+  /** `GET /ciclos/{id}/classificacao` indexada por aluno. Vazia = ainda carregando. */
+  classificacao: ClassificacaoPorAluno;
 }): DadosPainel {
   const vazio: DadosPainel = {
     colunasFull: [], colunas: [], notasAluno: {}, mediasVirtuais: {},
@@ -420,11 +395,11 @@ export function montarPainel({
   if (ordenacao === 'alfabetica') {
     alunosOrdenados.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   } else {
-    alunosOrdenados.sort(
-      (a, b) =>
-        valorOrdenacao(b.id, mediasVirtuais, notasAluno, colunas) -
-        valorOrdenacao(a.id, mediasVirtuais, notasAluno, colunas),
-    );
+    // A posição já vem com os dois blocos (não-cortados primeiro) e o
+    // desempate em cascata do critério. Quem não está na classificação
+    // (sem nota no ciclo) afunda — não foi mal, não tem dado.
+    const pos = (a: Aluno) => classificacao[a.id]?.posicao ?? Number.POSITIVE_INFINITY;
+    alunosOrdenados.sort((a, b) => pos(a) - pos(b) || a.nome.localeCompare(b.nome, 'pt-BR'));
   }
 
   const media = (vals: number[]) =>
@@ -455,7 +430,9 @@ export function montarPainel({
     totalAlunos: alunosOrdenados.length,
     totalSimulados: sims.length,
     mediaGeral: media(gerais),
-    cortados: alunosOrdenados.filter((a) => statusAluno(a.id, colunas, notasAluno) === 'cortado').length,
+    cortados: Object.keys(classificacao).length
+      ? alunosOrdenados.filter((a) => classificacao[a.id]?.aprovado === false).length
+      : null,
   };
 
   return {

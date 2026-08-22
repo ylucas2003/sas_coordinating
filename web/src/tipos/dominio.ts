@@ -245,3 +245,49 @@ export interface AlunoSimilar {
   zona: Zona | null;
   media: number | null;
 }
+
+// ─── Classificação por critério ──────────────────────────────────────────
+// O servidor é dono da régua (docs/18 §1.2). O front recebe veredito, motivo,
+// cor e posição prontos e só desenha — nenhuma regra de corte vive aqui.
+
+export type TomNota = 'verde' | 'ambar' | 'vermelho';
+
+export interface PredicadoCriterio {
+  materia: string | null;
+  operador: string;
+  minimo: number | { acertos: number; de: number };
+  eliminatorio: boolean;
+  entraNaMedia: boolean;
+  peso: number;
+  fonte: string;
+}
+
+export interface CriterioClassificacao {
+  slug: string;
+  nome: string;
+  descricao: string;
+  fase: 1 | 2 | null;
+  combinador: 'todos' | 'algum';
+  desempate: string[];
+  predicados: PredicadoCriterio[];
+}
+
+export interface AlunoClassificado {
+  alunoId: string;
+  nome: string;
+  turmaId: string | null;
+  posicao: number;
+  aprovado: boolean;
+  /** "Química 3,2 — mínimo 4,0 (ITA §4.6.6.5)". `null` quando aprovado. */
+  motivo: string | null;
+  media: number | null;
+  notas: Record<string, { nota: number; tom: TomNota }>;
+}
+
+export interface ClassificacaoCiclo {
+  criterio: CriterioClassificacao;
+  fase: 1 | 2 | null;
+  total: number;
+  cortados: number;
+  alunos: AlunoClassificado[];
+}

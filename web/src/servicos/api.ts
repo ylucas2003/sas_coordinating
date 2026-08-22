@@ -6,7 +6,9 @@
 
 import { del, get, patch, post, postArquivo, qs, streamSSE } from './http';
 import type { EventoSSE, OpcoesUpload } from './http';
-import type { Alerta, Aluno, Ciclo, Materia, Sede, Simulado, Turma } from '../tipos/dominio';
+import type {
+  Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, Sede, Simulado, Turma,
+} from '../tipos/dominio';
 
 const enc = encodeURIComponent;
 
@@ -107,6 +109,13 @@ export const editarNota = (alunoId: string, simuladoId: string, corpo: unknown) 
 
 export const listarCiclos = () => get<Ciclo[]>('/ciclos');
 export const obterCiclo = (id: string) => get<Ciclo | null>(`/ciclos/${enc(id)}`);
+/**
+ * Classificação do ciclo por um critério (Tio Leo, ITA, IME). A regra mora no
+ * servidor; aqui chega veredito, motivo, cor e posição prontos.
+ */
+export const classificacaoCiclo = (id: string, criterio: string, fase?: 1 | 2) =>
+  get<ClassificacaoCiclo>(`/ciclos/${enc(id)}/classificacao${qs({ criterio, fase })}`);
+export const criteriosDisponiveis = () => get<CriterioClassificacao[]>('/ciclos/criterios/disponiveis');
 export const estatisticasCiclo = (id: string, { comInsights = true } = {}) =>
   get<unknown>(`/ciclos/${enc(id)}/estatisticas${comInsights ? '' : '?com_insights=false'}`);
 export const criarCiclo = (corpo: { ordem: number; vestibular: string; ano?: number }) =>

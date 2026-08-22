@@ -10,7 +10,7 @@ from ..canvas_sync import mapeador
 from ..canvas_sync.cliente import ClienteCanvas
 from ..config import get_settings
 from ..schemas.domain import Ciclo, VestibularAlvo
-from ..stats import ciclo_estatisticas, insights
+from ..stats import ciclo_estatisticas, classificacao_ciclo, criterios, insights
 from ..supabase_client import get_supabase
 
 router = APIRouter(
@@ -160,6 +160,82 @@ async def obter_ciclo(ciclo_id: str) -> Ciclo:
 
     mapa = _agrupar_simulados_por_ciclo(cliente)
     return _linha_para_ciclo(resp.data[0], mapa.get(ciclo_id, []))
+
+
+@router.get("/{ciclo_id}/classificacao")
+async def classificacao_do_ciclo(
+    ciclo_id: str,
+    criterio: str = Query(
+        "tio-leo",
+        description="Slug do critério: tio-leo | ita-f1 | ita-f2 | ime-f1 | ime-f2.",
+    ),
+    fase: int | None = Query(
+        None, ge=1, le=2, description="Restringe às notas de uma fase. Default: a do critério."
+    ),
+) -> dict:
+    """Lista ordenada do ciclo segundo um critério — o painel só desenha.
+
+    Toda regra de corte vive em app/stats/criterios.py (docs/18 §1.2). Esta
+    rota é o único caminho pelo qual o front obtém veredito, motivo, cor e
+    posição: a regra deixa de existir em TypeScript.
+
+    A resposta carrega o critério usado para o front mostrar a legenda certa
+    ("corte abaixo de 4,0 · ITA §4.6.6.5") sem conhecer a regra.
+    """
+    try:
+        regua = criterios.por_slug(criterio)
+    except KeyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    cliente = get_supabase()
+    existe = cliente.table("ciclo").select("id").eq("id", ciclo_id).limit(1).execute()
+    if not existe.data:
+        raise HTTPException(status_code=404, detail=f"ciclo {ciclo_id} não encontrado")
+
+    linhas = classificacao_ciclo.classificar(
+        cliente, ciclo_id=ciclo_id, criterio=regua, fase=fase
+    )
+    return {
+        "criterio": _descrever_criterio(regua),
+        "fase": fase if fase is not None else regua.fase,
+        "total": len(linhas),
+        "cortados": sum(1 for l in linhas if not l["aprovado"]),
+        "alunos": linhas,
+    }
+
+
+@router.get("/criterios/disponiveis")
+async def criterios_disponiveis() -> list[dict]:
+    """Os critérios que o seletor do painel oferece."""
+    return [_descrever_criterio(c) for c in criterios.CRITERIOS.values()]
+
+
+def _descrever_criterio(c: criterios.Criterio) -> dict:
+    """Forma serializável de um critério — o suficiente para legenda e tooltip."""
+    return {
+        "slug": c.slug,
+        "nome": c.nome,
+        "descricao": c.descricao,
+        "fase": c.fase,
+        "combinador": c.combinador,
+        "desempate": list(c.desempate),
+        "predicados": [
+            {
+                "materia": p.materia,
+                "operador": p.operador,
+                "minimo": (
+                    {"acertos": p.valor.acertos, "de": p.valor.de}
+                    if isinstance(p.valor, criterios.Acertos)
+                    else p.valor
+                ),
+                "eliminatorio": p.eliminatorio,
+                "entraNaMedia": p.entra_na_media,
+                "peso": p.peso,
+                "fonte": p.fonte,
+            }
+            for p in c.predicados
+        ],
+    }
 
 
 @router.get("/{ciclo_id}/estatisticas")
