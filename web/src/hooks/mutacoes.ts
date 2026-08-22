@@ -81,3 +81,35 @@ export function useResolverAlerta() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: chaves.alertas }),
   });
 }
+
+// ─── Administração ───────────────────────────────────────────────────────
+
+function invalidarAdministracao(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['administracao'] });
+  queryClient.invalidateQueries({ queryKey: ['auditoria'] });
+}
+
+export function useCriarCoordenador() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (corpo: { email: string; nome: string }) => api.criarCoordenador(corpo),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+export function useEditarCoordenador() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, corpo }: { id: string; corpo: { nome?: string; ativo?: boolean } }) =>
+      api.editarCoordenador(id, corpo),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+export function useRedefinirSenhaCoordenador() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.redefinirSenhaCoordenador(id),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}

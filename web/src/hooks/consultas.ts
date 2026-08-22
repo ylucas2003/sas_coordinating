@@ -157,6 +157,14 @@ export function useAuditoria(filtro: api.FiltroAuditoria) {
   });
 }
 
+export function useCoordenadores() {
+  return useQuery({ queryKey: ['administracao', 'coordenadores'], queryFn: api.listarCoordenadores });
+}
+
+export function useAcessosDeAlunos() {
+  return useQuery({ queryKey: ['administracao', 'alunos-acesso'], queryFn: api.acessosDeAlunos });
+}
+
 // ─── Ficha do aluno ──────────────────────────────────────────────────────
 
 export function useAluno(id: string) {

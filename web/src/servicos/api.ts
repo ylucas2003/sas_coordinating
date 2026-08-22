@@ -7,8 +7,8 @@
 import { del, get, patch, post, postArquivo, qs, streamSSE } from './http';
 import type { EventoSSE, OpcoesUpload } from './http';
 import type {
-  Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria, Sede,
-  Simulado, Turma,
+  Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria,
+  PainelAcessos, Sede, Simulado, Turma, UsuarioCoordenacao,
 } from '../tipos/dominio';
 
 const enc = encodeURIComponent;
@@ -196,3 +196,14 @@ export interface FiltroAuditoria {
 
 export const listarAuditoria = (filtro: FiltroAuditoria) =>
   get<PaginaAuditoria>(`/auditoria${qs({ ...filtro })}`);
+
+// ─── Administração ───────────────────────────────────────────────────────
+
+export const listarCoordenadores = () => get<UsuarioCoordenacao[]>('/administracao/coordenadores');
+export const criarCoordenador = (corpo: { email: string; nome: string }) =>
+  post<UsuarioCoordenacao & { senha_inicial: string }>('/administracao/coordenadores', corpo);
+export const editarCoordenador = (id: string, corpo: { nome?: string; ativo?: boolean }) =>
+  patch<UsuarioCoordenacao>(`/administracao/coordenadores/${enc(id)}`, corpo);
+export const redefinirSenhaCoordenador = (id: string) =>
+  post<{ id: string; senha_nova: string }>(`/administracao/coordenadores/${enc(id)}/redefinir-senha`, {});
+export const acessosDeAlunos = () => get<PainelAcessos>('/administracao/alunos-acesso');

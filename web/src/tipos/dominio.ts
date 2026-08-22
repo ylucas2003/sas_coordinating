@@ -321,3 +321,30 @@ export interface PaginaAuditoria {
   canais: CanalAuditoria[];
   proximo_antes_de_id: number | null;
 }
+
+// ─── Administração ───────────────────────────────────────────────────────
+
+export interface UsuarioCoordenacao {
+  id: string;
+  email: string;
+  nome: string;
+  ativo: boolean;
+  criado_em?: string;
+  ultimo_login_em: string | null;
+}
+
+export interface AcessoAluno {
+  id: string;
+  nome: string;
+  matricula: string | null;
+  email: string | null;
+  temCanvas: boolean;
+  primeiroAcessoFeito: boolean;
+  ultimoLoginEm: string | null;
+}
+
+export interface PainelAcessos {
+  total: number;
+  comAcesso: number;
+  alunos: AcessoAluno[];
+}

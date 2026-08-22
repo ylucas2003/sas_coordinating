@@ -23,6 +23,7 @@ from .observabilidade import (
 )
 from .supabase_client import get_supabase
 from .routes import (
+    administracao,
     alertas,
     alunos,
     arquivos,
@@ -142,6 +143,7 @@ def create_app() -> FastAPI:
     app.include_router(notas.router)
     app.include_router(ciclos.router)
     app.include_router(auditoria.router)
+    app.include_router(administracao.router)
     app.include_router(dimensoes.router)
     app.include_router(uploads.router)
     if settings.storage_dir:
