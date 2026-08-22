@@ -203,9 +203,9 @@ export const listarAuditoria = (filtro: FiltroAuditoria) =>
 // ─── Administração ───────────────────────────────────────────────────────
 
 export const listarCoordenadores = () => get<UsuarioCoordenacao[]>('/administracao/coordenadores');
-export const criarCoordenador = (corpo: { email: string; nome: string }) =>
+export const criarCoordenador = (corpo: { email: string; nome: string; canvas_user_id?: string }) =>
   post<UsuarioCoordenacao & { senha_inicial: string }>('/administracao/coordenadores', corpo);
-export const editarCoordenador = (id: string, corpo: { nome?: string; ativo?: boolean }) =>
+export const editarCoordenador = (id: string, corpo: { nome?: string; ativo?: boolean; canvas_user_id?: string }) =>
   patch<UsuarioCoordenacao>(`/administracao/coordenadores/${enc(id)}`, corpo);
 export const redefinirSenhaCoordenador = (id: string) =>
   post<{ id: string; senha_nova: string }>(`/administracao/coordenadores/${enc(id)}/redefinir-senha`, {});

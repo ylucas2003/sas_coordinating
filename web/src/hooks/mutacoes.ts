@@ -92,7 +92,7 @@ function invalidarAdministracao(queryClient: ReturnType<typeof useQueryClient>) 
 export function useCriarCoordenador() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (corpo: { email: string; nome: string }) => api.criarCoordenador(corpo),
+    mutationFn: (corpo: { email: string; nome: string; canvas_user_id?: string }) => api.criarCoordenador(corpo),
     onSuccess: () => invalidarAdministracao(queryClient),
   });
 }
@@ -100,7 +100,7 @@ export function useCriarCoordenador() {
 export function useEditarCoordenador() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, corpo }: { id: string; corpo: { nome?: string; ativo?: boolean } }) =>
+    mutationFn: ({ id, corpo }: { id: string; corpo: { nome?: string; ativo?: boolean; canvas_user_id?: string } }) =>
       api.editarCoordenador(id, corpo),
     onSuccess: () => invalidarAdministracao(queryClient),
   });

@@ -105,7 +105,7 @@ export function Administracao() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Nome</th><th>E-mail</th><th>Último login</th><th>Situação</th><th />
+                <th>Nome</th><th>E-mail</th><th>Canvas</th><th>Último login</th><th>Situação</th><th />
               </tr>
             </thead>
             <tbody>
@@ -195,6 +195,14 @@ function LinhaCoordenador({ usuario: u, onSenha }: { usuario: UsuarioCoordenacao
     await editar.mutateAsync({ id: u.id, corpo: { nome: nome.trim() } });
   }
 
+  // O id do Canvas é o que deixa a conta entrar pelo SSO (docs/18 §4.2).
+  // Vem de Admin → Pessoas no Canvas, ou da URL do perfil (/users/<id>).
+  async function ligarCanvas() {
+    const id = window.prompt('ID do usuário no Canvas (número da URL /users/<id>). Vazio desliga o SSO desta conta:', u.canvas_user_id ?? '');
+    if (id === null) return;
+    await editar.mutateAsync({ id: u.id, corpo: { canvas_user_id: id.trim() } });
+  }
+
   async function novaSenha() {
     if (!window.confirm(`Redefinir a senha de ${u.nome}? A atual deixa de valer na hora.`)) return;
     const r = await redefinir.mutateAsync(u.id);
@@ -205,10 +213,16 @@ function LinhaCoordenador({ usuario: u, onSenha }: { usuario: UsuarioCoordenacao
     <tr className={u.ativo ? '' : 'is-inativo'}>
       <td>{u.nome}{souEu && <span className="sim-selo-ok" style={{ marginLeft: 8 }}>você</span>}</td>
       <td>{u.email}</td>
+      <td>
+        {u.canvas_user_id
+          ? <span className="sim-selo-ok" title={`canvas_user_id ${u.canvas_user_id}`}>SSO ligado</span>
+          : <span className="sim-selo-canvas">só senha</span>}
+      </td>
       <td>{fmtQuando(u.ultimo_login_em)}</td>
       <td>{u.ativo ? <span className="sim-selo-ok">ativa</span> : <span className="sim-selo-canvas">desativada</span>}</td>
       <td>
         <button className="btn-editar" onClick={renomear}>Renomear</button>
+        <button className="btn-editar" onClick={ligarCanvas}>Canvas</button>
         <button className="btn-editar" onClick={novaSenha}>Nova senha</button>
         {!souEu && (
           <button className="btn-editar" onClick={alternarAtivo}>{u.ativo ? 'Desativar' : 'Reativar'}</button>
@@ -234,12 +248,16 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
   const criar = useCriarCoordenador();
   const [email, setEmail] = useState('');
   const [nome, setNome] = useState('');
+  const [canvasId, setCanvasId] = useState('');
   const [erro, setErro] = useState('');
 
   async function salvar() {
     setErro('');
     try {
-      const r = await criar.mutateAsync({ email: email.trim(), nome: nome.trim() });
+      const r = await criar.mutateAsync({
+        email: email.trim(), nome: nome.trim(),
+        canvas_user_id: canvasId.trim() || undefined,
+      });
       onFechar({ email: r.email, senha: r.senha_inicial });
     } catch (e) {
       setErro((e as Error).message || 'Falha ao criar.');
@@ -268,6 +286,9 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
           <input className="dialog__input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Campo>
       </Linha2>
+      <Campo label="ID no Canvas (opcional — liga o login pelo Canvas)">
+        <input className="dialog__input" inputMode="numeric" placeholder="ex.: 7387" value={canvasId} onChange={(e) => setCanvasId(e.target.value)} />
+      </Campo>
       {erro && <div className="agendar__erro">{erro}</div>}
     </Dialogo>
   );

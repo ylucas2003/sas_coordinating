@@ -331,6 +331,8 @@ export interface UsuarioCoordenacao {
   ativo: boolean;
   criado_em?: string;
   ultimo_login_em: string | null;
+  /** id no Canvas — liga a conta ao SSO. `null` = só e-mail + senha. */
+  canvas_user_id: string | null;
 }
 
 export interface AcessoAluno {
