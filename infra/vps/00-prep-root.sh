@@ -4,7 +4,7 @@
 #
 #   ssh root@46.202.150.165 'bash -s' < infra/vps/00-prep-root.sh
 #
-# Cria os dois diretórios com o dono certo, para que o deploy (02-deploy.sh)
+# Cria os dois diretórios com o dono certo, para que o deploy (deploy.sh)
 # possa rodar inteiro como o usuário `sas`, sem sudo. Dar sudo sem senha ao
 # usuário de operação seria privilégio permanente em troca da conveniência de
 # uma única execução — não compensa.
@@ -64,5 +64,4 @@ ok "/opt/sas/dados/{acme,tls} (dono uid 101, o do nginx)"
 
 echo
 echo "  Pronto. Agora, da sua máquina:"
-echo "      ./infra/vps/sync.sh"
-echo "      ssh $USUARIO@\$IP 'bash /opt/sas/infra/vps/02-deploy.sh'"
+echo "      ./infra/vps/deploy.sh"

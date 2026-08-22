@@ -291,7 +291,7 @@ O frontend está sendo migrado para React + TypeScript + Vite em paralelo
 de `web/` (Dockerfile, Vite, `web/nginx.conf`). **Esta etapa cobre o lado da borda —
 `infra/vps/` — que nenhum dos dois planos toca até aqui.**
 
-> ⚠️ **Até o corte, não rode `sync.sh` cegamente.** Hoje o serviço `web` monta `web/`
+> ⚠️ **Até o corte, não rodar o deploy cegamente.** Hoje o serviço `web` monta `web/`
 > **cru** no nginx. Um `index.html` que referencia `/src/main.tsx` chega ao browser
 > sem passar pelo Vite e o site quebra. Enquanto a migração estiver no meio, envie
 > arquivos pontuais por `scp`, como foi feito na Etapa 6.
@@ -315,7 +315,7 @@ O mount do `nginx.conf` **continua**, e de propósito: o `web/Dockerfile` copia 
 Em produção quem manda é `infra/vps/nginx.conf`, montado por cima.
 
 Efeito no deploy: `docker compose restart web` deixa de bastar — passa a ser
-`up -d --build web`. O `02-deploy.sh` já faz `build`, então o fluxo do operador não
+`up -d --build web`. O `deploy.sh` já faz `build`, então o fluxo do operador não
 muda; o que muda é o tempo (segundos → alguns minutos, por causa do `npm ci`).
 
 #### 9.2 · O fallback de SPA passa a ser obrigatório — a regra inverte
@@ -365,7 +365,7 @@ injetou preload inline; e CSS Modules viram arquivo, o que pode liberar
 #### 9.6 · Ordem do corte
 
 1. `npm run build` local passa sem erro de TypeScript
-2. `sync.sh` (aí sim), com `web/dist` no exclude — quem builda é o container
+2. deploy (aí sim), com `web/dist` no exclude — quem builda é o container
 3. `docker compose up -d --build web`
 4. Verificação do 9.7 antes de avisar qualquer usuário
 
@@ -459,8 +459,37 @@ abertura para alunos é o Portão 2, não a stack.
 | `01-preparar-servidor.sh` | servidor, root | Etapa 1. `--ssh-hardening` é passo separado, ainda **não aplicado** |
 | `00-prep-root.sh` | servidor, root, uma vez | Diretórios com o dono certo (código, storage, log, ACME, TLS) + rotação de log, para o deploy não precisar de sudo |
 | `03-tls.sh` | servidor, root | Etapa 5. certbot, hook de renovação, emissão e ensaio de renovação |
-| `sync.sh` | máquina de dev | Envia a árvore por rsync (o repo ainda tem trabalho não commitado) |
-| `02-deploy.sh` | servidor, usuário `sas` | Etapa 3. Idempotente; nas próximas vezes é o comando de deploy |
+| `deploy.sh` | máquina de dev | **O deploy inteiro, num arquivo só.** Portões locais → rsync → build → migrations → `up -d` → smoke test pelo HTTPS público |
+
+### O deploy do dia a dia
+
+```sh
+./infra/vps/deploy.sh              # portões locais → rsync → build → up → smoke
+./infra/vps/deploy.sh --migrar     # idem, autorizando as migrations pendentes
+./infra/vps/deploy.sh --rapido     # pula lint/teste/typecheck locais
+./infra/vps/deploy.sh --verificar  # só verifica; não toca no servidor
+```
+
+O passo que roda no servidor viaja por stdin (`ssh bash -s`), não de uma cópia
+em `/opt/sas`: o deploy é sempre o deste arquivo, nunca o que sobrou do deploy
+anterior. Os três scripts de preparação (`01`, `00`, `03`) continuam separados —
+rodam uma vez, como root, e não fazem parte do ciclo.
+
+Quatro decisões que o script embute, todas vindas de falhas já pagas nas etapas
+acima:
+
+- **Migration pendente PARA o deploy** (exit 2) em vez de subir código novo
+  sobre schema velho. Autorizar é explícito (`--migrar`), e as migrations são
+  aplicadas entre o build e o `up -d`, com `restart postgrest` logo depois —
+  o PostgREST cacheia o schema no boot.
+- **O build inclui o `migrate`** (`docker compose --profile tools build`). As
+  migrations viajam dentro da imagem, e `build api` não reconstrói o `migrate`:
+  é o aprendizado 1 da Etapa 7, agora automatizado em vez de lembrado.
+- **A verificação é pelo HTTPS público**, de fora, com os sete testes do §9.7.
+  A antiga (`curl http://127.0.0.1/api/health` no servidor) estava passando sem
+  falar com a API: desde a Etapa 5 a porta 80 devolve 301, e 3xx não é erro
+  para o `curl -f` — o corpo vinha vazio e a checagem comemorava. É a mesma
+  classe de falha do download de PDF do §9.7: sucesso aparente.
 
 ## 7. O que fica de fora deste plano
 
