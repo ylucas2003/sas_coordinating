@@ -401,6 +401,21 @@ injetou preload inline; e CSS Modules viram arquivo, o que pode liberar
 > `/api`. `API_BASE_URL` é a única hoje; qualquer outra que apareça tem o mesmo risco,
 > e o sintoma será sempre "HTML com 200 no lugar do recurso".
 
+> **Lacuna corrigida depois do go-live.** Na primeira montagem, todo o TLS foi feito
+> por comandos avulsos por SSH: instalar o certbot, criar os diretórios de ACME e de
+> certificado com o dono do nginx, instalar o hook de renovação, emitir o certificado.
+> **Nada disso ficou no repositório.** Um servidor reconstruído pelos scripts subiria
+> sem HTTPS, e o sintoma só apareceria no navegador do usuário. O mesmo valia para
+> `/var/log/sas` e a rotação de log.
+>
+> Agora `00-prep-root.sh` cria os cinco diretórios e a rotação, e `03-tls.sh` faz o TLS
+> inteiro de forma idempotente — incluindo `certbot renew --dry-run`, que **falha o
+> script** se a renovação não funcionar. Sem esse ensaio, a descoberta viria em 60 dias
+> com o site fora do ar.
+>
+> A lição por trás: *o que foi feito por comando avulso não existe.* Vale conferir, ao
+> fim de qualquer montagem, o que o repositório reproduz e o que só está na máquina.
+
 #### 9.8 · Ensaio e abertura
 
 1. Smoke test com a imagem `prod`: login, upload de planilha, download de PDF em browser real, chat com streaming atravessando o nginx (`curl -N`)
@@ -442,7 +457,8 @@ abertura para alunos é o Portão 2, não a stack.
 | Script | Onde roda | Papel |
 |---|---|---|
 | `01-preparar-servidor.sh` | servidor, root | Etapa 1. `--ssh-hardening` é passo separado, ainda **não aplicado** |
-| `00-prep-root.sh` | servidor, root, uma vez | Cria `/opt/sas` e o storage com o dono certo, para o deploy não precisar de sudo |
+| `00-prep-root.sh` | servidor, root, uma vez | Diretórios com o dono certo (código, storage, log, ACME, TLS) + rotação de log, para o deploy não precisar de sudo |
+| `03-tls.sh` | servidor, root | Etapa 5. certbot, hook de renovação, emissão e ensaio de renovação |
 | `sync.sh` | máquina de dev | Envia a árvore por rsync (o repo ainda tem trabalho não commitado) |
 | `02-deploy.sh` | servidor, usuário `sas` | Etapa 3. Idempotente; nas próximas vezes é o comando de deploy |
 
