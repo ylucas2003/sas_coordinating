@@ -70,6 +70,17 @@ def _validar_configuracao(settings) -> None:
     if not settings.scheduler_secret:
         problemas.append("SCHEDULER_SECRET vazia — os 4 jobs agendados devolveriam 503 em silêncio")
 
+    # `segredo_lembrete` (config.py) cai na JWT_SECRET_KEY quando esta está
+    # vazia. O token do link de descadastro é HMAC(segredo, e-mail) truncado em
+    # 64 bits, e vai por e-mail em claro para centenas de alunos — ou seja, o
+    # segredo de SESSÃO viraria um oráculo distribuído por e-mail. Só é exigido
+    # com o lembrete ligado, que é quando esses links passam a existir.
+    if settings.lembrete_aluno_ativo and not settings.lembrete_token_secret:
+        problemas.append(
+            "LEMBRETE_TOKEN_SECRET vazia com LEMBRETE_ALUNO_ATIVO=true — o link de "
+            "descadastro seria assinado com a JWT_SECRET_KEY e enviado por e-mail"
+        )
+
     if settings.email_destinatario_teste:
         problemas.append(
             "EMAIL_DESTINATARIO_TESTE preenchida — TODO e-mail de aluno seria "
