@@ -22,6 +22,9 @@ export interface RespostaAutenticacao {
   aluno_id?: string;
 }
 
+/** O SSO pelo Canvas só aparece na tela se o servidor tiver a Developer Key. */
+export const ssoCanvasDisponivel = () => get<{ disponivel: boolean }>('/auth/canvas/disponivel');
+
 export const login = (corpo: { tipo: string; usuario: string; senha: string }) =>
   post<RespostaAutenticacao>('/auth/login', corpo);
 

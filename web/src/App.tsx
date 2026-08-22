@@ -13,6 +13,7 @@ import { Importar } from './telas/Importar/Importar';
 import { Auditoria } from './telas/Auditoria/Auditoria';
 import { Administracao } from './telas/Administracao/Administracao';
 import { Login } from './telas/Login/Login';
+import { CallbackCanvas } from './telas/Login/CallbackCanvas';
 import { ChatLauncher } from './componentes/chat/ChatLauncher';
 import { LimiteDeErro } from './componentes/LimiteDeErro';
 import {
@@ -91,6 +92,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/login/canvas" element={<CallbackCanvas />} />
       <Route path="*" element={<RotaProtegida />} />
     </Routes>
   );

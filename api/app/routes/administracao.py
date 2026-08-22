@@ -53,6 +53,9 @@ def _ip(request: Request) -> str | None:
 class CriarCoordenadorBody(BaseModel):
     email: str
     nome: str
+    # id do usuário no Canvas — é o que liga a conta ao SSO (0026). Opcional:
+    # sem ele a conta entra só por e-mail + senha.
+    canvas_user_id: str | None = None
 
     # Sem `EmailStr` de propósito: puxaria email-validator (e dnspython) para
     # a imagem por causa de um campo. O que importa aqui é "tem @ e domínio"
@@ -77,6 +80,7 @@ class CriarCoordenadorBody(BaseModel):
 class EditarCoordenadorBody(BaseModel):
     nome: str | None = None
     ativo: bool | None = None
+    canvas_user_id: str | None = None
 
 
 @router.get("/coordenadores")
@@ -86,7 +90,7 @@ async def listar_coordenadores() -> list[dict]:
     cliente = get_supabase()
     linhas = (
         cliente.table("usuario_coordenacao")
-        .select("id, email, nome, ativo, criado_em, ultimo_login_em")
+        .select("id, email, nome, ativo, criado_em, ultimo_login_em, canvas_user_id")
         .order("nome")
         .execute()
         .data
@@ -114,7 +118,10 @@ async def criar_coordenador(
     linha = (
         cliente.table("usuario_coordenacao")
         .insert(
-            {"email": email, "nome": body.nome, "senha_hash": hash_senha(senha), "ativo": True},
+            {
+                "email": email, "nome": body.nome, "senha_hash": hash_senha(senha), "ativo": True,
+                "canvas_user_id": body.canvas_user_id or None,
+            },
             returning="representation",
         )
         .execute()
@@ -146,6 +153,8 @@ async def editar_coordenador(
     patch: dict = {}
     if body.nome is not None and body.nome.strip():
         patch["nome"] = body.nome.strip()
+    if body.canvas_user_id is not None:
+        patch["canvas_user_id"] = body.canvas_user_id.strip() or None
     if body.ativo is not None:
         if body.ativo is False and usuario_id == coordenador.get("sub"):
             raise HTTPException(status_code=422, detail="Você não pode desativar a própria conta.")

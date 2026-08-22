@@ -29,6 +29,7 @@ from .routes import (
     arquivos,
     auditoria,
     auth,
+    auth_canvas,
     ciclos,
     cobranca,
     dimensoes,
@@ -136,6 +137,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(auth.router)
+    app.include_router(auth_canvas.router)
     app.include_router(me.router)
     app.include_router(alertas.router)
     app.include_router(alunos.router)
