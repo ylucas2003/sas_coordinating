@@ -102,8 +102,10 @@
       // ver tudo em :8080, igual ao nginx em produção — é o que o login pelo
       // Canvas precisa (a redirect URI é http://localhost:8080/api/...).
       //
-      // `trap` derruba a API ao encerrar a task: não sobra stack órfã.
-      "command": "D=/Applications/Docker.app/Contents/Resources/bin/docker; $D compose up -d db postgrest api && printf '\\n  front      http://localhost:8080\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && trap \"$D compose stop api\" EXIT && cd web && npx vite --port 8080 --strictPort",
+      // Sem `trap` que pare a API ao sair: uma segunda execução da task que
+      // falhe (porta ocupada) derrubava a API que a primeira estava usando.
+      // Os containers ficam de pé; quem os para é `docker compose stop`.
+      "command": "D=/Applications/Docker.app/Contents/Resources/bin/docker; $D compose up -d db postgrest api && printf '\\n  front      http://localhost:8080\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && cd web && npx vite --port 8080 --strictPort",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "group": { "kind": "build", "isDefault": true },
