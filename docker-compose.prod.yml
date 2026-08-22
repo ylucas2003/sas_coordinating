@@ -25,6 +25,9 @@ services:
     # imagem construída de web/Dockerfile: nginx servindo `web/dist`. Por isso
     # aqui não basta zerar os volumes — image, command e environment do dev
     # precisam ser desfeitos.
+    #
+    # `!reset` exige Docker Compose >= 2.24. Em versão anterior o override
+    # falha ao subir, com erro de tag desconhecida.
     image: !reset null
     working_dir: !reset null
     command: !reset null

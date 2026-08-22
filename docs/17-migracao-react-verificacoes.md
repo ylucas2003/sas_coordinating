@@ -46,6 +46,26 @@ sessão), então **não roda em CI** — o que ele cobriu:
 | Chat | Cmd+K abre; histórico com markdown; lista de conversas; streaming com trace de tool, título, texto final e artefatos (gráfico + CSV); Esc fecha só com foco dentro |
 | Geral | Todas as rotas renderizam com topbar e FAB; navegação pela topbar; busca global; aluno não alcança rota de coordenação |
 
+## Verificação estática da config de produção
+
+Feita sem Docker e sem nginx instalados, lendo a config contra o build real.
+Não substitui subir a stack, mas cobre o que é decidível no papel:
+
+| O que | Resultado |
+|---|---|
+| Premissa do `^~ /assets/` | O build emite **um** arquivo na raiz (`index.html`) e todo o resto sob `assets/`, com hash. As 4 URLs que o app pede resolvem, nenhuma escapa de `/assets/`. |
+| `/assets/inexistente.js` | `try_files $uri =404` → 404 honesto, sem cair no fallback |
+| `/painel` | prefixo `/` → fallback `/index.html` → regex `.html` → `expires -1` |
+| `/api/alunos` vs `/api/docs` | a regex de `/docs` vence o prefixo; `/api/alunos` segue para o proxy |
+| `add_header` dentro de `location` | **nenhum** — os headers de segurança valem em todos os caminhos, e o cache dos assets usa `expires`, que não os anula |
+| CSP vs. o que o app pede | `script-src`/`style-src 'self'` bastam (nada inline no HTML servido); `font-src` cobre os woff2; `img-src` cobre o data-URI do checkbox e o `blob:` da exportação PNG |
+
+Um achado veio daí: **`/login.html` retornava 404**. O bloco `location ~* \.html$`
+não tem `try_files`, então um `.html` inexistente não cai no fallback. Resolvido
+com um `location = /login.html { return 301 /login; }` — match exato, e não
+fallback no bloco `.html`, porque com fallback qualquer `.html` inexistente
+devolveria o app com status 200, que é o que as demais regras existem para evitar.
+
 ## Não verificado — precisa de máquina com Docker e login real
 
 1. **Dados reais.** Toda a verificação usou fixtures. Cada tela precisa ser
@@ -58,6 +78,8 @@ sessão), então **não roda em CI** — o que ele cobriu:
    - `/assets/inexistente.js` deve dar **404**, não HTML com status 200
    - console sem violação de CSP — `script-src` e `style-src` perderam o
      `'unsafe-inline'`, então uma violação apareceria como estilo faltando
+     (a análise estática acima não achou nada que precise das diretivas
+     removidas, mas só o browser confirma)
 3. **Exportação PDF/PNG do aluno.** Depende de `window.print` e de canvas; o
    harness não cobre. Testar os cinco itens do menu "Exportar" com dados reais —
    em especial as **cores do heatmap no PDF**, que dependem do `style` por CSSOM.
@@ -75,6 +97,8 @@ sessão), então **não roda em CI** — o que ele cobriu:
 | 1 | `vercel.json` e o serviço `sas-web` do `render.yaml` apontam para `web/` como site estático — hoje serviriam código-fonte, não o build | [vercel.json](../vercel.json), [render.yaml](../render.yaml) |
 | 2 | `selo-108anos.png` tem 1,7 MB, maior que todo o JS do app | [web/assets/](../web/assets/) |
 | 3 | O harness de browser vive no scratchpad e não roda em CI | — |
+| 5 | `!reset` no `docker-compose.prod.yml` exige Docker Compose ≥ 2.24; em versão anterior o override falha ao subir | [docker-compose.prod.yml](../docker-compose.prod.yml) |
+| 6 | O primeiro deploy passou a rodar `npm ci` + `vite build` dentro do container, na VPS — a primeira subida demora bem mais que antes | [infra/vps/](../infra/vps/) |
 | 4 | Sem testes de componente (só de lógica pura) | escolha consciente: o valor está no domínio, não em asserção de markup |
 
 ## Diferenças de comportamento assumidas
