@@ -84,7 +84,9 @@ class Simulado(BaseModel):
     # Sincronização SAS→Canvas (só relevante em origem='sas'): 'pendente' e
     # 'falhou' = o Assignment ainda não existe/reflete o SAS — a UI mostra o
     # limbo. canvasErro carrega o motivo da última falha.
-    canvasEstado: Literal["sincronizado", "pendente", "falhou"] = "sincronizado"
+    # 'divergente' = o coordenador escolheu não mandar ao Canvas (docs/18 §2.5).
+    # Mesma lista do CHECK de simulado.canvas_estado (migration 0027).
+    canvasEstado: Literal["sincronizado", "pendente", "falhou", "divergente"] = "sincronizado"
     canvasErro: str | None = None
     media: float | None = None
     mediana: float | None = None

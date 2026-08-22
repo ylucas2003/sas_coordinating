@@ -119,3 +119,11 @@ class TestSchemaAceitaDivergente:
                 ultimo = m.group(1)
         assert ultimo is not None, "nenhum CHECK de simulado.canvas_estado encontrado"
         assert f"'{escrita.DIVERGENTE}'" in ultimo, f"CHECK vigente não aceita divergente: {ultimo}"
+
+    def test_schema_da_api_aceita_divergente(self):
+        """Mesma omissão, outra camada: o Literal de Simulado.canvasEstado
+        derrubava GET /simulados inteiro quando UM simulado era divergente."""
+        from app.schemas.domain import Simulado
+
+        campo = Simulado.model_fields["canvasEstado"]
+        assert escrita.DIVERGENTE in campo.annotation.__args__
