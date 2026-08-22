@@ -96,10 +96,26 @@ def _verificar_teto_de_uso(cliente, usuario: str) -> None:
 
 
 def _usuario_do_token(user: dict) -> str:
-    """Namespace do dono da thread em chat_thread.usuario_id."""
-    if user.get("tipo") == "aluno":
+    """Namespace do dono da thread em chat_thread.usuario_id.
+
+    Fail-closed de propósito, em cima do `get_current_user` que já recusa token
+    fora de `TIPOS_DE_SESSAO` (app/auth.py). São duas camadas porque esta função
+    decide DE QUEM é a thread: um `else` genérico aqui devolvia namespace de
+    coordenação para qualquer token que não fosse de aluno, e o default
+    `'coordenador'` no `sub` ainda colapsava todos eles num balde só.
+    """
+    tipo = user.get("tipo")
+
+    if tipo == "aluno":
         return f"aluno:{user['aluno_id']}"
-    return f"coord:{user.get('sub', 'coordenador')}"
+
+    if tipo == "coordenador":
+        sub = user.get("sub")
+        if not sub:
+            raise HTTPException(status_code=403, detail="Token sem identidade de coordenação")
+        return f"coord:{sub}"
+
+    raise HTTPException(status_code=403, detail="Token não autoriza uso do chat")
 
 
 # ─── Schemas ─────────────────────────────────────────────────────────────
@@ -345,10 +361,15 @@ async def enviar_mensagem(
 
     # Perfil define prompt/tools/modelo: aluno conversa com o mentor (tools
     # restritas ao próprio aluno_id); coordenador com o assistente staff.
-    if user.get("tipo") == "aluno":
+    tipo = user.get("tipo")
+    if tipo == "aluno":
         perfil = perfis.perfil_aluno(user["aluno_id"], user.get("nome") or "")
-    else:
+    elif tipo == "coordenador":
         perfil = perfis.perfil_coordenador()
+    else:
+        # Nunca por omissão: o perfil de coordenação carrega as tools que leem
+        # QUALQUER aluno, e era para cá que caía um token de download.
+        raise HTTPException(status_code=403, detail="Token não autoriza uso do chat")
 
     return StreamingResponse(
         _stream_mensagem(cliente, thread_id, usuario, texto, perfil),
