@@ -8,6 +8,8 @@ export interface PatchSimulado {
   rotulo_curto?: string | null;
   nota_maxima?: number;
   anulado?: boolean;
+  /** A escolha do coordenador na confirmação (docs/18 §2.3). */
+  sincronizar_canvas: boolean;
 }
 
 interface Props {
@@ -15,13 +17,15 @@ interface Props {
   rotuloAtual: string | null;
   notaMaximaAtual: number | null;
   anuladoAtual: boolean;
+  /** Só simulados criados no SAS têm write-back; os do Canvas não perguntam. */
+  origemSas?: boolean;
   /** `null` = cancelado ou sem alteração. */
   onFechar: (patch: PatchSimulado | null) => void;
 }
 
 /** Edição dos metadados do simulado: formulário → diff → confirmar. */
 export function EdicaoSimulado({
-  nome, rotuloAtual, notaMaximaAtual, anuladoAtual, onFechar,
+  nome, rotuloAtual, notaMaximaAtual, anuladoAtual, origemSas = false, onFechar,
 }: Props) {
   const refNome = useRef<HTMLInputElement>(null);
 
@@ -60,7 +64,8 @@ export function EdicaoSimulado({
     }
 
     const lista: Mudanca[] = [];
-    const novo: PatchSimulado = {};
+    // `sincronizar_canvas` é decidido no passo de confirmação.
+    const novo: PatchSimulado = { sincronizar_canvas: false };
 
     if (nomeLimpo !== nome) {
       lista.push({ campo: 'Nome', de: nome || '—', para: nomeLimpo });
@@ -94,7 +99,8 @@ export function EdicaoSimulado({
         setMudancas(null);
         setPatch(null);
       }}
-      onConfirmar={() => onFechar(patch)}
+      canvas={origemSas ? { efeito: 'realinha o Assignment no Canvas (nome, data, pontos).' } : undefined}
+      onConfirmar={(sincronizar_canvas) => onFechar(patch && { ...patch, sincronizar_canvas })}
       onSalvar={salvar}
     >
       <div className="dialog__campo">

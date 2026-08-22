@@ -46,6 +46,9 @@ export function AgendarSimulado({ ciclos, onFechar }: Props) {
   // Marcado por default: o lembrete de aluno é automático (P3, docs/13 §1).
   // Desmarcar é a exceção — "esta prova não avisa ninguém".
   const [avisarAlunos, setAvisarAlunos] = useState(true);
+  // A escolha do coordenador (docs/18 §2.1). Default ligado: o caso comum é
+  // querer a prova no Canvas; desligar é a exceção consciente.
+  const [sincronizarCanvas, setSincronizarCanvas] = useState(true);
   const [erro, setErro] = useState('');
 
   useEffect(() => {
@@ -87,6 +90,7 @@ export function AgendarSimulado({ ciclos, onFechar }: Props) {
         // `undefined` some do JSON — o backend só vê o campo se marcado.
         lembrarDiasAntes: lembrete ? dias : undefined,
         avisarAlunos,
+        sincronizarCanvas,
       });
       onFechar(criado);
     } catch (e) {
@@ -97,7 +101,7 @@ export function AgendarSimulado({ ciclos, onFechar }: Props) {
   return (
     <Dialogo
       titulo="Novo simulado"
-      subtitulo="Nasce no SAS e é criado no Canvas na hora"
+      subtitulo={sincronizarCanvas ? 'Nasce no SAS e é criado no Canvas na hora' : 'Nasce só no SAS — o Canvas fica diferente'}
       onFechar={() => onFechar(null)}
       rodape={
         <>
@@ -192,7 +196,23 @@ export function AgendarSimulado({ ciclos, onFechar }: Props) {
         </span>
       </div>
 
-      <Campo label="Vai criar no Canvas:">
+      <div className="dialog__campo">
+        <label className="agendar__lembrete-check agendar__lembrete-check--solo">
+          <input
+            type="checkbox"
+            checked={sincronizarCanvas}
+            onChange={(e) => setSincronizarCanvas(e.target.checked)}
+          />
+          Criar também no Canvas
+        </label>
+        <span className="agendar__ajuda">
+          {sincronizarCanvas
+            ? 'O Assignment é criado na hora. Se o Canvas falhar, fica marcado e tenta de novo sozinho.'
+            : 'Fica só aqui, marcado como diferente do Canvas. Dá para enviar depois pelo botão do simulado.'}
+        </span>
+      </div>
+
+      <Campo label={sincronizarCanvas ? 'Vai criar no Canvas:' : 'Nome do simulado:'}>
         <code className="agendar__preview-nome">
           {previewNome(ordem, rotulo.trim().toUpperCase(), materiaNome, data)}
         </code>

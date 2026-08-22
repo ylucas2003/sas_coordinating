@@ -31,7 +31,8 @@ export function useAgendarSimulado() {
 export function useCancelarSimulado() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.cancelarSimulado(id),
+    mutationFn: ({ id, sincronizarCanvas }: { id: string; sincronizarCanvas: boolean }) =>
+      api.cancelarSimulado(id, sincronizarCanvas),
     onSuccess: () => invalidarTudo(queryClient),
   });
 }
@@ -47,7 +48,8 @@ export function useRetrySimuladoCanvas() {
 export function useCriarCiclo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (corpo: { ordem: number; vestibular: string }) => api.criarCiclo(corpo),
+    mutationFn: (corpo: { ordem: number; vestibular: string; sincronizar_canvas: boolean }) =>
+      api.criarCiclo(corpo),
     onSuccess: () => invalidarTudo(queryClient),
   });
 }
@@ -66,7 +68,7 @@ export function useEditarSimulado() {
 export function useEditarNota() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ alunoId, simuladoId, corpo }: { alunoId: string; simuladoId: string; corpo: unknown }) =>
+    mutationFn: ({ alunoId, simuladoId, corpo }: { alunoId: string; simuladoId: string; corpo: api.CorpoEdicaoNota }) =>
       api.editarNota(alunoId, simuladoId, corpo),
     onSuccess: () => invalidarTudo(queryClient),
   });

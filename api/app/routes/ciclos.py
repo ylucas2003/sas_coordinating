@@ -2,13 +2,12 @@
 
 from collections import defaultdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
-from ..canvas_sync import mapeador
-from ..canvas_sync.cliente import ClienteCanvas
-from ..config import get_settings
+from ..canvas_sync import escrita
 from ..schemas.domain import Ciclo, VestibularAlvo
 from ..stats import ciclo_estatisticas, classificacao_ciclo, criterios, insights
 from ..supabase_client import get_supabase
@@ -46,15 +45,25 @@ class CriarCicloBody(BaseModel):
     ordem: int = Field(gt=0, le=99)
     vestibular: VestibularAlvo
     ano: int | None = None   # None = ano vigente (maior ano com curso no Canvas)
+    # Sem default (docs/18 §2.3). False = o ciclo nasce sem Assignment Group,
+    # em 'divergente'; simulados agendados nele ficam 'divergente' também até
+    # alguém clicar "enviar ao Canvas" no ciclo.
+    sincronizar_canvas: bool
 
 
 @router.post("", response_model=Ciclo, status_code=201)
-async def criar_ciclo(body: CriarCicloBody) -> Ciclo:
-    """Cria um ciclo no SAS E o Assignment Group correspondente no Canvas.
+async def criar_ciclo(
+    body: CriarCicloBody,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> Ciclo:
+    """Cria um ciclo no SAS e, se pedido, o Assignment Group no Canvas.
 
-    TRANSACIONAL (diferente do simulado, que é híbrido): um ciclo que existe
-    no SAS mas não no Canvas não serve pra nada — nenhum simulado pode nascer
-    nele. Se o Canvas recusar, nada é salvo e o coordenador vê o erro.
+    Era transacional ("ciclo sem grupo no Canvas não serve pra nada"). Deixou
+    de ser quando a coordenação decidiu que nada sobe ao Canvas sem alguém
+    clicar (docs/18 §2.1): o ciclo nasce sempre; sem `sincronizar_canvas`
+    fica 'divergente', e `POST /ciclos/{id}/enviar-canvas` cria o grupo
+    depois. Um simulado agendado num ciclo sem grupo herda o 'divergente'.
     """
     cliente = get_supabase()
 
@@ -89,23 +98,6 @@ async def criar_ciclo(body: CriarCicloBody) -> Ciclo:
             ),
         )
 
-    settings = get_settings()
-    if not settings.canvas_base_url or not settings.canvas_api_token:
-        raise HTTPException(status_code=502, detail="Canvas não configurado no servidor.")
-
-    nome_grupo = mapeador.compor_nome_grupo_ciclo(ordem=body.ordem, vestibular=body.vestibular)
-    try:
-        async with ClienteCanvas(
-            base_url=settings.canvas_base_url, token=settings.canvas_api_token
-        ) as canvas:
-            grupo = await canvas.criar_assignment_group(
-                str(ano_letivo["canvas_course_id"]), nome=nome_grupo
-            )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"Canvas recusou a criação do grupo: {exc}"
-        )
-
     linha = (
         cliente.table("ciclo")
         .insert(
@@ -114,12 +106,29 @@ async def criar_ciclo(body: CriarCicloBody) -> Ciclo:
                 "ordem": body.ordem,
                 "nome": f"Ciclo {body.ordem} · {body.vestibular} · {ano_letivo['ano']}",
                 "vestibular_alvo": body.vestibular,
-                "canvas_assignment_group_id": str(grupo["id"]),
+                "canvas_estado": "pendente" if body.sincronizar_canvas else escrita.DIVERGENTE,
             },
             returning="representation",
         )
         .execute()
     ).data[0]
+
+    resultado = {"canvas_estado": escrita.DIVERGENTE}
+    if body.sincronizar_canvas:
+        resultado = await escrita.criar_grupo_do_ciclo(cliente, linha["id"])
+
+    auditar(
+        cliente, "ciclo_criado", canal="ciclo",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"ciclo/{linha['id']}",
+        ip=request.client.host if request.client else None,
+        detalhe={
+            "nome": linha["nome"],
+            "sincronizar_canvas": body.sincronizar_canvas,
+            "canvas_estado": resultado["canvas_estado"],
+            "canvas_erro": resultado.get("erro"),
+        },
+    )
 
     return Ciclo(
         id=linha["id"],
@@ -130,6 +139,28 @@ async def criar_ciclo(body: CriarCicloBody) -> Ciclo:
         periodoFim="",
         simuladoIds=[],
     )
+
+
+@router.post("/{ciclo_id}/enviar-canvas", response_model=dict)
+async def enviar_ciclo_ao_canvas(
+    ciclo_id: str,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> dict:
+    """Cria o Assignment Group de um ciclo 'divergente' ou 'falhou'. É o único
+    caminho que tira um ciclo de 'divergente' (docs/18 §2.5)."""
+    cliente = get_supabase()
+    resultado = await escrita.criar_grupo_do_ciclo(cliente, ciclo_id)
+    auditar(
+        cliente, "enviado_ao_canvas", canal="canvas",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"ciclo/{ciclo_id}",
+        ip=request.client.host if request.client else None,
+        detalhe=resultado,
+    )
+    if resultado["canvas_estado"] == "falhou" and resultado.get("erro") == "ciclo não encontrado":
+        raise HTTPException(status_code=404, detail=f"ciclo {ciclo_id} não encontrado")
+    return resultado
 
 
 @router.get("", response_model=list[Ciclo])

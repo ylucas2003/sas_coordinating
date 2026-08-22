@@ -6,19 +6,15 @@ fim de cada upload — frontend nunca calcula nada.
 """
 
 import re
-from datetime import date, time
+from datetime import UTC, date, time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from supabase import Client
 
+from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
-from ..canvas_sync import mapeador
-from ..canvas_sync.agendamento import (
-    carregar_simulado_para_canvas,
-    sincronizar_simulado_no_canvas,
-)
-from ..canvas_sync.cliente import ClienteCanvas
+from ..canvas_sync import escrita, mapeador
 from ..config import get_settings
 from ..lembretes import motor as lembretes
 from ..lembretes.aplicacoes import aluno_simulado
@@ -30,7 +26,6 @@ from ..stats.metricas import (
     corte_aplicavel,
     mapa_metrica_geral_por_simulado,
     recalcular_simulado,
-    recalcular_tudo as recalcular_metricas,
 )
 from ..stats.utils import como_float, nota_real
 from ..supabase_client import get_supabase
@@ -131,35 +126,25 @@ class AgendarSimuladoBody(BaseModel):
         description="Lembrete automático pros alunos na véspera (P3). A regra "
                     "nasce aqui; os disparos, na véspera (docs/13 §1).",
     )
-
-
-async def _tentar_canvas(cliente: Client, simulado_id: str) -> None:
-    """Melhor esforço de criar/atualizar o Assignment — falha vira estado no
-    banco (canvas_estado='falhou'), nunca exceção. É o que faz o agendamento
-    ser híbrido: feedback imediato quando o Canvas responde, limbo visível
-    (e reprocessado pelo sync de 5 min) quando não."""
-    settings = get_settings()
-    if not settings.canvas_base_url or not settings.canvas_api_token:
-        cliente.table("simulado").update(
-            {"canvas_estado": "falhou", "canvas_erro": "Canvas não configurado no servidor"}
-        ).eq("id", simulado_id).execute()
-        return
-    simulado = carregar_simulado_para_canvas(cliente, simulado_id)
-    if simulado is None:
-        return
-    async with ClienteCanvas(
-        base_url=settings.canvas_base_url, token=settings.canvas_api_token
-    ) as canvas:
-        await sincronizar_simulado_no_canvas(cliente, canvas, simulado=simulado)
+    # Sem default: a rota nunca decide sozinha se escreve no Canvas. O
+    # coordenador escolhe a cada ação (docs/18 §2.3). False = o simulado
+    # nasce 'divergente' e o retry automático não o toca.
+    sincronizarCanvas: bool
 
 
 @router.post("/agendar", response_model=Simulado, status_code=201)
-async def agendar_simulado(body: AgendarSimuladoBody) -> Simulado:
-    """Cria um simulado no SAS (fase pré-aplicação) e o Assignment no Canvas.
+async def agendar_simulado(
+    body: AgendarSimuladoBody,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> Simulado:
+    """Cria um simulado no SAS (fase pré-aplicação) e, se pedido, o Assignment.
 
-    Híbrido: a linha nasce sempre (com evento de agenda); a criação no Canvas
-    é tentada na hora e, se falhar, fica em canvas_estado='falhou' com retry
-    automático no sync de 5 min. O corpo da resposta traz o estado.
+    A linha nasce sempre (com evento de agenda). Com `sincronizarCanvas` a
+    criação lá é tentada na hora e, se falhar, fica 'falhou' com retry no
+    sync de 5 min. Sem, fica 'divergente' — o coordenador escolheu, e o retry
+    não mexe (docs/18 §2.5). Os lembretes disparam de qualquer jeito: o
+    motor é do SAS e não depende do Canvas (docs/18 §2.6).
     """
     cliente = get_supabase()
 
@@ -251,7 +236,7 @@ async def agendar_simulado(body: AgendarSimuladoBody) -> Simulado:
                 "tipo": body.tipo,
                 "e_agregado": False,
                 "origem": "sas",
-                "canvas_estado": "pendente",
+                "canvas_estado": "pendente" if body.sincronizarCanvas else escrita.DIVERGENTE,
                 "evento_agenda_id": evento["id"],
             },
             returning="representation",
@@ -259,7 +244,20 @@ async def agendar_simulado(body: AgendarSimuladoBody) -> Simulado:
         .execute()
     ).data[0]
 
-    await _tentar_canvas(cliente, simulado_linha["id"])
+    estado_canvas = escrita.DIVERGENTE
+    if body.sincronizarCanvas:
+        estado_canvas = await escrita.enviar_simulado(cliente, simulado_linha["id"])
+
+    auditar(
+        cliente, "simulado_criado", canal="simulado",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"simulado/{simulado_linha['id']}",
+        ip=request.client.host if request.client else None,
+        detalhe={
+            "nome": nome, "data_aplicacao": body.dataAplicacao.isoformat(),
+            "sincronizar_canvas": body.sincronizarCanvas, "canvas_estado": estado_canvas,
+        },
+    )
 
     # Lembretes por último: são acessórios do evento — se algo falhar aqui, o
     # agendamento já está de pé (docs/12 §4.5).
@@ -464,10 +462,18 @@ class PatchSimuladoBody(BaseModel):
     rotulo_curto: str | None = None
     nome: str | None = None
     data_aplicacao: date | None = None   # remarcar — só simulados origem='sas'
+    # Sem default (docs/18 §2.3). Só tem efeito em simulados origem='sas';
+    # os do Canvas nunca recebem write-back daqui.
+    sincronizar_canvas: bool
 
 
 @router.patch("/{simulado_id}", response_model=Simulado)
-async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado:
+async def editar_simulado(
+    simulado_id: str,
+    body: PatchSimuladoBody,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> Simulado:
     """Edita campos de um simulado.
 
     Campos aceitos: anulado, nota_maxima, rotulo_curto, nome, data_aplicacao.
@@ -557,11 +563,11 @@ async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado
                 ),
             )
 
-    # Edição em simulado do SAS derruba o estado pra 'pendente' até o PUT
-    # confirmar — se o write-back falhar, o selo da UI mostra o descompasso
-    # e o sync de 5 min realinha.
-    if e_do_sas and simulado_atual.get("external_id") is not None:
-        atualizacao["canvas_estado"] = "pendente"
+    # Edição em simulado do SAS: com sincronizar_canvas, cai pra 'pendente'
+    # até o PUT confirmar (falha → 'falhou' → retry do sync). Sem, fica
+    # 'divergente': o coordenador escolheu e o retry não toca (docs/18 §2.5).
+    if e_do_sas:
+        atualizacao["canvas_estado"] = "pendente" if body.sincronizar_canvas else escrita.DIVERGENTE
 
     cliente.table("simulado").update(atualizacao).eq("id", simulado_id).execute()
 
@@ -584,8 +590,23 @@ async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado
                 cliente, simulado_atual["evento_agenda_id"]
             )
 
-    if e_do_sas:
-        await _tentar_canvas(cliente, simulado_id)
+    estado_canvas = atualizacao.get("canvas_estado")
+    if e_do_sas and body.sincronizar_canvas:
+        estado_canvas = await escrita.enviar_simulado(cliente, simulado_id)
+
+    auditar(
+        cliente, "simulado_editado", canal="simulado",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"simulado/{simulado_id}",
+        ip=request.client.host if request.client else None,
+        detalhe={
+            "campos": {k: (str(v) if v is not None else None) for k, v in atualizacao.items()
+                       if k != "canvas_estado"},
+            "origem": simulado_atual.get("origem"),
+            "sincronizar_canvas": body.sincronizar_canvas if e_do_sas else None,
+            "canvas_estado": estado_canvas,
+        },
+    )
 
     anulado_novo = atualizacao.get("anulado", anulado_antes)
     muda_stats = "anulado" in atualizacao or "nota_maxima" in atualizacao
@@ -622,9 +643,15 @@ async def editar_simulado(simulado_id: str, body: PatchSimuladoBody) -> Simulado
 
 
 @router.post("/{simulado_id}/retry-canvas", response_model=Simulado)
-async def retry_canvas(simulado_id: str) -> Simulado:
-    """Botão "tentar de novo" da UI — zera o contador de tentativas (o
-    reprocessamento automático desiste em 5) e tenta o Canvas na hora."""
+async def retry_canvas(
+    simulado_id: str,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> Simulado:
+    """Botão "enviar ao Canvas agora" — serve tanto pra 'falhou' (zera o
+    contador, que o reprocessamento desiste em 5) quanto pra 'divergente'
+    (o coordenador mudou de ideia). É o ÚNICO caminho que tira um simulado
+    de 'divergente': o automático nunca faz isso (docs/18 §2.5)."""
     cliente = get_supabase()
     resp = (
         cliente.table("simulado")
@@ -638,19 +665,40 @@ async def retry_canvas(simulado_id: str) -> Simulado:
     if resp.data[0].get("origem") != "sas":
         raise HTTPException(status_code=422, detail="Simulado do Canvas não precisa de retry.")
 
-    cliente.table("simulado").update({"canvas_tentativas": 0}).eq("id", simulado_id).execute()
-    await _tentar_canvas(cliente, simulado_id)
+    cliente.table("simulado").update(
+        {"canvas_tentativas": 0, "canvas_estado": "pendente"}
+    ).eq("id", simulado_id).execute()
+    estado = await escrita.enviar_simulado(cliente, simulado_id)
+    auditar(
+        cliente, "enviado_ao_canvas", canal="canvas",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"simulado/{simulado_id}",
+        ip=request.client.host if request.client else None,
+        detalhe={"canvas_estado": estado},
+    )
     return await obter_simulado(simulado_id)
 
 
 @router.delete("/{simulado_id}", status_code=200)
-async def cancelar_simulado(simulado_id: str) -> dict:
+async def cancelar_simulado(
+    simulado_id: str,
+    request: Request,
+    sincronizar_canvas: bool = Query(
+        ...,
+        description="Apagar também o Assignment no Canvas. Sem default: é a única "
+                    "operação irreversível das cinco (docs/18 §2.2) — leva as "
+                    "submissions dos alunos junto.",
+    ),
+    coordenador: dict = Depends(get_current_coordenador),
+) -> dict:
     """Desmarca um simulado agendado (origem='sas', sem notas).
 
-    O Assignment é apagado do Canvas (aluno não vê prova fantasma); a linha
-    de simulado sai do banco; o REGISTRO HISTÓRICO de que a prova chegou a
-    ser agendada fica em evento_agenda.cancelado_em — que é também o que P2
-    vai consultar pra matar os disparos pendentes.
+    Com `sincronizar_canvas`, o Assignment é apagado do Canvas (aluno não vê
+    prova fantasma). Sem, ele FICA lá, órfão de propósito — e o external_id
+    vai para a auditoria, porque é o único rastro que sobra dele no SAS. A
+    linha de simulado sai do banco; o REGISTRO HISTÓRICO de que a prova
+    chegou a ser agendada fica em evento_agenda.cancelado_em — que é também
+    o que P2 consulta pra matar os disparos pendentes.
     """
     cliente = get_supabase()
     resp = (
@@ -682,39 +730,58 @@ async def cancelar_simulado(simulado_id: str) -> dict:
             detail="Simulado já tem notas — prova aplicada não se desmarca, se anula.",
         )
 
-    # Canvas primeiro (DELETE é idempotente; 404 lá = já não existe = ok).
-    # Falha aqui aborta ANTES de mexer no banco — senão o Assignment ficaria
-    # órfão no Canvas sem nenhum registro no SAS apontando pra ele.
-    if simulado.get("external_id"):
-        settings = get_settings()
-        course_id = (
-            ((simulado.get("ciclo") or {}).get("ano_letivo") or {})
-        ).get("canvas_course_id")
-        if not course_id or not settings.canvas_base_url or not settings.canvas_api_token:
+    # Canvas primeiro, quando pedido (DELETE é idempotente; 404 lá = já não
+    # existe = ok). Falha aqui aborta ANTES de mexer no banco — senão o
+    # Assignment ficaria órfão SEM o coordenador ter escolhido isso.
+    course_id = (
+        (simulado.get("ciclo") or {}).get("ano_letivo") or {}
+    ).get("canvas_course_id")
+    apagado_no_canvas = False
+    if sincronizar_canvas and simulado.get("external_id"):
+        if not course_id:
             raise HTTPException(
                 status_code=502,
-                detail="Sem acesso ao Canvas pra apagar o Assignment — tente de novo.",
+                detail="Ciclo sem canvas_course_id — não há como apagar o Assignment.",
             )
         try:
-            async with ClienteCanvas(
-                base_url=settings.canvas_base_url, token=settings.canvas_api_token
-            ) as canvas:
-                await canvas.apagar_assignment(str(course_id), str(simulado["external_id"]))
+            await escrita.apagar_simulado(
+                cliente, course_id=str(course_id), external_id=str(simulado["external_id"])
+            )
+        except escrita.CanvasIndisponivel as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         except Exception as exc:
             raise HTTPException(
                 status_code=502, detail=f"Canvas recusou a exclusão: {exc}"
-            )
+            ) from exc
+        apagado_no_canvas = True
 
     cliente.table("metrica_simulado").delete().eq("simulado_id", simulado_id).execute()
     cliente.table("simulado").delete().eq("id", simulado_id).execute()
     if simulado.get("evento_agenda_id"):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         cliente.table("evento_agenda").update(
-            {"cancelado_em": datetime.now(timezone.utc).isoformat()}
+            {"cancelado_em": datetime.now(UTC).isoformat()}
         ).eq("id", simulado["evento_agenda_id"]).execute()
         # Evento morto não lembra ninguém: regras e disparos vivos caem junto
         # (e a guarda no envio cobre quem escapar; docs/12 §4.5).
         lembretes.cancelar_disparos_do_evento(cliente, simulado["evento_agenda_id"])
 
-    return {"status": "cancelado", "simuladoId": simulado_id}
+    auditar(
+        cliente, "simulado_removido", canal="simulado",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"simulado/{simulado_id}",
+        ip=request.client.host if request.client else None,
+        detalhe={
+            "sincronizar_canvas": sincronizar_canvas,
+            "apagado_no_canvas": apagado_no_canvas,
+            # Se ficou órfão no Canvas, este é o único rastro dele no SAS.
+            "canvas_assignment_id": simulado.get("external_id"),
+            "canvas_course_id": course_id,
+        },
+    )
+
+    return {
+        "status": "cancelado", "simuladoId": simulado_id,
+        "apagadoNoCanvas": apagado_no_canvas,
+    }

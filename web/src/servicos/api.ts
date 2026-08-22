@@ -92,18 +92,42 @@ export interface CorpoAgendamento {
   tipo: string;
   lembrarDiasAntes?: number;
   avisarAlunos?: boolean;
+  /** Obrigatório — a API não tem default (docs/18 §2.3). */
+  sincronizarCanvas: boolean;
 }
 
 export const agendarSimulado = (corpo: CorpoAgendamento) =>
   post<Simulado>('/simulados/agendar', corpo);
-export const cancelarSimulado = (id: string) => del<unknown>(`/simulados/${enc(id)}`);
+/** `sincronizarCanvas` apaga também o Assignment — irreversível, leva as submissions. */
+export const cancelarSimulado = (id: string, sincronizarCanvas: boolean) =>
+  del<{ status: string; apagadoNoCanvas: boolean }>(`/simulados/${enc(id)}${qs({ sincronizar_canvas: sincronizarCanvas })}`);
 export const retrySimuladoCanvas = (id: string) =>
   post<unknown>(`/simulados/${enc(id)}/retry-canvas`);
 
 // ─── Notas ───────────────────────────────────────────────────────────────
 
-export const editarNota = (alunoId: string, simuladoId: string, corpo: unknown) =>
-  patch<unknown>(`/notas/${enc(alunoId)}/${enc(simuladoId)}`, corpo);
+/** O que o diálogo devolve; a API fala snake_case. */
+export interface CorpoEdicaoNota {
+  pontuacao: number | null;
+  presente: boolean;
+  sincronizarCanvas: boolean;
+}
+
+export interface RespostaEdicaoNota {
+  alunoId: string;
+  simuladoId: string;
+  pontuacao: number | null;
+  presente: boolean;
+  gravadoNoCanvas: boolean;
+  canvasErro: string | null;
+}
+
+export const editarNota = (alunoId: string, simuladoId: string, corpo: CorpoEdicaoNota) =>
+  patch<RespostaEdicaoNota>(`/notas/${enc(alunoId)}/${enc(simuladoId)}`, {
+    pontuacao: corpo.pontuacao,
+    presente: corpo.presente,
+    sincronizar_canvas: corpo.sincronizarCanvas,
+  });
 
 // ─── Ciclos ──────────────────────────────────────────────────────────────
 
@@ -118,7 +142,9 @@ export const classificacaoCiclo = (id: string, criterio: string, fase?: 1 | 2) =
 export const criteriosDisponiveis = () => get<CriterioClassificacao[]>('/ciclos/criterios/disponiveis');
 export const estatisticasCiclo = (id: string, { comInsights = true } = {}) =>
   get<unknown>(`/ciclos/${enc(id)}/estatisticas${comInsights ? '' : '?com_insights=false'}`);
-export const criarCiclo = (corpo: { ordem: number; vestibular: string; ano?: number }) =>
+export const enviarCicloAoCanvas = (id: string) =>
+  post<{ canvas_estado: string; erro?: string }>(`/ciclos/${enc(id)}/enviar-canvas`, {});
+export const criarCiclo = (corpo: { ordem: number; vestibular: string; ano?: number; sincronizar_canvas: boolean }) =>
   post<Ciclo>('/ciclos', corpo);
 
 // ─── Dimensões ───────────────────────────────────────────────────────────

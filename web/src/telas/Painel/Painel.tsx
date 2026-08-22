@@ -4,6 +4,7 @@ import { Sidebar } from '../../componentes/layout/Sidebar';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { CorpoChips, CorpoLista, PainelFiltros } from '../../componentes/ui/filtros/PainelFiltros';
 import { FichaNota } from '../../componentes/dialogos/FichaNota';
+import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
 import { TabelaPainel } from './TabelaPainel';
 import {
   estatisticasDoSimulado, montarPainel, nomeSede, normMateria,
@@ -92,7 +93,7 @@ export function Painel() {
     if (dados.faseSelecionada !== fase) setFase(dados.faseSelecionada);
   }, [dados.faseSelecionada, fase]);
 
-  async function salvarNota(valores: { pontuacao: number | null; presente: boolean } | null) {
+  async function salvarNota(valores: ValoresNota | null) {
     const alvo = emEdicao;
     setEmEdicao(null);
     if (!valores || !alvo) return;
@@ -279,7 +280,7 @@ function DialogoNota({
   alunoId: string;
   simuladoId: string;
   notasPorSim: Record<string, Array<{ alunoId: string; nota: number | null; presente?: boolean; acertos?: number | null; total?: number | null }>>;
-  onFechar: (valores: { pontuacao: number | null; presente: boolean } | null) => void;
+  onFechar: (valores: ValoresNota | null) => void;
 }) {
   const { data: alunos = [] } = useAlunos();
   const { data: simulados = [] } = useSimulados();

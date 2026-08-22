@@ -9,6 +9,8 @@ import { proximaOrdenacao } from '../../componentes/ui/ordenacao';
 import type { Ordenacao } from '../../componentes/ui/ordenacao';
 import { TabelaSimulados } from '../../componentes/simulados/TabelaSimulados';
 import { AgendarSimulado } from '../../componentes/dialogos/AgendarSimulado';
+import { DialogoComDiff } from '../../componentes/dialogos/DialogoComDiff';
+import { SeloCanvas } from '../../componentes/ui/SeloCanvas';
 import {
   FILTRO_VAZIO, algumFiltroAtivo, aplicarFiltros, contarPorChip, datasDoCalendario,
   montarOpcoes, rotuloCiclo,
@@ -203,11 +205,17 @@ function SecaoAgendados({ agendados }: { agendados: readonly Simulado[] }) {
   const cancelar = useCancelarSimulado();
   const retry = useRetrySimuladoCanvas();
   const [erro, setErro] = useState('');
+  // Desmarcar é a única ação irreversível das cinco escritas no Canvas
+  // (apagar o Assignment leva as submissions junto) — por isso não é um
+  // window.confirm, é o diálogo com a escolha explícita (docs/18 §2.2).
+  const [desmarcando, setDesmarcando] = useState<Simulado | null>(null);
 
-  async function aoCancelar(s: Simulado) {
-    if (!window.confirm(`Desmarcar ${s.nome}? O Assignment será apagado do Canvas.`)) return;
+  async function confirmarCancelamento(sincronizarCanvas: boolean) {
+    const s = desmarcando;
+    setDesmarcando(null);
+    if (!s) return;
     try {
-      await cancelar.mutateAsync(s.id);
+      await cancelar.mutateAsync({ id: s.id, sincronizarCanvas });
     } catch (e) {
       setErro((e as Error).message || 'Falha ao desmarcar.');
     }
@@ -239,7 +247,7 @@ function SecaoAgendados({ agendados }: { agendados: readonly Simulado[] }) {
         </thead>
         <tbody>
           {agendados.map((s) => {
-            const emLimbo = s.canvasEstado !== 'sincronizado';
+            const podeEnviar = s.origem === 'sas' && s.canvasEstado !== 'sincronizado' && s.canvasEstado !== 'pendente';
             return (
               <tr key={s.id} onClick={() => navegar(`/simulados/${s.id}`)}>
                 <td className="sim-tabela__pn">{s.rotuloCurto || '—'}</td>
@@ -249,22 +257,16 @@ function SecaoAgendados({ agendados }: { agendados: readonly Simulado[] }) {
                 <td className="sim-tabela__data">{fmtDataBR(s.dataAplicacao)}</td>
                 <td>{String(s.notaMaxima || '—')}</td>
                 <td>
-                  {emLimbo ? (
-                    <span className="sim-selo-canvas" title={s.canvasErro || ''}>
-                      não está no Canvas
-                    </span>
-                  ) : (
-                    <span className="sim-selo-ok">no Canvas</span>
-                  )}
+                  <SeloCanvas estado={s.canvasEstado} erro={s.canvasErro} />
                 </td>
                 <td onClick={(ev) => ev.stopPropagation()}>
-                  {emLimbo && s.origem === 'sas' && (
+                  {podeEnviar && (
                     <button className="btn-editar" onClick={() => aoRetry(s)}>
-                      Tentar de novo
+                      {s.canvasEstado === 'divergente' ? 'Enviar ao Canvas' : 'Tentar de novo'}
                     </button>
                   )}
                   {s.origem === 'sas' && (
-                    <button className="btn-editar" onClick={() => aoCancelar(s)}>
+                    <button className="btn-editar" onClick={() => setDesmarcando(s)}>
                       Desmarcar
                     </button>
                   )}
@@ -274,6 +276,28 @@ function SecaoAgendados({ agendados }: { agendados: readonly Simulado[] }) {
           })}
         </tbody>
       </table>
+
+      {desmarcando && (
+        <DialogoComDiff
+          titulo="Desmarcar simulado"
+          subtitulo={desmarcando.nome}
+          mudancas={[{ campo: 'Simulado', de: 'agendado', para: 'desmarcado' }]}
+          canvas={
+            desmarcando.canvasEstado === 'sincronizado'
+              ? {
+                  efeito: 'apaga o Assignment no Canvas, com as submissions dos alunos.',
+                  irreversivel: true,
+                }
+              : undefined
+          }
+          onCancelar={() => setDesmarcando(null)}
+          onVoltar={() => setDesmarcando(null)}
+          onSalvar={() => undefined}
+          onConfirmar={confirmarCancelamento}
+        >
+          {null}
+        </DialogoComDiff>
+      )}
     </section>
   );
 }

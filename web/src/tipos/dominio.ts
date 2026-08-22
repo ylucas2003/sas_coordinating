@@ -96,7 +96,7 @@ export interface Simulado {
    * 'falhou' significam que o Assignment ainda não existe ou não reflete o
    * SAS — a UI mostra o limbo, e `canvasErro` carrega o motivo da última falha.
    */
-  canvasEstado: 'sincronizado' | 'pendente' | 'falhou';
+  canvasEstado: EstadoCanvas;
   canvasErro: string | null;
   media: number | null;
   mediana: number | null;
@@ -249,6 +249,12 @@ export interface AlunoSimilar {
 // ─── Classificação por critério ──────────────────────────────────────────
 // O servidor é dono da régua (docs/18 §1.2). O front recebe veredito, motivo,
 // cor e posição prontos e só desenha — nenhuma regra de corte vive aqui.
+
+/**
+ * Estado de um objeto em relação ao Canvas. `divergente` = o coordenador
+ * escolheu não enviar; o retry automático nunca o toca (docs/18 §2.5).
+ */
+export type EstadoCanvas = 'sincronizado' | 'pendente' | 'falhou' | 'divergente';
 
 export type TomNota = 'verde' | 'ambar' | 'vermelho';
 

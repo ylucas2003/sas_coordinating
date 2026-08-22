@@ -4,7 +4,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Histograma } from '../../componentes/ui/Histograma';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { EdicaoNota } from '../../componentes/dialogos/EdicaoNota';
+import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
 import { EdicaoSimulado } from '../../componentes/dialogos/EdicaoSimulado';
+import { SeloCanvas } from '../../componentes/ui/SeloCanvas';
 import type { PatchSimulado } from '../../componentes/dialogos/EdicaoSimulado';
 import {
   useHistogramaSimulado, useNotasSimulado, useSimulado,
@@ -68,7 +70,7 @@ export function SimuladoFicha() {
     }
   }
 
-  async function salvarNota(valores: { pontuacao: number | null; presente: boolean } | null) {
+  async function salvarNota(valores: ValoresNota | null) {
     const linha = notaEmEdicao;
     setNotaEmEdicao(null);
     if (!valores || !linha?.alunoId) return;
@@ -89,7 +91,14 @@ export function SimuladoFicha() {
             {simulado.id}
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-            <h1 className="screen-title" style={{ margin: 0 }}>{simulado.nome}</h1>
+            <h1 className="screen-title" style={{ margin: 0 }}>
+              {simulado.nome}
+              {simulado.origem === 'sas' && (
+                <span style={{ marginLeft: 10, verticalAlign: 'middle' }}>
+                  <SeloCanvas estado={simulado.canvasEstado} erro={simulado.canvasErro} />
+                </span>
+              )}
+            </h1>
             {simulado.anulado && <span className="tag tone-anulado">Anulado</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
@@ -147,6 +156,7 @@ export function SimuladoFicha() {
           rotuloAtual={simulado.rotuloCurto}
           notaMaximaAtual={simulado.notaMaxima}
           anuladoAtual={simulado.anulado}
+          origemSas={simulado.origem === 'sas'}
           onFechar={salvarSimulado}
         />
       )}

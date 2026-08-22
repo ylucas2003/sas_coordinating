@@ -37,7 +37,8 @@ export function EdicaoNota({
       mudancas={mudancas}
       onCancelar={() => onFechar(null)}
       onVoltar={() => setMudancas(null)}
-      onConfirmar={() => onFechar(valores)}
+      canvas={{ efeito: 'atualiza a nota da submission do aluno no Canvas.' }}
+      onConfirmar={(sincronizarCanvas) => onFechar(valores && { ...valores, sincronizarCanvas })}
       onSalvar={() => {
         const r = form.validar();
         // Inválido: fica no formulário com o campo marcado. Sem mudanças:

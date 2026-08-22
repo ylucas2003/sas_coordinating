@@ -7,7 +7,7 @@ interface Props {
   onFechar: (criado: Ciclo | null) => void;
 }
 
-/** Diálogo "Novo ciclo" — cria o Assignment Group no Canvas junto. */
+/** Diálogo "Novo ciclo" — cria o Assignment Group no Canvas junto, se pedido. */
 export function CriarCiclo({ onFechar }: Props) {
   const criarCiclo = useCriarCiclo();
   const refOrdem = useRef<HTMLInputElement>(null);
@@ -15,6 +15,8 @@ export function CriarCiclo({ onFechar }: Props) {
   const [ordem, setOrdem] = useState('');
   const [vestibular, setVestibular] = useState('ITA');
   const [erro, setErro] = useState('');
+  // A escolha do coordenador (docs/18 §2.1).
+  const [sincronizarCanvas, setSincronizarCanvas] = useState(true);
 
   useEffect(() => {
     refOrdem.current?.focus();
@@ -28,7 +30,7 @@ export function CriarCiclo({ onFechar }: Props) {
       return;
     }
     try {
-      onFechar(await criarCiclo.mutateAsync({ ordem: n, vestibular }));
+      onFechar(await criarCiclo.mutateAsync({ ordem: n, vestibular, sincronizar_canvas: sincronizarCanvas }));
     } catch (e) {
       setErro((e as Error).message || 'Falha ao criar ciclo.');
     }
@@ -37,7 +39,7 @@ export function CriarCiclo({ onFechar }: Props) {
   return (
     <Dialogo
       titulo="Novo ciclo"
-      subtitulo="Cria o Assignment Group no Canvas junto"
+      subtitulo={sincronizarCanvas ? 'Cria o Assignment Group no Canvas junto' : 'Só no SAS — o grupo no Canvas pode ser criado depois'}
       onFechar={() => onFechar(null)}
       rodape={
         <>
@@ -67,7 +69,23 @@ export function CriarCiclo({ onFechar }: Props) {
         </Campo>
       </Linha2>
 
-      <Campo label="Vai criar no Canvas:">
+      <div className="dialog__campo">
+        <label className="agendar__lembrete-check agendar__lembrete-check--solo">
+          <input
+            type="checkbox"
+            checked={sincronizarCanvas}
+            onChange={(e) => setSincronizarCanvas(e.target.checked)}
+          />
+          Criar também no Canvas
+        </label>
+        <span className="agendar__ajuda">
+          {sincronizarCanvas
+            ? 'O Assignment Group nasce agora. Simulados agendados aqui vão para ele.'
+            : 'Sem grupo no Canvas, os simulados deste ciclo também ficam só no SAS até você enviar o ciclo.'}
+        </span>
+      </div>
+
+      <Campo label={sincronizarCanvas ? 'Vai criar no Canvas:' : 'Nome do grupo (quando enviar):'}>
         <code className="agendar__preview-nome">{`${ordem || '?'}° CICLO - ${vestibular}`}</code>
       </Campo>
 
