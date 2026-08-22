@@ -7,7 +7,7 @@ import { CorpoChips, PainelFiltros } from '../../componentes/ui/filtros/PainelFi
 import { Kpi } from '../../componentes/ui/Kpi';
 import { useAcessosDeAlunos, useCoordenadores } from '../../hooks/consultas';
 import {
-  useCriarCoordenador, useEditarCoordenador, useRedefinirSenhaCoordenador,
+  useCriarCoordenador, useEditarCoordenador, useLigarCoordenadorAoCanvas, useRedefinirSenhaCoordenador,
 } from '../../hooks/mutacoes';
 import * as sessao from '../../servicos/sessao';
 import type { AcessoAluno, UsuarioCoordenacao } from '../../tipos/dominio';
@@ -181,7 +181,9 @@ export function Administracao() {
 function LinhaCoordenador({ usuario: u, onSenha }: { usuario: UsuarioCoordenacao; onSenha: (senha: string) => void }) {
   const editar = useEditarCoordenador();
   const redefinir = useRedefinirSenhaCoordenador();
+  const ligar = useLigarCoordenadorAoCanvas();
   const souEu = u.nome === sessao.nome();
+  const [erroCanvas, setErroCanvas] = useState('');
 
   async function alternarAtivo() {
     const acao = u.ativo ? 'Desativar' : 'Reativar';
@@ -195,12 +197,20 @@ function LinhaCoordenador({ usuario: u, onSenha }: { usuario: UsuarioCoordenacao
     await editar.mutateAsync({ id: u.id, corpo: { nome: nome.trim() } });
   }
 
-  // O id do Canvas é o que deixa a conta entrar pelo SSO (docs/18 §4.2).
-  // Vem de Admin → Pessoas no Canvas, ou da URL do perfil (/users/<id>).
+  // O SAS procura o id do Canvas pelo e-mail da conta — a pessoa não digita
+  // número nenhum. Se o e-mail não existir lá, o erro diz isso.
   async function ligarCanvas() {
-    const id = window.prompt('ID do usuário no Canvas (número da URL /users/<id>). Vazio desliga o SSO desta conta:', u.canvas_user_id ?? '');
-    if (id === null) return;
-    await editar.mutateAsync({ id: u.id, corpo: { canvas_user_id: id.trim() } });
+    setErroCanvas('');
+    try {
+      await ligar.mutateAsync(u.id);
+    } catch (e) {
+      setErroCanvas((e as Error).message || 'Não achei no Canvas.');
+    }
+  }
+
+  async function desligarCanvas() {
+    if (!window.confirm(`Desligar o login pelo Canvas de ${u.nome}? A conta volta a entrar só por senha.`)) return;
+    await editar.mutateAsync({ id: u.id, corpo: { canvas_user_id: '' } });
   }
 
   async function novaSenha() {
@@ -215,14 +225,17 @@ function LinhaCoordenador({ usuario: u, onSenha }: { usuario: UsuarioCoordenacao
       <td>{u.email}</td>
       <td>
         {u.canvas_user_id
-          ? <span className="sim-selo-ok" title={`canvas_user_id ${u.canvas_user_id}`}>SSO ligado</span>
-          : <span className="sim-selo-canvas">só senha</span>}
+          ? <span className="sim-selo-ok" title={`id no Canvas: ${u.canvas_user_id}`}>entra pelo Canvas</span>
+          : <span className="sim-selo-canvas" title="Liga sozinho no primeiro login pelo Canvas, se o e-mail for o mesmo.">só senha</span>}
+        {erroCanvas && <div className="agendar__erro" style={{ marginTop: 4 }}>{erroCanvas}</div>}
       </td>
       <td>{fmtQuando(u.ultimo_login_em)}</td>
       <td>{u.ativo ? <span className="sim-selo-ok">ativa</span> : <span className="sim-selo-canvas">desativada</span>}</td>
       <td>
         <button className="btn-editar" onClick={renomear}>Renomear</button>
-        <button className="btn-editar" onClick={ligarCanvas}>Canvas</button>
+        {u.canvas_user_id
+          ? <button className="btn-editar" onClick={desligarCanvas}>Desligar Canvas</button>
+          : <button className="btn-editar" disabled={ligar.isPending} onClick={ligarCanvas}>{ligar.isPending ? 'Procurando…' : 'Ligar ao Canvas'}</button>}
         <button className="btn-editar" onClick={novaSenha}>Nova senha</button>
         {!souEu && (
           <button className="btn-editar" onClick={alternarAtivo}>{u.ativo ? 'Desativar' : 'Reativar'}</button>
@@ -248,16 +261,12 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
   const criar = useCriarCoordenador();
   const [email, setEmail] = useState('');
   const [nome, setNome] = useState('');
-  const [canvasId, setCanvasId] = useState('');
   const [erro, setErro] = useState('');
 
   async function salvar() {
     setErro('');
     try {
-      const r = await criar.mutateAsync({
-        email: email.trim(), nome: nome.trim(),
-        canvas_user_id: canvasId.trim() || undefined,
-      });
+      const r = await criar.mutateAsync({ email: email.trim(), nome: nome.trim() });
       onFechar({ email: r.email, senha: r.senha_inicial });
     } catch (e) {
       setErro((e as Error).message || 'Falha ao criar.');
@@ -286,9 +295,9 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
           <input className="dialog__input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Campo>
       </Linha2>
-      <Campo label="ID no Canvas (opcional — liga o login pelo Canvas)">
-        <input className="dialog__input" inputMode="numeric" placeholder="ex.: 7387" value={canvasId} onChange={(e) => setCanvasId(e.target.value)} />
-      </Campo>
+      <p className="agendar__ajuda">
+        Use o mesmo e-mail do Canvas: o SAS liga o login pelo Canvas sozinho — agora, ou na primeira vez que a pessoa entrar por ele.
+      </p>
       {erro && <div className="agendar__erro">{erro}</div>}
     </Dialogo>
   );

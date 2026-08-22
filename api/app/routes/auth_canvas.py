@@ -46,6 +46,7 @@ from jose import JWTError, jwt
 
 from ..auditoria import registrar as auditar
 from ..auth import ALGORITHM, criar_token
+from ..canvas_sync import identidade
 from ..config import get_settings
 from ..supabase_client import get_supabase
 
@@ -192,6 +193,13 @@ async def callback(
     cliente = get_supabase()
     token, tipo = _sessao_para(cliente, canvas_user_id)
     if token is None:
+        # Ninguém tem esse id ainda. Se o e-mail do Canvas bater com uma conta
+        # da coordenação, liga agora — é o que dispensa qualquer pessoa de
+        # procurar o id na URL do perfil (canvas_sync/identidade.py).
+        ligado = await _ligar_coordenador_pelo_email(cliente, canvas_user_id, ip)
+        if ligado:
+            token, tipo = _sessao_para(cliente, canvas_user_id)
+    if token is None:
         auditar(cliente, "login_falhou", canal="acesso", ator_tipo="canvas",
                 ator_id=canvas_user_id, ip=ip, detalhe={"motivo": "sem_conta_no_sas"})
         return RedirectResponse("/login?canvas=sem-conta")
@@ -232,3 +240,29 @@ def _sessao_para(cliente, canvas_user_id: str) -> tuple[str | None, str | None]:
             {"sub": a["id"], "tipo": "aluno", "nome": a["nome"], "aluno_id": a["id"]}
         ), "aluno"
     return None, None
+
+
+async def _ligar_coordenador_pelo_email(cliente, canvas_user_id: str, ip: str | None) -> bool:
+    """Primeiro login pelo Canvas de uma conta ainda sem canvas_user_id:
+    casa pelo e-mail e grava. Só coordenação — aluno já vem ligado do sync,
+    e um aluno sem linha é recusa mesmo (o SAS decide quem entra)."""
+    email = await identidade.email_pelo_id(canvas_user_id)
+    if not email:
+        return False
+    conta = (
+        cliente.table("usuario_coordenacao")
+        .select("id, ativo, canvas_user_id")
+        .eq("email", email)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not conta or not conta[0].get("ativo") or conta[0].get("canvas_user_id"):
+        return False
+    cliente.table("usuario_coordenacao").update({"canvas_user_id": canvas_user_id}).eq(
+        "id", conta[0]["id"]
+    ).execute()
+    auditar(cliente, "coordenador_editado", canal="acesso", ator_tipo="coordenador",
+            ator_id=conta[0]["id"], recurso=f"coordenador/{conta[0]['id']}", ip=ip,
+            detalhe={"canvas_user_id": canvas_user_id, "via": "primeiro login pelo canvas"})
+    return True

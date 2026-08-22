@@ -74,3 +74,42 @@ class TestSessaoPara:
     def test_identidade_sem_conta_e_recusada(self):
         """O Canvas diz quem é; o SAS decide quem entra. Sem linha, sem sessão."""
         assert auth_canvas._sessao_para(FakeCliente(self._db()), "999") == (None, None)
+
+
+class TestLigarPeloEmail:
+    """Primeiro login pelo Canvas de quem ainda não tem canvas_user_id: casa
+    pelo e-mail e grava. O Canvas é simulado — o que se prova é a regra."""
+
+    def _db(self):
+        return {"usuario_coordenacao": {
+            "c1": {"id": "c1", "email": "leo@ari.com", "ativo": True, "canvas_user_id": None},
+            "c2": {"id": "c2", "email": "ex@ari.com", "ativo": False, "canvas_user_id": None},
+            "c3": {"id": "c3", "email": "ja@ari.com", "ativo": True, "canvas_user_id": "55"},
+        }, "evento_auditoria": {}}
+
+    def _com_email(self, monkeypatch, email):
+        async def fake(_id): return email
+        monkeypatch.setattr(auth_canvas.identidade, "email_pelo_id", fake)
+
+    def test_liga_conta_ativa_sem_id(self, monkeypatch):
+        import asyncio
+        db = self._db(); self._com_email(monkeypatch, "leo@ari.com")
+        assert asyncio.run(auth_canvas._ligar_coordenador_pelo_email(FakeCliente(db), "7387", None))
+        assert db["usuario_coordenacao"]["c1"]["canvas_user_id"] == "7387"
+
+    def test_nao_liga_inativa(self, monkeypatch):
+        import asyncio
+        db = self._db(); self._com_email(monkeypatch, "ex@ari.com")
+        assert not asyncio.run(auth_canvas._ligar_coordenador_pelo_email(FakeCliente(db), "1", None))
+
+    def test_nao_sobrescreve_quem_ja_tem_id(self, monkeypatch):
+        """Dois usuários do Canvas com o mesmo e-mail não podem disputar uma conta."""
+        import asyncio
+        db = self._db(); self._com_email(monkeypatch, "ja@ari.com")
+        assert not asyncio.run(auth_canvas._ligar_coordenador_pelo_email(FakeCliente(db), "99", None))
+        assert db["usuario_coordenacao"]["c3"]["canvas_user_id"] == "55"
+
+    def test_canvas_fora_do_ar_nao_liga(self, monkeypatch):
+        import asyncio
+        db = self._db(); self._com_email(monkeypatch, None)
+        assert not asyncio.run(auth_canvas._ligar_coordenador_pelo_email(FakeCliente(db), "7387", None))

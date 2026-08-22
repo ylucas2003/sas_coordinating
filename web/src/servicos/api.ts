@@ -207,6 +207,9 @@ export const criarCoordenador = (corpo: { email: string; nome: string; canvas_us
   post<UsuarioCoordenacao & { senha_inicial: string }>('/administracao/coordenadores', corpo);
 export const editarCoordenador = (id: string, corpo: { nome?: string; ativo?: boolean; canvas_user_id?: string }) =>
   patch<UsuarioCoordenacao>(`/administracao/coordenadores/${enc(id)}`, corpo);
+/** O SAS procura o id do Canvas pelo e-mail da conta — ninguém digita número. */
+export const ligarCoordenadorAoCanvas = (id: string) =>
+  post<{ id: string; canvas_user_id: string }>(`/administracao/coordenadores/${enc(id)}/ligar-canvas`, {});
 export const redefinirSenhaCoordenador = (id: string) =>
   post<{ id: string; senha_nova: string }>(`/administracao/coordenadores/${enc(id)}/redefinir-senha`, {});
 export const acessosDeAlunos = () => get<PainelAcessos>('/administracao/alunos-acesso');

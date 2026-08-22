@@ -106,6 +106,14 @@ export function useEditarCoordenador() {
   });
 }
 
+export function useLigarCoordenadorAoCanvas() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.ligarCoordenadorAoCanvas(id),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
 export function useRedefinirSenhaCoordenador() {
   const queryClient = useQueryClient();
   return useMutation({

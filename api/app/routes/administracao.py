@@ -32,6 +32,7 @@ from pydantic import BaseModel, field_validator
 
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador, hash_senha
+from ..canvas_sync import identidade
 from ..supabase_client import get_supabase
 
 router = APIRouter(
@@ -114,13 +115,18 @@ async def criar_coordenador(
     if existente.data:
         raise HTTPException(status_code=409, detail=f"Já existe conta para {email}.")
 
+    # Ninguém precisa saber o id do Canvas: com o e-mail o SAS pergunta lá.
+    # Se o Canvas não souber (ou souber dois), fica em branco e o primeiro
+    # login pelo Canvas liga sozinho pelo e-mail (auth_canvas.py).
+    canvas_user_id = body.canvas_user_id or await identidade.id_pelo_email(email)
+
     senha = secrets.token_urlsafe(12)
     linha = (
         cliente.table("usuario_coordenacao")
         .insert(
             {
                 "email": email, "nome": body.nome, "senha_hash": hash_senha(senha), "ativo": True,
-                "canvas_user_id": body.canvas_user_id or None,
+                "canvas_user_id": canvas_user_id,
             },
             returning="representation",
         )
@@ -131,10 +137,11 @@ async def criar_coordenador(
         cliente, "coordenador_criado", canal="acesso",
         ator_tipo="coordenador", ator_id=coordenador.get("sub"),
         recurso=f"coordenador/{linha['id']}", ip=_ip(request),
-        detalhe={"email": email, "nome": body.nome},
+        detalhe={"email": email, "nome": body.nome, "canvas_user_id": canvas_user_id},
     )
     return {
         "id": linha["id"], "email": email, "nome": body.nome, "ativo": True,
+        "canvas_user_id": canvas_user_id,
         # Única vez que a senha aparece. Não vai para a auditoria.
         "senha_inicial": senha,
     }
@@ -178,6 +185,42 @@ async def editar_coordenador(
     )
     linha = atualizado[0]
     return {k: linha[k] for k in ("id", "email", "nome", "ativo", "ultimo_login_em") if k in linha}
+
+
+@router.post("/coordenadores/{usuario_id}/ligar-canvas")
+async def ligar_canvas(
+    usuario_id: str,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> dict:
+    """Procura o id do Canvas pelo e-mail da conta e grava. É o botão
+    "Ligar ao Canvas" — a pessoa não digita número nenhum."""
+    cliente = get_supabase()
+    linha = (
+        cliente.table("usuario_coordenacao").select("id, email").eq("id", usuario_id)
+        .limit(1).execute().data
+    )
+    if not linha:
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+    canvas_user_id = await identidade.id_pelo_email(linha[0]["email"])
+    if not canvas_user_id:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"O Canvas não tem exatamente um usuário com o e-mail {linha[0]['email']}. "
+                "Confira se o e-mail da conta é o mesmo do Canvas."
+            ),
+        )
+    cliente.table("usuario_coordenacao").update({"canvas_user_id": canvas_user_id}).eq(
+        "id", usuario_id
+    ).execute()
+    auditar(
+        cliente, "coordenador_editado", canal="acesso",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"coordenador/{usuario_id}", ip=_ip(request),
+        detalhe={"canvas_user_id": canvas_user_id, "via": "busca por e-mail"},
+    )
+    return {"id": usuario_id, "canvas_user_id": canvas_user_id}
 
 
 @router.post("/coordenadores/{usuario_id}/redefinir-senha")
