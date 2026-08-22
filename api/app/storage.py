@@ -13,6 +13,7 @@ só muda de onde os bytes são lidos.
 
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
@@ -31,6 +32,26 @@ _PADRAO_CARACTERE_INVALIDO_STORAGE = re.compile(r"[^A-Za-z0-9._-]+")
 # permissão de download nem vice-versa.
 _ALGORITMO_TOKEN = "HS256"
 _TIPO_TOKEN_DOWNLOAD = "download_arquivo"
+
+
+def _segredo_download() -> str:
+    """Chave dedicada ao token de download, derivada da JWT_SECRET_KEY.
+
+    Antes este token era assinado com a `jwt_secret_key` crua — a mesma da
+    sessão. Como o aluno recebe o token em claro (a URL vem no corpo de
+    `GET /me/simulado/{id}/arquivo`), ele tinha na mão um JWT que o verificador
+    de sessão aceitava. O `tipo` no payload era a única separação, e só o lado
+    do download a conferia.
+
+    Derivar em vez de criar uma env nova é deliberado: não exige coordenar
+    variável no deploy da VPS, e um token assinado com esta chave é
+    matematicamente incapaz de validar contra a `jwt_secret_key`. O prefixo é a
+    separação de domínio; o `v1` existe para permitir rotacionar só este token
+    no futuro sem tocar na sessão.
+    """
+    return hashlib.sha256(
+        b"sas:download-arquivo:v1|" + get_settings().jwt_secret_key.encode()
+    ).hexdigest()
 
 
 def _slugificar_nome_arquivo(nome: str) -> str:
@@ -129,7 +150,7 @@ def gerar_url_download_arquivo(
                 "nome": nome_download,
                 "exp": datetime.now(timezone.utc) + timedelta(seconds=expira_em_segundos),
             },
-            settings.jwt_secret_key,
+            _segredo_download(),
             algorithm=_ALGORITMO_TOKEN,
         )
         base = settings.api_base_url.rstrip("/")
@@ -146,9 +167,7 @@ def ler_token_download(token: str) -> tuple[str, str]:
 
     Levanta `jose.JWTError` se o token for inválido/expirado.
     """
-    payload = jwt.decode(
-        token, get_settings().jwt_secret_key, algorithms=[_ALGORITMO_TOKEN]
-    )
+    payload = jwt.decode(token, _segredo_download(), algorithms=[_ALGORITMO_TOKEN])
     if payload.get("tipo") != _TIPO_TOKEN_DOWNLOAD:
         raise ValueError("Token não é de download de arquivo.")
     return payload["caminho"], payload["nome"]

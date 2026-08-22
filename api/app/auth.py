@@ -20,6 +20,15 @@ from .config import get_settings
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 horas
 
+# Os únicos `tipo` que representam uma SESSÃO de gente. Existe porque a
+# `jwt_secret_key` não assina só sessão: `app/storage.py` a usava para o token
+# de download de arquivo, e um token de download reapresentado como Bearer
+# passava por `get_current_user` — que só olhava assinatura e `exp` — e caía no
+# `else` do chat, ganhando o perfil de COORDENAÇÃO com as tools que leem
+# qualquer aluno. Assinatura válida não é identidade válida; o `tipo` é que diz
+# para que o token serve.
+TIPOS_DE_SESSAO = frozenset({"aluno", "coordenador"})
+
 # Hash de senha: pbkdf2_sha256$<iteracoes>$<salt_hex>$<hash_hex>.
 # O prefixo identifica algoritmo+parâmetros gravados no próprio hash, então
 # mudar as constantes abaixo não invalida senhas existentes.
@@ -82,12 +91,26 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Não autenticado"
         )
     try:
-        return _decodificar(credentials.credentials)
+        payload = _decodificar(credentials.credentials)
     except JWTError:
+        # `from None`: o motivo exato (assinatura, algoritmo, expiração) é
+        # informação para o log, não para quem apresentou o token.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido ou expirado",
+        ) from None
+
+    # Fail-closed: tipo desconhecido, ausente ou de capacidade (download) não
+    # abre sessão. É aqui, e não em cada consumidor, porque a garantia tem que
+    # valer para toda rota que dependa desta função — inclusive as que ainda
+    # não existem.
+    if payload.get("tipo") not in TIPOS_DE_SESSAO:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido ou expirado",
         )
+
+    return payload
 
 
 async def get_current_aluno(user: dict = Depends(get_current_user)) -> dict:

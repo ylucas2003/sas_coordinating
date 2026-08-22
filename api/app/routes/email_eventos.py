@@ -13,6 +13,7 @@ inválido — reversível com um DELETE, e sem vazar nada.
 
 from __future__ import annotations
 
+import hmac
 from typing import Any
 
 import httpx
@@ -30,13 +31,21 @@ router = APIRouter(tags=["email"])
 @router.post("/email/eventos-ses/{token}")
 async def eventos_ses(token: str, request: Request) -> dict[str, Any]:
     settings = get_settings()
-    if not settings.ses_webhook_token or token != settings.ses_webhook_token:
+    # `compare_digest` e não `!=`: a comparação byte a byte do Python sai no
+    # primeiro caractere diferente, e esse tempo é medível de fora — o mesmo
+    # motivo pelo qual `exigir_scheduler_secret` já usa (app/auth.py).
+    if not settings.ses_webhook_token or not hmac.compare_digest(
+        token, settings.ses_webhook_token
+    ):
         raise HTTPException(status_code=404, detail="não encontrado")
 
     payload: dict[str, Any] = await request.json()
 
+    # Com o ARN configurado, exigir IGUALDADE. Antes o `None` estava na tupla
+    # de aceitos, então um corpo sem `TopicArn` passava pela conferência que
+    # existe justamente para amarrar o evento ao tópico esperado.
     arn_esperado = settings.ses_sns_topic_arn
-    if arn_esperado and payload.get("TopicArn") not in (None, arn_esperado):
+    if arn_esperado and payload.get("TopicArn") != arn_esperado:
         raise HTTPException(status_code=403, detail="tópico inesperado")
 
     tipo = payload.get("Type")
