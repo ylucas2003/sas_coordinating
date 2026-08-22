@@ -1,6 +1,6 @@
 """Despachante do motor de lembretes — o tick.
 
-O EventBridge chama /cobranca/verificar (path histórico, ver cobranca.py);
+O cron do VPS chama /disparos/processar de hora em hora;
 esta rota é o nome verdadeiro da operação e o alvo dos curls manuais. O sync
 de 5 min também chama o despachante no fim da sua rodada (canvas_sync/rotas.py)
 — com o tick horário sozinho, um lembrete das 18:00 materializado às 18:05
@@ -31,7 +31,7 @@ _trava_despacho = threading.Lock()
 
 async def despachar_se_livre() -> dict[str, Any]:
     """Uma rodada, se ninguém estiver rodando. Ponto único de entrada — usado
-    pela rota, pelo delegate de /cobranca/verificar e pelo fim do sync."""
+    pela rota e pelo fim do sync do Canvas."""
     if not _trava_despacho.acquire(blocking=False):
         return {"status": "ignorado", "motivo": "despacho anterior ainda em andamento"}
     try:

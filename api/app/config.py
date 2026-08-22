@@ -16,8 +16,11 @@ class Settings(BaseSettings):
     # docker-compose.yml), então nada muda localmente.
     app_env: str = "production"
 
+    # Modo Supabase — MORTO desde 13/08/2026, quando o projeto virou NXDOMAIN.
+    # Mantidas porque `supabase_client.py` e `storage.py` ainda têm o ramo de
+    # fallback; removê-lo é mexer na camada de dados e merece mudança própria.
+    # Em produção as três ficam VAZIAS: é o que mantém o modo PostgREST ativo.
     supabase_url: str = ""
-    supabase_anon_key: str = ""
     supabase_service_key: str = ""
     supabase_db_url: str = ""   # usado só pelo migration runner
 
