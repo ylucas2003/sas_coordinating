@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { SeloCanvas } from '../ui/SeloCanvas';
 import { TheadOrdenavel } from '../ui/TabelaOrdenavel';
 import { ordenarLinhas } from '../ui/ordenacao';
 import type { ColunaTabela, Ordenacao } from '../ui/ordenacao';
@@ -96,15 +97,12 @@ export function TabelaSimulados({
             <tr key={s.id} onClick={() => navegar(`/simulados/${s.id}`)}>
               <td className="sim-tabela__pn">
                 {s.rotuloCurto || '—'}
-                {/* Simulado agendado pelo SAS que ainda não existe (ou não
-                    reflete o SAS) no Canvas — limbo visível. Estado normal
-                    não ganha pixel. */}
+                {/* Simulado do SAS que não reflete o Canvas — limbo ou escolha
+                    ('divergente'). Estado normal não ganha pixel; a ação de
+                    enviar fica na ficha (Ver →). */}
                 {s.canvasEstado && s.canvasEstado !== 'sincronizado' && (
-                  <span
-                    className="sim-selo-canvas"
-                    title={s.canvasErro || 'Ainda não está no Canvas — retry automático a cada 5 min'}
-                  >
-                    não está no Canvas
+                  <span style={{ marginLeft: 8 }}>
+                    <SeloCanvas estado={s.canvasEstado} erro={s.canvasErro} />
                   </span>
                 )}
               </td>

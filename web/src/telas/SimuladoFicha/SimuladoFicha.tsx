@@ -12,7 +12,7 @@ import {
   useHistogramaSimulado, useNotasSimulado, useSimulado,
   useSimuladoPorMateria, useSimuladoPorSede,
 } from '../../hooks/consultas';
-import { useEditarNota, useEditarSimulado } from '../../hooks/mutacoes';
+import { useEditarNota, useEditarSimulado, useRetrySimuladoCanvas } from '../../hooks/mutacoes';
 import type { NotaSimulado, QuebraSimulado, Simulado } from '../../tipos/dominio';
 import { fmtNota } from '../../util/formato';
 
@@ -29,6 +29,7 @@ export function SimuladoFicha() {
   const { data: notas = [] } = useNotasSimulado(id);
 
   const editarSimulado = useEditarSimulado();
+  const enviarCanvas = useRetrySimuladoCanvas();
   const editarNota = useEditarNota();
 
   const [editandoSimulado, setEditandoSimulado] = useState(false);
@@ -108,6 +109,25 @@ export function SimuladoFicha() {
             <button className="btn-editar-sim" onClick={() => setEditandoSimulado(true)}>
               ✏ Editar simulado
             </button>
+            {/* O único caminho que tira um simulado de 'divergente' — o retry
+                automático nunca faz isso (docs/18 §2.5). Vale também para
+                'falhou', como "tentar de novo". */}
+            {simulado.origem === 'sas' && (simulado.canvasEstado === 'divergente' || simulado.canvasEstado === 'falhou') && (
+              <button
+                className="btn-editar-sim"
+                disabled={enviarCanvas.isPending}
+                onClick={async () => {
+                  setErroSalvar('');
+                  try {
+                    await enviarCanvas.mutateAsync(simulado.id);
+                  } catch (e) {
+                    setErroSalvar((e as Error).message || 'Falha ao enviar ao Canvas.');
+                  }
+                }}
+              >
+                {enviarCanvas.isPending ? 'Enviando…' : simulado.canvasEstado === 'divergente' ? '↑ Enviar ao Canvas' : '↻ Tentar de novo no Canvas'}
+              </button>
+            )}
           </div>
         </div>
 
