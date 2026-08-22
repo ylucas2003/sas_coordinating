@@ -2,6 +2,29 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "SAS: instalar dependências",
+      "type": "shell",
+      // Uma vez por máquina (ou quando package.json / requirements mudarem):
+      //   web  → node_modules, via npm ci (respeita o lockfile)
+      //   api  → .venv com requirements + requirements-dev (ruff, pytest)
+      // As imagens do compose instalam as deles sozinhas no `up`.
+      //
+      // python3.11 EXPLÍCITO: o `python3` do Homebrew é 3.14, que não tem
+      // wheel de pydantic-core — `python3 -m venv` num .venv existente o
+      // re-apontava pro 3.14 e quebrava a instalação. A imagem da API
+      // (api/Dockerfile) também é 3.11; o venv do host tem que bater.
+      "command": "cd web && npm ci && cd ../api && (command -v python3.11 >/dev/null || { echo 'instale: brew install python@3.11'; exit 1; }) && [ -x .venv/bin/python ] || python3.11 -m venv .venv && ./.venv/bin/pip install -q -r requirements.txt -r requirements-dev.txt && printf '\\n  dependências instaladas — agora ⇧⌘B (SAS: rodar tudo)\\n\\n'",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "sas",
+        "reveal": "always",
+        "showReuseMessage": false,
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "SAS: backend",
       "type": "shell",
       // Sobe db + postgrest junto, por causa do depends_on do compose.
@@ -9,7 +32,7 @@
       // O printf existe porque o uvicorn dentro do container loga
       // `http://0.0.0.0:8000` — o endereço de dentro da rede do compose, que
       // não é clicável nem acessível do host. As URLs abaixo são as reais.
-      "command": "printf '\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && docker compose up api",
+      "command": "printf '\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && /Applications/Docker.app/Contents/Resources/bin/docker compose up api",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "presentation": {
@@ -38,8 +61,9 @@
     {
       "label": "SAS: frontend",
       "type": "shell",
-      // O nginx não loga porta nenhuma na subida — daí o printf.
-      "command": "printf '\\n  front  http://localhost:8080\\n\\n' && docker compose up web",
+      // Vite no host (o container `web` não sobe nesta máquina — ver "rodar
+      // tudo"). Precisa do backend de pé para o proxy /api ter destino.
+      "command": "cd web && npx vite --port 8080 --strictPort",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "presentation": {
@@ -60,8 +84,8 @@
         ],
         "background": {
           "activeOnStart": true,
-          "beginsPattern": "Container sas-",
-          "endsPattern": "start worker process"
+          "beginsPattern": "VITE",
+          "endsPattern": "Local:\\s+http://localhost:8080"
         }
       }
     },
@@ -78,8 +102,10 @@
       // ver tudo em :8080, igual ao nginx em produção — é o que o login pelo
       // Canvas precisa (a redirect URI é http://localhost:8080/api/...).
       //
-      // `trap` derruba a API ao encerrar a task: não sobra stack órfã.
-      "command": "D=/Applications/Docker.app/Contents/Resources/bin/docker; $D compose up -d db postgrest api && printf '\\n  front      http://localhost:8080\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && trap \"$D compose stop api\" EXIT && cd web && npx vite --port 8080",
+      // Sem `trap` que pare a API ao sair: uma segunda execução da task que
+      // falhe (porta ocupada) derrubava a API que a primeira estava usando.
+      // Os containers ficam de pé; quem os para é `docker compose stop`.
+      "command": "D=/Applications/Docker.app/Contents/Resources/bin/docker; $D compose up -d db postgrest api && printf '\\n  front      http://localhost:8080\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && cd web && npx vite --port 8080 --strictPort",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "group": { "kind": "build", "isDefault": true },
@@ -111,7 +137,7 @@
       "type": "shell",
       // O restart do postgrest vem no mesmo comando de propósito: ele lê o
       // schema uma vez, ao subir, então sem isso a coluna nova volta 404.
-      "command": "docker compose run --rm migrate up && docker compose restart postgrest",
+      "command": "/Applications/Docker.app/Contents/Resources/bin/docker compose run --rm migrate up && /Applications/Docker.app/Contents/Resources/bin/docker compose restart postgrest",
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": {
         "panel": "dedicated",
@@ -125,7 +151,7 @@
     {
       "label": "SAS: db · downgrade (reverter última migration)",
       "type": "shell",
-      "command": "docker compose run --rm migrate down && docker compose restart postgrest",
+      "command": "/Applications/Docker.app/Contents/Resources/bin/docker compose run --rm migrate down && /Applications/Docker.app/Contents/Resources/bin/docker compose restart postgrest",
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": {
         "panel": "dedicated",
@@ -139,7 +165,7 @@
     {
       "label": "SAS: db · limpar dados importados (TRUNCATE)",
       "type": "shell",
-      "command": "docker compose run --rm migrate wipe-dados",
+      "command": "/Applications/Docker.app/Contents/Resources/bin/docker compose run --rm migrate wipe-dados",
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": {
         "panel": "dedicated",

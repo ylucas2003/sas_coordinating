@@ -82,12 +82,14 @@ function Decisao({ detalhe, quem }: { detalhe: Record<string, unknown> | null; q
 
 export function Auditoria() {
   const [canais, setCanais] = useState<ReadonlySet<string>>(new Set());
+  // Só criações e alterações por padrão — login não muda nada (22/08).
+  const [incluirLogins, setIncluirLogins] = useState(false);
   const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set(['canal']));
   // Paginação por cursor: cada "carregar mais" empilha uma página.
   const [cursores, setCursores] = useState<Array<number | undefined>>([undefined]);
 
   const canal = canais.size === 1 ? [...canais][0] : undefined;
-  const paginas = cursores.map((antes_de_id) => ({ canal, limite: 100, antes_de_id }));
+  const paginas = cursores.map((antes_de_id) => ({ canal, limite: 100, antes_de_id, incluir_logins: incluirLogins }));
 
   // Uma query por página, num hook só — o número de páginas varia e a regra
   // dos hooks não aceita `map(useQuery)`. A trilha só cresce, então o que
@@ -130,8 +132,8 @@ export function Auditoria() {
             else novo.add(chave);
             return novo;
           })}
-          algumAtivo={canais.size > 0}
-          onLimpar={() => { setCanais(new Set()); setCursores([undefined]); }}
+          algumAtivo={canais.size > 0 || incluirLogins}
+          onLimpar={() => { setCanais(new Set()); setIncluirLogins(false); setCursores([undefined]); }}
           secoes={[
             {
               chave: 'canal', rotulo: 'Canal', icone: 'ciclos',
@@ -140,6 +142,16 @@ export function Auditoria() {
                   opcoes={(Object.keys(CANAL_LABEL) as CanalAuditoria[]).map((c) => ({ valor: c, label: CANAL_LABEL[c] }))}
                   selecionados={canais}
                   onToggle={alternar}
+                />
+              ),
+            },
+            {
+              chave: 'incluir', rotulo: 'Incluir também', icone: 'turmas',
+              corpo: (
+                <CorpoChips
+                  opcoes={[{ valor: 'logins', label: 'Entradas no sistema' }]}
+                  selecionados={new Set<string>(incluirLogins ? ['logins'] : [])}
+                  onToggle={() => { setIncluirLogins((v) => !v); setCursores([undefined]); }}
                 />
               ),
             },
@@ -154,7 +166,9 @@ export function Auditoria() {
               <div className="screen-breadcrumb">Auditoria</div>
               <h1 className="screen-title">Linha do tempo</h1>
               <p className="screen-subtitle">
-                Quem fez o quê, quando — e o que escolheu fazer no Canvas.
+                {incluirLogins
+                  ? 'Tudo que foi criado, alterado — e quem entrou no sistema.'
+                  : 'Tudo que foi criado ou alterado, e o que cada um escolheu fazer no Canvas.'}
               </p>
             </div>
           </div>

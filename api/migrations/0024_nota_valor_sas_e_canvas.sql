@@ -77,8 +77,8 @@ UPDATE ciclo SET canvas_estado = 'sincronizado'
 
 COMMENT ON COLUMN ciclo.canvas_estado IS 'NULL = veio do Canvas. divergente = coordenador escolheu não criar o grupo lá; o retry nunca reenvia sozinho.';
 
--- simulado já tinha canvas_estado (0018) sem CHECK; o valor novo precisa ser
--- aceito onde houver um. Só documenta.
+-- simulado já tinha canvas_estado (0018) COM CHECK — corrigido na 0027; aqui
+-- só o comentário.
 COMMENT ON COLUMN simulado.canvas_estado IS 'pendente | falhou | sincronizado | divergente. divergente = coordenador escolheu não mandar; o retry automático ignora.';
 
 COMMIT;

@@ -25,6 +25,11 @@ router = APIRouter(
 
 CANAIS = ("acesso", "nota", "simulado", "ciclo", "canvas")
 
+# Entrar no sistema não muda nada. A linha do tempo é "o que foi criado ou
+# alterado" (coordenação, 22/08); login fica gravado para forense, mas só
+# aparece se pedirem.
+ACOES_DE_ACESSO = ("login_ok", "login_falhou", "primeiro_acesso_bloqueado")
+
 # Sem paginação em lugar nenhum do projeto (CLAUDE.md, armadilha 2) — aqui
 # ela existe porque a tabela só cresce e a tela mostra a cauda recente.
 _LIMITE_MAXIMO = 500
@@ -39,9 +44,11 @@ async def listar_eventos(
     ate: str | None = Query(None, description="ISO 8601"),
     limite: int = Query(100, ge=1, le=_LIMITE_MAXIMO),
     antes_de_id: int | None = Query(None, description="cursor: eventos com id menor"),
+    incluir_logins: bool = Query(False, description="Traz login_ok/login_falhou junto. Default: só criações e alterações."),
 ) -> dict:
     """Eventos mais recentes primeiro, filtráveis por canal, ator, recurso e
-    período. Cursor por `id` (bigserial) para paginar sem offset."""
+    período. Cursor por `id` (bigserial) para paginar sem offset. Por padrão
+    só o que criou ou alterou algo — logins não entram."""
     cliente = get_supabase()
     q = (
         cliente.table("evento_auditoria")
@@ -49,6 +56,8 @@ async def listar_eventos(
         .order("id", desc=True)
         .limit(limite)
     )
+    if not incluir_logins:
+        q = q.not_.in_("acao", list(ACOES_DE_ACESSO))
     if canal:
         q = q.eq("canal", canal)
     if ator_id:

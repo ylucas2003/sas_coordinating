@@ -96,3 +96,34 @@ class TestEnviarSimuladoSemCanvasConfigurado:
         estado = asyncio.run(escrita.enviar_simulado(FakeCliente(db), "s1"))
         assert estado == "falhou"
         assert "não configurado" in db["simulado"]["s1"]["canvas_erro"]
+
+
+class TestSchemaAceitaDivergente:
+    """O fake de PostgREST não tem CHECK — foi assim que 'divergente' passou
+    nos testes e caiu no banco (23514, 22/08). Este teste lê as migrations:
+    a ÚLTIMA definição do CHECK de simulado.canvas_estado precisa listar o
+    valor que escrita.DIVERGENTE grava."""
+
+    def test_ultimo_check_de_canvas_estado_inclui_divergente(self):
+        import pathlib
+        import re
+
+        pasta = pathlib.Path(__file__).resolve().parent.parent / "migrations"
+        ultimo: str | None = None
+        for arq in sorted(pasta.glob("0*.sql")):
+            if arq.name.endswith(".down.sql"):
+                continue
+            for m in re.finditer(
+                r"simulado[^;]*?CHECK\s*\(\s*canvas_estado\s+IN\s*\(([^)]*)\)", arq.read_text(), re.S
+            ):
+                ultimo = m.group(1)
+        assert ultimo is not None, "nenhum CHECK de simulado.canvas_estado encontrado"
+        assert f"'{escrita.DIVERGENTE}'" in ultimo, f"CHECK vigente não aceita divergente: {ultimo}"
+
+    def test_schema_da_api_aceita_divergente(self):
+        """Mesma omissão, outra camada: o Literal de Simulado.canvasEstado
+        derrubava GET /simulados inteiro quando UM simulado era divergente."""
+        from app.schemas.domain import Simulado
+
+        campo = Simulado.model_fields["canvasEstado"]
+        assert escrita.DIVERGENTE in campo.annotation.__args__
