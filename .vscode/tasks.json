@@ -68,13 +68,18 @@
     {
       "label": "SAS: rodar tudo",
       "type": "shell",
-      // Sem dependsOn: um `up` só já sobe api, web, db e postgrest. Roda em
-      // foreground de propósito — encerrar a task derruba os containers, então
-      // não sobra stack órfã depois de fechar o VS Code.
+      // Backend no compose (db + postgrest + api), front com o Vite NO HOST.
       //
-      // O front é o endereço que você abre no browser; a API é chamada por ele
-      // em :8000 (é essa a origem cruzada que o CORS_ALLOW_ORIGINS libera).
-      "command": "printf '\\n  front      http://localhost:8080\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && docker compose up",
+      // Por que não `docker compose up` inteiro: nesta máquina o Docker não
+      // consegue puxar `node:22-alpine` pro serviço `web` (credential helper
+      // quebrado — mesmo sintoma do symlink do CLAUDE.md), e o `docker` do
+      // PATH aponta pra um volume que não existe. Daí o binário absoluto e o
+      // Vite fora do container. O proxy `/api` do vite.config.ts faz o browser
+      // ver tudo em :8080, igual ao nginx em produção — é o que o login pelo
+      // Canvas precisa (a redirect URI é http://localhost:8080/api/...).
+      //
+      // `trap` derruba a API ao encerrar a task: não sobra stack órfã.
+      "command": "D=/Applications/Docker.app/Contents/Resources/bin/docker; $D compose up -d db postgrest api && printf '\\n  front      http://localhost:8080\\n  api        http://localhost:8000/docs\\n  postgrest  http://localhost:3000\\n\\n' && trap \"$D compose stop api\" EXIT && cd web && npx vite --port 8080",
       "options": { "cwd": "${workspaceFolder}" },
       "isBackground": true,
       "group": { "kind": "build", "isDefault": true },
@@ -97,7 +102,7 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": "Container sas-",
-          "endsPattern": "Application startup complete"
+          "endsPattern": "Local:\\s+http://localhost:8080"
         }
       }
     },
