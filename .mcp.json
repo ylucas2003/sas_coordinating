@@ -25,6 +25,15 @@
       "env": {
         "DATABASE_URI": "${SAS_DATABASE_URI:-postgresql://postgres:postgres@localhost:5432/sas}"
       }
+    },
+
+    "mobile": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@mobilenext/mobile-mcp@1.0.2"
+      ],
+      "env": {}
     }
   }
 }

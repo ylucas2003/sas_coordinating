@@ -58,6 +58,15 @@ Origem: conversa com a coordenação em 21/08. Plano e decisões em [18](18-plan
 
 Três sprints, **uma frente por sprint**. "Escolher, não empilhar" ([10 §2.10](10-problemas-e-visao.md#210-sprint-1--escopo-e-divisão-17082026)).
 
+> ⚠️ **Furou a fila em 22/08:** mobile virou prioridade por decisão direta,
+> antes de qualquer uma das frentes abaixo. Plano em
+> [20-mobile.md](20-mobile.md) (decisão de rota e auditoria) e
+> [21-plano-mobile.md](21-plano-mobile.md) (execução — fundação de CSS e
+> login já implementados e verificados no browser; área do aluno em
+> andamento). Não renumerei o Sprint 3 abaixo porque a ordem dele entre si
+> não mudou, só a posição na fila — quando mobile for pro ar, esta nota sai
+> e o trabalho entra na [§1](#1--em-produção-hoje-portalsasonline).
+
 ### Sprint 3 · Fechar o Bloco A — *4 partes*
 
 O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já tem infra pronta (motor, agenda, e-mail).

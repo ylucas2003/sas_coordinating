@@ -62,10 +62,101 @@ Segredos vêm de `api/.env` (`env_file` no compose). O compose sobrescreve:
 
 - `APP_ENV=dev` — desliga o guard de boot do [api/app/main.py](../api/app/main.py).
 - `CORS_ALLOW_ORIGINS` — inclui `http://localhost:8080`. Necessário porque o front é
-  servido em `:8080` e o [http-client.js](../web/js/services/http-client.js) chama a API
-  em `:8000`; portas diferentes são origens diferentes pro browser.
+  servido em `:8080` e o cliente HTTP do front ([web/src/servicos/](../web/src/servicos/))
+  chama a API em `:8000`; portas diferentes são origens diferentes pro browser.
+  (Antes apontava para `web/js/services/http-client.js`, que não existe desde a
+  migração para React — ver [docs/16](16-plano-migracao-react.md).)
 - `POSTGREST_URL`, `STORAGE_DIR`, `API_BASE_URL` — ligam o modo local.
 - `SUPABASE_DB_URL` (só no `migrate`) — aponta o runner para o `db` local.
+
+### Conta para entrar no ambiente local
+
+O banco de dev vem com os ~880 alunos reais importados, mas **quase nenhum tem
+senha** — a coluna `senha_hash` nasce nula. Sem conta, não se passa da tela de
+login, e é por isso que o [plano de mobile](21-plano-mobile.md#01-conta-de-teste--bloqueia-a-p3-inteira)
+trata isto como bloqueio.
+
+#### Aluno — use o script, ele existe para isto
+
+[`api/scripts/criar_acesso.py`](../api/scripts/criar_acesso.py) é a ferramenta
+oficial de provisionamento ([docs/15 §7.2](15-plano-hospedagem-vps.md)), e o
+próprio docstring lista "conta de demonstração" como caso de uso.
+
+```sh
+cd api
+
+# 1. achar um aluno (a coluna SENHA diz quem já tem)
+POSTGREST_URL=http://localhost:3000 .venv/bin/python -m scripts.criar_acesso \
+    --listar --busca "sobrenome"
+
+# 2. definir a senha (mínimo 8 caracteres; omita --senha para sortear uma)
+POSTGREST_URL=http://localhost:3000 .venv/bin/python -m scripts.criar_acesso \
+    --matricula 25303547 --senha "trocar-esta-senha"
+```
+
+Depois entre pela aba **Aluno** da tela de login, com **matrícula + senha**.
+
+> ⚠️ **`POSTGREST_URL` não é opcional aqui.** O `api/.env` e o compose apontam
+> para `http://postgrest:3000`, que é o nome do serviço na rede do Docker e
+> **não resolve a partir do host** — sem a variável o script morre com
+> `httpx.ConnectError: nodename nor servname provided`. A alternativa é rodar
+> por dentro: `docker compose exec api python -m scripts.criar_acesso ...`, mas
+> aí o arquivo de senha fica dentro do container.
+
+A senha **não** é impressa: vai para `/tmp/senha-<matrícula>.txt` com `chmod
+600`, de propósito — em servidor, stdout vira log retido, e senha de aluno menor
+de idade não pode acabar num agregador de logs ([docs/14 §4.5](14-plano-producao.md)).
+Leia e apague.
+
+Escolha um aluno **com notas**, senão as telas de evolução e os gráficos ficam
+vazios e não há o que auditar:
+
+```sql
+select a.matricula, count(*) as notas
+from aluno a join nota n on n.aluno_id = a.id
+where a.ativo and a.senha_hash is null
+group by a.matricula order by count(*) desc limit 5;
+```
+
+#### O que **não** funciona: `POST /auth/primeiro-acesso`
+
+A rota é pública e parece o caminho óbvio, mas devolve **403** hoje:
+`primeiro_acesso_autosservico` tem default `False`
+([config.py:59](../api/app/config.py)) e não é sobrescrita em lugar nenhum.
+Está desligada de propósito — matrícula + e-mail redefine senha sem prova de
+posse, e matrícula circula em lista de chamada ([docs/15 §7.2](15-plano-hospedagem-vps.md)).
+Não ligue isso para criar conta de teste; use o script.
+
+#### Coordenação — não há script, e a criação é ovo-e-galinha
+
+`POST /administracao/coordenadores` **exige token de coordenador**, então não dá
+para criar o primeiro por ali. Nenhuma migration semeia a tabela: as linhas de
+`usuario_coordenacao` existentes foram criadas à mão.
+
+> O docstring de `criar_acesso.py` diz que o coordenador usa
+> `COORDENADOR_EMAIL`/`COORDENADOR_SENHA` do ambiente. **Isso envelheceu**: a
+> migration `0021` moveu a coordenação para a tabela `usuario_coordenacao` com
+> PBKDF2, e [`auth.py`](../api/app/routes/auth.py) consulta a tabela. Os dois
+> settings continuam em `config.py` mas o login não os lê mais.
+
+Enquanto ninguém estender o script, o caminho é gerar o hash com a função do
+próprio projeto e gravar:
+
+```sh
+cd api && .venv/bin/python -c "from app.auth import hash_senha; print(hash_senha('senha-escolhida'))"
+# devolve pbkdf2_sha256$600000$<salt>$<hash> — o formato que a 0021 documenta
+```
+
+E então `insert into usuario_coordenacao (email, nome, senha_hash) values (...)`
+— ou `update` para redefinir uma conta existente. **Depois disso, quem já tem
+conta cria as demais pela tela de Administração**, que é o fluxo normal.
+
+#### Anote onde a equipe acha
+
+As contas de teste só valem se a próxima pessoa souber que existem. Registre
+e-mail/matrícula aqui ou no README do time — a senha, não. É literalmente o que
+o [plano de mobile §0.1](21-plano-mobile.md#01-conta-de-teste--bloqueia-a-p3-inteira)
+pede.
 
 ### Migrations
 

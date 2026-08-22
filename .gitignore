@@ -8,3 +8,6 @@
 .env
 .env.*
 !.env.example
+
+# Artefatos de auditoria mobile (capturas, relatório do Lighthouse). Ver docs/19.
+.auditoria-mobile/

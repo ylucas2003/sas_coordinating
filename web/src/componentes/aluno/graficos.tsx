@@ -84,7 +84,7 @@ export function BarraComparacao({
 
   return (
     <svg
-      width={largura} height={altura} viewBox={`0 0 ${largura} ${altura}`}
+      width="100%" viewBox={`0 0 ${largura} ${altura}`} preserveAspectRatio="xMidYMid meet"
       style={{ display: 'block', overflow: 'visible' }}
     >
       <defs>
@@ -167,7 +167,7 @@ export function GraficoLinha({
 
   return (
     <svg
-      width={largura} height={altura} viewBox={`0 0 ${largura} ${altura}`}
+      width="100%" viewBox={`0 0 ${largura} ${altura}`} preserveAspectRatio="xMidYMid meet"
       style={{ display: 'block', overflow: 'visible' }}
     >
       <defs>

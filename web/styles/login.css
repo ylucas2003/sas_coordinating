@@ -2,16 +2,20 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  font-family: var(--font-family);
-  font-weight: 400;
-  background: var(--color-bg);
-  min-height: 100vh;
+/* Achado ao verificar a área do aluno com dado real (docs/20 §3.1): isto
+   ANTES estava em `body`. Como todo CSS é importado globalmente em
+   main.tsx, sem escopo por rota, um `body { display:flex; ... }` de
+   propósito só para centralizar o card do login vazava para o app inteiro
+   — inclusive `.alu-shell`, que espera `#root` ocupar 100% da largura, não
+   encolher para caber no conteúdo. `.lp-page` é a única rota que precisa
+   dessa centralização; o resto de `body` (fonte, cor, fundo) já está em
+   base.css, então não repete aqui. */
+.lp-page {
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  color: var(--color-text-primary);
 }
 
 /* ─── Card wrapper ───────────────────────────────────────────────────────── */
@@ -21,12 +25,16 @@ body {
   max-width: 1120px;
   min-height: 640px;
   display: grid;
-  grid-template-columns: 5fr 6fr;
+  /* minmax(0, …): sem isto, item de grid nasce com min-width:auto e se
+     recusa a encolher abaixo do próprio conteúdo — era a causa do
+     transbordo horizontal medido na auditoria (docs/19 §3). */
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-card);
 }
+
 
 /* ─── LEFT PANEL ─────────────────────────────────────────────────────────── */
 
@@ -173,7 +181,9 @@ body {
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   font-family: inherit;
-  font-size: 14px;
+  /* 16px, não 14px: abaixo disso o Safari do iOS dá zoom automático ao focar
+     o campo, e não desfaz sozinho (docs/20 §1.3). */
+  font-size: 16px;
   color: var(--color-text-primary);
   background: var(--color-surface-inset);
   outline: none;
@@ -191,14 +201,18 @@ body {
 
 .lp-field__eye {
   position: absolute;
-  right: 12px;
+  right: 4px;
+  /* Alvo de toque mínimo de 44×44 (docs/20 §1.3) — o ícone continua com 15px,
+     só a área clicável cresce. Antes eram 23×23. */
+  min-width: 44px;
+  min-height: 44px;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--color-text-tertiary);
-  padding: 4px;
   display: flex;
   align-items: center;
+  justify-content: center;
   border-radius: 4px;
   transition: color 0.15s;
 }
@@ -248,6 +262,10 @@ body {
   color: var(--color-navy);
   text-decoration: none;
   transition: opacity 0.15s;
+  /* Alvo de toque mínimo (docs/20 §1.3) — antes 17px de altura, só o texto. */
+  display: inline-block;
+  padding: 10px 2px;
+  margin: -10px -2px;
 }
 
 .lp-link:hover { opacity: 0.75; text-decoration: underline; }
@@ -558,4 +576,36 @@ body {
   text-align: center;
   font-size: 12px;
   color: var(--color-text-secondary);
+}
+
+/* ─── Celular e tablet — abaixo de 880px ─────────────────────────────────
+   Fica no fim do arquivo de propósito: com especificidade igual, quem vem
+   depois no CSS vence, media query ou não — colocar isto perto de `.lp`
+   fazia `.lp-left { padding: 60px 56px }`, declarada mais abaixo, anular
+   este ajuste em silêncio.
+
+   O painel institucional (.lp-right) tem conteúdo demais — logos, selo,
+   manchete que muda por modo, 4 estatísticas — para virar uma faixa curta
+   sem decisão de produto sobre o que sobrevive nela (docs/20 §2.2, decisão
+   pendente). Por ora ele some, e o formulário ocupa a tela inteira; é o
+   que resolve o achado da auditoria (+32px de transbordo a 390px, +47px a
+   360px, com a coluna do formulário começando fora da tela). */
+@media (max-width: 880px) {
+  .lp-page {
+    padding: 16px;
+  }
+
+  .lp {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    max-width: 480px;
+  }
+
+  .lp-right {
+    display: none;
+  }
+
+  .lp-left {
+    padding: 40px 24px;
+  }
 }
