@@ -61,6 +61,10 @@ docker compose run --rm migrate up       # aplicar
 cd api && ./.venv/bin/python -m pytest tests/ -q   # 60 testes
 cd api && ./.venv/bin/ruff check .                 # lint
 cd web && npm test && npm run lint && npm run typecheck
+
+./infra/vps/deploy.sh                    # deploy em produção (portões → rsync → build → smoke)
+./infra/vps/deploy.sh --migrar           # idem, autorizando migrations pendentes
+./infra/vps/deploy.sh --verificar        # só o smoke test em https://portalsas.online
 ```
 
 O `docker` do PATH está quebrado nesta máquina (symlink para um

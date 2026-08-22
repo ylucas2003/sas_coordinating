@@ -223,7 +223,7 @@ Da migração como um todo:
 1. `docker compose up` — front em :8080 com HMR, API em :8000, upload de planilha funcionando.
 2. `docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build` — smoke da imagem de produção.
 3. Chat: enviar mensagem e confirmar streaming token a token (é o que o `proxy_buffering off` do nginx sustenta — regressão aqui é silenciosa, a resposta só aparece de uma vez no fim).
-4. `infra/vps/sync.sh && ssh … 02-deploy.sh` num deploy de teste antes do primeiro deploy real pós-migração.
+4. `infra/vps/deploy.sh` num deploy de teste antes do primeiro deploy real pós-migração.
 5. Rotas profundas por caminho real: acessar `https://…/alunos/A023` **direto na barra de endereço** (não navegando) — é o que valida o `try_files`.
 6. Console limpo de violação de CSP após o aperto das diretivas.
 

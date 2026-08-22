@@ -74,7 +74,7 @@ services:
     volumes:
       # Bind mount, não volume nomeado: o dono precisa ser o uid 10001 do
       # usuário `sas` da imagem, e um volume nomeado nasce root. Também torna
-      # backup e inspeção dos PDFs triviais. Criado por 02-deploy.sh.
+      # backup e inspeção dos PDFs triviais. Criado por 00-prep-root.sh.
       - /opt/sas/dados/storage:/dados/storage
     command:
       - sh
@@ -100,8 +100,8 @@ services:
     # nginx-unprivileged — a oficial sobe o master como root (docs/14 §5) — e
     # continua escutando 8080/8443, com o host mapeando 80/443.
     #
-    # O `docker compose build` do 02-deploy.sh passa a construir o front junto:
-    # do ponto de vista de quem opera, o fluxo sync.sh → 02-deploy.sh não muda.
+    # O `docker compose build` do deploy.sh passa a construir o front junto:
+    # do ponto de vista de quem opera, o fluxo de deploy não muda.
     build:
       context: ../../web
     restart: unless-stopped
