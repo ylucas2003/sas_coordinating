@@ -247,13 +247,19 @@ ok "imagens construídas"
 # deploy aqui — a stack continua no ar com a versão anterior, que é o estado
 # seguro.
 MIGROU=0
-saida_status="$(docker compose run --rm migrate status 2>&1)" || {
+# `</dev/null` e `-T` NÃO são opcionais: este trecho roda via `ssh bash -s`,
+# com o script inteiro chegando por stdin. `docker compose run` lê stdin por
+# padrão — e lia o RESTO DESTE SCRIPT: tudo daqui para baixo (migrations,
+# up -d, restart do postgrest) era engolido em silêncio, o bash remoto
+# terminava "com sucesso" e o smoke test batia no container antigo, que
+# continuava no ar. Aconteceu no deploy da Sprint 2 (22/08/2026).
+saida_status="$(docker compose run --rm -T migrate status </dev/null 2>&1)" || {
     erro "não consegui ler o status das migrations:"; echo "$saida_status" | tail -20 >&2; exit 1; }
 echo "$saida_status" | tail -3 | sed 's/^/  /'
 
 if grep -q 'pendente(s)' <<<"$saida_status"; then
     if [[ "$MIGRAR" == "1" ]]; then
-        docker compose run --rm migrate up || { erro "migration falhou — nada foi trocado"; exit 1; }
+        docker compose run --rm -T migrate up </dev/null || { erro "migration falhou — nada foi trocado"; exit 1; }
         MIGROU=1
         ok "migrations aplicadas"
     else
@@ -267,14 +273,14 @@ else
 fi
 
 # ── Subida ───────────────────────────────────────────────────────────────
-docker compose up -d
+docker compose up -d </dev/null
 ok "containers no ar"
 
 # O PostgREST lê o schema UMA vez, no boot, e o cacheia. Sem este restart as
 # tabelas e colunas novas voltam 404 — e o 404 parece bug de código
 # (docs/14 §6.6).
 if [[ "$MIGROU" == "1" ]]; then
-    docker compose restart postgrest
+    docker compose restart postgrest </dev/null
     ok "postgrest reiniciado (cache de schema)"
 fi
 
