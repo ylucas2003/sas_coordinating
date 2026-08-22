@@ -145,14 +145,19 @@ async def callback(
                     "code": code,
                 },
             )
-            r.raise_for_status()
+            if r.status_code >= 400:
+                # O corpo diz POR QUE (invalid_grant, invalid_client, redirect
+                # errada…) — sem ele o erro é só "400" e não se diagnostica.
+                log.warning("canvas recusou o code: HTTP %s — %s", r.status_code, r.text[:300])
+                return RedirectResponse("/login?canvas=falhou")
         except (httpx.HTTPError, httpx.TimeoutException) as exc:
-            log.warning("canvas recusou o code: %s", exc)
+            log.warning("canvas fora de alcance na troca do code: %s", exc)
             return RedirectResponse("/login?canvas=falhou")
         dados = r.json()
         access_token = dados.get("access_token")
         usuario = dados.get("user") or {}
         canvas_user_id = str(usuario.get("id") or "")
+        log.info("canvas entregou token: user=%s campos=%s", canvas_user_id or "?", sorted(dados))
 
         # 2. Quem é? A resposta do /token já traz {id, name}; confirma no
         #    /users/self para não depender desse campo opcional.
@@ -162,9 +167,12 @@ async def callback(
                     f"{s.canvas_base_url.rstrip('/')}/api/v1/users/self",
                     headers={"Authorization": f"Bearer {access_token}"},
                 )
-                me.raise_for_status()
+                if me.status_code >= 400:
+                    log.warning("canvas recusou /users/self: HTTP %s — %s", me.status_code, me.text[:300])
+                    return RedirectResponse("/login?canvas=falhou")
                 canvas_user_id = str(me.json().get("id") or "")
-            except (httpx.HTTPError, httpx.TimeoutException):
+            except (httpx.HTTPError, httpx.TimeoutException) as exc:
+                log.warning("canvas fora de alcance em /users/self: %s", exc)
                 return RedirectResponse("/login?canvas=falhou")
 
         # 3. O token do usuário não serve para mais nada: revoga.
@@ -177,6 +185,7 @@ async def callback(
                 )
 
     if not canvas_user_id:
+        log.warning("canvas não disse quem é o usuário (sem id no token nem em /users/self)")
         return RedirectResponse("/login?canvas=falhou")
 
     # 4. Quem entra? O Canvas disse quem é; o banco diz se entra e como.
