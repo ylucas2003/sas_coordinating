@@ -8,7 +8,12 @@
       //   web  → node_modules, via npm ci (respeita o lockfile)
       //   api  → .venv com requirements + requirements-dev (ruff, pytest)
       // As imagens do compose instalam as deles sozinhas no `up`.
-      "command": "cd web && npm ci && cd ../api && python3 -m venv .venv && ./.venv/bin/pip install -q -r requirements.txt -r requirements-dev.txt && printf '\\n  dependências instaladas — agora ⇧⌘B (SAS: rodar tudo)\\n\\n'",
+      //
+      // python3.11 EXPLÍCITO: o `python3` do Homebrew é 3.14, que não tem
+      // wheel de pydantic-core — `python3 -m venv` num .venv existente o
+      // re-apontava pro 3.14 e quebrava a instalação. A imagem da API
+      // (api/Dockerfile) também é 3.11; o venv do host tem que bater.
+      "command": "cd web && npm ci && cd ../api && (command -v python3.11 >/dev/null || { echo 'instale: brew install python@3.11'; exit 1; }) && [ -x .venv/bin/python ] || python3.11 -m venv .venv && ./.venv/bin/pip install -q -r requirements.txt -r requirements-dev.txt && printf '\\n  dependências instaladas — agora ⇧⌘B (SAS: rodar tudo)\\n\\n'",
       "options": { "cwd": "${workspaceFolder}" },
       "presentation": {
         "panel": "dedicated",
