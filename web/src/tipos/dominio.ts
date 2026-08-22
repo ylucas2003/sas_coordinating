@@ -297,3 +297,27 @@ export interface ClassificacaoCiclo {
   cortados: number;
   alunos: AlunoClassificado[];
 }
+
+// ─── Auditoria ───────────────────────────────────────────────────────────
+
+export type CanalAuditoria = 'acesso' | 'nota' | 'simulado' | 'ciclo' | 'canvas';
+
+export interface EventoAuditoria {
+  id: number;
+  ocorrido_em: string;
+  acao: string;
+  canal: CanalAuditoria | null;
+  ator_tipo: 'coordenador' | 'aluno' | null;
+  ator_id: string | null;
+  ator_nome: string | null;
+  recurso: string | null;
+  ip: string | null;
+  detalhe: Record<string, unknown> | null;
+  request_id: string | null;
+}
+
+export interface PaginaAuditoria {
+  eventos: EventoAuditoria[];
+  canais: CanalAuditoria[];
+  proximo_antes_de_id: number | null;
+}

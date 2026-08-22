@@ -7,6 +7,7 @@ const ABAS = [
   { caminho: '/alunos', label: 'Alunos' },
   { caminho: '/simulados', label: 'Simulados' },
   { caminho: '/ciclos', label: 'Ciclos' },
+  { caminho: '/auditoria', label: 'Auditoria' },
 ];
 
 const MAX_RESULTADOS = 8;

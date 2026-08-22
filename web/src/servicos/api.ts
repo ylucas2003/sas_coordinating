@@ -7,7 +7,8 @@
 import { del, get, patch, post, postArquivo, qs, streamSSE } from './http';
 import type { EventoSSE, OpcoesUpload } from './http';
 import type {
-  Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, Sede, Simulado, Turma,
+  Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria, Sede,
+  Simulado, Turma,
 } from '../tipos/dominio';
 
 const enc = encodeURIComponent;
@@ -180,3 +181,18 @@ export const enviarChatMensagem = (
   conteudo: string,
   onEvento: (evento: EventoSSE) => void,
 ) => streamSSE(`/chat/threads/${enc(threadId)}/mensagens`, { conteudo }, onEvento);
+
+// ─── Auditoria ───────────────────────────────────────────────────────────
+
+export interface FiltroAuditoria {
+  canal?: string;
+  ator_id?: string;
+  recurso?: string;
+  desde?: string;
+  ate?: string;
+  limite?: number;
+  antes_de_id?: number;
+}
+
+export const listarAuditoria = (filtro: FiltroAuditoria) =>
+  get<PaginaAuditoria>(`/auditoria${qs({ ...filtro })}`);

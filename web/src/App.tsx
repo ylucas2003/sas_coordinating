@@ -10,6 +10,7 @@ import { AlunoFicha } from './telas/AlunoFicha/AlunoFicha';
 import { ShellAluno } from './telas/Aluno/ShellAluno';
 import { Painel } from './telas/Painel/Painel';
 import { Importar } from './telas/Importar/Importar';
+import { Auditoria } from './telas/Auditoria/Auditoria';
 import { Login } from './telas/Login/Login';
 import { ChatLauncher } from './componentes/chat/ChatLauncher';
 import { LimiteDeErro } from './componentes/LimiteDeErro';
@@ -55,6 +56,7 @@ function AppCoordenacao() {
         <Route path="/ciclos" element={<Ciclos />} />
         <Route path="/ciclos/:id" element={<CicloFicha />} />
         <Route path="/importar" element={<Importar />} />
+        <Route path="/auditoria" element={<Auditoria />} />
         {/* Rota desconhecida cai no painel, como o roteador antigo fazia. */}
         <Route path="*" element={<Navigate to="/painel" replace />} />
       </Routes>

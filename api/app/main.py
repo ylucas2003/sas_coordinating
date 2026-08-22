@@ -26,6 +26,7 @@ from .routes import (
     alertas,
     alunos,
     arquivos,
+    auditoria,
     auth,
     ciclos,
     cobranca,
@@ -140,6 +141,7 @@ def create_app() -> FastAPI:
     app.include_router(simulados.router)
     app.include_router(notas.router)
     app.include_router(ciclos.router)
+    app.include_router(auditoria.router)
     app.include_router(dimensoes.router)
     app.include_router(uploads.router)
     if settings.storage_dir:

@@ -148,6 +148,15 @@ export function useCriteriosDisponiveis() {
   });
 }
 
+export function useAuditoria(filtro: api.FiltroAuditoria) {
+  return useQuery({
+    queryKey: ['auditoria', filtro],
+    queryFn: () => api.listarAuditoria(filtro),
+    // A trilha só cresce: o que já carregou não muda, mas o topo ganha linhas.
+    staleTime: 30 * 1000,
+  });
+}
+
 // ─── Ficha do aluno ──────────────────────────────────────────────────────
 
 export function useAluno(id: string) {
