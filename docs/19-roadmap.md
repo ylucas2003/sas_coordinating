@@ -67,6 +67,37 @@ Três sprints, **uma frente por sprint**. "Escolher, não empilhar" ([10 §2.10]
 > não mudou, só a posição na fila — quando mobile for pro ar, esta nota sai
 > e o trabalho entra na [§1](#1--em-produção-hoje-portalsasonline).
 
+> ⚠️ **Furou a fila também em 22/08:** o **banco de questões ITA · IME** vira aba
+> do SAS, por decisão direta. É a importação do projeto `ita-por-assunto` — 934
+> questões de prova (2018–2025) classificadas por tópico do edital — para dentro
+> do repositório, como dado no Postgres e telas em React. Plano em
+> [22-plano-banco-questoes.md](22-plano-banco-questoes.md). Mesma regra da nota
+> acima: quando for pro ar, esta sai e o trabalho entra na
+> [§1](#1--em-produção-hoje-portalsasonline).
+
+### Sprint Banco de questões — *6 partes*
+
+Entra na fila junto do mobile, antes das três frentes abaixo. Detalhe em
+[22](22-plano-banco-questoes.md); aqui só o estado.
+
+| Parte | O quê | Estado |
+|---|---|---|
+| P1 | O dado entra no SAS — `questao_vestibular`, taxonomias, importador (`0028`) | ✅ 934 questões, 65 tópicos |
+| P2 | API: listagem filtrada, paginada, e agregação de recorrência | ✅ 13 rotas |
+| P3 | A aba `/banco`, nos dois cascos, responsiva desde o primeiro commit | ✅ verificada a 390 e 360px |
+| P4 | Estatísticas sem Chart.js — SVG à mão, como todo gráfico do SAS | ✅ |
+| P5 | Listas: montar, reordenar, exportar PDF e Word (`0029`) | ✅ |
+| P6 | Estudo do aluno: resolvida, anotação, mensagem — corta se faltar tempo | ✅ |
+
+**Estado: implementado na branch `feat/banco-questoes`, não deployado.** Detalhe
+e os cinco achados de execução em [22 §12](22-plano-banco-questoes.md).
+
+**Decidido em 22/08:** aluno monta e exporta a própria lista; a aba de mensagem
+vai só no casco do aluno; as imagens seguem no S3 (conta própria), sem cópia
+local; classificar as 1.031 questões do Canvas pela mesma taxonomia fica para o
+sprint seguinte — é o que destrava o gancho `questao.assunto` da `0015` e faz as
+237.081 respostas já gravadas dizerem *em que assunto* cada aluno erra.
+
 ### Sprint 3 · Fechar o Bloco A — *4 partes*
 
 O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já tem infra pronta (motor, agenda, e-mail).
@@ -101,7 +132,8 @@ O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já te
 | P4 | **UI de critérios do coordenador** — o formato da Sprint 2 já nasceu pronto; falta a tela (A7) | [18 §1.10](18-plano-sprint-2.md#110-futuro-critérios-criados-pelo-coordenador) |
 | P5 | Gráficos em camadas: leigo → insight → estatística | visão de produto |
 
-**Total à frente: 3 sprints, 15 partes.**
+**Total à frente: 4 sprints, 21 partes** — 6 do banco de questões e 15 das três
+frentes acima.
 
 ---
 

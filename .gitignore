@@ -11,3 +11,19 @@
 
 # Artefatos de auditoria mobile (capturas, relatório do Lighthouse). Ver docs/19.
 .auditoria-mobile/
+
+# Pipeline do banco de questões (docs/22). Entra no git só o que é fonte da
+# verdade — os JSONs e as taxonomias. O resto é entrada bruta ou regenerável:
+# os PDFs das provas, as páginas renderizadas e os PNGs recortados (que vivem no
+# bucket S3). `output/` era o HTML estático de 2,2 MB, que a API substituiu.
+# Os 934 JSONs de questão saíram do git em 22/08 (docs/22 §13): quem guarda o
+# acervo agora é o Postgres, e `scripts/exportar_banco_questoes.py` é a saída.
+# O diretório continua existindo em disco — é onde o pipeline escreve e de onde
+# o importador lê.
+banco-questoes/questoes_json/
+banco-questoes/pdfs_originais/
+banco-questoes/paginas_renderizadas/
+banco-questoes/imagens/
+banco-questoes/output/
+banco-questoes/logs/
+banco-questoes/**/pendentes.txt

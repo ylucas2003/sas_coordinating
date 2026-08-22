@@ -1,0 +1,1101 @@
+<title>Sprints do SAS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+  /* ---- Paleta clara (padrão). Verde-ardósia de quadro-negro + petróleo. ---- */
+  :root {
+    --ground:      #EDF0EC;
+    --surface:     #FFFFFF;
+    --surface-2:   #F6F8F5;
+    --ink:         #141C18;
+    --ink-2:       #56635B;
+    --ink-3:       #8A958D;
+    --rule:        #D7DCD6;
+    --rule-strong: #B6C0B8;
+
+    --accent:      #14544A;
+    --accent-ink:  #0B3A32;
+    --accent-soft: #DDE9E4;
+
+    --ok:          #276F4E;
+    --ok-soft:     #DCEBE1;
+    --doing:       #8C610F;
+    --doing-soft:  #F2E7C9;
+    --wait:        #67736B;
+    --wait-soft:   #E3E7E2;
+    --stop:        #9E3527;
+    --stop-soft:   #F2DCD7;
+
+    --shadow:      0 1px 2px rgba(20,28,24,.05), 0 8px 24px -18px rgba(20,28,24,.35);
+
+    --passo:       0.5rem;
+    --largura:     62rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0F1411;
+      --surface:     #171E1A;
+      --surface-2:   #1C2521;
+      --ink:         #E6EBE6;
+      --ink-2:       #9CA8A1;
+      --ink-3:       #74807A;
+      --rule:        #29322C;
+      --rule-strong: #3B463F;
+
+      --accent:      #6BC3AC;
+      --accent-ink:  #9EDCC9;
+      --accent-soft: #16302A;
+
+      --ok:          #58BC89;
+      --ok-soft:     #143024;
+      --doing:       #D6A63C;
+      --doing-soft:  #322915;
+      --wait:        #8A968E;
+      --wait-soft:   #232A25;
+      --stop:        #DE7161;
+      --stop-soft:   #321D19;
+
+      --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.9);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0F1411;
+    --surface:     #171E1A;
+    --surface-2:   #1C2521;
+    --ink:         #E6EBE6;
+    --ink-2:       #9CA8A1;
+    --ink-3:       #74807A;
+    --rule:        #29322C;
+    --rule-strong: #3B463F;
+
+    --accent:      #6BC3AC;
+    --accent-ink:  #9EDCC9;
+    --accent-soft: #16302A;
+
+    --ok:          #58BC89;
+    --ok-soft:     #143024;
+    --doing:       #D6A63C;
+    --doing-soft:  #322915;
+    --wait:        #8A968E;
+    --wait-soft:   #232A25;
+    --stop:        #DE7161;
+    --stop-soft:   #321D19;
+
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .folha {
+    max-width: var(--largura);
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1rem, 4vw, 2.5rem) 5rem;
+  }
+
+  /* ------------------------------- cabeçalho ------------------------------ */
+
+  .capa { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .marca {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+  }
+  .marca::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule-strong);
+  }
+
+  h1 {
+    font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    line-height: 1.02;
+    letter-spacing: -.025em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .subtitulo {
+    font-size: clamp(1rem, 2.2vw, 1.15rem);
+    color: var(--ink-2);
+    max-width: 40ch;
+    margin: 0;
+  }
+
+  .assinatura {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .76rem;
+    color: var(--ink-3);
+    border-top: 1px solid var(--rule);
+    padding-top: .9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem 1.4rem;
+  }
+
+  /* --------------------------------- placar ------------------------------- */
+
+  .placar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 2.75rem 0 0;
+  }
+  .placar div {
+    background: var(--surface);
+    padding: 1.05rem 1.1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+  }
+  .placar b {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-size: 1.85rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .placar span {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .68rem;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* -------------------------------- legenda ------------------------------- */
+
+  .legenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem .75rem;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .selo {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: .2rem .5rem;
+    border-radius: 2px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .selo--ok    { background: var(--ok-soft);    color: var(--ok); }
+  .selo--curso { background: var(--doing-soft); color: var(--doing); }
+  .selo--espera{ background: var(--wait-soft);  color: var(--wait); }
+  .selo--trava { background: var(--stop-soft);  color: var(--stop); }
+
+  /* --------------------------------- trilho ------------------------------- */
+
+  .trilho {
+    margin: 3.5rem 0 0;
+    padding-left: 2.25rem;
+    border-left: 1px solid var(--rule-strong);
+    display: flex;
+    flex-direction: column;
+    gap: 2.25rem;
+  }
+
+  .ciclo {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    padding: clamp(1.25rem, 3vw, 1.9rem);
+  }
+
+  /* a marca no trilho carrega o estado: cheia = no ar, anel = em curso, vazia = proposta */
+  .ciclo::before {
+    content: "";
+    position: absolute;
+    left: -2.25rem;
+    top: 1.85rem;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    transform: translateX(-6px);
+    background: var(--ground);
+    border: 2px solid var(--rule-strong);
+  }
+  .ciclo[data-estado="ar"]::before     { background: var(--accent); border-color: var(--accent); }
+  .ciclo[data-estado="curso"]::before  { background: var(--ground); border-color: var(--doing); box-shadow: 0 0 0 3px var(--doing-soft); }
+  .ciclo::after {
+    content: "";
+    position: absolute;
+    left: -2.25rem;
+    top: 2.35rem;
+    width: 1.15rem;
+    height: 1px;
+    background: var(--rule-strong);
+  }
+
+  .ciclo__topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .5rem .9rem;
+    margin-bottom: .3rem;
+  }
+  .ciclo__ordem {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .12em;
+    color: var(--accent);
+  }
+  .ciclo__quando {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .72rem;
+    color: var(--ink-3);
+    margin-left: auto;
+  }
+
+  .ciclo h2 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.35rem, 3vw, 1.7rem);
+    line-height: 1.12;
+    letter-spacing: -.018em;
+    margin: 0 0 .55rem;
+    text-wrap: balance;
+  }
+
+  .ciclo__resumo {
+    color: var(--ink-2);
+    margin: 0 0 1.15rem;
+    max-width: 66ch;
+  }
+  .ciclo__resumo:last-child { margin-bottom: 0; }
+
+  .fontes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    margin: 0 0 1.1rem;
+    padding: 0;
+    list-style: none;
+  }
+  .fontes li {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .68rem;
+    color: var(--ink-2);
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: .14rem .42rem;
+  }
+
+  /* ----------------------------- blocos internos --------------------------- */
+
+  .rotulo {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 .6rem;
+    display: block;
+  }
+
+  .partes {
+    list-style: none;
+    margin: 0 0 1.4rem;
+    padding: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .partes li {
+    display: grid;
+    grid-template-columns: 3.1rem 1fr auto;
+    gap: .35rem .85rem;
+    align-items: baseline;
+    padding: .62rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .partes .cod {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .74rem;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: .02em;
+  }
+  .partes .oque { min-width: 0; }
+  .partes .oque b { font-weight: 600; }
+  .partes li .selo { white-space: normal; text-align: right; max-width: 11rem; }
+  .partes .oque i { font-style: italic; }
+  .partes .oque em {
+    display: block;
+    font-style: normal;
+    color: var(--ink-2);
+    font-size: .9rem;
+    line-height: 1.5;
+    margin-top: .1rem;
+  }
+
+  .etapas {
+    list-style: none;
+    margin: 0 0 1.4rem;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: .3rem .9rem;
+  }
+  .etapas li {
+    font-size: .9rem;
+    color: var(--ink-2);
+    display: flex;
+    gap: .5rem;
+    align-items: baseline;
+    padding: .18rem 0;
+  }
+  .etapas .n {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .7rem;
+    color: var(--ink-3);
+    min-width: 1.1rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .etapas .feito { color: var(--ok); font-weight: 600; }
+
+  /* o bloco que o pedido do dia manda destacar: o que muda para quem usa */
+  .ganho {
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+    border-radius: 3px;
+    padding: 1.05rem 1.15rem 1.15rem;
+    margin-top: 1.4rem;
+  }
+  .ganho .rotulo { color: var(--accent-ink); }
+  .ganho ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+  .ganho li {
+    position: relative;
+    padding-left: 1.1rem;
+    color: var(--ink);
+    font-size: .95rem;
+    line-height: 1.55;
+  }
+  .ganho li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: .62em;
+    width: .42rem;
+    height: 1px;
+    background: var(--accent);
+  }
+  .ganho li b { font-weight: 600; }
+  .ganho .nada {
+    padding-left: 0;
+    color: var(--ink-2);
+    font-style: italic;
+  }
+  .ganho .nada::before { display: none; }
+
+  .nota {
+    margin: 1.15rem 0 0;
+    padding: .85rem 1rem;
+    border-left: 2px solid var(--rule-strong);
+    background: var(--surface-2);
+    font-size: .9rem;
+    color: var(--ink-2);
+  }
+  .nota b { color: var(--ink); font-weight: 600; }
+  .nota--alerta { border-left-color: var(--stop); }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .86em;
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: .04rem .28rem;
+  }
+  .ganho code { background: color-mix(in srgb, var(--surface) 55%, transparent); }
+
+  /* --------------------------------- apêndice ------------------------------ */
+
+  .apendice {
+    margin-top: 4rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+    gap: 1.5rem;
+  }
+  .apendice section {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.4rem 1.35rem 1.5rem;
+  }
+  .apendice h3 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    margin: 0 0 .9rem;
+  }
+  .apendice ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .85rem; }
+  .apendice li { font-size: .92rem; line-height: 1.5; color: var(--ink-2); }
+  .apendice li b { color: var(--ink); font-weight: 600; display: block; }
+  .apendice li span.quem {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .68rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: block;
+    margin-top: .15rem;
+  }
+
+  .rodape {
+    margin-top: 3.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .72rem;
+    color: var(--ink-3);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 640px) {
+    .trilho { padding-left: 1.35rem; }
+    .ciclo::before { left: -1.35rem; }
+    .ciclo::after { display: none; }
+    .partes li { grid-template-columns: 2.6rem 1fr; }
+    .partes li .selo { grid-column: 2; justify-self: start; }
+    .ciclo__quando { margin-left: 0; width: 100%; }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ciclo { transition: border-color .18s ease; }
+  }
+  .ciclo:focus-within { border-color: var(--accent); }
+</style>
+
+<div class="folha">
+
+  <header class="capa">
+    <p class="marca">SAS · Coordenação ITM · Colégio Ari de Sá</p>
+    <h1>Sprints do SAS</h1>
+    <p class="subtitulo">Todo ciclo de trabalho que existe na documentação: o plano de cada um, o que
+      de fato ficou pronto, e o que o produto passou a saber fazer no fim.</p>
+    <p class="assinatura">
+      <span>Estado em 22/08/2026</span>
+      <span>migrations 0001 → 0027</span>
+      <span>120 testes na API · 91 no front</span>
+      <span>portalsas.online</span>
+    </p>
+  </header>
+
+  <div class="placar">
+    <div><b>26</b><span>partes no ar</span></div>
+    <div><b>3</b><span>partes em curso</span></div>
+    <div><b>21</b><span>partes à frente</span></div>
+    <div><b>9</b><span>ciclos mapeados</span></div>
+  </div>
+
+  <ul class="legenda">
+    <li><span class="selo selo--ok">no ar</span></li>
+    <li><span class="selo selo--curso">em curso</span></li>
+    <li><span class="selo selo--espera">não começou</span></li>
+    <li><span class="selo selo--trava">travado</span></li>
+  </ul>
+
+  <div class="trilho">
+
+    <!-- ============================ 01 · React ============================ -->
+    <article class="ciclo" data-estado="ar">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">CICLO 01</span>
+        <span class="selo selo--ok">no ar</span>
+        <span class="ciclo__quando">concluído · PR #4 · 21/08/2026</span>
+      </div>
+      <h2>Migração do front para React</h2>
+      <p class="ciclo__resumo">Trocar o front de <code>web/js/</code> em JavaScript puro por React 19 + TypeScript,
+        sem parar o produto. O truque do plano é a Etapa 0: o app inteiro passa a rodar em React
+        antes de qualquer tela ser migrada, e um wrapper <code>&lt;Legado&gt;</code> segura o que ainda não foi —
+        assim cada etapa seguinte é uma tela, não um salto.</p>
+      <ul class="fontes"><li>docs/16-plano-migracao-react.md</li><li>docs/17-migracao-react-verificacoes.md</li></ul>
+
+      <span class="rotulo">O plano — 10 etapas, uma tela por vez</span>
+      <ul class="etapas">
+        <li><span class="n">0</span><span class="feito">✓</span> Andaime: o app inteiro em React</li>
+        <li><span class="n">1</span><span class="feito">✓</span> <code>alunos</code> — a tela-piloto</li>
+        <li><span class="n">2</span><span class="feito">✓</span> <code>ciclos</code> + <code>simulados</code></li>
+        <li><span class="n">3</span><span class="feito">✓</span> Fichas de simulado e de ciclo</li>
+        <li><span class="n">4</span><span class="feito">✓</span> Ficha do aluno</li>
+        <li><span class="n">5</span><span class="feito">✓</span> Área do aluno</li>
+        <li><span class="n">6</span><span class="feito">✓</span> Painel — a tela mais difícil</li>
+        <li><span class="n">7</span><span class="feito">✓</span> Importar</li>
+        <li><span class="n">8</span><span class="feito">✓</span> Chat</li>
+        <li><span class="n">9</span><span class="feito">✓</span> Login e limpeza</li>
+      </ul>
+
+      <p class="nota"><b>O que saiu diferente do plano.</b> A área do aluno ganhou rotas de verdade em vez de
+        navegação por estado interno. <code>src/dominio/</code> nasceu fora do plano e virou onde moram as
+        regras testáveis — é o que os testes do front cobrem. E os CSS Modules foram descartados de
+        propósito: as classes já são um namespace por tela (<code>painel-*</code>, <code>alu-*</code>,
+        <code>chat-*</code>), e converter 5.900 linhas traria risco visual sem ganho.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste ciclo, quem usa passa a ter</span>
+        <ul>
+          <li><b>Um endereço por tela.</b> <code>/alunos/A023</code> em vez de <code>#/alunos/A023</code> — dá para
+            mandar o link para alguém, e recarregar não devolve ninguém ao começo.</li>
+          <li><b>A área do aluno também com endereço.</b> Recarregar em <code>/simulados/S12</code> continua ali.</li>
+          <li><b>Os filtros de Sede e Turma do Painel funcionando.</b> Antes a seção inteira renderizava “—”
+            e o tooltip anunciava um filtro que não existia. Era bug do código anterior, achado na travessia.</li>
+          <li><b>Login como tela do app</b>, em <code>/login</code>. O <code>login.html</code> deixou de existir.</li>
+          <li><b>Troca de tela sem rebuscar dado.</b> Quem guarda passou a ser o cache de dados, não o DOM montado.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ============================ 02 · Produção ========================== -->
+    <article class="ciclo" data-estado="ar">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">CICLO 02</span>
+        <span class="selo selo--ok">no ar</span>
+        <span class="ciclo__quando">21/08/2026 · ~2,5 semanas de plano, executado em 1 dia</span>
+      </div>
+      <h2>Produção: hospedar a stack numa VPS</h2>
+      <p class="ciclo__resumo">Tirar o SAS da máquina do desenvolvedor e pôr no ar. O documento 14 responde
+        <em>por quê</em> cada item; o 15 é a ordem de execução na VPS da Hostinger em São Paulo. Tudo se organiza
+        em torno de <b>dois portões de não-retorno</b>.</p>
+      <ul class="fontes"><li>docs/14-plano-producao.md</li><li>docs/15-plano-hospedagem-vps.md</li></ul>
+
+      <span class="rotulo">Os dois portões</span>
+      <p class="nota"><b>Portão 1</b> — antes de a porta 443 abrir para a internet: o que impede um estranho de
+        virar coordenador. <b>Portão 2</b> — antes de qualquer pessoa receber login: o que impede um aluno de
+        virar outro aluno, e a fatura de virar surpresa.</p>
+
+      <span class="rotulo" style="margin-top:1.2rem">O plano — 9 etapas</span>
+      <ul class="etapas">
+        <li><span class="n">1</span><span class="feito">✓</span> Preparar o servidor</li>
+        <li><span class="n">2</span><span class="feito">✓</span> Correções do <b>Portão 1</b></li>
+        <li><span class="n">3</span><span class="feito">✓</span> Stack de produção</li>
+        <li><span class="n">4</span><span class="feito">✓</span> Banco</li>
+        <li><span class="n">5</span><span class="feito">✓</span> TLS</li>
+        <li><span class="n">6</span><span class="feito">✓</span> Cron</li>
+        <li><span class="n">7</span><span class="feito">✓</span> Auth e teto de custo — <b>Portão 2</b></li>
+        <li><span class="n">8</span><span class="feito">✓</span> Observabilidade mínima</li>
+        <li><span class="n">9</span><span class="feito">✓</span> Corte para o React e go-live</li>
+      </ul>
+
+      <p class="nota"><b>Quatro decisões travadas antes de começar.</b> Coordenação <em>e</em> alunos entram no
+        dia 1 — o que trouxe teto de custo no chat e primeiro acesso para o caminho crítico. Domínio próprio
+        (<code>portalsas.online</code>). Login da coordenação por tabela de usuários. E <b>e-mail adiado</b>, o que
+        tirou o sandbox do SES e o SSRF do webhook do SNS do caminho crítico de uma vez.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste ciclo, quem usa passa a ter</span>
+        <ul>
+          <li><b>Um endereço para acessar.</b> Coordenação e alunos entram por <code>https://portalsas.online</code>,
+            de qualquer lugar — o produto deixa de existir só na máquina de quem o escreve.</li>
+          <li><b>Conta de aluno com primeiro acesso próprio</b>, com senha em PBKDF2 e liberação pela ficha.</li>
+          <li><b>Chat com teto de custo</b> — 873 contas de aluno deixam de ser uma fatura em aberto.</li>
+          <li><b>Deploy num comando só</b> (<code>deploy.sh</code>): portões locais, rsync, build, migrations e
+            smoke test pelo HTTPS público. Migration pendente <em>para</em> o deploy em vez de subir código novo
+            sobre schema velho.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ============================ 03 · Sprint 1 ========================== -->
+    <article class="ciclo" data-estado="ar">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 1</span>
+        <span class="selo selo--ok">3 de 5 no ar</span>
+        <span class="ciclo__quando">17–20/08/2026 · Bloco A</span>
+      </div>
+      <h2>O simulado nasce no SAS</h2>
+      <p class="ciclo__resumo">Inverter a fonte da verdade: até aqui o Canvas originava e o SAS lia. A partir
+        daqui o SAS origina e o Canvas recebe. <b>Isto é uma corrente</b> — cada parte termina em algo
+        demonstrável e depende só da anterior, e o risco cresce da esquerda para a direita de propósito.</p>
+      <ul class="fontes"><li>docs/10 §2.10</li><li>docs/11-plano-p1-agendamento.md</li><li>docs/12-plano-p2-motor-lembretes.md</li><li>docs/13-plano-p3-lembrete-aluno.md</li></ul>
+
+      <span class="rotulo">O plano — 5 partes em corrente</span>
+      <ul class="partes">
+        <li>
+          <span class="cod">P1</span>
+          <span class="oque"><b>Agendamento</b><em>Tabela <code>evento_agenda</code>, fase pré-aplicação no simulado,
+            cliente do Canvas com escrita, e a regra que é o coração da parte: campo originado no SAS não é
+            sobrescrito pelo sync. 11 etapas — a 7ª, rodar o reconcile inteiro e conferir que nada mudou, é a que fecha.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+        <li>
+          <span class="cod">P2</span>
+          <span class="oque"><b>Motor de lembretes + e-mail</b><em>O v0 do produto inteiro: o coordenador cria um
+            evento, associa um lembrete <i>a si mesmo</i>, e o e-mail chega. Ninguém de fora envolvido. 10 etapas;
+            a 10ª — deixar o tick da AWS processar sozinho — é a que prova o caminho sem ninguém no teclado.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+        <li>
+          <span class="cod">P3</span>
+          <span class="oque"><b>Lembrete de aluno</b><em>Mesmo canal, novo destinatário e outra escala. Um e-mail por
+            aluno por dia (digest das provas do dia, não um por prova). 13 etapas, das quais 12 estão feitas e
+            cobertas por 60 testes. A etapa 13 é o envio real.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+        <li>
+          <span class="cod">P4</span>
+          <span class="oque"><b>Professores, requerimentos e cobrança</b><em>Adiada para a Sprint 3 (§ Sprint 3 · P1 e P2).</em></span>
+          <span class="selo selo--espera">não começou</span>
+        </li>
+        <li>
+          <span class="cod">P5</span>
+          <span class="oque"><b>WhatsApp (Z-API)</b><em>Adiada para a Sprint 3 · P4. Ficou por último de propósito:
+            quando chegar, tudo já está provado e o canal estreia cobrando dezenas de professores, não centenas de alunos.</em></span>
+          <span class="selo selo--trava">decisão em aberto</span>
+        </li>
+      </ul>
+
+      <p class="nota nota--alerta"><b>A trava que sobrou.</b> A etapa 13 da P3 — o envio real para os ~873 alunos —
+        depende de a AWS tirar a conta do sandbox do SES (caso 178722538000720, em reanálise desde 20/08). Até lá o
+        motor roda com destinatário de teste. Três redes de segurança existem justamente porque esse é o erro que
+        não tem desfazer: <code>EMAIL_DESTINATARIO_TESTE</code>, <code>LEMBRETE_ALUNO_ATIVO=false</code> e
+        <code>EMAIL_TETO_DIARIO</code>.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passa a ter</span>
+        <ul>
+          <li><b>O simulado criado no SAS, e ele aparece no Canvas.</b> Antes o caminho era o inverso e feito à mão.</li>
+          <li><b>O nome que vai nascer no Canvas, visível antes de salvar</b> — <code>3_P2 - Matemática - 20/09/2026</code>.
+            Não é enfeite: é a única forma de o coordenador ver que os dois sistemas vão falar a mesma língua.</li>
+          <li><b>Uma seção “Agendados” separada, em cima da lista.</b> E o simulado futuro não entra em média,
+            gráfico nem alerta antes da data — o que impede o sistema de <em>parecer</em> quebrado no dia do primeiro agendamento.</li>
+          <li><b>Selo “não está no Canvas” com botão de tentar de novo</b> quando a criação falha. Estado normal não ganha pixel.</li>
+          <li><b>Uma caixa “Me lembrar por e-mail X dias antes”</b> no próprio formulário de agendamento — e o e-mail chega na hora marcada.</li>
+          <li><b>Uma caixa “Avisar os alunos na véspera”</b>, marcada por padrão, dizendo na legenda quantos alunos recebem.</li>
+          <li><b>Um e-mail por aluno por dia</b>, listando todas as provas daquele dia em ordem de hora — remarcar recalcula,
+            cancelar cancela, e há link de descadastro no rodapé.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ============================ 04 · Sprint 2 ========================== -->
+    <article class="ciclo" data-estado="ar">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 2</span>
+        <span class="selo selo--ok">4 de 4 no ar</span>
+        <span class="ciclo__quando">21–22/08/2026 · PRs #11, #12, #13</span>
+      </div>
+      <h2>Critérios, Canvas sob controle, auditoria e identidade</h2>
+      <p class="ciclo__resumo">Nasceu de uma conversa com a coordenação em 21/08 — 15 mensagens e 15 áudios em
+        36 minutos. A Sprint 1 fez o simulado nascer no SAS; esta trata do que a coordenação <b>vê</b> e
+        <b>decide</b> em cima disso. <b>Diferente da Sprint 1, não é uma corrente</b>: três partes são
+        independentes e só a auditoria depende das outras.</p>
+      <ul class="fontes"><li>docs/18-plano-sprint-2.md</li><li>migrations 0023 → 0027</li></ul>
+
+      <span class="rotulo">O plano — 4 partes independentes</span>
+      <ul class="partes">
+        <li>
+          <span class="cod">P1</span>
+          <span class="oque"><b>Critérios de classificação</b><em>A regra do corte existia em três lugares do código
+            e já tinha divergido. Vira dado, avaliado no servidor, com versão — editar um critério cria versão nova em
+            vez de mudar retroativamente os números de quem já o usou.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+        <li>
+          <span class="cod">P2</span>
+          <span class="oque"><b>Canvas sob controle</b><em>Cinco pontos de escrita mapeados; nenhum dispara sozinho.
+            A nota passa a guardar dois valores — <code>pontuacao_canvas</code> e <code>pontuacao_sas</code> — em vez de
+            um sobrescrever o outro.</em></span>
+          <span class="selo selo--ok">verificado contra o Canvas real</span>
+        </li>
+        <li>
+          <span class="cod">P3</span>
+          <span class="oque"><b>Auditoria compartimentada</b><em>Já existiam dois sistemas de registro; o erro seria criar
+            um terceiro. Compartimentar virou uma coluna (<code>canal</code>), não uma tabela. Registra a decisão, não só a ação — e o log nunca é load-bearing.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+        <li>
+          <span class="cod">P4</span>
+          <span class="oque"><b>Identidade e acesso</b><em>Login pelo Canvas por OAuth2, painel de administrador para
+            gerenciar contas, topbar com logo e botão de sair. O SSO resolve <i>quem é</i> a pessoa; o painel resolve
+            <i>quem pode entrar</i> — o Canvas não decide isso.</em></span>
+          <span class="selo selo--ok">SSO verificado como aluno</span>
+        </li>
+      </ul>
+
+      <p class="nota"><b>A ordem de execução não é a ordem dos números.</b> Onda 1, fundação (as três migrations e o
+        contrato do Canvas) — não depende de resposta de ninguém. Onda 2, o que o coordenador vê. Onda 2b, o SSO.
+        Onda 3, o que corta se o tempo acabar — e cortou: regra de corte na Fase 1, envio em lote e a tela de linha do
+        tempo foram para a Sprint 4. <em>O corte natural é o fim da Onda 2</em>, e foi desenhado assim para que o que
+        sobrasse fosse coerente, e não meia funcionalidade em quatro lugares.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passa a ter</span>
+        <ul>
+          <li><b>Um seletor de régua no painel</b>: Tio Leo · ITA F1/F2 · IME F1/F2 — cada uma citando o artigo do edital.
+            A régua pedagógica do Ari diverge do edital de propósito, e agora isso está escrito, não subentendido.</li>
+          <li><b>4,0 deixa de ser corte</b> e passa a aparecer em amarelo. O KPI “Em zona de corte” e a legenda citam
+            a régua ativa em vez de uma regra fixa escondida no código.</li>
+          <li><b>A lista já ordenada pela régua certa</b> — não-cortados primeiro, desempate em cascata.</li>
+          <li><b>Nada sobe ao Canvas sem alguém clicar</b>, com pop-up de confirmação. “Enviar ao Canvas” e “Desmarcar”
+            aparecem na ficha do simulado, com o diálogo do irreversível quando é irreversível.</li>
+          <li><b>Um aviso quando o professor recorrigiu no Canvas depois da edição no SAS.</b> As duas notas continuam
+            existindo; o painel mostra a do SAS e diz visivelmente que difere.</li>
+          <li><b>A tela <code>/auditoria</code></b>: quem mudou, o quê, quando e por qual canal — só criações e alterações.</li>
+          <li><b>“Entrar com o Canvas”</b>: quem já está logado no Canvas entra no SAS sem digitar nada, e o papel
+            (aluno ou coordenação) vem do enrollment em vez de um toggle.</li>
+          <li><b>Topbar com o logo do Ari e botão de sair</b> — o que o coordenador nota primeiro — e um painel de
+            administrador para criar, renomear e desativar conta de coordenação e ver quem já fez o primeiro acesso.</li>
+        </ul>
+      </div>
+
+      <p class="nota"><b>Sobrou sem código:</b> o Leo olhar o Ciclo 4 · ITA · 2026 sob “Tio Leo” (316 de 407 cortados)
+        e confirmar; o SSO de coordenador, que fecha sozinho no primeiro login dele; e limpar os 582 escopos da
+        Developer Key, que hoje é poder demais para o único escopo que o SAS usa.</p>
+    </article>
+
+    <!-- ============================ 05 · Mobile ============================ -->
+    <article class="ciclo" data-estado="curso">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT MOBILE</span>
+        <span class="selo selo--curso">em curso</span>
+        <span class="ciclo__quando">22/08/2026 → · branch <code>feat/mobile-fundacao-css</code></span>
+      </div>
+      <h2>A área do aluno no celular</h2>
+      <p class="ciclo__resumo">Furou a fila por decisão direta de prioridade — <b>não é a Sprint 3 do roadmap</b>.
+        A rota foi decidida antes do plano: <b>web responsiva, não aplicativo</b>. É a primeira vez que o produto vai
+        ser usado no aparelho em que o aluno de fato está. O backend não muda; nenhuma migration.</p>
+      <ul class="fontes"><li>docs/20-mobile.md — decisão e auditoria</li><li>docs/21-plano-mobile.md — execução</li></ul>
+
+      <p class="nota"><b>O ponto de partida não era zero, e não era o que parecia.</b> A auditoria contou media queries
+        e concluiu “6 folhas sem nenhuma”. O mapa completo mostrou outra coisa: o casco do aluno já estava quase pronto
+        — tem header mobile, bottom nav com <code>safe-area-inset</code> e <code>100dvh</code>, a unidade certa que o
+        resto do projeto ainda não usava. Quem não colapsa em largura nenhuma é o casco da <em>coordenação</em>.</p>
+
+      <span class="rotulo" style="margin-top:1.2rem">O plano — 5 partes em corrente</span>
+      <ul class="partes">
+        <li>
+          <span class="cod">P1</span>
+          <span class="oque"><b>Fundação</b><em>Tokens, passada de toque e peso — o que as outras quatro herdam.
+            Feito: fonte de 16px em todo campo, <code>touch-action</code>, <code>100dvh</code>, escala de
+            <code>z-index</code>, e o selo de 1,7 MB. Falta a migração dos 12 breakpoints existentes para 3 degraus canônicos.</em></span>
+          <span class="selo selo--curso">parcial</span>
+        </li>
+        <li>
+          <span class="cod">P2</span>
+          <span class="oque"><b>Login</b><em>A porta de entrada, que tinha zero media queries. Colapsa para uma coluna
+            abaixo de 880px; o painel institucional some (não cabia em faixa curta sem decisão de conteúdo). Desktop a
+            1440px conferido pixel a pixel.</em></span>
+          <span class="selo selo--ok">feito</span>
+        </li>
+        <li>
+          <span class="cod">P3</span>
+          <span class="oque"><b>Área do aluno</b><em>Gráficos, chat e modais dentro do casco. Painel,
+            <code>/simulados</code> e o chat verificados a 390px com zero transbordo, autenticado com conta de teste real
+            (17 notas). Três itens seguem não verificáveis sem Safari real.</em></span>
+          <span class="selo selo--curso">em curso</span>
+        </li>
+        <li>
+          <span class="cod">P4</span>
+          <span class="oque"><b>PWA: instalável</b><em>Manifest, ícones e <code>theme-color</code>. Hoje o
+            <code>index.html</code> não tem nem <code>&lt;link rel="icon"&gt;</code>. Service worker com cache offline fica
+            de fora de propósito.</em></span>
+          <span class="selo selo--espera">não começou</span>
+        </li>
+        <li>
+          <span class="cod">P5</span>
+          <span class="oque"><b>Coordenação</b><em>O casco antes das tabelas. A sidebar de 220px fica ao lado do conteúdo
+            a 360px do mesmo jeito que a 1440px — nenhuma rota de coordenação é utilizável no celular hoje. Régua provisória:
+            <b>consultar sim, editar não</b>.</em></span>
+          <span class="selo selo--espera">não começou</span>
+        </li>
+      </ul>
+
+      <p class="nota nota--alerta"><b>Três achados que nenhuma contagem de media query pegaria</b>, porque só existem em
+        runtime: <b>(1)</b> o <code>body { display:flex; align-items:center }</code> do login vazava para o app inteiro —
+        era a causa de um transbordo de +224px no painel do aluno que não tinha relação nenhuma com o CSS do painel;
+        <b>(2)</b> item de flex/grid sem <code>min-width:0</code>, duas vezes na mesma árvore, cada uma escondendo a outra;
+        <b>(3)</b> dois gráficos do painel do próprio aluno com largura fixa apesar do <code>viewBox</code> — defeito que a
+        auditoria só tinha documentado para outros dois componentes.</p>
+
+      <div class="ganho">
+        <span class="rotulo">Do que já está feito, quem usa passa a ter</span>
+        <ul>
+          <li><b>O login abrindo rápido no 3G.</b> O selo caiu de <b>1,7 MB para 11,4 KB</b> em WebP — a imagem decorativa
+            era maior que todo o JavaScript do app somado, e era exibida a 88px.</li>
+          <li><b>Nenhum campo dando zoom ao receber o toque</b> — fonte de 16px em todo <code>input</code>,
+            <code>select</code> e <code>textarea</code>.</li>
+          <li><b>O formulário de login inteiro na tela a 360px</b>, em uma coluna, sem rolagem lateral. Botão do olho e
+            link de criar senha com alvo de toque de verdade.</li>
+          <li><b>Modal que não fica mais atrás do botão do mentor</b> — e que rola por dentro em vez de estourar quando o
+            teclado abre.</li>
+          <li><b>Os gráficos do painel do aluno acompanhando a largura da tela.</b></li>
+        </ul>
+      </div>
+
+      <p class="nota"><b>Ainda em aberto:</b> a trava automatizada — um script no repositório que abre cada rota a 360px e
+        falha se houver transbordo ou fonte de campo menor que 16px, entrando como bloqueante no <code>deploy.sh</code>.
+        Sem ela a auditoria é uma foto, e a primeira tela nova reintroduz o problema sem ninguém perceber.</p>
+    </article>
+
+    <!-- ============================ 06 · Banco ============================ -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT BANCO</span>
+        <span class="selo selo--espera">proposta</span>
+        <span class="ciclo__quando">6 partes · furou a fila em 22/08, junto do mobile</span>
+      </div>
+      <h2>Banco de questões ITA · IME vira aba do SAS</h2>
+      <p class="ciclo__resumo">O projeto <code>ita-por-assunto</code> — 934 questões de prova de 2018 a 2025,
+        de Física, Química e Matemática, classificadas por tópico do edital — sai de site estático próprio e
+        entra no SAS como <b>dado no Postgres e telas em React</b>. Aba na área do aluno e na da coordenação.
+        Some no caminho um HTML de 2,2 MB, um login de mentira e 215 MB de histórico de outro repositório.</p>
+      <ul class="fontes"><li>docs/22-plano-banco-questoes.md</li><li>migrations 0028, 0029</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">P1</span><span class="oque"><b>O dado entra no SAS</b><em>Tabelas
+          <code>questao_vestibular</code>, <code>topico_taxonomia</code> e a ligação N:N; importador idempotente
+          que falha alto em vez de engolir questão sem tópico. Chave da taxonomia é composta — <code>1.1</code>
+          existe nas três matérias e significa coisa diferente em cada uma.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>A API</b><em>Listagem filtrada e paginada, e a
+          recorrência agregada no servidor. É a primeira vez no projeto em que paginar é o certo — e o código
+          precisa dizer por quê, senão alguém “conserta”.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>A aba, nos dois cascos</b><em>Uma tela só, que
+          recebe o perfil e esconde o que não se aplica. Sub-abas são rotas de verdade. Nasce verificada a
+          360px — construir com sidebar fixa seria criar, no dia seguinte, a dívida que o sprint mobile acabou
+          de mapear.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>Estatísticas sem Chart.js</b><em>A biblioteca vem
+          de CDN de terceiro e sai. Não entra como npm: o SAS não tem biblioteca de gráfico por decisão de
+          projeto. <code>Histograma</code> e <code>LinhaTemporal</code> já existem e já escalam no
+          celular.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P5</span><span class="oque"><b>Listas</b><em>Montar, reordenar e exportar em PDF
+          e DOCX — para os dois perfis. Mora no servidor, não no <code>localStorage</code>: uma lista que existe
+          só num aparelho é uma lista que o aluno perde sem saber por quê.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P6</span><span class="oque"><b>Estudo do aluno</b><em>Marcar resolvida, anotar, e
+          a aba de mensagem — só no casco do aluno. É o que faz o banco virar ferramenta de estudo em vez de
+          catálogo.</em></span><span class="selo selo--espera">corta se faltar tempo</span></li>
+      </ul>
+
+      <p class="nota nota--alerta"><b>O item que não pode entrar nem no histórico:</b> o site de hoje tem um
+        <code>allowed-ras.json</code> com <b>817 matrículas de aluno</b> que o browser baixa para validar o login
+        em JavaScript. Não basta não trazer o arquivo — ele não pode aparecer em commit nenhum, nem num que
+        depois o remova. O SAS já resolve isso melhor: matrícula é validada no servidor contra o e-mail do Canvas.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>Uma aba Banco dentro do próprio SAS</b> — o aluno para de trocar de site, e de login, para
+            estudar por questão.</li>
+          <li><b>Filtro por tópico do edital</b>, não só por ano e prova: “óptica geométrica, ITA, últimos cinco
+            anos” em três cliques.</li>
+          <li><b>A recorrência de um tópico ao longo dos anos</b> — o que o edital cobra de verdade, em vez do
+            que se supõe que cobra.</li>
+          <li><b>Uma lista de estudo que sobrevive à troca de aparelho</b>, para o aluno, e uma lista exportável
+            em PDF ou DOCX, para o coordenador.</li>
+          <li><b>Questão legível no celular</b> — o site de hoje tem sidebar de largura fixa e nenhuma media
+            query, exatamente o defeito que o sprint mobile mapeou na coordenação.</li>
+        </ul>
+      </div>
+
+      <p class="nota"><b>O prêmio que este sprint prepara e não colhe:</b> a mesma taxonomia serve para
+        classificar as <b>1.031 questões dos simulados do colégio</b>, que hoje têm <code>assunto</code> nulo —
+        o gancho da migration <code>0015</code> espera desde então. Com elas classificadas, as <b>237.081
+        respostas de aluno</b> já gravadas passam a dizer <em>em que assunto</em> cada um erra. É uma alavanca
+        de mil para duzentas e trinta e sete mil, e é sprint próprio.</p>
+    </article>
+
+    <!-- ============================ 07 · Sprint 3 =========================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 3</span>
+        <span class="selo selo--espera">proposta</span>
+        <span class="ciclo__quando">4 partes · uma frente por sprint</span>
+      </div>
+      <h2>Fechar o Bloco A</h2>
+      <p class="ciclo__resumo">O que a coordenação mais pediu — cobrar professor sem ser na mão — e que já tem a infra
+        pronta: motor, agenda e e-mail existem desde a Sprint 1. Retoma as duas partes que ficaram para trás lá.</p>
+      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 §2.4</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">P1</span><span class="oque"><b>Requerimento de questões</b><em>Tabela e máquina de estados:
+          o professor entra na fila ao criar o simulado e sai ao entregar. Tamanho G.</em></span><span class="selo selo--trava">depende da decisão do WhatsApp</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Cobrança por e-mail</b><em>O motor existente dispara para os
+          professores. Era a P4 da Sprint 1. Tamanho M.</em></span><span class="selo selo--espera">depende de P1</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Ausência ≠ zero</b><em>Falta contando como zero deturpa toda
+          média — e o corte da Sprint 2 depende de média certa. É o único 🔴 confirmado do documento 10. Tamanho M.</em></span><span class="selo selo--espera">sem dependência</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>WhatsApp (Z-API)</b><em>Era a P5 da Sprint 1. Tamanho G.</em></span><span class="selo selo--trava">depende da decisão</span></li>
+      </ul>
+
+      <p class="nota nota--alerta"><b>Pré-voo:</b> a decisão do WhatsApp. Sem ela a P1 se desenha errado — “só lembrete”
+        e “canal completo, com o professor anexando o arquivo pelo WhatsApp” pedem modelos de dado diferentes.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>A cobrança de professor rodando sozinha.</b> O coordenador distribui as questões e não toca em mais nada
+            até a entrega.</li>
+          <li><b>Uma tela de quem entregou e quem não</b>, em vez de a informação viver na cabeça dele.</li>
+          <li><b>Média que não conta falta como zero</b> — o que muda todo número exibido hoje, e é pré-requisito para a
+            régua de corte da Sprint 2 estar dizendo a verdade.</li>
+          <li><b>A mesma cobrança nos dois canais</b>, com o botão do WhatsApp pausando a cobrança sem marcar como entregue.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ============================ 08 · Sprint 4 ========================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 4</span>
+        <span class="selo selo--espera">proposta</span>
+        <span class="ciclo__quando">6 partes</span>
+      </div>
+      <h2>Dado e leitura</h2>
+      <p class="ciclo__resumo">Recolhe o que o Bloco B e o Bloco C do documento 10 deixaram pendente, mais as duas
+        partes que a Onda 3 da Sprint 2 cortou por falta de tempo.</p>
+      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 Partes 5</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">P1</span><span class="oque"><b>Zero × ausência nas estatísticas</b><em>B.3 — o par do P3 da Sprint 3, do lado do motor estatístico.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Precedência entre ingest de planilha e sync do Canvas</b><em>B.4 — hoje quem escreve por último vence.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Split ano / vestibular / ciclo no Painel</b><em>C.2.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>Range de período em Ciclos</b><em>C.3.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P5</span><span class="oque"><b>Corte na Fase 1 pela zona do aluno</b><em>Unificar <code>thresholds.py</code> com <code>criterios.py</code> — vindo da Onda 3 da Sprint 2.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P6</span><span class="oque"><b>Envio em lote ao Canvas</b><em>“Enviar as N pendências do ciclo” — hoje cada objeto tem seu botão. Também da Onda 3.</em></span><span class="selo selo--espera">—</span></li>
+      </ul>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>Um painel que não mistura anos e vestibulares</b> — hoje o recorte é implícito e o coordenador precisa
+            saber que precisa desconfiar.</li>
+          <li><b>Ciclos com recorte por período</b>, em vez de tudo ou nada.</li>
+          <li><b>Um clique para enviar as pendências do ciclo inteiro</b>, em vez de N cliques.</li>
+          <li><b>Números que não mudam de significado</b> conforme o dado tenha vindo da planilha ou do Canvas.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ============================ 09 · Sprint 5 ========================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 5</span>
+        <span class="selo selo--espera">proposta</span>
+        <span class="ciclo__quando">5 partes</span>
+      </div>
+      <h2>Assistente e gráficos em camadas</h2>
+      <p class="ciclo__resumo">O Bloco D do documento 10 — transformar o chat de modal que bloqueia em copiloto que
+        acompanha — mais duas coisas que já nasceram prontas por baixo e só esperam tela.</p>
+      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 §2.8</li><li>docs/18 §1.10</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">P1</span><span class="oque"><b>Painel não-modal</b><em>D.1 — o mais barato do documento 10. Hoje o chat aberto bloqueia a navegação.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Consciência de rota</b><em>D.4 — o assistente saber em que página a pessoa está.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Apresentação da abertura e lacunas de tools</b><em>D.2 + D.3 — o que é navegável na plataforma e o chat ainda não alcança.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>UI de critérios do coordenador</b><em>O formato nasceu pronto na Sprint 2 — tabelas, versionamento e avaliador. Falta só a tela.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P5</span><span class="oque"><b>Gráficos em camadas</b><em>Leigo → insight → estatística: o mesmo gráfico legível em três profundidades.</em></span><span class="selo selo--espera">—</span></li>
+      </ul>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>Um assistente que não bloqueia a tela.</b> Dá para conversar e navegar ao mesmo tempo.</li>
+          <li><b>Um assistente que sabe onde você está</b> — perguntar “e esse aluno?” passa a ter referente.</li>
+          <li><b>Uma abertura que mostra o que ele sabe fazer</b>, em vez de um campo em branco.</li>
+          <li><b>O coordenador criando a própria régua</b> — “nota 7 em Matemática, Física e Química e acima de 4 em
+            Português” — sem pedir código a ninguém.</li>
+          <li><b>Gráficos que se leem em três níveis</b>, conforme quem está olhando.</li>
+        </ul>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ============================== apêndices ============================== -->
+  <div class="apendice">
+
+    <section>
+      <h3>Decisões em aberto</h3>
+      <ul>
+        <li><b>WhatsApp é só lembrete, ou canal completo?</b>
+          Se o professor anexa o arquivo pelo WhatsApp e o sistema relaciona ao simulado, P1 e P4 se desenham diferente.
+          Trava a Sprint 3 inteira.
+          <span class="quem">Yan + coordenação</span></li>
+        <li><b>Frequência da cobrança de professores.</b> Diária? A cada três dias?
+          <span class="quem">Coordenação · trava Sprint 3 · P2</span></li>
+        <li><b>Regra de “zero = provável ausência”.</b> Qual é o limiar.
+          <span class="quem">Coordenação · trava Sprint 3 · P3</span></li>
+        <li><b>O coordenador usa celular para quê?</b> “Dar uma olhada no ranking”, “checar um aluno” e
+          “trabalhar de verdade” levam a três tamanhos diferentes de P5.
+          <span class="quem">Coordenação · trava Mobile · P5</span></li>
+        <li><b>O painel institucional do login some no celular, ou vira faixa?</b>
+          <span class="quem">Quem responde pela marca</span></li>
+        <li><b>O aluno vê o banco de questões inteiro, ou só o do vestibular-alvo dele?</b>
+          O SAS sabe o alvo, mas todo aluno é avaliado contra ITA <em>e</em> IME.
+          <span class="quem">Coordenação · trava Banco · P3</span></li>
+        <li><b>As 40 questões sem classificação aparecem, ou ficam fora até alguém classificar?</b>
+          Sumir do filtro por tópico dá ao aluno um recorte incompleto sem aviso.
+          <span class="quem">Coordenação · trava Banco · P3</span></li>
+        <li><b>A lista montada pelo coordenador é visível para os alunos, ou é material dele?</b>
+          <span class="quem">Coordenação · trava Banco · P5</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h3>Dívida técnica — PR avulso, qualquer hora</h3>
+      <ul>
+        <li><b>Renomear <code>get_supabase()</code> → <code>get_postgrest()</code>.</b>
+          O nome mente desde 13/08, quando o Supabase saiu. É também o que destrava o mypy como portão — 72 dos
+          109 erros são isso. Tamanho M, mecânico.</li>
+        <li><b>O logout da área do aluno aponta para <code>/login.html</code></b>, rota que não existe mais desde a
+          migração React. É <code>/login</code>.</li>
+        <li><b>Conferir se <code>web/dist/</code> está versionado</b> por engano.</li>
+        <li><b>Sem testes que toquem DOM.</b> Os 7 arquivos de teste do front são todos de lógica pura; o harness de
+          browser da migração React viveu num scratchpad e nunca entrou no repositório. É a mesma lacuna que a trava
+          do sprint mobile fecharia.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <p class="rodape">
+    Compilado de docs/10 §2.10 · 11 · 12 · 13 · 14 · 15 · 16 · 17 · 18 · 19 · 20 · 21 · 22.<br>
+    O documento de estado é o <b>docs/19-roadmap.md</b> — quando esta página divergir dele, ele vence.<br>
+    Quando o roadmap divergir do código, o código vence.
+  </p>
+
+</div>

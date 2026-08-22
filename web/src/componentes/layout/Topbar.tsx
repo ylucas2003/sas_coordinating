@@ -10,6 +10,7 @@ const ABAS = [
   { caminho: '/alunos', label: 'Alunos' },
   { caminho: '/simulados', label: 'Simulados' },
   { caminho: '/ciclos', label: 'Ciclos' },
+  { caminho: '/banco', label: 'Banco' },
   { caminho: '/auditoria', label: 'Auditoria' },
   { caminho: '/administracao', label: 'Administração' },
 ];

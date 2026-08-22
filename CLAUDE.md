@@ -46,8 +46,14 @@ sas/
 │   ├── vps/      stack de PRODUÇÃO — autônoma, não é override do compose da raiz
 │   ├── postgres/ init dos papéis do PostgREST
 │   └── sas_scheduler/  CDK do agendador na AWS
-├── docs/         00→21, numerados; 14 e 15 são produção; **19 é o estado**
-│                 (feito / pendente / próximo); 20 e 21 são o sprint mobile em curso
+├── docs/         00→22, numerados; 14 e 15 são produção; **19 é o estado**
+│                 (feito / pendente / próximo); 20 e 21 são o sprint mobile;
+│                 22 é o banco de questões
+├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
+│                 editais. Fora de `api/` de propósito — nada aqui roda em
+│                 requisição. **As 934 questões NÃO estão aqui**: moram no
+│                 Postgres desde 22/08 (docs/22 §13); `questoes_json/` é saída
+│                 local, não versionada
 └── docker-compose.yml   stack de DESENVOLVIMENTO (db + postgrest + api + web)
 ```
 

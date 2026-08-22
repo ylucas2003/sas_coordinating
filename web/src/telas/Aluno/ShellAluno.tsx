@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Icone } from '../../componentes/aluno/graficos';
 import { PainelAluno } from './PainelAluno';
 import { DetalheSimuladoAlunoTela, ListaSimuladosAluno } from './SimuladosAluno';
+import { Banco } from '../Banco/Banco';
 import * as api from '../../servicos/api';
 import * as sessao from '../../servicos/sessao';
 
@@ -17,10 +18,12 @@ import * as sessao from '../../servicos/sessao';
 const D_HOME = 'M3 11.5l9-7.5 9 7.5M5 10v9a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1v-9';
 const D_DOC = 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5 M9 13h6 M9 17h4';
 const D_GRAD = 'M22 10L12 5 2 10l10 5 10-5z M6 12v5c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5';
+const D_BANCO = 'M4 5a2 2 0 0 1 2-2h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2z M4 17.5A2 2 0 0 1 6 16h12 M8 7h6';
 
 const TABS = [
   { caminho: '/', label: 'Painel', d: D_HOME, exata: true },
   { caminho: '/simulados', label: 'Simulados', d: D_DOC, exata: false },
+  { caminho: '/banco', label: 'Banco', d: D_BANCO, exata: false },
 ];
 
 function sair() {
@@ -108,6 +111,7 @@ export function ShellAluno() {
             <Route path="/" element={<PainelAluno nome={primeiro} />} />
             <Route path="/simulados" element={<ListaSimuladosAluno />} />
             <Route path="/simulados/:id" element={<DetalheSimuladoAlunoTela />} />
+            <Route path="/banco/*" element={<Banco perfil="aluno" />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
