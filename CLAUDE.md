@@ -46,7 +46,8 @@ sas/
 │   ├── vps/      stack de PRODUÇÃO — autônoma, não é override do compose da raiz
 │   ├── postgres/ init dos papéis do PostgREST
 │   └── sas_scheduler/  CDK do agendador na AWS
-├── docs/         00→19, numerados; 14 e 15 são os planos de produção; **19 é o estado** (feito / pendente / próximo)
+├── docs/         00→21, numerados; 14 e 15 são produção; **19 é o estado**
+│                 (feito / pendente / próximo); 20 e 21 são o sprint mobile em curso
 └── docker-compose.yml   stack de DESENVOLVIMENTO (db + postgrest + api + web)
 ```
 
@@ -122,7 +123,22 @@ O `docker` do PATH está quebrado nesta máquina (symlink para um
   - `chrome` — abre o site de verdade: erro de console, requisição de rede,
     trace de performance, screenshot. É como se verifica usabilidade e
     desempenho sem chutar. Configurado com `performanceCrux` e
-    `usageStatistics` **desligados**, pela mesma regra de LGPD do item 5.
+    `usageStatistics` **desligados**, pela mesma regra de LGPD do item 6.
+    O `--viewport 1440x900` é só o padrão de abertura: a ferramenta `emulate`
+    troca para celular (`390x844x3,mobile,touch`), throttla rede e CPU.
   - `postgres` — `EXPLAIN`, índice faltando, saúde do banco. Em
     `--access-mode restricted` (leitura). Aponta para o Postgres do compose;
     para outro banco, exporte `SAS_DATABASE_URI`.
+  - `mobile` — Simulator do iOS e emulador do Android, para o que o Chrome não
+    emula com fidelidade (Safari real, notch, teclado). **Hoje não enxerga
+    aparelho nenhum**: falta o Xcode completo — só o Command Line Tools está
+    instalado, e o `simctl` não vem nele. Ver [docs/20-mobile.md §2](docs/20-mobile.md).
+    Nunca usar as ferramentas de aparelho em nuvem com dado real de aluno.
+- **Skills** ([.claude/skills/](.claude/skills/)), copiadas para o repositório em
+  vez de instaladas globalmente, para a régua ficar versionada e o diff dela
+  aparecer no git:
+  - `frontend-design` (Anthropic) — direção visual ao criar ou redesenhar tela.
+  - `web-design-guidelines` (Vercel) — revisa UI contra 103 regras de toque,
+    safe-area, foco e formulário. As regras vivem em `regras.md` no próprio
+    diretório da skill; o `SKILL.md` foi alterado de propósito para ler a cópia
+    local em vez de buscar por HTTP a cada revisão.

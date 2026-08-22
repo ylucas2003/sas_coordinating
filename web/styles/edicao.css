@@ -9,7 +9,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 900;
+  /* Acima do chat (950/945, chat.css): um diálogo aberto bloqueia a página
+     inteira e não pode ficar atrás do FAB do chat (docs/20 §3.2). */
+  z-index: 960;
   padding: 24px;
   animation: overlay-in 0.12s ease;
 }
@@ -25,6 +27,11 @@
   box-shadow: 0 8px 40px rgba(20, 30, 80, 0.2);
   width: 100%;
   max-width: 420px;
+  /* Sem isto, um diálogo mais alto que a tela (ex.: com o teclado virtual
+     aberto) não tinha como rolar (docs/20 §3.3). */
+  max-height: min(600px, 90dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   animation: dialog-in 0.14s ease;

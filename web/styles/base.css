@@ -14,9 +14,31 @@ body {
 #root {
   margin: 0;
   padding: 0;
-  min-height: 100vh;
+  /* 100dvh, não 100vh: no Safari do iOS o vh ignora a barra de endereço e
+     corta o rodapé quando ela está visível (docs/20 §1.3). */
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+/* Passada de toque (docs/20 §1.3) — vale para o app inteiro.
+
+   16px é o limiar abaixo do qual o Safari do iOS dá zoom automático ao focar
+   um campo, e não desfaz sozinho. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+button,
+a,
+[role='button'],
+input,
+select,
+textarea {
+  touch-action: manipulation; /* mata o atraso de ~300ms do duplo-toque-zoom */
+  -webkit-tap-highlight-color: transparent; /* sem o flash cinza do Android — os componentes já têm seu próprio estado de foco/pressionado */
 }
 
 body {

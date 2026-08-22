@@ -3,7 +3,7 @@ import type { Modo } from './modos';
 
 import ariLogo from '../../../assets/ari-logo-branca.png';
 import sasLogo from '../../../assets/sas-logo.png';
-import selo from '../../../assets/selo-108anos.png';
+import selo from '../../../assets/selo-108anos.webp';
 
 const ESTATISTICAS = [
   { num: '108', em: 'anos', label: 'Tradição' },

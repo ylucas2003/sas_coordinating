@@ -916,6 +916,14 @@
   gap: 8px;
 }
 
+/* O componente já declara viewBox (480×180) mas também width/height fixos
+   em px — o viewBox sozinho não escala nada sem isto. Ele aparece dentro do
+   chat do aluno (chat/Artefato), num viewport de até 390px (docs/20 §3.1). */
+.histograma {
+  max-width: 100%;
+  height: auto;
+}
+
 .histograma__legenda {
   display: flex;
   gap: 16px;
@@ -1685,6 +1693,13 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Mesmo caso do .histograma acima: viewBox (720×220) presente, mas width e
+   height fixos em px anulam o escalonamento sem isto (docs/20 §3.1). */
+.linha-temporal {
+  max-width: 100%;
+  height: auto;
 }
 
 .linha-temporal__legenda {

@@ -67,6 +67,7 @@ export function Login() {
   }
 
   return (
+    <div className="lp-page">
     <div className="lp">
       <div className="lp-left">
         <div className="lp-left__inner">
@@ -132,6 +133,7 @@ export function Login() {
 
       <PainelDireito modo={modo} geracao={geracao} />
     </div>
+    </div>
   );
 }
 
@@ -192,6 +194,7 @@ function FormularioLogin({
             type="button"
             className="lp-field__eye"
             tabIndex={-1}
+            aria-label={verSenha ? 'Ocultar senha' : 'Mostrar senha'}
             onClick={() => setVerSenha((v) => !v)}
           >
             <IconeOlho aberto={verSenha} />
