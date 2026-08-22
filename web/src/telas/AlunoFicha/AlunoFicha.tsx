@@ -7,6 +7,7 @@ import { LinhaEvolucao } from '../../componentes/ui/LinhaEvolucao';
 import { SimFiltros } from '../../componentes/simulados/SimFiltros';
 import { TabelaSimulados } from '../../componentes/simulados/TabelaSimulados';
 import { EdicaoNota } from '../../componentes/dialogos/EdicaoNota';
+import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
 import { AcessoDoAluno } from './AcessoDoAluno';
 import { MenuExportar } from './MenuExportar';
 import {
@@ -116,7 +117,7 @@ export function AlunoFicha() {
     });
   }
 
-  async function salvarNota(valores: { pontuacao: number | null; presente: boolean } | null) {
+  async function salvarNota(valores: ValoresNota | null) {
     const alvo = emEdicao;
     setEmEdicao(null);
     if (!valores || !alvo) return;

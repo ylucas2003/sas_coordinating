@@ -126,6 +126,45 @@ export function useEstatisticasCiclo(id: string) {
   });
 }
 
+/**
+ * Classificação do ciclo pelo critério escolhido. Chave inclui critério e fase
+ * porque mudar qualquer um muda a lista inteira — e a nota editada invalida
+ * `ciclo(id)`, que alcança isto também.
+ */
+export function useClassificacaoCiclo(cicloId: string | null, criterio: string, fase?: 1 | 2) {
+  return useQuery({
+    queryKey: [...chaves.ciclo(cicloId ?? ''), 'classificacao', criterio, fase ?? null],
+    queryFn: () => api.classificacaoCiclo(cicloId!, criterio, fase),
+    enabled: !!cicloId,
+  });
+}
+
+export function useCriteriosDisponiveis() {
+  return useQuery({
+    queryKey: ['criterios'],
+    queryFn: api.criteriosDisponiveis,
+    // Os critérios embutidos mudam por deploy, não por uso.
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+export function useAuditoria(filtro: api.FiltroAuditoria) {
+  return useQuery({
+    queryKey: ['auditoria', filtro],
+    queryFn: () => api.listarAuditoria(filtro),
+    // A trilha só cresce: o que já carregou não muda, mas o topo ganha linhas.
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useCoordenadores() {
+  return useQuery({ queryKey: ['administracao', 'coordenadores'], queryFn: api.listarCoordenadores });
+}
+
+export function useAcessosDeAlunos() {
+  return useQuery({ queryKey: ['administracao', 'alunos-acesso'], queryFn: api.acessosDeAlunos });
+}
+
 // ─── Ficha do aluno ──────────────────────────────────────────────────────
 
 export function useAluno(id: string) {

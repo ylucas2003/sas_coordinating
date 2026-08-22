@@ -97,6 +97,16 @@ class Settings(BaseSettings):
     canvas_ano_vigente: str = ""                # vazio = auto-detecta (maior ano encontrado)
     canvas_sync_lookback_minutos: str = "20"    # janela do graded_since no sync incremental
 
+    # Canvas como provedor de identidade — OAuth2 por redirect (docs/18 §4.2).
+    # É OUTRA credencial, não o token acima: o token autentica o SAS *como o
+    # Admin*; a Developer Key é o cadastro do SAS como aplicativo, para o
+    # aluno entrar com a conta DELE. Criada em Admin → Developer Keys, com a
+    # redirect URI igual a `canvas_oauth_redirect_uri`. Vazio = SSO desligado
+    # e a tela de login não oferece o botão.
+    canvas_client_id: str = ""
+    canvas_client_secret: str = ""
+    canvas_oauth_redirect_uri: str = "http://localhost:8080/auth/canvas/callback"
+
     # E-mail via AWS SES (motor de lembretes, app/lembretes/). Sem credencial →
     # agendar COM lembrete devolve 422; o resto do sistema não muda.
     # Ver docs/12-plano-p2-motor-lembretes.md §2 (remetente precisa estar

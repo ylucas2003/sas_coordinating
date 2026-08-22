@@ -415,6 +415,18 @@
   cursor: help;
 }
 
+/* 'divergente': escolha consciente, não erro — navy, não âmbar. */
+.sim-selo-divergente {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-navy-soft, #e6eaf4);
+  color: var(--color-navy, #1f3a7a);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .sim-selo-ok {
   display: inline-block;
   padding: 2px 8px;
@@ -424,4 +436,51 @@
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
+}
+
+
+/* ─── "E no Canvas?" — a escolha no passo de confirmação ─────────────────
+   Toda escrita no Canvas passa por este bloco (docs/18 §2.3). O vermelho só
+   aparece na operação irreversível, para o olho não se acostumar com ele. */
+
+.dialog__canvas {
+  margin: 14px 0 0;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.dialog__canvas--perigo {
+  border-color: var(--color-red);
+}
+
+.dialog__canvas-titulo {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.dialog__canvas-opcao {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 6px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dialog__canvas-opcao input {
+  margin-top: 3px;
+}
+
+.dialog__canvas-aviso {
+  color: var(--color-red);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.btn--perigo {
+  background: var(--color-red);
+  border-color: var(--color-red);
 }

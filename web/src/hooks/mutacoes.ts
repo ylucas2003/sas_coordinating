@@ -31,7 +31,8 @@ export function useAgendarSimulado() {
 export function useCancelarSimulado() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.cancelarSimulado(id),
+    mutationFn: ({ id, sincronizarCanvas }: { id: string; sincronizarCanvas: boolean }) =>
+      api.cancelarSimulado(id, sincronizarCanvas),
     onSuccess: () => invalidarTudo(queryClient),
   });
 }
@@ -47,7 +48,8 @@ export function useRetrySimuladoCanvas() {
 export function useCriarCiclo() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (corpo: { ordem: number; vestibular: string }) => api.criarCiclo(corpo),
+    mutationFn: (corpo: { ordem: number; vestibular: string; sincronizar_canvas: boolean }) =>
+      api.criarCiclo(corpo),
     onSuccess: () => invalidarTudo(queryClient),
   });
 }
@@ -66,7 +68,7 @@ export function useEditarSimulado() {
 export function useEditarNota() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ alunoId, simuladoId, corpo }: { alunoId: string; simuladoId: string; corpo: unknown }) =>
+    mutationFn: ({ alunoId, simuladoId, corpo }: { alunoId: string; simuladoId: string; corpo: api.CorpoEdicaoNota }) =>
       api.editarNota(alunoId, simuladoId, corpo),
     onSuccess: () => invalidarTudo(queryClient),
   });
@@ -77,5 +79,45 @@ export function useResolverAlerta() {
   return useMutation({
     mutationFn: (id: string) => api.resolverAlerta(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: chaves.alertas }),
+  });
+}
+
+// ─── Administração ───────────────────────────────────────────────────────
+
+function invalidarAdministracao(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['administracao'] });
+  queryClient.invalidateQueries({ queryKey: ['auditoria'] });
+}
+
+export function useCriarCoordenador() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (corpo: { email: string; nome: string; canvas_user_id?: string }) => api.criarCoordenador(corpo),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+export function useEditarCoordenador() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, corpo }: { id: string; corpo: { nome?: string; ativo?: boolean; canvas_user_id?: string } }) =>
+      api.editarCoordenador(id, corpo),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+export function useLigarCoordenadorAoCanvas() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.ligarCoordenadorAoCanvas(id),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+export function useRedefinirSenhaCoordenador() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.redefinirSenhaCoordenador(id),
+    onSuccess: () => invalidarAdministracao(queryClient),
   });
 }

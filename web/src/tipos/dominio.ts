@@ -96,7 +96,7 @@ export interface Simulado {
    * 'falhou' significam que o Assignment ainda não existe ou não reflete o
    * SAS — a UI mostra o limbo, e `canvasErro` carrega o motivo da última falha.
    */
-  canvasEstado: 'sincronizado' | 'pendente' | 'falhou';
+  canvasEstado: EstadoCanvas;
   canvasErro: string | null;
   media: number | null;
   mediana: number | null;
@@ -244,4 +244,109 @@ export interface AlunoSimilar {
   tendencia: Tendencia | null;
   zona: Zona | null;
   media: number | null;
+}
+
+// ─── Classificação por critério ──────────────────────────────────────────
+// O servidor é dono da régua (docs/18 §1.2). O front recebe veredito, motivo,
+// cor e posição prontos e só desenha — nenhuma regra de corte vive aqui.
+
+/**
+ * Estado de um objeto em relação ao Canvas. `divergente` = o coordenador
+ * escolheu não enviar; o retry automático nunca o toca (docs/18 §2.5).
+ */
+export type EstadoCanvas = 'sincronizado' | 'pendente' | 'falhou' | 'divergente';
+
+export type TomNota = 'verde' | 'ambar' | 'vermelho';
+
+export interface PredicadoCriterio {
+  materia: string | null;
+  operador: string;
+  minimo: number | { acertos: number; de: number };
+  eliminatorio: boolean;
+  entraNaMedia: boolean;
+  peso: number;
+  fonte: string;
+}
+
+export interface CriterioClassificacao {
+  slug: string;
+  nome: string;
+  descricao: string;
+  fase: 1 | 2 | null;
+  combinador: 'todos' | 'algum';
+  desempate: string[];
+  predicados: PredicadoCriterio[];
+}
+
+export interface AlunoClassificado {
+  alunoId: string;
+  nome: string;
+  turmaId: string | null;
+  posicao: number;
+  aprovado: boolean;
+  /** "Química 3,2 — mínimo 4,0 (ITA §4.6.6.5)". `null` quando aprovado. */
+  motivo: string | null;
+  media: number | null;
+  notas: Record<string, { nota: number; tom: TomNota }>;
+}
+
+export interface ClassificacaoCiclo {
+  criterio: CriterioClassificacao;
+  fase: 1 | 2 | null;
+  total: number;
+  cortados: number;
+  alunos: AlunoClassificado[];
+}
+
+// ─── Auditoria ───────────────────────────────────────────────────────────
+
+export type CanalAuditoria = 'acesso' | 'nota' | 'simulado' | 'ciclo' | 'canvas';
+
+export interface EventoAuditoria {
+  id: number;
+  ocorrido_em: string;
+  acao: string;
+  canal: CanalAuditoria | null;
+  ator_tipo: 'coordenador' | 'aluno' | null;
+  ator_id: string | null;
+  ator_nome: string | null;
+  recurso: string | null;
+  ip: string | null;
+  detalhe: Record<string, unknown> | null;
+  request_id: string | null;
+}
+
+export interface PaginaAuditoria {
+  eventos: EventoAuditoria[];
+  canais: CanalAuditoria[];
+  proximo_antes_de_id: number | null;
+}
+
+// ─── Administração ───────────────────────────────────────────────────────
+
+export interface UsuarioCoordenacao {
+  id: string;
+  email: string;
+  nome: string;
+  ativo: boolean;
+  criado_em?: string;
+  ultimo_login_em: string | null;
+  /** id no Canvas — liga a conta ao SSO. `null` = só e-mail + senha. */
+  canvas_user_id: string | null;
+}
+
+export interface AcessoAluno {
+  id: string;
+  nome: string;
+  matricula: string | null;
+  email: string | null;
+  temCanvas: boolean;
+  primeiroAcessoFeito: boolean;
+  ultimoLoginEm: string | null;
+}
+
+export interface PainelAcessos {
+  total: number;
+  comAcesso: number;
+  alunos: AcessoAluno[];
 }

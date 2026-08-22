@@ -4,13 +4,18 @@ import { Sidebar } from '../../componentes/layout/Sidebar';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { CorpoChips, CorpoLista, PainelFiltros } from '../../componentes/ui/filtros/PainelFiltros';
 import { FichaNota } from '../../componentes/dialogos/FichaNota';
+import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
 import { TabelaPainel } from './TabelaPainel';
 import {
   estatisticasDoSimulado, montarPainel, nomeSede, normMateria,
 } from '../../dominio/painel';
-import { useAlunos, useCiclos, useNotasDoCiclo, useSedes, useSimulados, useTurmas } from '../../hooks/consultas';
+import {
+  useAlunos, useCiclos, useClassificacaoCiclo, useCriteriosDisponiveis, useNotasDoCiclo,
+  useSedes, useSimulados, useTurmas,
+} from '../../hooks/consultas';
 import { useEditarNota } from '../../hooks/mutacoes';
 import { fmtNota } from '../../util/formato';
+import type { AlunoClassificado, CriterioClassificacao } from '../../tipos/dominio';
 
 // Painel — a tabela alunos × matérias/fases de um ciclo.
 //
@@ -35,6 +40,8 @@ export function Painel() {
   const [busca, setBusca] = useState('');
   const [ordenacao, setOrdenacao] = useState<'ranking' | 'alfabetica'>('ranking');
   const [fase, setFase] = useState<'1' | '2'>('1');
+  // A régua do corte. 'tio-leo' é a pedagógica do colégio; ITA/IME seguem o edital.
+  const [criterio, setCriterio] = useState('tio-leo');
   const [recolhidos, setRecolhidos] = useState<ReadonlySet<number>>(new Set());
   const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set(['ciclo']));
   const [emEdicao, setEmEdicao] = useState<{ alunoId: string; simuladoId: string } | null>(null);
@@ -45,6 +52,18 @@ export function Painel() {
   // Primeiro ciclo da lista assim que ela chega.
   const cicloAtivo = ciclos.find((c) => c.id === cicloId) ?? ciclos[0] ?? null;
   const { data: notasPorSim = {}, isPending: carregandoNotas } = useNotasDoCiclo(cicloAtivo, simulados);
+  const { data: criterios = [] } = useCriteriosDisponiveis();
+  // Veredito, motivo, cor e posição vêm do servidor (docs/18 §1.2). A fase
+  // exibida manda: a régua do colégio vale para qualquer fase; as do edital
+  // já sabem a sua.
+  const { data: classificacaoResp } = useClassificacaoCiclo(
+    cicloAtivo?.id ?? null, criterio, fase === '1' ? 1 : 2,
+  );
+  const classificacao = useMemo(() => {
+    const porAluno: Record<string, AlunoClassificado> = {};
+    for (const a of classificacaoResp?.alunos ?? []) porAluno[a.alunoId] = a;
+    return porAluno;
+  }, [classificacaoResp]);
 
   const alunosFiltrados = useMemo(() => {
     const q = normMateria(busca.trim());
@@ -64,8 +83,9 @@ export function Painel() {
       notasPorSim,
       fase,
       ordenacao,
+      classificacao,
     }),
-    [cicloAtivo, simulados, alunosFiltrados, notasPorSim, fase, ordenacao],
+    [cicloAtivo, simulados, alunosFiltrados, notasPorSim, fase, ordenacao, classificacao],
   );
 
   // A fase escolhida pode não existir no ciclo novo — segue a que sobrou.
@@ -73,7 +93,7 @@ export function Painel() {
     if (dados.faseSelecionada !== fase) setFase(dados.faseSelecionada);
   }, [dados.faseSelecionada, fase]);
 
-  async function salvarNota(valores: { pontuacao: number | null; presente: boolean } | null) {
+  async function salvarNota(valores: ValoresNota | null) {
     const alvo = emEdicao;
     setEmEdicao(null);
     if (!valores || !alvo) return;
@@ -162,7 +182,7 @@ export function Painel() {
 
             <div className="painel-header__dir">
               <div className="painel-header__controles">
-                <BotaoAjuda />
+                <BotaoAjuda criterio={classificacaoResp?.criterio ?? null} />
                 <BuscaAluno valor={busca} onChange={setBusca} />
                 <Pills
                   opcoes={[
@@ -171,6 +191,11 @@ export function Painel() {
                   ]}
                   valor={ordenacao}
                   onEscolher={setOrdenacao}
+                />
+                <SeletorCriterio
+                  criterios={criterios}
+                  valor={criterio}
+                  onEscolher={setCriterio}
                 />
               </div>
 
@@ -198,10 +223,10 @@ export function Painel() {
               <Kpi rotulo="Simulados aplicados" valor={resumo.totalSimulados} />
               <Kpi rotulo="Média geral" valor={fmtNota(resumo.mediaGeral)} tone={toneMedia(resumo.mediaGeral)} />
               <Kpi
-                rotulo="Em zona de corte"
-                valor={resumo.cortados}
+                rotulo={`Cortados · ${classificacaoResp?.criterio.nome ?? '…'}`}
+                valor={resumo.cortados ?? '…'}
                 sufixo={` de ${resumo.totalAlunos}`}
-                tone={resumo.cortados > 0 ? 'tone-vermelho' : 'tone-verde'}
+                tone={resumo.cortados == null ? '' : resumo.cortados > 0 ? 'tone-vermelho' : 'tone-verde'}
               />
             </div>
           )}
@@ -219,6 +244,7 @@ export function Painel() {
               notasAluno={dados.notasAluno}
               mediasVirtuais={dados.mediasVirtuais}
               mediasPorColuna={dados.mediasPorColuna}
+              classificacao={classificacao}
               recolhidos={recolhidos}
               onToggleLimite={
                 ordenacao === 'ranking'
@@ -254,7 +280,7 @@ function DialogoNota({
   alunoId: string;
   simuladoId: string;
   notasPorSim: Record<string, Array<{ alunoId: string; nota: number | null; presente?: boolean; acertos?: number | null; total?: number | null }>>;
-  onFechar: (valores: { pontuacao: number | null; presente: boolean } | null) => void;
+  onFechar: (valores: ValoresNota | null) => void;
 }) {
   const { data: alunos = [] } = useAlunos();
   const { data: simulados = [] } = useSimulados();
@@ -320,15 +346,85 @@ function Pills<V extends string>({
   return semWrapper ? <>{botoes}</> : <div className="painel-topn">{botoes}</div>;
 }
 
+/** Qual régua de corte está em uso — a do colégio ou a de um edital. */
+function SeletorCriterio({
+  criterios, valor, onEscolher,
+}: {
+  criterios: CriterioClassificacao[];
+  valor: string;
+  onEscolher: (slug: string) => void;
+}) {
+  if (!criterios.length) return null;
+  return (
+    <select
+      className="painel-criterio"
+      aria-label="Critério de classificação"
+      value={valor}
+      onChange={(ev) => onEscolher(ev.target.value)}
+    >
+      {criterios.map((c) => (
+        <option key={c.slug} value={c.slug}>{c.nome}</option>
+      ))}
+    </select>
+  );
+}
+
+function descreverMinimo(p: CriterioClassificacao['predicados'][number]): string {
+  if (typeof p.minimo === 'number') return fmtNota(p.minimo);
+  return `${p.minimo.acertos} de ${p.minimo.de} acertos`;
+}
+
+/**
+ * Legenda gerada a partir do critério — nunca de um número fixo. Foi um "4,0
+ * em vermelho" com legenda dizendo "< 5,0" que expôs a régua duplicada.
+ */
+function LegendaCriterio({ criterio }: { criterio: CriterioClassificacao | null }) {
+  if (!criterio) return null;
+  const regra = criterio.combinador === 'todos'
+    ? 'cortado quando TODOS os requisitos falham'
+    : 'cortado quando QUALQUER requisito falha';
+  return (
+    <>
+      <p className="painel-help-titulo">{criterio.nome} — {regra}</p>
+      <ul className="painel-help-lista">
+        {criterio.predicados.map((p, i) => (
+          <li key={i}>
+            {p.materia === null ? 'Média geral' : p.materia === '*' ? 'Qualquer disciplina' : p.materia === 'fase_1' ? '1ª fase (componente da média)' : p.materia}
+            {` ${p.operador} ${descreverMinimo(p)}`}
+            {p.eliminatorio ? ' · eliminatório' : ''}
+            {!p.entraNaMedia ? ' · fora da média' : ''}
+            {p.peso !== 1 ? ` · peso ${p.peso}` : ''}
+            {p.fonte ? ` (${p.fonte})` : ''}
+          </li>
+        ))}
+      </ul>
+      <div className="painel-help-sep" />
+      <div className="painel-help-legenda">
+        <span className="painel-help-dot painel-help-dot--verde" />
+        Verde — confortável acima do corte
+      </div>
+      <div className="painel-help-legenda">
+        <span className="painel-help-dot painel-help-dot--ambar" />
+        Âmbar — passou, mas perto do corte
+      </div>
+      <div className="painel-help-legenda">
+        <span className="painel-help-dot painel-help-dot--vermelho" />
+        Vermelho — abaixo do corte
+      </div>
+    </>
+  );
+}
+
 const AJUDA_ITENS = [
   'Selecione um ciclo na barra lateral para carregar os dados.',
   'Filtre por Sede e Turmas na barra lateral (múltipla seleção).',
   'Use a busca para encontrar um aluno específico.',
-  'Ordene por Geral (média final ponderada) ou 1ª Fase.',
+  'Ranking: não-cortados primeiro, depois os cortados; desempate pela ordem do critério.',
+  'Troque o critério (Tio Leo, ITA, IME) para ver a mesma turma sob outra régua.',
   'Clique nos separadores Top 10 / 50 / 100 para ocultar ou exibir os alunos abaixo.',
 ];
 
-function BotaoAjuda() {
+function BotaoAjuda({ criterio }: { criterio: CriterioClassificacao | null }) {
   const [aberto, setAberto] = useState(false);
   const refRaiz = useRef<HTMLDivElement>(null);
 
@@ -359,14 +455,7 @@ function BotaoAjuda() {
           {AJUDA_ITENS.map((t) => <li key={t}>{t}</li>)}
         </ul>
         <div className="painel-help-sep" />
-        <div className="painel-help-legenda">
-          <span className="painel-help-dot painel-help-dot--verde" />
-          Verde — sem cortes (todas as notas ≥ 5,0)
-        </div>
-        <div className="painel-help-legenda">
-          <span className="painel-help-dot painel-help-dot--vermelho" />
-          Vermelho — cortado em alguma matéria (nota &lt; 5,0)
-        </div>
+        <LegendaCriterio criterio={criterio} />
       </div>
     </div>
   );

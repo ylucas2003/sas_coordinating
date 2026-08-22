@@ -2,15 +2,14 @@
 
 from collections import defaultdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
-from ..canvas_sync import mapeador
-from ..canvas_sync.cliente import ClienteCanvas
-from ..config import get_settings
+from ..canvas_sync import escrita
 from ..schemas.domain import Ciclo, VestibularAlvo
-from ..stats import ciclo_estatisticas, insights
+from ..stats import ciclo_estatisticas, classificacao_ciclo, criterios, insights
 from ..supabase_client import get_supabase
 
 router = APIRouter(
@@ -46,15 +45,25 @@ class CriarCicloBody(BaseModel):
     ordem: int = Field(gt=0, le=99)
     vestibular: VestibularAlvo
     ano: int | None = None   # None = ano vigente (maior ano com curso no Canvas)
+    # Sem default (docs/18 §2.3). False = o ciclo nasce sem Assignment Group,
+    # em 'divergente'; simulados agendados nele ficam 'divergente' também até
+    # alguém clicar "enviar ao Canvas" no ciclo.
+    sincronizar_canvas: bool
 
 
 @router.post("", response_model=Ciclo, status_code=201)
-async def criar_ciclo(body: CriarCicloBody) -> Ciclo:
-    """Cria um ciclo no SAS E o Assignment Group correspondente no Canvas.
+async def criar_ciclo(
+    body: CriarCicloBody,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> Ciclo:
+    """Cria um ciclo no SAS e, se pedido, o Assignment Group no Canvas.
 
-    TRANSACIONAL (diferente do simulado, que é híbrido): um ciclo que existe
-    no SAS mas não no Canvas não serve pra nada — nenhum simulado pode nascer
-    nele. Se o Canvas recusar, nada é salvo e o coordenador vê o erro.
+    Era transacional ("ciclo sem grupo no Canvas não serve pra nada"). Deixou
+    de ser quando a coordenação decidiu que nada sobe ao Canvas sem alguém
+    clicar (docs/18 §2.1): o ciclo nasce sempre; sem `sincronizar_canvas`
+    fica 'divergente', e `POST /ciclos/{id}/enviar-canvas` cria o grupo
+    depois. Um simulado agendado num ciclo sem grupo herda o 'divergente'.
     """
     cliente = get_supabase()
 
@@ -89,23 +98,6 @@ async def criar_ciclo(body: CriarCicloBody) -> Ciclo:
             ),
         )
 
-    settings = get_settings()
-    if not settings.canvas_base_url or not settings.canvas_api_token:
-        raise HTTPException(status_code=502, detail="Canvas não configurado no servidor.")
-
-    nome_grupo = mapeador.compor_nome_grupo_ciclo(ordem=body.ordem, vestibular=body.vestibular)
-    try:
-        async with ClienteCanvas(
-            base_url=settings.canvas_base_url, token=settings.canvas_api_token
-        ) as canvas:
-            grupo = await canvas.criar_assignment_group(
-                str(ano_letivo["canvas_course_id"]), nome=nome_grupo
-            )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail=f"Canvas recusou a criação do grupo: {exc}"
-        )
-
     linha = (
         cliente.table("ciclo")
         .insert(
@@ -114,12 +106,29 @@ async def criar_ciclo(body: CriarCicloBody) -> Ciclo:
                 "ordem": body.ordem,
                 "nome": f"Ciclo {body.ordem} · {body.vestibular} · {ano_letivo['ano']}",
                 "vestibular_alvo": body.vestibular,
-                "canvas_assignment_group_id": str(grupo["id"]),
+                "canvas_estado": "pendente" if body.sincronizar_canvas else escrita.DIVERGENTE,
             },
             returning="representation",
         )
         .execute()
     ).data[0]
+
+    resultado = {"canvas_estado": escrita.DIVERGENTE}
+    if body.sincronizar_canvas:
+        resultado = await escrita.criar_grupo_do_ciclo(cliente, linha["id"])
+
+    auditar(
+        cliente, "ciclo_criado", canal="ciclo",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"ciclo/{linha['id']}",
+        ip=request.client.host if request.client else None,
+        detalhe={
+            "nome": linha["nome"],
+            "sincronizar_canvas": body.sincronizar_canvas,
+            "canvas_estado": resultado["canvas_estado"],
+            "canvas_erro": resultado.get("erro"),
+        },
+    )
 
     return Ciclo(
         id=linha["id"],
@@ -130,6 +139,28 @@ async def criar_ciclo(body: CriarCicloBody) -> Ciclo:
         periodoFim="",
         simuladoIds=[],
     )
+
+
+@router.post("/{ciclo_id}/enviar-canvas", response_model=dict)
+async def enviar_ciclo_ao_canvas(
+    ciclo_id: str,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> dict:
+    """Cria o Assignment Group de um ciclo 'divergente' ou 'falhou'. É o único
+    caminho que tira um ciclo de 'divergente' (docs/18 §2.5)."""
+    cliente = get_supabase()
+    resultado = await escrita.criar_grupo_do_ciclo(cliente, ciclo_id)
+    auditar(
+        cliente, "enviado_ao_canvas", canal="canvas",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"ciclo/{ciclo_id}",
+        ip=request.client.host if request.client else None,
+        detalhe=resultado,
+    )
+    if resultado["canvas_estado"] == "falhou" and resultado.get("erro") == "ciclo não encontrado":
+        raise HTTPException(status_code=404, detail=f"ciclo {ciclo_id} não encontrado")
+    return resultado
 
 
 @router.get("", response_model=list[Ciclo])
@@ -160,6 +191,82 @@ async def obter_ciclo(ciclo_id: str) -> Ciclo:
 
     mapa = _agrupar_simulados_por_ciclo(cliente)
     return _linha_para_ciclo(resp.data[0], mapa.get(ciclo_id, []))
+
+
+@router.get("/{ciclo_id}/classificacao")
+async def classificacao_do_ciclo(
+    ciclo_id: str,
+    criterio: str = Query(
+        "tio-leo",
+        description="Slug do critério: tio-leo | ita-f1 | ita-f2 | ime-f1 | ime-f2.",
+    ),
+    fase: int | None = Query(
+        None, ge=1, le=2, description="Restringe às notas de uma fase. Default: a do critério."
+    ),
+) -> dict:
+    """Lista ordenada do ciclo segundo um critério — o painel só desenha.
+
+    Toda regra de corte vive em app/stats/criterios.py (docs/18 §1.2). Esta
+    rota é o único caminho pelo qual o front obtém veredito, motivo, cor e
+    posição: a regra deixa de existir em TypeScript.
+
+    A resposta carrega o critério usado para o front mostrar a legenda certa
+    ("corte abaixo de 4,0 · ITA §4.6.6.5") sem conhecer a regra.
+    """
+    try:
+        regua = criterios.por_slug(criterio)
+    except KeyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    cliente = get_supabase()
+    existe = cliente.table("ciclo").select("id").eq("id", ciclo_id).limit(1).execute()
+    if not existe.data:
+        raise HTTPException(status_code=404, detail=f"ciclo {ciclo_id} não encontrado")
+
+    linhas = classificacao_ciclo.classificar(
+        cliente, ciclo_id=ciclo_id, criterio=regua, fase=fase
+    )
+    return {
+        "criterio": _descrever_criterio(regua),
+        "fase": fase if fase is not None else regua.fase,
+        "total": len(linhas),
+        "cortados": sum(1 for l in linhas if not l["aprovado"]),
+        "alunos": linhas,
+    }
+
+
+@router.get("/criterios/disponiveis")
+async def criterios_disponiveis() -> list[dict]:
+    """Os critérios que o seletor do painel oferece."""
+    return [_descrever_criterio(c) for c in criterios.CRITERIOS.values()]
+
+
+def _descrever_criterio(c: criterios.Criterio) -> dict:
+    """Forma serializável de um critério — o suficiente para legenda e tooltip."""
+    return {
+        "slug": c.slug,
+        "nome": c.nome,
+        "descricao": c.descricao,
+        "fase": c.fase,
+        "combinador": c.combinador,
+        "desempate": list(c.desempate),
+        "predicados": [
+            {
+                "materia": p.materia,
+                "operador": p.operador,
+                "minimo": (
+                    {"acertos": p.valor.acertos, "de": p.valor.de}
+                    if isinstance(p.valor, criterios.Acertos)
+                    else p.valor
+                ),
+                "eliminatorio": p.eliminatorio,
+                "entraNaMedia": p.entra_na_media,
+                "peso": p.peso,
+                "fonte": p.fonte,
+            }
+            for p in c.predicados
+        ],
+    }
 
 
 @router.get("/{ciclo_id}/estatisticas")

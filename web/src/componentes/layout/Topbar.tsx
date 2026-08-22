@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAlunos, useTurmas } from '../../hooks/consultas';
+import * as sessao from '../../servicos/sessao';
+// Asset local — nada de CDN (CLAUDE.md, regra 5: dados de menores).
+import ariLogo from '../../../assets/ari-logo.png';
 
 const ABAS = [
   { caminho: '/painel', label: 'Painel' },
   { caminho: '/alunos', label: 'Alunos' },
   { caminho: '/simulados', label: 'Simulados' },
   { caminho: '/ciclos', label: 'Ciclos' },
+  { caminho: '/auditoria', label: 'Auditoria' },
+  { caminho: '/administracao', label: 'Administração' },
 ];
 
 const MAX_RESULTADOS = 8;
@@ -167,6 +172,16 @@ function BuscaAlunos() {
 }
 
 export function Topbar() {
+  const navegar = useNavigate();
+  const nome = sessao.nome();
+
+  // Mesmo `encerrar()` que o aluno já usa; o coordenador não tinha o botão
+  // ("tem um botão de sair? como faz para deslogar?" — 21/08, 18h54).
+  function sair() {
+    sessao.encerrar();
+    navegar('/login', { replace: true });
+  }
+
   return (
     <header className="topbar">
       <div className="topbar__brand">
@@ -177,6 +192,8 @@ export function Topbar() {
           <span className="topbar__brand-name">SAS</span>
           <span className="topbar__brand-sub">coordenação ITM</span>
         </div>
+        {/* "seria bom colocar o LOGO do Ari tb" — 21/08, 18h54. */}
+        <img className="topbar__ari" src={ariLogo} alt="Colégio Ari de Sá Cavalcante" />
       </div>
 
       <nav className="topbar__nav">
@@ -200,6 +217,9 @@ export function Topbar() {
         >
           Importar planilha
         </NavLink>
+        <button className="topbar__action topbar__sair" onClick={sair} title={nome ? `Sair (${nome})` : 'Sair'}>
+          Sair
+        </button>
       </div>
     </header>
   );

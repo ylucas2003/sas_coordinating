@@ -23,6 +23,6 @@ export function sidebarPara(caminho: string): TipoSidebar {
 
   if (raiz === '' || raiz === 'painel') return 'ciclos';
   if (temId) return 'nenhuma';
-  if (raiz === 'alunos' || raiz === 'simulados' || raiz === 'ciclos') return 'filtros';
+  if (raiz === 'alunos' || raiz === 'simulados' || raiz === 'ciclos' || raiz === 'auditoria' || raiz === 'administracao') return 'filtros';
   return 'nenhuma';
 }

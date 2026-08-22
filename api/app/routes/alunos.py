@@ -12,9 +12,10 @@ import math
 import statistics as st
 from collections import defaultdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
 from ..schemas.domain import Aluno
 from ..stats import classificacao as _classif
@@ -436,7 +437,12 @@ class ResetarAcessoBody(BaseModel):
 
 
 @router.post("/{aluno_id}/resetar-acesso")
-async def resetar_acesso_aluno(aluno_id: str, body: ResetarAcessoBody) -> dict:
+async def resetar_acesso_aluno(
+    aluno_id: str,
+    body: ResetarAcessoBody,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> dict:
     """Zera a senha do aluno, liberando um novo "primeiro acesso".
 
     Fallback da coordenação para alunos sem e-mail no Canvas (ou com e-mail
@@ -457,5 +463,15 @@ async def resetar_acesso_aluno(aluno_id: str, body: ResetarAcessoBody) -> dict:
     if body.email and body.email.strip():
         patch["email"] = body.email.strip().lower()
     cliente.table("aluno").update(patch).eq("id", aluno_id).execute()
+
+    # Prometido pelo COMMENT da 0022 e nunca gravado. Quem zerou a senha de
+    # quem é exatamente o tipo de pergunta que a trilha existe para responder.
+    auditar(
+        cliente, "acesso_resetado", canal="acesso",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"aluno/{aluno_id}",
+        ip=request.client.host if request.client else None,
+        detalhe={"email_alterado": "email" in patch},
+    )
 
     return {"ok": True, "email": patch.get("email") or resp.data[0].get("email")}

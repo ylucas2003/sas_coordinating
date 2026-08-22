@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 
@@ -8,6 +9,21 @@ export interface Mudanca {
   para: string;
 }
 
+/**
+ * A pergunta "e no Canvas?". Toda alteração que fosse chamar uma rota de
+ * escrita no Canvas passa por aqui: o coordenador decide, a cada ação, se a
+ * mudança sobe ou fica só no site (docs/18 §2.1). Sem esta prop, o diálogo
+ * não toca no Canvas — e é a rota que exige a escolha, sem default.
+ */
+export interface OpcaoCanvas {
+  /** O que a mudança faz lá, em uma linha: "atualiza a nota da submission". */
+  efeito: string;
+  /** `true` marca a operação como irreversível (apagar leva as submissions). */
+  irreversivel?: boolean;
+  /** Escolha inicial. Default: enviar. */
+  padrao?: boolean;
+}
+
 interface Props {
   titulo: string;
   subtitulo?: string;
@@ -15,10 +31,12 @@ interface Props {
   largo?: boolean;
   /** `null` = modo formulário; lista = modo confirmação. */
   mudancas: Mudanca[] | null;
+  canvas?: OpcaoCanvas;
   onCancelar: () => void;
   onSalvar: () => void;
   onVoltar: () => void;
-  onConfirmar: () => void;
+  /** Recebe a escolha do Canvas (`false` quando a prop `canvas` não foi dada). */
+  onConfirmar: (sincronizarCanvas: boolean) => void;
   children: ReactNode;
 }
 
@@ -31,10 +49,11 @@ interface Props {
  * silencioso.
  */
 export function DialogoComDiff({
-  titulo, subtitulo, largo = false, mudancas,
+  titulo, subtitulo, largo = false, mudancas, canvas,
   onCancelar, onSalvar, onVoltar, onConfirmar, children,
 }: Props) {
   const confirmando = mudancas !== null;
+  const [sincronizar, setSincronizar] = useState(canvas?.padrao ?? true);
 
   return createPortal(
     <div
@@ -62,6 +81,39 @@ export function DialogoComDiff({
                 </div>
               ))}
             </div>
+
+            {canvas && (
+              <fieldset className={`dialog__canvas${canvas.irreversivel ? ' dialog__canvas--perigo' : ''}`}>
+                <legend className="dialog__canvas-titulo">E no Canvas?</legend>
+                <label className="dialog__canvas-opcao">
+                  <input
+                    type="radio"
+                    name="sincronizar-canvas"
+                    checked={sincronizar}
+                    onChange={() => setSincronizar(true)}
+                  />
+                  <span>
+                    <strong>Enviar agora</strong>
+                    {` — ${canvas.efeito}`}
+                    {canvas.irreversivel && (
+                      <em className="dialog__canvas-aviso"> Irreversível.</em>
+                    )}
+                  </span>
+                </label>
+                <label className="dialog__canvas-opcao">
+                  <input
+                    type="radio"
+                    name="sincronizar-canvas"
+                    checked={!sincronizar}
+                    onChange={() => setSincronizar(false)}
+                  />
+                  <span>
+                    <strong>Deixar só no site</strong>
+                    {' — o Canvas fica diferente, e isso aparece marcado aqui.'}
+                  </span>
+                </label>
+              </fieldset>
+            )}
           </div>
         ) : (
           <div className="dialog__body">{children}</div>
@@ -71,7 +123,12 @@ export function DialogoComDiff({
           {confirmando ? (
             <>
               <button className="btn btn--ghost" onClick={onVoltar}>← Voltar</button>
-              <button className="btn btn--primary" onClick={onConfirmar}>Confirmar</button>
+              <button
+                className={`btn btn--primary${canvas?.irreversivel && sincronizar ? ' btn--perigo' : ''}`}
+                onClick={() => onConfirmar(canvas ? sincronizar : false)}
+              >
+                {canvas ? (sincronizar ? 'Confirmar e enviar ao Canvas' : 'Confirmar só no site') : 'Confirmar'}
+              </button>
             </>
           ) : (
             <>

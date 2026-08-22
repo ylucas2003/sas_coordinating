@@ -108,8 +108,14 @@ async def sincronizar_simulado_no_canvas(
 
     if not course_id or not group_id:
         # Sem destino não há o que tentar — e não é falha transitória, então
-        # não queima tentativa. Acontece se o ciclo nasceu antes do sync
-        # preencher os ids (não deveria: a rota de criação de ciclo os grava).
+        # não queima tentativa. Dois motivos possíveis:
+        #   * o ciclo nasceu 'divergente' (coordenador escolheu não criar o
+        #     grupo — docs/18 §2.1): o simulado HERDA o divergente, senão o
+        #     retry ficaria martelando um 'falhou' que nunca se resolve;
+        #   * o sync ainda não preencheu os ids: aí é 'falhou' mesmo.
+        if ciclo.get("canvas_estado") == "divergente":
+            _marcar(cliente, simulado_id, estado="divergente", erro=None)
+            return "divergente"
         _marcar(
             cliente, simulado_id, estado="falhou",
             erro="ciclo sem canvas_course_id/canvas_assignment_group_id — rode o sync",
@@ -165,7 +171,7 @@ async def sincronizar_simulado_no_canvas(
 
 _SELECT_SIMULADO_CANVAS = (
     "id, external_id, nome, nota_maxima, data_aplicacao, canvas_tentativas, "
-    "ciclo(canvas_assignment_group_id, ano_letivo(canvas_course_id)), "
+    "ciclo(canvas_assignment_group_id, canvas_estado, ano_letivo(canvas_course_id)), "
     "evento_agenda(hora_evento)"
 )
 
@@ -189,12 +195,17 @@ async def reprocessar_canvas_pendentes(
 
     Chamado pelo sync incremental (5 min) — mesmo assunto, mesma trava,
     granularidade melhor que o tick horário, e sem mexer em infra/.
+
+    A lista de estados é FECHADA de propósito: `divergente` significa que o
+    coordenador ESCOLHEU não mandar (docs/18 §2.5). Se este filtro um dia
+    virar "tudo que não é sincronizado", o job passa a reenviar em minutos o
+    que ele decidiu segurar — em silêncio.
     """
     resp = (
         cliente.table("simulado")
         .select(_SELECT_SIMULADO_CANVAS)
         .eq("origem", "sas")
-        .in_("canvas_estado", ["pendente", "falhou"])
+        .in_("canvas_estado", ["pendente", "falhou"])   # nunca 'divergente'.
         .lt("canvas_tentativas", MAX_TENTATIVAS)
         .execute()
     )

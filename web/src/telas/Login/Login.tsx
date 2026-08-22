@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import * as api from '../../servicos/api';
 import { ErroApi } from '../../servicos/http';
@@ -17,6 +17,27 @@ type Formulario = 'login' | 'primeiro-acesso';
 
 export function Login() {
   const navegar = useNavigate();
+  const [params] = useSearchParams();
+  // Canvas como identidade (docs/18 §4.2). O botão só existe se o servidor
+  // tiver a Developer Key; sem ela, a tela é a de sempre.
+  const [ssoCanvas, setSsoCanvas] = useState(false);
+  useEffect(() => {
+    api.ssoCanvasDisponivel().then((r) => setSsoCanvas(r.disponivel)).catch(() => setSsoCanvas(false));
+  }, []);
+  // Motivos que o Canvas devolve quando a CHAVE está errada — não o usuário.
+  // Aparecem porque o conserto é de quem administra, não de quem clicou.
+  const MOTIVO_CANVAS: Record<string, string> = {
+    unauthorized_client: 'a Developer Key do SAS está desligada no Canvas (Admin → Developer Keys → ON).',
+    invalid_scope: 'a Developer Key não permite o escopo que o SAS pede.',
+    invalid_request: 'a redirect URI configurada no Canvas não bate com a do servidor.',
+  };
+  const motivo = params.get('motivo') ?? '';
+  const avisoCanvas = {
+    cancelado: null,
+    recusado: `O Canvas recusou o login: ${MOTIVO_CANVAS[motivo] ?? motivo}`,
+    falhou: 'O Canvas não confirmou o login. Tente de novo, ou entre com matrícula e senha.',
+    'sem-conta': 'Sua conta do Canvas não está cadastrada no SAS. Procure a coordenação.',
+  }[params.get('canvas') ?? ''] ?? null;
   const [modo, setModo] = useState<Modo>('aluno');
   const [formulario, setFormulario] = useState<Formulario>('login');
   // Chave de animação: mudar de modo reinicia a transição de entrada do texto.
@@ -84,6 +105,17 @@ export function Login() {
 
           {formulario === 'login' ? (
             <>
+              {ssoCanvas && (
+                <div className="lp-sso">
+                  {/* Link, não fetch: o browser precisa navegar até o Canvas e
+                      voltar. É o que faz "já logado entra direto" funcionar. */}
+                  <a className="lp-sso__btn" href="/api/auth/canvas/iniciar?proximo=/">
+                    Entrar com o Canvas
+                  </a>
+                  <span className="lp-sso__ou">ou</span>
+                </div>
+              )}
+              {avisoCanvas && <div className="lp-error">{avisoCanvas}</div>}
               <FormularioLogin modo={modo} rotulos={m} onEntrar={entrar} />
               <p className="lp-first-access">
                 {'Primeiro acesso? '}

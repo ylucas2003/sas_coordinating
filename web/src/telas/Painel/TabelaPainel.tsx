@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
-import { LIMITES_RANKING, linhaVisivel, statusAluno } from '../../dominio/painel';
+import { LIMITES_RANKING, linhaVisivel } from '../../dominio/painel';
+import type { ClassificacaoPorAluno } from '../../dominio/painel';
+import type { TomNota } from '../../tipos/dominio';
 import type { ColunaPainel, NotasPorAluno } from '../../dominio/painel';
 import type { Aluno } from '../../tipos/dominio';
 import { fmtNota } from '../../util/formato';
@@ -10,6 +12,8 @@ interface Props {
   notasAluno: NotasPorAluno;
   mediasVirtuais: Record<string, Record<string, number | null>>;
   mediasPorColuna: Record<string, number | null>;
+  /** Veredito, motivo e cor por aluno — vem do servidor. */
+  classificacao: ClassificacaoPorAluno;
   recolhidos: ReadonlySet<number>;
   /** `null` fora do modo ranking — os separadores só fazem sentido ordenado. */
   onToggleLimite: ((posicao: number) => void) | null;
@@ -22,18 +26,28 @@ function classeColuna(col: ColunaPainel, base: string): string {
     .join(' ');
 }
 
-function NotaBadge({ nota, daTurma = false }: { nota: number | null; daTurma?: boolean }) {
+/**
+ * A cor NÃO é decidida aqui: vem do avaliador de critérios no servidor, que
+ * sabe qual é o corte da matéria na régua em uso (docs/18 §1.2). Sem tom
+ * (coluna virtual, ou classificação ainda carregando) a célula fica neutra.
+ */
+function NotaBadge({
+  nota, tom, daTurma = false, titulo,
+}: { nota: number | null; tom?: TomNota; daTurma?: boolean; titulo?: string }) {
   if (nota == null) return <span className="nota-badge nota-badge--vazia">—</span>;
-  const tom = nota >= 7 ? 'verde' : nota >= 5 ? 'ambar' : 'vermelho';
+  const classeTom = tom ? ` nota-badge--${tom}` : '';
   return (
-    <span className={`nota-badge nota-badge--${tom}${daTurma ? ' nota-badge--media' : ''}`}>
+    <span
+      className={`nota-badge${classeTom}${daTurma ? ' nota-badge--media' : ''}`}
+      title={titulo}
+    >
       {fmtNota(nota)}
     </span>
   );
 }
 
 export function TabelaPainel({
-  alunos, colunas, notasAluno, mediasVirtuais, mediasPorColuna,
+  alunos, colunas, notasAluno, mediasVirtuais, mediasPorColuna, classificacao,
   recolhidos, onToggleLimite, onEditarNota,
 }: Props) {
   return (
@@ -73,8 +87,8 @@ export function TabelaPainel({
             const pos = i + 1;
             if (!linhaVisivel(pos, recolhidos)) return [];
 
-            const status = statusAluno(aluno.id, colunas, notasAluno);
-            const extra = status === 'cortado' ? ' is-cortado' : status === 'aprovado' ? ' is-aprovado' : '';
+            const veredito = classificacao[aluno.id];
+            const extra = !veredito ? '' : veredito.aprovado ? ' is-aprovado' : ' is-cortado';
 
             const linha = (
               <tr key={aluno.id}>
@@ -85,7 +99,7 @@ export function TabelaPainel({
                   <Link
                     className={`painel-tabela__aluno-link${extra}`}
                     to={`/alunos/${aluno.id}`}
-                    title={aluno.nome}
+                    title={veredito?.motivo ? `${aluno.nome} — cortado: ${veredito.motivo}` : aluno.nome}
                   >
                     {aluno.nome}
                   </Link>
@@ -111,7 +125,10 @@ export function TabelaPainel({
                           : undefined
                       }
                     >
-                      <NotaBadge nota={nota} />
+                      <NotaBadge
+                        nota={nota}
+                        tom={col.sim?.materia?.codigo ? veredito?.notas[col.sim.materia.codigo]?.tom : undefined}
+                      />
                     </td>
                   );
                 })}

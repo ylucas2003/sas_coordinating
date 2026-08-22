@@ -22,6 +22,7 @@ def registrar(
     cliente,
     acao: str,
     *,
+    canal: str = "acesso",
     ator_tipo: str | None = None,
     ator_id: str | None = None,
     recurso: str | None = None,
@@ -30,6 +31,9 @@ def registrar(
 ) -> None:
     evento = {
         "acao": acao,
+        # Compartimento da linha do tempo: acesso | nota | simulado | ciclo |
+        # canvas (migration 0025). Quem grava diz de que assunto é o evento.
+        "canal": canal,
         "ator_tipo": ator_tipo,
         "ator_id": ator_id,
         "recurso": recurso,

@@ -7,6 +7,8 @@ import type { Mudanca } from './DialogoComDiff';
 export interface ValoresNota {
   pontuacao: number | null;
   presente: boolean;
+  /** A escolha do coordenador na confirmação (docs/18 §2.3). */
+  sincronizarCanvas: boolean;
 }
 
 export type ResultadoValidacao =
@@ -81,7 +83,8 @@ export function useFormularioNota({
     }
 
     if (!mudancas.length) return { tipo: 'sem-mudancas' };
-    return { tipo: 'ok', valores: { pontuacao, presente }, mudancas };
+    // `sincronizarCanvas` é decidido no passo de confirmação, não aqui.
+    return { tipo: 'ok', valores: { pontuacao, presente, sincronizarCanvas: false }, mudancas };
   }
 
   return { presente, alterarPresenca, texto, setTexto, erro, validar };

@@ -6,7 +6,10 @@
 
 import { del, get, patch, post, postArquivo, qs, streamSSE } from './http';
 import type { EventoSSE, OpcoesUpload } from './http';
-import type { Alerta, Aluno, Ciclo, Materia, Sede, Simulado, Turma } from '../tipos/dominio';
+import type {
+  Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria,
+  PainelAcessos, Sede, Simulado, Turma, UsuarioCoordenacao,
+} from '../tipos/dominio';
 
 const enc = encodeURIComponent;
 
@@ -18,6 +21,9 @@ export interface RespostaAutenticacao {
   nome: string;
   aluno_id?: string;
 }
+
+/** O SSO pelo Canvas só aparece na tela se o servidor tiver a Developer Key. */
+export const ssoCanvasDisponivel = () => get<{ disponivel: boolean }>('/auth/canvas/disponivel');
 
 export const login = (corpo: { tipo: string; usuario: string; senha: string }) =>
   post<RespostaAutenticacao>('/auth/login', corpo);
@@ -90,26 +96,59 @@ export interface CorpoAgendamento {
   tipo: string;
   lembrarDiasAntes?: number;
   avisarAlunos?: boolean;
+  /** Obrigatório — a API não tem default (docs/18 §2.3). */
+  sincronizarCanvas: boolean;
 }
 
 export const agendarSimulado = (corpo: CorpoAgendamento) =>
   post<Simulado>('/simulados/agendar', corpo);
-export const cancelarSimulado = (id: string) => del<unknown>(`/simulados/${enc(id)}`);
+/** `sincronizarCanvas` apaga também o Assignment — irreversível, leva as submissions. */
+export const cancelarSimulado = (id: string, sincronizarCanvas: boolean) =>
+  del<{ status: string; apagadoNoCanvas: boolean }>(`/simulados/${enc(id)}${qs({ sincronizar_canvas: sincronizarCanvas })}`);
 export const retrySimuladoCanvas = (id: string) =>
   post<unknown>(`/simulados/${enc(id)}/retry-canvas`);
 
 // ─── Notas ───────────────────────────────────────────────────────────────
 
-export const editarNota = (alunoId: string, simuladoId: string, corpo: unknown) =>
-  patch<unknown>(`/notas/${enc(alunoId)}/${enc(simuladoId)}`, corpo);
+/** O que o diálogo devolve; a API fala snake_case. */
+export interface CorpoEdicaoNota {
+  pontuacao: number | null;
+  presente: boolean;
+  sincronizarCanvas: boolean;
+}
+
+export interface RespostaEdicaoNota {
+  alunoId: string;
+  simuladoId: string;
+  pontuacao: number | null;
+  presente: boolean;
+  gravadoNoCanvas: boolean;
+  canvasErro: string | null;
+}
+
+export const editarNota = (alunoId: string, simuladoId: string, corpo: CorpoEdicaoNota) =>
+  patch<RespostaEdicaoNota>(`/notas/${enc(alunoId)}/${enc(simuladoId)}`, {
+    pontuacao: corpo.pontuacao,
+    presente: corpo.presente,
+    sincronizar_canvas: corpo.sincronizarCanvas,
+  });
 
 // ─── Ciclos ──────────────────────────────────────────────────────────────
 
 export const listarCiclos = () => get<Ciclo[]>('/ciclos');
 export const obterCiclo = (id: string) => get<Ciclo | null>(`/ciclos/${enc(id)}`);
+/**
+ * Classificação do ciclo por um critério (Tio Leo, ITA, IME). A regra mora no
+ * servidor; aqui chega veredito, motivo, cor e posição prontos.
+ */
+export const classificacaoCiclo = (id: string, criterio: string, fase?: 1 | 2) =>
+  get<ClassificacaoCiclo>(`/ciclos/${enc(id)}/classificacao${qs({ criterio, fase })}`);
+export const criteriosDisponiveis = () => get<CriterioClassificacao[]>('/ciclos/criterios/disponiveis');
 export const estatisticasCiclo = (id: string, { comInsights = true } = {}) =>
   get<unknown>(`/ciclos/${enc(id)}/estatisticas${comInsights ? '' : '?com_insights=false'}`);
-export const criarCiclo = (corpo: { ordem: number; vestibular: string; ano?: number }) =>
+export const enviarCicloAoCanvas = (id: string) =>
+  post<{ canvas_estado: string; erro?: string }>(`/ciclos/${enc(id)}/enviar-canvas`, {});
+export const criarCiclo = (corpo: { ordem: number; vestibular: string; ano?: number; sincronizar_canvas: boolean }) =>
   post<Ciclo>('/ciclos', corpo);
 
 // ─── Dimensões ───────────────────────────────────────────────────────────
@@ -145,3 +184,32 @@ export const enviarChatMensagem = (
   conteudo: string,
   onEvento: (evento: EventoSSE) => void,
 ) => streamSSE(`/chat/threads/${enc(threadId)}/mensagens`, { conteudo }, onEvento);
+
+// ─── Auditoria ───────────────────────────────────────────────────────────
+
+export interface FiltroAuditoria {
+  canal?: string;
+  ator_id?: string;
+  recurso?: string;
+  desde?: string;
+  ate?: string;
+  limite?: number;
+  antes_de_id?: number;
+}
+
+export const listarAuditoria = (filtro: FiltroAuditoria) =>
+  get<PaginaAuditoria>(`/auditoria${qs({ ...filtro })}`);
+
+// ─── Administração ───────────────────────────────────────────────────────
+
+export const listarCoordenadores = () => get<UsuarioCoordenacao[]>('/administracao/coordenadores');
+export const criarCoordenador = (corpo: { email: string; nome: string; canvas_user_id?: string }) =>
+  post<UsuarioCoordenacao & { senha_inicial: string }>('/administracao/coordenadores', corpo);
+export const editarCoordenador = (id: string, corpo: { nome?: string; ativo?: boolean; canvas_user_id?: string }) =>
+  patch<UsuarioCoordenacao>(`/administracao/coordenadores/${enc(id)}`, corpo);
+/** O SAS procura o id do Canvas pelo e-mail da conta — ninguém digita número. */
+export const ligarCoordenadorAoCanvas = (id: string) =>
+  post<{ id: string; canvas_user_id: string }>(`/administracao/coordenadores/${enc(id)}/ligar-canvas`, {});
+export const redefinirSenhaCoordenador = (id: string) =>
+  post<{ id: string; senha_nova: string }>(`/administracao/coordenadores/${enc(id)}/redefinir-senha`, {});
+export const acessosDeAlunos = () => get<PainelAcessos>('/administracao/alunos-acesso');

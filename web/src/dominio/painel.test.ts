@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildColunasDinamicas, buildNotasAluno, calcularMediasVirtuais, colunasExibidas,
   estatisticasDoSimulado, linhaVisivel, mediaGeralAluno, mediaPonderada, montarPainel,
-  nomeSede, normMateria, obterEsquema, resolverColunas, statusAluno,
+  nomeSede, normMateria, obterEsquema, resolverColunas,
 } from './painel';
 import type { ColunaPainel, NotasPorSimulado } from './painel';
 import type { Aluno, Ciclo, Simulado } from '../tipos/dominio';
@@ -187,29 +187,8 @@ describe('mediaGeralAluno', () => {
 
 // ─── Status e exibição ───────────────────────────────────────────────────
 
-describe('statusAluno', () => {
-  const cols = [
-    coluna({ id: 'a', sim: sim('S1', 'Matemática', 'fase_1') }),
-    coluna({ id: 'b', sim: sim('S2', 'Física', 'fase_1') }),
-  ];
-
-  it('aprovado quando todas as notas feitas estão no corte', () => {
-    expect(statusAluno('A1', cols, { A1: { S1: 5, S2: 9 } })).toBe('aprovado');
-  });
-
-  it('cortado quando alguma nota fica abaixo de 5', () => {
-    expect(statusAluno('A1', cols, { A1: { S1: 4.9, S2: 9 } })).toBe('cortado');
-  });
-
-  // A regra que corrigiu o KPI inflado: ausência total não é corte.
-  it('aluno sem nota nenhuma é neutro, não cortado', () => {
-    expect(statusAluno('A1', cols, { A1: {} })).toBe('neutro');
-  });
-
-  it('julga só as matérias feitas', () => {
-    expect(statusAluno('A1', cols, { A1: { S1: 8 } })).toBe('aprovado');
-  });
-});
+// A regra de corte saiu daqui: é testada em api/tests/test_criterios.py
+// contra os editais (docs/18 §1.2).
 
 describe('colunasExibidas', () => {
   it('mostra as matérias da fase escolhida mais a média geral', () => {
@@ -266,15 +245,28 @@ describe('montarPainel', () => {
     QF1: [], IF1: [],
   };
 
+  // O veredito vem do servidor (docs/18 §1.2). Aqui ele é um dado de entrada:
+  // A2 aprovado em 1º, A1 cortado em 2º, A3 sem nota (fora da classificação).
+  const classificacao = {
+    A2: { alunoId: 'A2', nome: 'Ana', turmaId: null, posicao: 1, aprovado: true, motivo: null, media: 8.5, notas: {} },
+    A1: { alunoId: 'A1', nome: 'Bruno', turmaId: null, posicao: 2, aprovado: false, motivo: 'Matematica 4,0 — mínimo 5,0', media: 5, notas: {} },
+  };
+
   const base = {
     ciclo: ciclo('ITA', ['MF1', 'FF1', 'QF1', 'IF1']),
-    simulados: sims, alunos, notasPorSim,
+    simulados: sims, alunos, notasPorSim, classificacao,
     fase: '1' as const, ordenacao: 'ranking' as const,
   };
 
-  it('ordena por ranking, com quem não tem nota no fim', () => {
+  it('ordena pela posição do servidor, com quem não está classificado no fim', () => {
     const d = montarPainel(base);
     expect(d.alunosOrdenados.map((a) => a.id)).toEqual(['A2', 'A1', 'A3']);
+  });
+
+  it('sem classificação ainda, o ranking cai em ordem alfabética estável', () => {
+    const d = montarPainel({ ...base, classificacao: {} });
+    expect(d.alunosOrdenados.map((a) => a.nome)).toEqual(['Ana', 'Bruno', 'Caio']);
+    expect(d.resumo?.cortados).toBeNull();
   });
 
   it('ordena alfabeticamente em pt-BR quando pedido', () => {
@@ -295,10 +287,10 @@ describe('montarPainel', () => {
     expect(d.mediasPorColuna[colMat.id]).toBe(6.5);
   });
 
-  it('KPIs contam alunos, simulados e apenas os cortados de verdade', () => {
+  it('KPIs contam alunos, simulados e os cortados segundo o servidor', () => {
     const d = montarPainel(base);
     expect(d.resumo).toMatchObject({ totalAlunos: 3, totalSimulados: 4, cortados: 1 });
-    // A1 tem 4 em Matemática → cortado. A2 passou. A3 é neutro.
+    // A1 veio cortado, A2 aprovado, A3 não está na classificação (sem nota).
   });
 
   it('reporta erro em vez de tabela quando não há ciclo', () => {

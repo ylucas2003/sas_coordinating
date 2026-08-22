@@ -311,6 +311,28 @@
   border-color: var(--color-navy-light);
 }
 
+/* ─── Critério de classificação ─────────────────────────────────────────
+   Mesma altura e tipografia dos pills de Ranking/A–Z, para sentar na mesma
+   linha de controles sem destoar. */
+
+.painel-criterio {
+  height: 30px;
+  padding: 0 28px 0 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.painel-criterio:focus {
+  outline: none;
+  border-color: var(--color-navy-light);
+}
+
 /* ─── Top N ─────────────────────────────────────────────────────────────── */
 
 .painel-topn {
@@ -619,4 +641,5 @@
 }
 
 .painel-help-dot--verde    { background: var(--color-green); }
+.painel-help-dot--ambar    { background: var(--color-amber); }
 .painel-help-dot--vermelho { background: var(--color-red); }

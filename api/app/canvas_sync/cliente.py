@@ -46,7 +46,7 @@ class ClienteCanvas:
     async def fechar(self) -> None:
         await self._http.aclose()
 
-    async def __aenter__(self) -> "ClienteCanvas":
+    async def __aenter__(self) -> ClienteCanvas:
         return self
 
     async def __aexit__(self, *_: Any) -> None:
@@ -198,6 +198,21 @@ class ClienteCanvas:
                 "include[]": ["email"],
             },
         )
+
+    async def buscar_usuarios_da_conta(
+        self, account_id: str, *, termo: str
+    ) -> list[dict[str, Any]]:
+        """Busca por nome, e-mail ou login. É como o SAS descobre o id interno
+        de um coordenador a partir do e-mail — número que ninguém decora e que
+        o login pelo Canvas devolve (docs/18 §4.2)."""
+        return await self._get_paginado(
+            f"/accounts/{account_id}/users", params={"search_term": termo}
+        )
+
+    async def obter_perfil(self, user_id: str) -> dict[str, Any]:
+        """Perfil com `primary_email` — só o token de admin enxerga isso; o
+        token do próprio usuário no SSO não tem esse escopo."""
+        return (await self._get(f"/users/{user_id}/profile")).json()
 
     async def listar_canais_de_comunicacao(self, user_id: str) -> list[dict[str, Any]]:
         """Canais de contato do usuário (email/push). Uma chamada POR aluno —

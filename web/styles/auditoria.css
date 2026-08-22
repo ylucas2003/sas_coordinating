@@ -1,0 +1,78 @@
+/* ─── Auditoria — a linha do tempo ──────────────────────────────────────
+   Um evento por linha, cor pelo canal. Denso de propósito: a pergunta que se
+   faz aqui é "o que aconteceu naquela tarde?", e a resposta é uma sequência,
+   não um card por item. */
+
+.auditoria {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.auditoria__evento {
+  display: grid;
+  grid-template-columns: 92px 88px 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.auditoria__quando {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.auditoria__canal {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  background: var(--color-surface-2, #f1f3f8);
+  color: var(--color-text-secondary);
+}
+
+.auditoria__canal--nota     { background: var(--color-amber-soft); color: var(--color-amber); }
+.auditoria__canal--simulado { background: var(--color-navy-soft, #e6eaf4); color: var(--color-navy); }
+.auditoria__canal--ciclo    { background: var(--color-navy-soft, #e6eaf4); color: var(--color-navy); }
+.auditoria__canal--canvas   { background: var(--color-green-soft, #e2f4e6); color: var(--color-green); }
+
+.auditoria__texto {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.auditoria__recurso {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+a.auditoria__recurso:hover {
+  text-decoration: underline;
+}
+
+.auditoria__decisao {
+  margin-left: 8px;
+  color: var(--color-text-secondary);
+}
+
+.auditoria__decisao::before {
+  content: '— ';
+}
+
+.auditoria__request {
+  font-size: 10px;
+  color: var(--color-text-tertiary, #9aa3b5);
+}
+
+.auditoria__mais {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 4px;
+}
