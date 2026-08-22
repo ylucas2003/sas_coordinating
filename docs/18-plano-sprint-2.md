@@ -811,9 +811,9 @@ decisão fora do time:
 | | O quê | Quem |
 |---|---|---|
 | 1 | **Criar a Developer Key** no Canvas ([§0.3](#03-criar-a-developer-key-do-canvas)) e pôr `CANVAS_CLIENT_ID` / `CANVAS_CLIENT_SECRET` no `.env`. Sem ela o botão "Entrar com o Canvas" não aparece | Yan, 5 min |
-| 2 | **Testar o SSO com um aluno real** — é a única parte não verificada ponta a ponta | Yan |
+| 2 | **SSO como coordenador** — verificado como aluno (22/08, `login_ok · via canvas`); como coordenador ainda não. Vai acontecer sozinho quando o Leo entrar pela primeira vez em produção — a auditoria registra | Yan / Leo |
 | 3 | **Preencher `canvas_user_id` do Leo** na conta de coordenação (painel de administrador) para ele entrar pelo Canvas | Yan |
-| 4 | **Verificar escrita no Canvas real** — nota com "enviar agora", simulado, ciclo. Todo teste do sprint usou mock ou "só no site"; o Canvas do colégio não foi tocado | Yan, deliberado |
+| 4 | ~~**Verificar escrita no Canvas real**~~ ✅ 22/08, no curso de testes `694`: ciclo, simulado, "só no site" + guarda do retry, nota com/sem Canvas, desmarcar. Quatro bugs achados e corrigidos (PR #12) | — |
 | 5 | **Deploy**: `./infra/vps/deploy.sh --migrar` (0020→0026) | Yan |
 | 6 | **Confirmar com o Leo** os ~50 alunos do [§7](#7--riscos), olhando a lista real | Leo |
 
