@@ -28,7 +28,6 @@ from .routes import (
     arquivos,
     auth,
     ciclos,
-    cobranca,
     dimensoes,
     disparos,
     email_eventos,
@@ -137,7 +136,6 @@ def create_app() -> FastAPI:
         app.include_router(arquivos.router)
     app.include_router(chat_rotas.router)
     app.include_router(canvas_sync_rotas.router)
-    app.include_router(cobranca.router)
     app.include_router(disparos.router)
     # O webhook do SNS é o único endpoint público que não dá para proteger por
     # header custom nem por VPN — quem chama é a AWS. A verificação de

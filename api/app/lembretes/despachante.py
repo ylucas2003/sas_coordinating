@@ -1,7 +1,7 @@
 """O tick do motor: processa os disparos vencidos.
 
 Chamado pelo EventBridge de hora em hora (POST /disparos/processar — o path
-antigo /cobranca/verificar delega pra cá), pelo fim do sync de 5 min, ou por
+cron horário chama /disparos/processar), pelo fim do sync de 5 min, ou por
 curl manual. Idempotente por disparo (decisão A9, docs/12 §1): o claim por
 UPDATE condicional garante que tick duplicado — retry da AWS, deploy no meio —
 não produz dois envios.

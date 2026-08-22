@@ -135,9 +135,25 @@ Scripts pontuais em [api/scripts/](api/scripts/). Rodar sempre como módulo (`py
 
 ## Deploy
 
-- **Frontend** — Vercel, estático e grátis. `vercel.json` na raiz já aponta `outputDirectory: web`.
-- **Backend** — fora do Vercel (limites do Python serverless não casam com upload de planilhas). Opções recomendadas em [docs/00-tech-stack.md](docs/00-tech-stack.md): Render, Fly.io ou Railway. Decisão final fica em aberto até a TI do colégio pesar on-premise vs. nuvem (questão 10).
-- **Banco** — Supabase (free tier).
+Roda num VPS único em São Paulo, em `https://portalsas.online`. Um host, um
+nginx na borda servindo o front e fazendo proxy da API sob `/api` — mesma
+origem, então não há CORS.
+
+| Peça | Onde |
+|---|---|
+| Front (React + Vite) | container `web`, nginx unprivileged |
+| API (FastAPI) | container `api`, sem porta publicada |
+| PostgREST + Postgres | containers internos, **sem porta publicada** |
+| Jobs agendados | crontab do host ([`infra/vps/crontab-sas`](infra/vps/crontab-sas)) |
+| TLS | Let's Encrypt, renovação pelo timer do systemd |
+
+**A regra que sustenta a segurança:** só o `web` tem `ports:`. O Docker escreve
+no iptables direto e passa por cima do ufw, então publicar a porta do PostgREST
+o exporia mesmo com o firewall fechado.
+
+Scripts e ordem de execução em [`infra/vps/`](infra/vps/) e
+[docs/15](docs/15-plano-hospedagem-vps.md). A auditoria que motivou cada decisão
+está em [docs/14](docs/14-plano-producao.md).
 
 ## Status
 

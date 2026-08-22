@@ -126,7 +126,7 @@ Lista viva de decisões que precisam ser tomadas antes ou durante a implementaç
 ### 10. Hospedagem e infraestrutura
 
 **Decisões necessárias:**
-- ✅ **Backend (necessidade técnica imediata) — decidido em 2026-07-04: Render**, via `render.yaml`. Fly.io/Railway saíram de cogitação por terem deixado de ter tier gratuito real. Agendamento de jobs (sync Canvas, alertas, cobrança de professor) decidido como AWS (EventBridge), ver `infra/`.
+- ✅ **Resolvida em 21/08/2026: VPS próprio em São Paulo** (`portalsas.online`), com tudo num host e os jobs no crontab. Render, Vercel, Supabase e o agendador na AWS foram abandonados. Ver [15-plano-hospedagem-vps.md](15-plano-hospedagem-vps.md).
 - ❓ Nuvem ou on-premise, no sentido mais amplo (onde os dados sensíveis realmente residem)?
 - ❓ Restrições de dados (LGPD — dados de menores de idade)?
 - ❓ Backup e recuperação?

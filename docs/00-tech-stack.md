@@ -111,25 +111,18 @@ Ver decisão pendente #10 em [06-open-questions.md](06-open-questions.md).
 
 ## Deploy
 
-### Frontend — Vercel (grátis)
+VPS único em São Paulo (`portalsas.online`). Vercel, Render e Supabase foram
+abandonados: o Supabase caiu em 13/08/2026 e levou a produção junto, e a
+migração para hospedagem própria aconteceu em 21/08.
 
-O `vercel.json` na raiz aponta `outputDirectory` para `web/`. Não há build — o Vercel serve `web/` como estático. Conectar o repo no painel do Vercel funciona out-of-the-box.
+| Peça | Onde |
+|---|---|
+| Front + API | um nginx na borda: `/` estático, `/api` por proxy. Mesma origem, sem CORS |
+| PostgREST + Postgres | containers internos, **sem porta publicada** — é o que os contém |
+| Jobs | crontab do host, não agendador externo |
+| TLS | Let's Encrypt com renovação automática |
 
-### Backend — fora do Vercel
-
-Vercel suporta funções Python serverless, mas com limites (10s timeout, frio entre requisições) que não combinam com upload de planilhas e cálculo de alertas. Opções gratuitas:
-
-| Plataforma | Notas |
-|------------|-------|
-| **Render** | `render.yaml` simples; free tier hiberna após 15min de ociosidade |
-| **Fly.io** | Sem hibernação; precisa Dockerfile |
-| **Railway** | Detecta `requirements.txt`; 500h/mês grátis |
-
-A decisão fica em aberto até a TI do Ari de Sá pesar on-premise vs. nuvem (ver questão 10 em [06](06-open-questions.md)).
-
-### Banco — Supabase (free tier)
-
-Free tier do Supabase: 500 MB Postgres, 1 GB Storage, 2 GB transferência. Suficiente para o piloto.
+Ver [`infra/vps/`](../infra/vps/) e [15-plano-hospedagem-vps.md](15-plano-hospedagem-vps.md).
 
 ## Reavaliações conhecidas
 
