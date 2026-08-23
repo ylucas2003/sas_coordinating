@@ -9,27 +9,35 @@ Paleta restrita, onde cada cor carrega significado fixo em toda a plataforma. Co
 | **Verde** | Acima da meta · tendência positiva | Subidas, alunos em zona segura, médias acima do histórico |
 | **Âmbar** | Atenção · zona cinzenta | Alertas moderados, alunos próximos da nota de corte, variância alta |
 | **Vermelho** | Abaixo da meta · tendência negativa | Quedas, alunos em risco, médias abaixo do histórico |
-| **Azul (navy)** | Neutro · informativo · seleção | Cor da marca institucional, links, estado ativo |
-| **Ouro** | Acento institucional | Detalhes editoriais (sublinhado da aba ativa, barra de seleção) |
+| **Azul (navy)** | Neutro · informativo · seleção | Cor da marca institucional, links, estado ativo, pílula selecionada |
+| **Ouro** | Acento institucional | Detalhes editoriais e ícone de leitura gerada por LLM |
 | **Cinza** | Contexto e referência | Comparações históricas, valores de fundo |
 
-### Tokens de cor sugeridos
+### Tokens de cor
 
-Baseados na paleta institucional do Colégio Ari de Sá:
+Os valores em vigor estão em [web/styles/tokens.css](../web/styles/tokens.css) —
+é ele que manda. A tabela abaixo é o resumo dos que carregam significado.
 
 | Token | Valor | Uso |
 |-------|-------|-----|
 | `--color-navy` | `#1B3F8B` | Cor primária da marca |
+| `--color-navy-soft` | `#E7EDF9` | Fundo de avatar e de ícone |
+| `--color-navy-tint` | `#EAF0FB` | Fundo de tag informativa |
 | `--color-gold` | `#F2C94C` | Acento institucional |
 | `--color-red` | `#D9354A` | Semântica negativa |
 | `--color-green` | `#2E8C5A` | Semântica positiva |
-| `--color-amber` | `#E89B2A` | Semântica de atenção |
-| `--color-bg` | `#EEF1F7` | Fundo da página |
+| `--color-amber` | `#D4A82E` | Semântica de atenção — **traço**, não texto |
+| `--color-amber-text` | `#B08419` | O mesmo âmbar escurecido até passar em AA sobre fundo claro |
+| `--color-bg` | `#EEF1F7` | Fundo fora do casco |
 | `--color-surface` | `#FFFFFF` | Fundo de cards |
-| `--color-text-primary` | `#1A1D24` | Texto principal |
-| `--color-text-secondary` | `rgba(26,29,36,0.65)` | Texto secundário |
-| `--color-text-tertiary` | `rgba(26,29,36,0.45)` | Hints, metadados |
-| `--color-border` | `rgba(20,30,80,0.06)` | Bordas finas |
+| `--color-surface-inset` | `#F6F8FC` | Fundo da área de conteúdo |
+| `--color-text-primary` | `#16233D` | Títulos |
+| `--color-text-secondary` | `#5C6883` | Texto secundário |
+| `--color-text-tertiary` | `#8A93A8` | Hints, metadados |
+| `--color-border` | `#EEF1F7` | Fios de card |
+| `--color-divider` | `#F2F5FA` | Fio entre linhas de tabela — mais claro que o de card |
+
+Cinza é sempre azulado. O neutro puro ao lado do navy lê como sujeira.
 
 ### Regras de uso
 
@@ -45,19 +53,24 @@ Família primária: **Plus Jakarta Sans** (já em uso nos mockups). Alternativas
 
 | Uso | Tamanho | Peso |
 |-----|---------|------|
-| Número principal de destaque | 32–48px | 500 |
-| Título de tela | 22px | 500 |
-| Título de seção | 18px | 500 |
-| Título de cartão | 16px | 500 |
-| Texto corrente | 14–16px | 400 |
-| Comparações e contexto | 16–20px | 400 |
-| Rótulos e metadados | 12–14px (cinza) | 400 |
-| Tag / pill | 11px | 500 |
+| Número de KPI | 32–40px | 700 |
+| Título de tela | 28px | 700 |
+| Migalha da topbar | 19px | 700 |
+| Título de seção / cartão | 16–17px | 400 |
+| Texto corrente | 14–15px | 400 |
+| Rótulos e metadados | 13–14px (cinza) | 400 |
+| Cabeçalho de tabela | 13px (cinza) | 400 |
+| Tag / pílula | 13px | 400 |
 
 ### Regras tipográficas
 
-- **Dois pesos apenas:** 400 (regular) e 500 (médio). Sem 600, 700 ou 800.
+- **Três pesos:** 400 (corrente), 500 (ênfase pontual) e 700, reservado a
+  título de tela, migalha e número de KPI. O 700 é o que dá hierarquia sem
+  precisar de régua nem de caixa alta — antes eram só dois pesos, e títulos e
+  corpo brigavam pela mesma atenção.
 - **Sentence case em todo lugar.** Sem Title Case, sem ALL CAPS.
+- **Número sempre em `tabular-nums`.** Nota, média e contagem vivem em coluna;
+  sem isso os dígitos dançam de linha para linha.
 - **Sem negrito no meio de frases.** Negrito é para títulos e rótulos.
 - **`line-height: 1.7`** para texto corrente; `1.3` para títulos.
 

@@ -14,6 +14,30 @@ wrapper `<Legado>` ou hash router, está descrevendo o passado. Rotas são
 caminhos reais (`/alunos/A023`), o login é a rota `/login`, e a entrada é uma
 só: `index.html`.
 
+## O casco: rail de ícones, não topbar de abas
+
+`componentes/layout/` monta rail (5 destinos) + topbar (migalhas, busca, sino,
+avatar) + `<main>`. Três consequências que se descobre errando:
+
+- **Não existe mais sidebar de filtros.** `PainelFiltros`, `Sidebar` e
+  `rotas.ts::sidebarPara` foram apagados. Filtro agora é `BarraFiltros` —
+  faixa horizontal de `.pill` acima da tabela. Exceção deliberada: o Banco,
+  cujos assuntos por edital não cabem numa linha (docs/22 §3.5).
+- **A tela não monta `<main>`.** Quem monta é o casco; a rota devolve
+  `.tela`, que é só a coluna de blocos. Dois `<main>` na página é HTML
+  inválido e o leitor de tela anuncia duas regiões principais.
+- **Quem abre o rail é o CSS**, por `:has(.rail:hover)` e `:focus-within` —
+  não um `useState`. Estado aqui remontaria a árvore a cada passada de mouse.
+
+`/ciclos` e `/simulados` viraram abas de `/provas` (`?aba=simulados`). Os
+caminhos antigos continuam existindo como `<Navigate>` porque estão em link
+salvo e em e-mail de lembrete — **não os remova.** Já `/ciclos/:id` e
+`/simulados/:id` seguem sendo rotas de verdade.
+
+Migalha de ficha: a rota dá a trilha, a tela dá o nome da coisa aberta via
+`useTituloDaTela(...)`. Ele é hook — chame **antes** de qualquer `return`
+antecipado de carregamento ou erro.
+
 ## `src/exportacao/` é JavaScript de propósito
 
 Três arquivos `.js` montando DOM à mão no meio de um front todo em TSX. É
