@@ -200,43 +200,9 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* ─── Botões ──────────────────────────────────────────────────────────── */
-
-.btn {
-  padding: 8px 18px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-family);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  transition: background 0.12s, opacity 0.12s;
-  line-height: 1.4;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn--ghost {
-  background: transparent;
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border-strong);
-}
-
-.btn--ghost:hover:not(:disabled) {
-  background: var(--color-surface-inset);
-}
-
-.btn--primary {
-  background: var(--color-navy);
-  color: #fff;
-}
-
-.btn--primary:hover:not(:disabled) {
-  background: var(--color-navy-mid);
-}
+/* Os botões (`.btn`, `.btn--primary`, `.btn--ghost`) vivem em layout.css.
+   Estavam declarados aqui também, e como este arquivo carrega depois era esta
+   cópia que valia — inclusive nas telas que nada têm de diálogo. */
 
 /* ─── Botão de editar inline nas linhas de tabela ─────────────────────── */
 

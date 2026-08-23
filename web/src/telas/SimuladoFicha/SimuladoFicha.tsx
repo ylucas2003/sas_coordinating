@@ -15,6 +15,7 @@ import {
 import { useCancelarSimulado, useEditarNota, useEditarSimulado, useRetrySimuladoCanvas } from '../../hooks/mutacoes';
 import { DialogoComDiff } from '../../componentes/dialogos/DialogoComDiff';
 import type { NotaSimulado, QuebraSimulado, Simulado } from '../../tipos/dominio';
+import { useTituloDaTela } from '../../componentes/layout/migalhas';
 import { fmtNota } from '../../util/formato';
 
 const FASE_PREFIXO: Record<string, string> = { fase_1: 'Fase 1 · ', fase_2: 'Fase 2 · ' };
@@ -40,28 +41,31 @@ export function SimuladoFicha() {
   const [notaEmEdicao, setNotaEmEdicao] = useState<NotaSimulado | null>(null);
   const [erroSalvar, setErroSalvar] = useState('');
 
+  // Antes de qualquer return: hook não pode ficar atrás de saída antecipada.
+  useTituloDaTela(simulado?.nome);
+
   if (isPending) {
     return (
-      <main className="app-main">
+      <div className="tela">
         <section className="card">
           <div className="empty-state">Carregando…</div>
         </section>
-      </main>
+      </div>
     );
   }
 
   if (isError || !simulado) {
     return (
-      <main className="app-main">
+      <div className="tela">
         <section className="card">
           <div className="empty-state">
             {`Simulado ${id} não encontrado.`}
             <div className="empty-state__hint">
-              <Link to="/simulados">← Voltar para a lista</Link>
+              <Link to="/provas?aba=simulados">← Voltar para a lista</Link>
             </div>
           </div>
         </section>
-      </main>
+      </div>
     );
   }
 
@@ -87,14 +91,10 @@ export function SimuladoFicha() {
   }
 
   return (
-    <main className="app-main">
+    <div className="tela">
       <section className="card">
         <div className="screen-header">
-          <div className="screen-breadcrumb">
-            <Link to="/simulados">Simulados</Link>
-            {' / '}
-            {simulado.id}
-          </div>
+          <div className="screen-breadcrumb">{simulado.id}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <h1 className="screen-title" style={{ margin: 0 }}>
               {simulado.nome}
@@ -230,7 +230,7 @@ export function SimuladoFicha() {
           onFechar={salvarNota}
         />
       )}
-    </main>
+    </div>
   );
 }
 

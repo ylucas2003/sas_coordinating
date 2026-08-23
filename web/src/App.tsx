@@ -2,8 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppShell } from './componentes/layout/AppShell';
 import { Alunos } from './telas/Alunos/Alunos';
-import { Ciclos } from './telas/Ciclos/Ciclos';
-import { Simulados } from './telas/Simulados/Simulados';
+import { Provas } from './telas/Provas/Provas';
 import { SimuladoFicha } from './telas/SimuladoFicha/SimuladoFicha';
 import { CicloFicha } from './telas/CicloFicha/CicloFicha';
 import { AlunoFicha } from './telas/AlunoFicha/AlunoFicha';
@@ -22,7 +21,6 @@ import {
 } from './dados/perfisSugestoes';
 import * as sessao from './servicos/sessao';
 
-// Telas ainda não migradas. Cada uma sai desta lista quando virar componente.
 
 /**
  * Área do aluno: casco e rotas próprios, sem a topbar da coordenação.
@@ -54,9 +52,12 @@ function AppCoordenacao() {
         <Route path="/painel" element={<Painel />} />
         <Route path="/alunos" element={<Alunos />} />
         <Route path="/alunos/:id" element={<AlunoFicha />} />
-        <Route path="/simulados" element={<Simulados />} />
+        <Route path="/provas" element={<Provas />} />
+        {/* As listagens viraram abas de /provas. Os caminhos antigos seguem
+            valendo porque estão em link salvo e em e-mail de lembrete. */}
+        <Route path="/simulados" element={<Navigate to="/provas?aba=simulados" replace />} />
         <Route path="/simulados/:id" element={<SimuladoFicha />} />
-        <Route path="/ciclos" element={<Ciclos />} />
+        <Route path="/ciclos" element={<Navigate to="/provas" replace />} />
         <Route path="/ciclos/:id" element={<CicloFicha />} />
         <Route path="/importar" element={<Importar />} />
         <Route path="/banco/*" element={<Banco perfil="coordenacao" />} />

@@ -1,47 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAlunos, useTurmas } from '../../hooks/consultas';
 import * as sessao from '../../servicos/sessao';
-// Asset local — nada de CDN (CLAUDE.md, regra 5: dados de menores).
-import ariLogo from '../../../assets/ari-logo.png';
-
-const ABAS = [
-  { caminho: '/painel', label: 'Painel' },
-  { caminho: '/alunos', label: 'Alunos' },
-  { caminho: '/simulados', label: 'Simulados' },
-  { caminho: '/ciclos', label: 'Ciclos' },
-  { caminho: '/banco', label: 'Banco' },
-  { caminho: '/auditoria', label: 'Auditoria' },
-  { caminho: '/administracao', label: 'Administração' },
-];
+import { iniciais, normalizar } from '../../util/formato';
+import { useMigalhas } from './migalhas';
 
 const MAX_RESULTADOS = 8;
 
-function normalizar(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-}
-
-function IconeAsterisco() {
+function IconeBusca() {
   return (
-    <svg
-      width="20" height="20" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"
-    >
-      <line x1="12" y1="2" x2="12" y2="22" />
-      <line x1="3" y1="7" x2="21" y2="17" />
-      <line x1="21" y1="7" x2="3" y2="17" />
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <circle cx="9" cy="9" r="6" />
+      <path d="M13.5 13.5L17.5 17.5" />
     </svg>
   );
 }
 
-function IconeBusca() {
+function IconeSino() {
   return (
-    <svg
-      width="14" height="14" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M5 8.4a5 5 0 0 1 10 0c0 3.6 1.2 4.6 1.2 4.6H3.8S5 12 5 8.4Z" />
+      <path d="M8.3 16a2 2 0 0 0 3.4 0" />
     </svg>
   );
 }
@@ -57,7 +36,6 @@ function BuscaAlunos() {
 
   // Só busca dados depois que o usuário mexe na busca — a topbar aparece em
   // toda tela, e carregar a lista inteira de alunos no boot seria desperdício.
-  // (A topbar antiga fazia o mesmo, com um cache manual em `carregarDadosBusca`.)
   const [ligada, setLigada] = useState(false);
   const { data: alunos = [] } = useAlunos({ habilitada: ligada });
   const { data: turmas = [] } = useTurmas({ habilitada: ligada });
@@ -69,7 +47,7 @@ function BuscaAlunos() {
     if (!q) return [];
     const nq = normalizar(q);
     return alunos.filter((a) => normalizar(a.nome).includes(nq)).slice(0, MAX_RESULTADOS);
-  }, [termo, alunos, ligada]);
+  }, [termo, alunos]);
 
   // Atalho global: "/" foca a busca de qualquer tela.
   useEffect(() => {
@@ -122,11 +100,11 @@ function BuscaAlunos() {
   const mostrarResultados = aberta && termo.trim().length > 0;
 
   return (
-    <div className="topbar__busca">
+    <div className="busca">
       <IconeBusca />
       <input
         ref={inputRef}
-        className="topbar__busca-input"
+        className="busca__input"
         type="text"
         placeholder="Buscar aluno…"
         aria-label="Buscar aluno"
@@ -141,11 +119,11 @@ function BuscaAlunos() {
         onBlur={() => window.setTimeout(fechar, 120)}
         onKeyDown={aoTeclarNaBusca}
       />
-      <span className="topbar__busca-atalho">/</span>
+      <span className="busca__atalho">/</span>
 
-      <div className={`topbar__busca-resultados${mostrarResultados ? ' is-aberto' : ''}`}>
+      <div className={`busca__resultados${mostrarResultados ? ' is-aberto' : ''}`}>
         {mostrarResultados && resultados.length === 0 && (
-          <div className="topbar__busca-vazio">Nenhum aluno encontrado.</div>
+          <div className="busca__vazio">Nenhum aluno encontrado.</div>
         )}
         {mostrarResultados &&
           resultados.map((a, i) => {
@@ -153,7 +131,7 @@ function BuscaAlunos() {
             return (
               <a
                 key={a.id}
-                className={`topbar__busca-item${i === ativo ? ' is-ativo' : ''}`}
+                className={`busca__item${i === ativo ? ' is-ativo' : ''}`}
                 href={`/alunos/${a.id}`}
                 // Evita o blur fechar a lista antes do clique registrar.
                 onMouseDown={(ev) => ev.preventDefault()}
@@ -162,8 +140,8 @@ function BuscaAlunos() {
                   irPara(a.id);
                 }}
               >
-                <span className="topbar__busca-item-nome">{a.nome}</span>
-                {turma && <span className="topbar__busca-item-sub">{turma.nome}</span>}
+                <span className="busca__item-nome">{a.nome}</span>
+                {turma && <span className="busca__item-sub">{turma.nome}</span>}
               </a>
             );
           })}
@@ -174,6 +152,7 @@ function BuscaAlunos() {
 
 export function Topbar() {
   const navegar = useNavigate();
+  const migalhas = useMigalhas();
   const nome = sessao.nome();
 
   // Mesmo `encerrar()` que o aluno já usa; o coordenador não tinha o botão
@@ -185,41 +164,35 @@ export function Topbar() {
 
   return (
     <header className="topbar">
-      <div className="topbar__brand">
-        <div className="topbar__logo">
-          <IconeAsterisco />
-        </div>
-        <div className="topbar__brand-text">
-          <span className="topbar__brand-name">SAS</span>
-          <span className="topbar__brand-sub">coordenação ITM</span>
-        </div>
-        {/* "seria bom colocar o LOGO do Ari tb" — 21/08, 18h54. */}
-        <img className="topbar__ari" src={ariLogo} alt="Colégio Ari de Sá Cavalcante" />
-      </div>
-
-      <nav className="topbar__nav">
-        {ABAS.map((aba) => (
-          <NavLink
-            key={aba.caminho}
-            to={aba.caminho}
-            className={({ isActive }) => `topbar__tab${isActive ? ' is-active' : ''}`}
-          >
-            {aba.label}
-          </NavLink>
+      <nav className="topbar__migalhas" aria-label="Trilha de navegação">
+        {migalhas.map((m, i) => (
+          <Fragment key={`${m.texto}-${i}`}>
+            {i > 0 && <span className="topbar__separador" aria-hidden="true">›</span>}
+            {m.para ? (
+              <Link className="topbar__migalha topbar__migalha--link" to={m.para}>
+                {m.texto}
+              </Link>
+            ) : (
+              <span className="topbar__migalha" aria-current="page">
+                {m.texto}
+              </span>
+            )}
+          </Fragment>
         ))}
       </nav>
 
-      <div className="topbar__actions">
+      <div className="topbar__acoes">
         <BuscaAlunos />
-        <NavLink
-          className="topbar__action topbar__action--primary"
-          to="/importar"
-          title="Importar planilha do Canvas"
+        <Link className="topbar__icone-btn" to="/painel#alertas" title="Alertas" aria-label="Alertas">
+          <IconeSino />
+        </Link>
+        <button
+          className="topbar__avatar"
+          onClick={sair}
+          title={nome ? `Sair (${nome})` : 'Sair'}
+          aria-label={nome ? `Sair da conta de ${nome}` : 'Sair'}
         >
-          Importar planilha
-        </NavLink>
-        <button className="topbar__action topbar__sair" onClick={sair} title={nome ? `Sair (${nome})` : 'Sair'}>
-          Sair
+          {iniciais(nome)}
         </button>
       </div>
     </header>

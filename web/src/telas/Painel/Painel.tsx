@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Sidebar } from '../../componentes/layout/Sidebar';
 import { Kpi } from '../../componentes/ui/Kpi';
-import { CorpoChips, CorpoLista, PainelFiltros } from '../../componentes/ui/filtros/PainelFiltros';
+import { BarraFiltros, Pills, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
 import { FichaNota } from '../../componentes/dialogos/FichaNota';
 import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
 import { TabelaPainel } from './TabelaPainel';
@@ -43,7 +42,6 @@ export function Painel() {
   // A régua do corte. 'tio-leo' é a pedagógica do colégio; ITA/IME seguem o edital.
   const [criterio, setCriterio] = useState('tio-leo');
   const [recolhidos, setRecolhidos] = useState<ReadonlySet<number>>(new Set());
-  const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set(['ciclo']));
   const [emEdicao, setEmEdicao] = useState<{ alunoId: string; simuladoId: string } | null>(null);
   const [erroSalvar, setErroSalvar] = useState('');
 
@@ -118,144 +116,125 @@ export function Painel() {
   const resumo = dados.resumo;
 
   return (
-    <>
-      <Sidebar rotulo="Ciclos">
-        <PainelFiltros
-          abertas={abertas}
-          onToggleSecao={(chave) => setAbertas((a) => alternarConjunto(a, chave))}
-          algumAtivo={sedeIds.size > 0 || turmaIds.size > 0}
-          onLimpar={() => {
-            setSedeIds(new Set());
-            setTurmaIds(new Set());
-          }}
-          secoes={[
-            {
-              chave: 'ciclo', rotulo: 'Ciclos', icone: 'ciclos',
-              corpo: (
-                <CorpoLista
-                  opcoes={ciclos.map((c) => ({ valor: c.id, label: c.nome }))}
-                  selecionado={cicloAtivo?.id ?? null}
-                  onSelecionar={(id) => {
-                    setCicloId(id);
-                    setBusca('');
-                  }}
-                />
-              ),
-            },
-            {
-              chave: 'sede', rotulo: 'Sede', icone: 'sede',
-              corpo: (
-                <CorpoChips
-                  // Sedes com prefixo de ano são resíduo de importações antigas.
-                  opcoes={sedes
-                    .filter((sd) => !sd.nome.startsWith('2025_'))
-                    .map((sd) => ({ valor: sd.id, label: nomeSede(sd.nome) }))}
-                  selecionados={sedeIds}
-                  onToggle={(id) => setSedeIds((s) => alternarConjunto(s, id))}
-                />
-              ),
-            },
-            {
-              chave: 'turma', rotulo: 'Turmas', icone: 'turmas',
-              corpo: (
-                <CorpoChips
-                  opcoes={turmas.map((t) => ({ valor: t.id, label: t.nome }))}
-                  selecionados={turmaIds}
-                  onToggle={(id) => setTurmaIds((s) => alternarConjunto(s, id))}
-                />
-              ),
-            },
-          ]}
-        />
-      </Sidebar>
-
-      <main className="app-main">
-        <section className="card">
-          <div className="painel-header">
-            <div className="painel-header__esq">
-              <div className="screen-breadcrumb">Painel</div>
-              <h1 className="screen-title">Panorama geral</h1>
-              <p className="screen-subtitle">
-                {cicloAtivo ? cicloAtivo.nome : 'Selecione um ciclo na barra lateral.'}
-              </p>
-            </div>
-
-            <div className="painel-header__dir">
-              <div className="painel-header__controles">
-                <BotaoAjuda criterio={classificacaoResp?.criterio ?? null} />
-                <BuscaAluno valor={busca} onChange={setBusca} />
-                <Pills
-                  opcoes={[
-                    { label: 'Ranking', value: 'ranking' as const },
-                    { label: 'A–Z', value: 'alfabetica' as const },
-                  ]}
-                  valor={ordenacao}
-                  onEscolher={setOrdenacao}
-                />
-                <SeletorCriterio
-                  criterios={criterios}
-                  valor={criterio}
-                  onEscolher={setCriterio}
-                />
-              </div>
-
-              {dados.fasesDisponiveis.length >= 2 && (
-                <div className="painel-fase-filtro">
-                  <Pills
-                    opcoes={dados.fasesDisponiveis.map((f) => ({
-                      label: f === '1' ? '1ª Fase' : '2ª Fase',
-                      value: f,
-                    }))}
-                    valor={dados.faseSelecionada}
-                    onEscolher={setFase}
-                    semWrapper
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {erroSalvar && <div className="agendar__erro">{erroSalvar}</div>}
-
-          {resumo && (
-            <div className="painel-kpis">
-              <Kpi rotulo="Alunos no ciclo" valor={resumo.totalAlunos} />
-              <Kpi rotulo="Simulados aplicados" valor={resumo.totalSimulados} />
-              <Kpi rotulo="Média geral" valor={fmtNota(resumo.mediaGeral)} tone={toneMedia(resumo.mediaGeral)} />
-              <Kpi
-                rotulo={`Cortados · ${classificacaoResp?.criterio.nome ?? '…'}`}
-                valor={resumo.cortados ?? '…'}
-                sufixo={` de ${resumo.totalAlunos}`}
-                tone={resumo.cortados == null ? '' : resumo.cortados > 0 ? 'tone-vermelho' : 'tone-verde'}
+    <div className="tela">
+      <BarraFiltros
+        algumAtivo={sedeIds.size > 0 || turmaIds.size > 0}
+        onLimpar={() => {
+          setSedeIds(new Set());
+          setTurmaIds(new Set());
+        }}
+        grupos={[
+          {
+            chave: 'ciclo', rotulo: 'Ciclo',
+            corpo: (
+              <PillsUnica
+                opcoes={ciclos.map((c) => ({ valor: c.id, label: c.nome }))}
+                selecionado={cicloAtivo?.id ?? null}
+                onSelecionar={(id) => {
+                  setCicloId(id);
+                  setBusca('');
+                }}
               />
-            </div>
-          )}
+            ),
+          },
+          {
+            chave: 'sede', rotulo: 'Sede',
+            corpo: (
+              <Pills
+                // Sedes com prefixo de ano são resíduo de importações antigas.
+                opcoes={sedes
+                  .filter((sd) => !sd.nome.startsWith('2025_'))
+                  .map((sd) => ({ valor: sd.id, label: nomeSede(sd.nome) }))}
+                selecionados={sedeIds}
+                onToggle={(id) => setSedeIds((s) => alternarConjunto(s, id))}
+              />
+            ),
+          },
+          {
+            chave: 'turma', rotulo: 'Turmas',
+            corpo: (
+              <Pills
+                opcoes={turmas.map((t) => ({ valor: t.id, label: t.nome }))}
+                selecionados={turmaIds}
+                onToggle={(id) => setTurmaIds((s) => alternarConjunto(s, id))}
+              />
+            ),
+          },
+        ]}
+      />
 
-          {carregandoNotas ? (
-            <div className="section">
-              <p className="section__subtitle">Carregando notas…</p>
-            </div>
-          ) : dados.erro ? (
-            <div className="empty-state">{dados.erro}</div>
-          ) : (
-            <TabelaPainel
-              alunos={dados.alunosOrdenados}
-              colunas={dados.colunas}
-              notasAluno={dados.notasAluno}
-              mediasVirtuais={dados.mediasVirtuais}
-              mediasPorColuna={dados.mediasPorColuna}
-              classificacao={classificacao}
-              recolhidos={recolhidos}
-              onToggleLimite={
-                ordenacao === 'ranking'
-                  ? (pos) => setRecolhidos((r) => alternarConjunto(r, pos))
-                  : null
-              }
-              onEditarNota={(alunoId, simuladoId) => setEmEdicao({ alunoId, simuladoId })}
+      <div className="tela-cabecalho">
+        <div>
+          <h1 className="tela-titulo">Panorama geral</h1>
+          <p className="tela-subtitulo">
+            {cicloAtivo ? cicloAtivo.nome : 'Escolha um ciclo na faixa de filtros.'}
+          </p>
+        </div>
+
+        <div className="painel-header__controles">
+          <BotaoAjuda criterio={classificacaoResp?.criterio ?? null} />
+          <BuscaAluno valor={busca} onChange={setBusca} />
+          <Segmento
+            opcoes={[
+              { label: 'Ranking', value: 'ranking' as const },
+              { label: 'A–Z', value: 'alfabetica' as const },
+            ]}
+            valor={ordenacao}
+            onEscolher={setOrdenacao}
+          />
+          {dados.fasesDisponiveis.length >= 2 && (
+            <Segmento
+              opcoes={dados.fasesDisponiveis.map((f) => ({
+                label: f === '1' ? '1ª Fase' : '2ª Fase',
+                value: f,
+              }))}
+              valor={dados.faseSelecionada}
+              onEscolher={setFase}
             />
           )}
-        </section>
-      </main>
+          <SeletorCriterio criterios={criterios} valor={criterio} onEscolher={setCriterio} />
+        </div>
+      </div>
+
+      {erroSalvar && <div className="agendar__erro">{erroSalvar}</div>}
+
+      {resumo && (
+        <div className="kpi-grid kpi-grid--cartoes">
+          <Kpi rotulo="Alunos no ciclo" valor={resumo.totalAlunos} />
+          <Kpi rotulo="Simulados aplicados" valor={resumo.totalSimulados} />
+          <Kpi rotulo="Média geral" valor={fmtNota(resumo.mediaGeral)} tone={toneMedia(resumo.mediaGeral)} />
+          <Kpi
+            rotulo={`Cortados · ${classificacaoResp?.criterio.nome ?? '…'}`}
+            valor={resumo.cortados ?? '…'}
+            sufixo={` de ${resumo.totalAlunos}`}
+            tone={resumo.cortados == null ? '' : resumo.cortados > 0 ? 'tone-vermelho' : 'tone-verde'}
+          />
+        </div>
+      )}
+
+      <section className="card">
+        {carregandoNotas ? (
+          <div className="empty-state">Carregando notas…</div>
+        ) : dados.erro ? (
+          <div className="empty-state">{dados.erro}</div>
+        ) : (
+          <TabelaPainel
+            alunos={dados.alunosOrdenados}
+            colunas={dados.colunas}
+            notasAluno={dados.notasAluno}
+            mediasVirtuais={dados.mediasVirtuais}
+            mediasPorColuna={dados.mediasPorColuna}
+            classificacao={classificacao}
+            recolhidos={recolhidos}
+            onToggleLimite={
+              ordenacao === 'ranking'
+                ? (pos) => setRecolhidos((r) => alternarConjunto(r, pos))
+                : null
+            }
+            onEditarNota={(alunoId, simuladoId) => setEmEdicao({ alunoId, simuladoId })}
+          />
+        )}
+      </section>
 
       {emEdicao && (
         <DialogoNota
@@ -265,7 +244,7 @@ export function Painel() {
           onFechar={salvarNota}
         />
       )}
-    </>
+    </div>
   );
 }
 
@@ -326,24 +305,28 @@ function BuscaAluno({ valor, onChange }: { valor: string; onChange: (v: string) 
   );
 }
 
-function Pills<V extends string>({
-  opcoes, valor, onEscolher, semWrapper = false,
+/** Seletor de valor único em pílulas — ordenação e fase. */
+function Segmento<V extends string>({
+  opcoes, valor, onEscolher,
 }: {
   opcoes: Array<{ label: string; value: V }>;
   valor: V;
   onEscolher: (v: V) => void;
-  semWrapper?: boolean;
 }) {
-  const botoes = opcoes.map((o) => (
-    <button
-      key={o.value}
-      className={`painel-topn__btn${valor === o.value ? ' is-active' : ''}`}
-      onClick={() => onEscolher(o.value)}
-    >
-      {o.label}
-    </button>
-  ));
-  return semWrapper ? <>{botoes}</> : <div className="painel-topn">{botoes}</div>;
+  return (
+    <div className="painel-topn">
+      {opcoes.map((o) => (
+        <button
+          key={o.value}
+          className={`pill${valor === o.value ? ' is-active' : ''}`}
+          aria-pressed={valor === o.value}
+          onClick={() => onEscolher(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /** Qual régua de corte está em uso — a do colégio ou a de um edital. */
@@ -416,8 +399,8 @@ function LegendaCriterio({ criterio }: { criterio: CriterioClassificacao | null 
 }
 
 const AJUDA_ITENS = [
-  'Selecione um ciclo na barra lateral para carregar os dados.',
-  'Filtre por Sede e Turmas na barra lateral (múltipla seleção).',
+  'Escolha um ciclo na faixa de filtros para carregar os dados.',
+  'Filtre por Sede e Turmas na mesma faixa (múltipla seleção).',
   'Use a busca para encontrar um aluno específico.',
   'Ranking: não-cortados primeiro, depois os cortados; desempate pela ordem do critério.',
   'Troque o critério (Tio Leo, ITA, IME) para ver a mesma turma sob outra régua.',

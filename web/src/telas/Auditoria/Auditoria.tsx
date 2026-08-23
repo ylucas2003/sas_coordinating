@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
-import { Sidebar } from '../../componentes/layout/Sidebar';
-import { CorpoChips, PainelFiltros } from '../../componentes/ui/filtros/PainelFiltros';
+import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
+import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import * as api from '../../servicos/api';
 import type { CanalAuditoria, EventoAuditoria } from '../../tipos/dominio';
 
@@ -84,7 +84,6 @@ export function Auditoria() {
   const [canais, setCanais] = useState<ReadonlySet<string>>(new Set());
   // Só criações e alterações por padrão — login não muda nada (22/08).
   const [incluirLogins, setIncluirLogins] = useState(false);
-  const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set(['canal']));
   // Paginação por cursor: cada "carregar mais" empilha uma página.
   const [cursores, setCursores] = useState<Array<number | undefined>>([undefined]);
 
@@ -122,77 +121,67 @@ export function Auditoria() {
   }
 
   return (
-    <>
-      <Sidebar rotulo="Filtros">
-        <PainelFiltros
-          abertas={abertas}
-          onToggleSecao={(chave) => setAbertas((a) => {
-            const novo = new Set(a);
-            if (novo.has(chave)) novo.delete(chave);
-            else novo.add(chave);
-            return novo;
-          })}
-          algumAtivo={canais.size > 0 || incluirLogins}
-          onLimpar={() => { setCanais(new Set()); setIncluirLogins(false); setCursores([undefined]); }}
-          secoes={[
-            {
-              chave: 'canal', rotulo: 'Canal', icone: 'ciclos',
-              corpo: (
-                <CorpoChips
-                  opcoes={(Object.keys(CANAL_LABEL) as CanalAuditoria[]).map((c) => ({ valor: c, label: CANAL_LABEL[c] }))}
-                  selecionados={canais}
-                  onToggle={alternar}
-                />
-              ),
-            },
-            {
-              chave: 'incluir', rotulo: 'Incluir também', icone: 'turmas',
-              corpo: (
-                <CorpoChips
-                  opcoes={[{ valor: 'logins', label: 'Entradas no sistema' }]}
-                  selecionados={new Set<string>(incluirLogins ? ['logins'] : [])}
-                  onToggle={() => { setIncluirLogins((v) => !v); setCursores([undefined]); }}
-                />
-              ),
-            },
-          ]}
-        />
-      </Sidebar>
+    <div className="tela">
+      <AbasAdmin />
 
-      <main className="app-main">
-        <section className="card">
-          <div className="screen-header">
-            <div>
-              <div className="screen-breadcrumb">Auditoria</div>
-              <h1 className="screen-title">Linha do tempo</h1>
-              <p className="screen-subtitle">
-                {incluirLogins
-                  ? 'Tudo que foi criado, alterado — e quem entrou no sistema.'
-                  : 'Tudo que foi criado ou alterado, e o que cada um escolheu fazer no Canvas.'}
-              </p>
-            </div>
+      <BarraFiltros
+        algumAtivo={canais.size > 0 || incluirLogins}
+        onLimpar={() => { setCanais(new Set()); setIncluirLogins(false); setCursores([undefined]); }}
+        grupos={[
+          {
+            chave: 'canal', rotulo: 'Canal',
+            corpo: (
+              <Pills
+                opcoes={(Object.keys(CANAL_LABEL) as CanalAuditoria[]).map((c) => ({ valor: c, label: CANAL_LABEL[c] }))}
+                selecionados={canais}
+                onToggle={alternar}
+              />
+            ),
+          },
+          {
+            chave: 'incluir', rotulo: 'Incluir também',
+            corpo: (
+              <Pills
+                opcoes={[{ valor: 'logins', label: 'Entradas no sistema' }]}
+                selecionados={new Set<string>(incluirLogins ? ['logins'] : [])}
+                onToggle={() => { setIncluirLogins((v) => !v); setCursores([undefined]); }}
+              />
+            ),
+          },
+        ]}
+      />
+
+      <div className="tela-cabecalho">
+        <div>
+          <h1 className="tela-titulo">Linha do tempo</h1>
+          <p className="tela-subtitulo">
+            {incluirLogins
+              ? 'Tudo que foi criado, alterado — e quem entrou no sistema.'
+              : 'Tudo que foi criado ou alterado, e o que cada um escolheu fazer no Canvas.'}
+          </p>
+        </div>
+      </div>
+
+      <section className="card">
+        {primeira.isPending ? (
+          <div className="empty-state">Carregando…</div>
+        ) : eventos.length === 0 ? (
+          <div className="empty-state">Nenhum evento registrado com esses filtros.</div>
+        ) : (
+          <ol className="auditoria">
+            {eventos.map((e) => <Evento key={e.id} evento={e} />)}
+          </ol>
+        )}
+
+        {proximo != null && (
+          <div className="auditoria__mais">
+            <button className="btn btn--ghost" onClick={() => setCursores((c) => [...c, proximo])}>
+              Carregar mais antigos
+            </button>
           </div>
-
-          {primeira.isPending ? (
-            <div className="section"><p className="section__subtitle">Carregando…</p></div>
-          ) : eventos.length === 0 ? (
-            <div className="empty-state">Nenhum evento registrado com esses filtros.</div>
-          ) : (
-            <ol className="auditoria">
-              {eventos.map((e) => <Evento key={e.id} evento={e} />)}
-            </ol>
-          )}
-
-          {proximo != null && (
-            <div className="auditoria__mais">
-              <button className="btn btn--ghost" onClick={() => setCursores((c) => [...c, proximo])}>
-                Carregar mais antigos
-              </button>
-            </div>
-          )}
-        </section>
-      </main>
-    </>
+        )}
+      </section>
+    </div>
   );
 }
 

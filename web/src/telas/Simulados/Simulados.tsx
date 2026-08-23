@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Sidebar } from '../../componentes/layout/Sidebar';
 import { CalendarioAnual } from '../../componentes/ui/CalendarioAnual';
-import { CorpoChips, PainelFiltros } from '../../componentes/ui/filtros/PainelFiltros';
-import type { SecaoFiltro } from '../../componentes/ui/filtros/PainelFiltros';
+import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import type { GrupoFiltro } from '../../componentes/ui/filtros/BarraFiltros';
 import { proximaOrdenacao } from '../../componentes/ui/ordenacao';
 import type { Ordenacao } from '../../componentes/ui/ordenacao';
 import { TabelaSimulados } from '../../componentes/simulados/TabelaSimulados';
@@ -30,9 +29,6 @@ export function Simulados() {
 
   const [filtro, setFiltro] = useState<FiltroSimulados>(FILTRO_VAZIO);
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
-  const [abertas, setAbertas] = useState<ReadonlySet<string>>(
-    new Set(['vestibular', 'fase', 'ciclo', 'disciplina']),
-  );
   // Calendário começa oculto: o usuário decide quando mostrar.
   const [calendarioVisivel, setCalendarioVisivel] = useState(false);
   const [dialogoAberto, setDialogoAberto] = useState(false);
@@ -64,11 +60,11 @@ export function Simulados() {
     });
   }
 
-  const secoes: SecaoFiltro[] = [
+  const grupos: GrupoFiltro[] = [
     {
-      chave: 'vestibular', rotulo: 'Vestibular', icone: 'vestibular',
+      chave: 'vestibular', rotulo: 'Vestibular',
       corpo: (
-        <CorpoChips
+        <Pills
           opcoes={opcoes.vestibulares.map((v) => ({ valor: v, label: v, contagem: contagens.vestibular.get(v) ?? 0 }))}
           selecionados={filtro.vestibulares}
           onToggle={(v) => alternar('vestibulares', v)}
@@ -76,9 +72,9 @@ export function Simulados() {
       ),
     },
     {
-      chave: 'fase', rotulo: 'Fase', icone: 'fase',
+      chave: 'fase', rotulo: 'Fase',
       corpo: (
-        <CorpoChips
+        <Pills
           opcoes={opcoes.fases.map((f) => ({ valor: f.valor, label: f.label, contagem: contagens.fase.get(f.valor) ?? 0 }))}
           selecionados={filtro.fases}
           onToggle={(v) => alternar('fases', v)}
@@ -86,9 +82,9 @@ export function Simulados() {
       ),
     },
     {
-      chave: 'ciclo', rotulo: 'Ciclo', icone: 'ciclos',
+      chave: 'ciclo', rotulo: 'Ciclo',
       corpo: (
-        <CorpoChips
+        <Pills
           opcoes={opcoes.ciclos.map((c) => ({ valor: c.ordem, label: c.label, contagem: contagens.ciclo.get(c.ordem) ?? 0 }))}
           selecionados={filtro.ciclos}
           onToggle={(v) => alternar('ciclos', v)}
@@ -96,9 +92,9 @@ export function Simulados() {
       ),
     },
     {
-      chave: 'disciplina', rotulo: 'Disciplina', icone: 'disciplina',
+      chave: 'disciplina', rotulo: 'Disciplina',
       corpo: (
-        <CorpoChips
+        <Pills
           opcoes={opcoes.materias.map((m) => ({ valor: m.codigo, label: m.nome, contagem: contagens.materia.get(m.codigo) ?? 0 }))}
           selecionados={filtro.materias}
           onToggle={(v) => alternar('materias', v)}
@@ -109,84 +105,63 @@ export function Simulados() {
 
   return (
     <>
-      <Sidebar rotulo="Filtros">
-        <PainelFiltros
-          secoes={secoes}
-          abertas={abertas}
-          onToggleSecao={(chave) =>
-            setAbertas((a) => {
-              const novo = new Set(a);
-              if (novo.has(chave)) novo.delete(chave);
-              else novo.add(chave);
-              return novo;
-            })
-          }
-          algumAtivo={algumFiltroAtivo(filtro)}
-          onLimpar={() => setFiltro(FILTRO_VAZIO)}
-        />
-      </Sidebar>
+      <BarraFiltros
+        grupos={grupos}
+        algumAtivo={algumFiltroAtivo(filtro)}
+        onLimpar={() => setFiltro(FILTRO_VAZIO)}
+      />
 
-      <main className="app-main">
-        <div className="screen-stack">
-          <section className="card">
-            <div className="screen-header agendar__header">
-              <div>
-                <div className="screen-breadcrumb">Simulados</div>
-                <h1 className="screen-title">Simulados aplicados</h1>
-                <p className="screen-subtitle">
-                  {isPending ? 'Carregando…' : `${filtrados.length} de ${simulados.length} simulados`}
-                </p>
-              </div>
-              <button
-                className="btn btn--primary agendar__botao-novo"
-                onClick={() => setDialogoAberto(true)}
-              >
-                + Novo simulado
-              </button>
-            </div>
-
-            <div>
-              <button
-                className={`sim-calendario-toggle${calendarioVisivel ? ' is-aberto' : ''}`}
-                onClick={() => setCalendarioVisivel((v) => !v)}
-              >
-                <span className="sim-calendario-toggle__seta">{calendarioVisivel ? '▾' : '▸'}</span>
-                {calendarioVisivel
-                  ? 'Ocultar calendário'
-                  : `Mostrar calendário · ${datasCalendario.size} dia(s)`}
-              </button>
-              {calendarioVisivel && (
-                <CalendarioAnual
-                  datasComSimulado={datasCalendario}
-                  datasSelecionadas={filtro.datas}
-                  onToggleData={(iso) => alternar('datas', iso)}
-                />
-              )}
-            </div>
-          </section>
-
-          {agendados.length > 0 && <SecaoAgendados agendados={agendados} />}
-
-          <section className="card">
-            <div className="section">
-              {isError ? (
-                <div className="empty-state">
-                  Não foi possível carregar os simulados.
-                  <div className="empty-state__hint">{(error as Error)?.message}</div>
-                </div>
-              ) : isPending ? (
-                <div className="empty-state">Carregando…</div>
-              ) : (
-                <TabelaSimulados
-                  simulados={filtrados}
-                  ordenacao={ordenacao}
-                  onOrdenar={(chave) => setOrdenacao((o) => proximaOrdenacao(o, chave))}
-                />
-              )}
-            </div>
-          </section>
+      <div className="tela-cabecalho">
+        <div>
+          <h1 className="tela-titulo">Simulados aplicados</h1>
+          <p className="tela-subtitulo">
+            {isPending ? 'Carregando…' : `${filtrados.length} de ${simulados.length} simulados`}
+          </p>
         </div>
-      </main>
+        <button className="btn btn-primary" onClick={() => setDialogoAberto(true)}>
+          + Novo simulado
+        </button>
+      </div>
+
+      <section className="card">
+        <div className="section">
+          <button
+            className={`sim-calendario-toggle${calendarioVisivel ? ' is-aberto' : ''}`}
+            onClick={() => setCalendarioVisivel((v) => !v)}
+          >
+            <span className="sim-calendario-toggle__seta">{calendarioVisivel ? '▾' : '▸'}</span>
+            {calendarioVisivel
+              ? 'Ocultar calendário'
+              : `Mostrar calendário · ${datasCalendario.size} dia(s)`}
+          </button>
+          {calendarioVisivel && (
+            <CalendarioAnual
+              datasComSimulado={datasCalendario}
+              datasSelecionadas={filtro.datas}
+              onToggleData={(iso) => alternar('datas', iso)}
+            />
+          )}
+        </div>
+      </section>
+
+      {agendados.length > 0 && <SecaoAgendados agendados={agendados} />}
+
+      <section className="card">
+        {isError ? (
+          <div className="empty-state">
+            Não foi possível carregar os simulados.
+            <div className="empty-state__hint">{(error as Error)?.message}</div>
+          </div>
+        ) : isPending ? (
+          <div className="empty-state">Carregando…</div>
+        ) : (
+          <TabelaSimulados
+            simulados={filtrados}
+            ordenacao={ordenacao}
+            onOrdenar={(chave) => setOrdenacao((o) => proximaOrdenacao(o, chave))}
+          />
+        )}
+      </section>
 
       {dialogoAberto && (
         <AgendarSimulado ciclos={ciclos} onFechar={() => setDialogoAberto(false)} />

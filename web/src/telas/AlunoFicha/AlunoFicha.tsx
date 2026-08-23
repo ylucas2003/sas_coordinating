@@ -20,6 +20,7 @@ import {
   useTrajetoriaAluno, useTurmas,
 } from '../../hooks/consultas';
 import { useEditarNota } from '../../hooks/mutacoes';
+import { useTituloDaTela } from '../../componentes/layout/migalhas';
 import type { AlunoSimilar, Simulado } from '../../tipos/dominio';
 import { fmtNota } from '../../util/formato';
 
@@ -82,17 +83,20 @@ export function AlunoFicha() {
   const turma = turmas.find((t) => t.id === aluno?.turmaId);
   const sede = sedes.find((s) => s.id === aluno?.sedeId);
 
+  // Antes de qualquer return: hook não pode ficar atrás de saída antecipada.
+  useTituloDaTela(aluno?.nome);
+
   if (isPending) {
     return (
-      <main className="app-main">
+      <div className="tela">
         <section className="card"><div className="empty-state">Carregando…</div></section>
-      </main>
+      </div>
     );
   }
 
   if (isError || !aluno) {
     return (
-      <main className="app-main">
+      <div className="tela">
         <section className="card">
           <div className="empty-state">
             {`Aluno ${id} não encontrado.`}
@@ -101,7 +105,7 @@ export function AlunoFicha() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
     );
   }
 
@@ -137,16 +141,12 @@ export function AlunoFicha() {
   const totalPontos = series.reduce((acc, s) => acc + s.pontos.length, 0);
 
   return (
-    <main className="app-main">
+    <div className="tela">
       <div className="screen-stack">
         <section className="card">
           <div className="aluno-ficha__header">
             <div className="aluno-ficha__header-info">
-              <div className="screen-breadcrumb">
-                <Link to="/alunos">Alunos</Link>
-                {' / '}
-                {aluno.id}
-              </div>
+              <div className="screen-breadcrumb">{aluno.id}</div>
               <h1 className="screen-title">{aluno.nome}</h1>
               <p className="screen-subtitle">
                 {`${turma?.nome ?? '—'} · ${sede?.nome ?? '—'} · alvos: ${alvos}`}
@@ -265,7 +265,7 @@ export function AlunoFicha() {
           onFechar={salvarNota}
         />
       )}
-    </main>
+    </div>
   );
 }
 

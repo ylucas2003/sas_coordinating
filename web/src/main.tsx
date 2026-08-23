@@ -11,6 +11,7 @@ import { App } from './App';
 import '../styles/fontes.css';
 import '../styles/tokens.css';
 import '../styles/base.css';
+import '../styles/casco.css';
 import '../styles/layout.css';
 import '../styles/simulados.css';
 import '../styles/auditoria.css';
