@@ -528,9 +528,9 @@
   </header>
 
   <div class="placar">
-    <div><b>32</b><span>partes no ar</span></div>
-    <div><b>3</b><span>partes em curso</span></div>
-    <div><b>15</b><span>partes à frente</span></div>
+    <div><b>33</b><span>partes no ar</span></div>
+    <div><b>2</b><span>partes em curso</span></div>
+    <div><b>15</b><span>nos próximos 3 sprints</span></div>
     <div><b>9</b><span>ciclos mapeados</span></div>
   </div>
 
@@ -794,7 +794,7 @@
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT MOBILE</span>
         <span class="selo selo--curso">em curso</span>
-        <span class="ciclo__quando">22/08/2026 → · branch <code>feat/mobile-fundacao-css</code></span>
+        <span class="ciclo__quando">22/08/2026 → · PR #15 · no ar desde 23/08</span>
       </div>
       <h2>A área do aluno no celular</h2>
       <p class="ciclo__resumo">Furou a fila por decisão direta de prioridade — <b>não é a Sprint 3 do roadmap</b>.
@@ -868,6 +868,11 @@
         </ul>
       </div>
 
+      <p class="nota"><b>O que já está no ar.</b> O PR #15 foi mergeado e subiu no deploy de 23/08: o login
+        responsivo, a passada de toque e o selo de 11,4 KB estão em <code>portalsas.online</code>. O selo de
+        "em curso" acima é da P1, que ainda deve a migração dos 12 breakpoints, e da P3, que segue sem o
+        Safari real.</p>
+
       <p class="nota"><b>Ainda em aberto:</b> a trava automatizada — um script no repositório que abre cada rota a 360px e
         falha se houver transbordo ou fonte de campo menor que 16px, entrando como bloqueante no <code>deploy.sh</code>.
         Sem ela a auditoria é uma foto, e a primeira tela nova reintroduz o problema sem ninguém perceber.</p>
@@ -878,7 +883,7 @@
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT BANCO</span>
         <span class="selo selo--ok">6 de 6 no ar</span>
-        <span class="ciclo__quando">22–23/08/2026 · PR #16</span>
+        <span class="ciclo__quando">22–23/08/2026 · PR #16 · no ar desde 23/08</span>
       </div>
       <h2>Banco de questões ITA · IME vira aba do SAS</h2>
       <p class="ciclo__resumo">O projeto <code>ita-por-assunto</code> — 934 questões de prova de 2018 a 2025,
@@ -904,17 +909,24 @@
           projeto. <code>Histograma</code> e <code>LinhaTemporal</code> já existem e já escalam no
           celular.</em></span><span class="selo selo--ok">no ar</span></li>
         <li><span class="cod">P5</span><span class="oque"><b>Listas</b><em>Montar, reordenar e exportar em PDF
-          e DOCX — para os dois perfis. Mora no servidor, não no <code>localStorage</code>: uma lista que existe
+          e Word — para os dois perfis. Mora no servidor, não no <code>localStorage</code>: uma lista que existe
           só num aparelho é uma lista que o aluno perde sem saber por quê.</em></span><span class="selo selo--ok">no ar</span></li>
         <li><span class="cod">P6</span><span class="oque"><b>Estudo do aluno</b><em>Marcar resolvida, anotar, e
           a aba de mensagem — só no casco do aluno. É o que faz o banco virar ferramenta de estudo em vez de
           catálogo.</em></span><span class="selo selo--ok">não precisou cortar</span></li>
       </ul>
 
-      <p class="nota nota--alerta"><b>O item que não pode entrar nem no histórico:</b> o site de hoje tem um
-        <code>allowed-ras.json</code> com <b>817 matrículas de aluno</b> que o browser baixa para validar o login
-        em JavaScript. Não basta não trazer o arquivo — ele não pode aparecer em commit nenhum, nem num que
-        depois o remova. O SAS já resolve isso melhor: matrícula é validada no servidor contra o e-mail do Canvas.</p>
+      <p class="nota"><b>Verificado em produção, não só aqui.</b> Migrations <code>0028</code>/<code>0029</code>
+        aplicadas na VPS, carga inicial das 934 feita lá, e o <code>--conferir</code> rodado <em>contra o banco de
+        produção</em> deu zero divergência. As cinco rotas respondem 401 (existem e exigem auth, não 404) e a CSP
+        nova chegou com o bucket em <code>img-src</code> — sem isso, toda imagem de questão seria bloqueada e o
+        cartão cairia para o texto.</p>
+
+      <p class="nota nota--alerta"><b>O item que não podia entrar nem no histórico:</b> o site de origem tinha um
+        <code>allowed-ras.json</code> com <b>817 matrículas de aluno</b> que o browser baixava para validar o login
+        em JavaScript. Não bastava não trazer o arquivo — ele não podia aparecer em commit nenhum, nem num que
+        depois o removesse. Ficou de fora; o SAS já resolve isso melhor, validando matrícula no servidor contra o
+        e-mail do Canvas.</p>
 
       <div class="ganho">
         <span class="rotulo">No fim deste sprint, quem usa passa a ter</span>
@@ -926,9 +938,10 @@
           <li><b>A recorrência de um tópico ao longo dos anos</b> — o que o edital cobra de verdade, em vez do
             que se supõe que cobra.</li>
           <li><b>Uma lista de estudo que sobrevive à troca de aparelho</b>, para o aluno, e uma lista exportável
-            em PDF ou DOCX, para o coordenador.</li>
-          <li><b>Questão legível no celular</b> — o site de hoje tem sidebar de largura fixa e nenhuma media
-            query, exatamente o defeito que o sprint mobile mapeou na coordenação.</li>
+            em PDF ou Word, para o coordenador — o <code>.doc</code> saiu sem dependência nenhuma, porque é o
+            que a biblioteca prevista fazia por baixo.</li>
+          <li><b>Questão legível no celular</b> — o site de origem tinha sidebar de largura fixa e nenhuma media
+            query, exatamente o defeito que o sprint mobile mapeou na coordenação. A aba nasceu verificada a 360px.</li>
         </ul>
       </div>
 
@@ -1089,12 +1102,14 @@
     <section>
       <h3>Dívida técnica — PR avulso, qualquer hora</h3>
       <ul>
+        <li><b>Backup do Postgres.</b> O plano de produção dispensou backup contínuo porque "o Canvas é o
+          arquivo" — todo dado vinha de lá e podia ser resincronizado. O banco de questões é o primeiro que
+          ele <b>não</b> restaura, e as imagens só existem no S3. Duas cópias únicas. Tamanho M.</li>
         <li><b>Renomear <code>get_supabase()</code> → <code>get_postgrest()</code>.</b>
           O nome mente desde 13/08, quando o Supabase saiu. É também o que destrava o mypy como portão — 72 dos
           109 erros são isso. Tamanho M, mecânico.</li>
         <li><b>O logout da área do aluno aponta para <code>/login.html</code></b>, rota que não existe mais desde a
           migração React. É <code>/login</code>.</li>
-        <li><b>Conferir se <code>web/dist/</code> está versionado</b> por engano.</li>
         <li><b>Sem testes que toquem DOM.</b> Os 7 arquivos de teste do front são todos de lógica pura; o harness de
           browser da migração React viveu num scratchpad e nunca entrou no repositório. É a mesma lacuna que a trava
           do sprint mobile fecharia.</li>
