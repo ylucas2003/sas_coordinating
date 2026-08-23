@@ -179,6 +179,30 @@ export function CartaoQuestao({
 }
 
 /**
+ * O link para a resolução comentada nos sites do Ari.
+ *
+ * Vale para questão COM e SEM gabarito: saber a letra não é saber resolver, e
+ * era essa a razão de o aluno abrir o banco. Antes só aparecia onde não havia
+ * gabarito, o que escondia o link em 493 das 934.
+ *
+ * Sem link em 210 — a 2ª fase do IME, que o Ari não comenta. Ausência é
+ * ausência de resolução publicada, não de dado (banco/resolucao.py).
+ */
+function LinkResolucao({ url }: { url: string | null | undefined }) {
+  if (!url) return null;
+  return (
+    <a
+      className="banco-questao__gabarito banco-questao__resolucao"
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Ver resolução ↗
+    </a>
+  );
+}
+
+/**
  * O gabarito fica atrás de um clique — é o que separa "estudar" de "conferir".
  *
  * 469 das 934 não têm letra, quase todas por serem dissertativas de 2ª fase: é
@@ -206,34 +230,28 @@ function Gabarito({
         {/* A resolução ocupa o lugar do gabarito, e por isso veste a mesma
             classe: `.banco-questao__gabarito` tem `align-self: flex-start`, o
             que a impede de esticar na coluna do corpo do cartão. */}
-        {questao.resolucaoUrl && (
-          <a
-            className="banco-questao__gabarito"
-            href={questao.resolucaoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Ver resolução ↗
-          </a>
-        )}
+        <LinkResolucao url={questao.resolucaoUrl} />
       </>
     );
   }
 
   return (
-    <button
-      type="button"
-      // Mesmo elemento nos dois estados de propósito: trocar por um <div> ao
-      // revelar tiraria o foco do teclado do cartão que a pessoa está lendo.
-      className={`banco-questao__gabarito${visivel ? ' banco-questao__gabarito--revelado' : ''}`}
-      aria-expanded={visivel}
-      onClick={onAlternar}
-    >
-      {visivel ? (
-        <span className="banco-questao__gabarito-letra">{questao.gabarito}</span>
-      ) : (
-        'ver gabarito'
-      )}
-    </button>
+    <>
+      <button
+        type="button"
+        // Mesmo elemento nos dois estados de propósito: trocar por um <div> ao
+        // revelar tiraria o foco do teclado do cartão que a pessoa está lendo.
+        className={`banco-questao__gabarito${visivel ? ' banco-questao__gabarito--revelado' : ''}`}
+        aria-expanded={visivel}
+        onClick={onAlternar}
+      >
+        {visivel ? (
+          <span className="banco-questao__gabarito-letra">{questao.gabarito}</span>
+        ) : (
+          'ver gabarito'
+        )}
+      </button>
+      <LinkResolucao url={questao.resolucaoUrl} />
+    </>
   );
 }
