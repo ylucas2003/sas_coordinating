@@ -513,6 +513,21 @@
 /* 469 das 934 são dissertativas de 2ª fase e não têm gabarito — é o esperado,
    não defeito. O cartão não pode oferecer "revelar" onde não há o que revelar
    (docs/22 §8, risco 4); o lugar da resposta ali é `resolucaoUrl`. */
+.banco-questao__resolucao {
+  /* Convive com o botão de gabarito na mesma linha desde 23/08, então precisa
+     se distinguir dele: contorno em vez de preenchido, porque "ver gabarito" é
+     a ação principal do cartão e a resolução é a saída para fora do produto. */
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+}
+
+.banco-questao__resolucao:hover {
+  border-color: var(--color-navy);
+  color: var(--color-navy);
+}
+
 .banco-questao__gabarito--indisponivel {
   border-style: solid;
   background: var(--color-surface-inset);

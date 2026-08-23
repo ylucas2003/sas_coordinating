@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .resolucao import url_da_resolucao
 from .taxonomia import carregar_taxonomias, codigos_por_materia, raiz_repositorio
 
 # O PostgREST engasga com payload grande: a requisição inteira vira um único
@@ -187,7 +188,12 @@ def _linha_questao(
         "gabarito": dados.get("gabarito") or None,
         "imagem_url": dados.get("imagem_questao_url") or None,
         "usa_imagem_no_render": bool(dados.get("usa_imagem_no_render", False)),
-        "resolucao_url": dados.get("resolucao_url") or None,
+        # Derivada, não lida do JSON: o arquivo nunca teve este campo — quem o
+        # calculava era o gerador do HTML estático, que saiu na migração e
+        # levou junto a tabela de galerias do Ari (resolucao.py).
+        "resolucao_url": url_da_resolucao(
+            prova["vestibular"], prova["ano"], prova["fase"], materia, dados["numero"]
+        ),
         "arquivo_origem": origem,
         "revisado": bool(status.get("revisado", False)),
         # Proveniência e bastidor do pipeline (0030). Com os JSONs fora do git
