@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { Sidebar } from '../../componentes/layout/Sidebar';
 import { Sparkline } from '../../componentes/ui/Sparkline';
 import { TheadOrdenavel } from '../../componentes/ui/TabelaOrdenavel';
 import { ordenarLinhas, proximaOrdenacao } from '../../componentes/ui/ordenacao';
 import type { ColunaTabela, Ordenacao } from '../../componentes/ui/ordenacao';
-import { CorpoChips, PainelFiltros } from '../../componentes/ui/filtros/PainelFiltros';
+import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import { useAlunos, useSedes, useTurmas } from '../../hooks/consultas';
 import type { Aluno } from '../../tipos/dominio';
-import { fmtNota } from '../../util/formato';
+import { fmtNota, iniciais } from '../../util/formato';
 
 const PERFIL_LABEL = { ancora: 'Âncora', misterio: 'Mistério', regular: 'Regular' } as const;
 const TENDENCIA_LABEL = { subindo: '↑ Subindo', estavel: '→ Estável', caindo: '↓ Caindo' } as const;
@@ -35,7 +34,6 @@ export function Alunos() {
   const [turmasSel, setTurmasSel] = useState<ReadonlySet<string>>(new Set());
   const [sedesSel, setSedesSel] = useState<ReadonlySet<string>>(new Set());
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
-  const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set(['turma', 'sede']));
 
   const turmaPorId = useMemo(() => new Map(turmas.map((t) => [t.id, t])), [turmas]);
   const sedePorId = useMemo(() => new Map(sedes.map((s) => [s.id, s])), [sedes]);
@@ -96,117 +94,113 @@ export function Alunos() {
   }
 
   return (
-    <>
-      <Sidebar rotulo="Filtros">
-        <PainelFiltros
-          abertas={abertas}
-          onToggleSecao={(chave) => setAbertas((a) => alternar(a, chave))}
-          algumAtivo={algumAtivo}
-          onLimpar={() => {
-            setTurmasSel(new Set());
-            setSedesSel(new Set());
-          }}
-          secoes={[
-            {
-              chave: 'turma',
-              rotulo: 'Turma',
-              icone: 'turmas',
-              corpo: (
-                <CorpoChips
-                  opcoes={turmas.map((t) => ({
-                    valor: t.id,
-                    label: t.nome,
-                    contagem: contagens.porTurma.get(t.id) ?? 0,
-                  }))}
-                  selecionados={turmasSel}
-                  onToggle={(id) => setTurmasSel((s) => alternar(s, id))}
-                />
-              ),
-            },
-            {
-              chave: 'sede',
-              rotulo: 'Sede',
-              icone: 'sede',
-              corpo: (
-                <CorpoChips
-                  opcoes={sedes.map((sd) => ({
-                    valor: sd.id,
-                    label: sd.nome,
-                    contagem: contagens.porSede.get(sd.id) ?? 0,
-                  }))}
-                  selecionados={sedesSel}
-                  onToggle={(id) => setSedesSel((s) => alternar(s, id))}
-                />
-              ),
-            },
-          ]}
-        />
-      </Sidebar>
+    <div className="tela">
+      <BarraFiltros
+        algumAtivo={algumAtivo}
+        onLimpar={() => {
+          setTurmasSel(new Set());
+          setSedesSel(new Set());
+        }}
+        grupos={[
+          {
+            chave: 'turma',
+            rotulo: 'Turma',
+            corpo: (
+              <Pills
+                opcoes={turmas.map((t) => ({
+                  valor: t.id,
+                  label: t.nome,
+                  contagem: contagens.porTurma.get(t.id) ?? 0,
+                }))}
+                selecionados={turmasSel}
+                onToggle={(id) => setTurmasSel((s) => alternar(s, id))}
+              />
+            ),
+          },
+          {
+            chave: 'sede',
+            rotulo: 'Sede',
+            corpo: (
+              <Pills
+                opcoes={sedes.map((sd) => ({
+                  valor: sd.id,
+                  label: sd.nome,
+                  contagem: contagens.porSede.get(sd.id) ?? 0,
+                }))}
+                selecionados={sedesSel}
+                onToggle={(id) => setSedesSel((s) => alternar(s, id))}
+              />
+            ),
+          },
+        ]}
+      />
 
-      <main className="app-main">
-        <section className="card">
-          <div className="screen-header">
-            <div className="screen-breadcrumb">Alunos</div>
-            <h1 className="screen-title">Alunos da turma ITM</h1>
-            <p className="screen-subtitle">
-              {isPending
-                ? 'Carregando…'
-                : `${filtrados.length} alunos${algumAtivo ? ` de ${alunos.length}` : ''}`}
-            </p>
-          </div>
+      <div className="tela-cabecalho">
+        <div>
+          <h1 className="tela-titulo">Alunos da turma ITM</h1>
+          <p className="tela-subtitulo">
+            {isPending
+              ? 'Carregando…'
+              : `${filtrados.length} alunos${algumAtivo ? ` de ${alunos.length}` : ''}`}
+          </p>
+        </div>
+      </div>
 
-          <div className="section">
-            {isError ? (
-              <div className="empty-state">
-                Não foi possível carregar os alunos.
-                <div className="empty-state__hint">{(error as Error)?.message}</div>
-              </div>
-            ) : isPending ? (
-              <div className="empty-state">Carregando…</div>
-            ) : linhas.length === 0 ? (
-              <div className="empty-state">
-                Nenhum aluno atende a esses critérios.
-                <div className="empty-state__hint">Tente remover algum filtro.</div>
-              </div>
-            ) : (
-              <table className="data-table">
-                <TheadOrdenavel
-                  colunas={colunas}
-                  ordenacao={ordenacao}
-                  onOrdenar={(chave) => setOrdenacao((o) => proximaOrdenacao(o, chave))}
-                />
-                <tbody>
-                  {linhas.map((a) => (
-                    <tr key={a.id} onClick={() => navegar(`/alunos/${a.id}`)}>
-                      <td>{a.nome}</td>
-                      <td>{turmaPorId.get(a.turmaId)?.nome ?? '—'}</td>
-                      <td>{sedePorId.get(a.sedeId)?.nome ?? '—'}</td>
-                      <td>{fmtNota(a.media)}</td>
-                      <td>
-                        <span className={`tag ${TENDENCIA_TONE[a.tendencia]}`}>
-                          {TENDENCIA_LABEL[a.tendencia]}
-                        </span>
-                      </td>
-                      <td>{PERFIL_LABEL[a.perfil]}</td>
-                      <td>
-                        <span className={`tag ${ZONA_TONE[a.zona]}`}>{ZONA_LABEL[a.zona]}</span>
-                      </td>
-                      <td>
-                        <Sparkline valores={a.sparkline ?? []} cor="var(--color-navy)" />
-                      </td>
-                      <td>
-                        <Link to={`/alunos/${a.id}`} onClick={(ev) => ev.stopPropagation()}>
-                          Ver →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+      <section className="card">
+        {isError ? (
+          <div className="empty-state">
+            Não foi possível carregar os alunos.
+            <div className="empty-state__hint">{(error as Error)?.message}</div>
           </div>
-        </section>
-      </main>
-    </>
+        ) : isPending ? (
+          <div className="empty-state">Carregando…</div>
+        ) : linhas.length === 0 ? (
+          <div className="empty-state">
+            Nenhum aluno atende a esses critérios.
+            <div className="empty-state__hint">Tente remover algum filtro.</div>
+          </div>
+        ) : (
+          <table className="data-table">
+            <TheadOrdenavel
+              colunas={colunas}
+              ordenacao={ordenacao}
+              onOrdenar={(chave) => setOrdenacao((o) => proximaOrdenacao(o, chave))}
+            />
+            <tbody>
+              {linhas.map((a) => (
+                <tr key={a.id} onClick={() => navegar(`/alunos/${a.id}`)}>
+                  <td>
+                    <span className="celula-pessoa">
+                      <span className="avatar" aria-hidden="true">{iniciais(a.nome)}</span>
+                      <span className="celula-pessoa__nome">{a.nome}</span>
+                    </span>
+                  </td>
+                  <td>{turmaPorId.get(a.turmaId)?.nome ?? '—'}</td>
+                  <td>{sedePorId.get(a.sedeId)?.nome ?? '—'}</td>
+                  <td>{fmtNota(a.media)}</td>
+                  <td>
+                    <span className={`tag ${TENDENCIA_TONE[a.tendencia]}`}>
+                      {TENDENCIA_LABEL[a.tendencia]}
+                    </span>
+                  </td>
+                  <td>{PERFIL_LABEL[a.perfil]}</td>
+                  <td>
+                    <span className={`tag ${ZONA_TONE[a.zona]}`}>{ZONA_LABEL[a.zona]}</span>
+                  </td>
+                  <td>
+                    <Sparkline valores={a.sparkline ?? []} cor="var(--color-navy)" />
+                  </td>
+                  <td>
+                    <Link to={`/alunos/${a.id}`} onClick={(ev) => ev.stopPropagation()}>
+                      Ver →
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
   );
 }

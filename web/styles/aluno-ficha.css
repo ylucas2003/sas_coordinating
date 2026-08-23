@@ -238,7 +238,7 @@
   }
 
   /* Esconde tudo que não é a ficha do aluno. */
-  .sidebar,
+  .rail,
   .topbar,
   .export-menu,
   .sim-filtros,

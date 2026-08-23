@@ -1,15 +1,5 @@
 /* ─── Painel — tela de dados (alunos × matérias × fases) ────────────────── */
 
-/* ─── KPIs do ciclo (fileira acima da tabela) ────────────────────────────── */
-
-.painel-kpis {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 32px;
-  padding: 6px 24px 18px;
-  border-bottom: 1px solid var(--color-border);
-}
-
 /* ─── Tabela de dados ───────────────────────────────────────────────────── */
 
 .painel-tabela-wrap {
@@ -219,59 +209,44 @@
 
 /* ─── Badge de nota ─────────────────────────────────────────────────────── */
 
+/* `min-width` fixo para a coluna de notas ler como coluna, e não como uma
+   fileira de pílulas de larguras diferentes. Vive aqui, e não em layout.css,
+   porque este arquivo carrega depois — duas definições e a de lá nunca
+   valeria. Os modificadores `--verde` e as classes `.tone-verde` do resto do
+   app apontam para o mesmo desenho. */
+
 .nota-badge {
   display: inline-block;
-  padding: 4px 12px;
+  padding: 6px 12px;
   border-radius: var(--radius-pill);
   font-size: 13px;
-  font-weight: 500;
-  min-width: 52px;
+  min-width: 62px;
   text-align: center;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-neutral-soft);
+  color: var(--color-text-secondary);
 }
 
-.nota-badge--verde    { background: var(--color-green-soft);  color: var(--color-green); }
-.nota-badge--ambar    { background: var(--color-amber-soft);  color: var(--color-amber); }
-.nota-badge--vermelho { background: var(--color-red-soft);    color: var(--color-red); }
-.nota-badge--vazia    { background: transparent; color: var(--color-text-tertiary); font-weight: 400; }
+.nota-badge--verde,
+.nota-badge.tone-verde       { background: var(--color-green-soft);  color: var(--color-green); }
+.nota-badge--ambar,
+.nota-badge.tone-ambar       { background: var(--color-amber-soft);  color: var(--color-amber-text); }
+.nota-badge--vermelho,
+.nota-badge.tone-vermelho    { background: var(--color-red-soft);    color: var(--color-red); }
+.nota-badge--vazia           { background: transparent; color: var(--color-text-tertiary); min-width: 0; }
 
 .nota-badge--media {
   font-weight: 500;
 }
 
-/* ─── Header do Painel ──────────────────────────────────────────────────── */
-
-.painel-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-  padding: 20px 24px 4px;
-}
-
-.painel-header .screen-title {
-  font-size: 26px;
-  font-weight: 500;
-  letter-spacing: -0.4px;
-}
-
-.painel-header__esq {
-  min-width: 0;
-}
-
-.painel-header__dir {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
-  flex-shrink: 0;
-  padding-bottom: 2px;
-}
+/* ─── Controles do Painel ───────────────────────────────────────────────
+   Ajuda, busca, ordenação, fase e critério, à direita do título. */
 
 .painel-header__controles {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 /* ─── Busca individual ──────────────────────────────────────────────────── */
@@ -284,7 +259,7 @@
 
 .painel-busca-wrap > svg {
   position: absolute;
-  left: 10px;
+  left: 14px;
   color: var(--color-text-tertiary);
   pointer-events: none;
   width: 14px;
@@ -292,13 +267,13 @@
 }
 
 .painel-busca {
-  padding: 6px 10px 6px 32px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: 8px 14px 8px 34px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
   font-size: 13px;
-  color: var(--color-text-primary);
+  color: var(--color-text-body);
   background: var(--color-surface);
-  width: 200px;
+  width: 220px;
   outline: none;
   transition: border-color 0.15s;
 }
@@ -316,15 +291,14 @@
    linha de controles sem destoar. */
 
 .painel-criterio {
-  height: 30px;
-  padding: 0 28px 0 12px;
+  height: 36px;
+  padding: 0 30px 0 16px;
   font: inherit;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
   color: var(--color-text-secondary);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
@@ -337,174 +311,12 @@
 
 .painel-topn {
   display: flex;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.painel-topn__btn {
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-  border: none;
-  border-left: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-  white-space: nowrap;
-}
-
-.painel-topn__btn:first-child {
-  border-left: none;
-}
-
-.painel-topn__btn:hover {
-  background: var(--color-surface-inset);
-  color: var(--color-text-primary);
-}
-
-.painel-topn__btn.is-active {
-  background: var(--color-navy);
-  color: #fff;
-}
-
-/* ─── Filtro de fase (acima da tabela) ──────────────────────────────────── */
-
-.painel-fase-filtro {
-  display: inline-flex;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-
-/* ─── Sidebar do Painel (3 seções) ──────────────────────────────────────── */
-
-.psb-root {
-  padding: 8px 0;
-}
-
-.psb-secao {
-  border-bottom: 1px solid var(--color-border);
-}
-
-.psb-secao:last-child {
-  border-bottom: none;
-}
-
-.psb-secao__header {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  width: 100%;
-  padding: 10px 16px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  color: var(--color-text-secondary);
-  transition: background 0.1s;
 }
 
-.psb-secao__header:hover {
-  background: var(--color-surface-inset);
-}
-
-.psb-secao__icon {
-  display: flex;
-  align-items: center;
-  color: var(--color-navy-light);
-  flex-shrink: 0;
-}
-
-.psb-secao__label {
-  flex: 1;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: none;
-  letter-spacing: 0.06em;
-  color: var(--color-text-tertiary);
-}
-
-.psb-secao__chevron {
-  display: flex;
-  align-items: center;
-  color: var(--color-text-tertiary);
-  transition: transform 0.2s;
-  transform: rotate(-90deg);
-}
-
-.psb-secao__chevron.is-aberto {
-  transform: rotate(0deg);
-}
-
-.psb-secao__corpo {
-  padding: 0 8px 8px;
-}
-
-/* ─── Itens dentro das seções ───────────────────────────────────────────── */
-
-.psb-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 10px;
-  background: none;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  text-align: left;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  transition: background 0.1s, color 0.1s;
-}
-
-.psb-item:hover {
-  background: var(--color-surface-inset);
-  color: var(--color-text-primary);
-}
-
-.psb-item.is-active {
-  background: rgba(27, 63, 139, 0.08);
-  color: var(--color-navy);
-}
-
-.psb-item.is-active::before {
-  content: '';
-  position: absolute;
-  left: 1px;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--color-gold);
-}
-
-/* Checkbox visual para sede/turmas (multi-select) */
-
-.psb-item__check {
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid var(--color-border-strong);
-  border-radius: 3px;
-  flex-shrink: 0;
-  transition: background 0.1s, border-color 0.1s;
-}
-
-.psb-item__check.is-checked {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpolyline points='2 6 5 9 10 3' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-}
+/* O filtro de fase e a sidebar de três seções (`.psb-*`) saíram daqui: a
+   fase virou pílula na fileira de controles, e a sidebar virou a
+   `.barra-filtros` horizontal de layout.css. */
 
 /* ─── Status de corte no nome do aluno ──────────────────────────────────── */
 

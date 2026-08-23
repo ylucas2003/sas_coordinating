@@ -1,10 +1,11 @@
 # 19 — Roadmap · o que foi feito, o que falta, o que vem
 
-> **Este é o documento de estado.** Os outros (`10`, `11`–`13`, `18`) contam
-> *por que* e *como*; este diz só *onde estamos*. Quando divergirem, corrija
-> aqui primeiro — é o que se lê antes de qualquer sprint.
+> **Este é o documento de estado.** Os outros (`10`, `11`–`13`, `18`, `23`)
+> contam *por que* e *como*; este diz só *onde estamos*. Quando divergirem,
+> corrija aqui primeiro — é o que se lê antes de qualquer sprint.
 >
-> Atualizado em **23/08/2026**, depois do deploy do banco de questões.
+> Atualizado em **23/08/2026**, depois do redesenho do casco — que está
+> escrito mas **não verificado** ([§1.5](#15--escrito-mas-não-em-produção)).
 
 ---
 
@@ -57,8 +58,33 @@ Furou a fila junto do mobile, por decisão direta. Plano e achados em
 | Item | Estado | Onde |
 |---|---|---|
 | B.2 Write-back de notas no Canvas | ✅ refeito na Sprint 2 (com escolha do coordenador) | [18 §2.4](18-plano-sprint-2.md#24-nota-sempre-o-canvas--alterações-do-sas) |
-| C.1 Componente único de filtro lateral | ✅ | `PainelFiltros.tsx` |
+| C.1 Componente único de filtro | ✅ | `BarraFiltros.tsx` — era `PainelFiltros.tsx` (lateral) até o redesenho de [23](23-plano-redesenho-casco.md) |
 | C.4 Ordenação por cabeçalho | ✅ | `TabelaOrdenavel.tsx` |
+
+---
+
+## 1.5 · Escrito mas **não em produção**
+
+### Sprint Redesenho do casco *(23/08)*
+
+Rail de ícones no lugar da topbar de 7 abas, migalhas, faixa de filtros
+horizontal, Ciclos+Simulados fundidos em `/provas`. Plano, divergências em
+relação ao canvas e armadilhas em [23](23-plano-redesenho-casco.md).
+
+> ⚠️ **Implementado, não verificado.** O código foi escrito numa máquina sem
+> Node, npm ou Docker: **sem typecheck, sem lint, sem teste, sem uma abertura
+> no browser.** A conferência foi por leitura ([23 §6](23-plano-redesenho-casco.md#6--o-que-foi-conferido-à-mão-e-o-que-isso-não-cobre)).
+> Não trate como pronto antes do roteiro da [23 §7](23-plano-redesenho-casco.md#7--roteiro-de-verificação).
+
+| Parte | O quê | Estado |
+|---|---|---|
+| P1 | Tokens — paleta do canvas, cinza azulado, âmbar separado em traço e texto | ✅ escrito · ⚠️ não verificado |
+| P2 | Casco — rail, topbar com migalhas, barra inferior no celular | ✅ escrito · ⚠️ não verificado |
+| P3 | Telas — `BarraFiltros`, `/provas`, abas de Administração | ✅ escrito · ⚠️ não verificado |
+| P4 | Polimento tela a tela, com o browser aberto | ⏳ **não começou** |
+
+**Bloqueia o deploy:** o sino da topbar aponta para `/painel#alertas`, que não
+existe ([23 §8](23-plano-redesenho-casco.md#8--o-que-falta--p4) · item 3).
 
 ---
 

@@ -1,277 +1,22 @@
-/* ─── Shell ─────────────────────────────────────────────────────────── */
+/* ─── Tela ──────────────────────────────────────────────────────────── */
 
-.app-shell {
-  max-width: 1320px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 20px 28px 48px;
+/* O `<main>` é do casco (casco.css). Aqui dentro cada rota empilha os
+   próprios blocos — daí `.tela` ser um `<div>`, e não outro `<main>`. */
+.tela {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  flex: 1;
-}
-
-.app-body {
-  display: flex;
-  gap: 18px;
-  align-items: flex-start;
-}
-
-.app-main {
-  flex: 1;
+  gap: 20px;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
 }
 
 /* ─── Card ──────────────────────────────────────────────────────────── */
 
+/* Sem borda: o cartão se separa do fundo pela sombra e pelo branco. Somar
+   fio + sombra + fundo cinza dá três marcações para a mesma aresta. */
 .card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-}
-
-/* ─── Topbar ────────────────────────────────────────────────────────── */
-
-.topbar {
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  padding: 0 28px;
-  gap: 32px;
-  height: 60px;
-  flex-shrink: 0;
-}
-
-.topbar__brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-  text-decoration: none;
-}
-
-.topbar__logo {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-navy);
-}
-
-/* Logo do Ari ao lado da marca do SAS — separado por um fio, para os dois
-   lerem como parceria e não como um logo só. */
-.topbar__ari {
-  height: 26px;
-  width: auto;
-  margin-left: 14px;
-  padding-left: 14px;
-  border-left: 1px solid var(--color-border);
-}
-
-.topbar__sair {
-  background: transparent;
-  cursor: pointer;
-  font: inherit;
-}
-
-.topbar__brand-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.topbar__brand-name {
-  font-size: 15px;
-  font-weight: 500;
-  letter-spacing: -0.3px;
-  line-height: 1.2;
-  color: var(--color-navy-deep);
-}
-
-.topbar__brand-sub {
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: var(--color-text-tertiary);
-  line-height: 1.2;
-  text-transform: none;
-}
-
-.topbar__nav {
-  display: flex;
-  gap: 2px;
-  flex: 1;
-  height: 100%;
-  align-items: center;
-}
-
-.topbar__tab {
-  padding: 0 14px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  transition: color 150ms, background 150ms;
-  text-decoration: none;
-  position: relative;
-  white-space: nowrap;
-}
-
-.topbar__tab:hover {
-  color: var(--color-text-primary);
-  text-decoration: none;
-}
-
-.topbar__tab.is-active {
-  color: var(--color-navy);
-  font-weight: 500;
-}
-
-.topbar__tab.is-active::after {
-  content: '';
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 0;
-  height: 2px;
-  background: var(--color-gold);
-  border-radius: 2px 2px 0 0;
-}
-
-.topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.topbar__action {
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-  transition: border-color 150ms, color 150ms, background 150ms;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.topbar__action:hover {
-  color: var(--color-text-primary);
-  border-color: var(--color-border-strong);
-  text-decoration: none;
-}
-
-.topbar__action--primary {
-  color: #fff;
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-}
-
-.topbar__action--primary:hover {
-  color: #fff;
-  background: var(--color-navy-deep);
-  border-color: var(--color-navy-deep);
-}
-
-/* ─── Busca global (topbar) ──────────────────────────────────────────── */
-
-.topbar__busca {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-inset);
-  color: var(--color-text-tertiary);
-  width: 200px;
-  transition: border-color 150ms, width 150ms;
-}
-
-.topbar__busca:focus-within {
-  border-color: var(--color-navy-light);
-  width: 240px;
-}
-
-.topbar__busca-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: none;
-  outline: none;
-  font: inherit;
-  font-size: 13px;
-  color: var(--color-text-primary);
-}
-
-.topbar__busca-input::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.topbar__busca-atalho {
-  font-size: 10px;
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-}
-
-.topbar__busca-resultados {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  min-width: 260px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-card);
-  padding: 4px;
-  z-index: 60;
-  max-height: 320px;
-  overflow-y: auto;
-}
-
-.topbar__busca-resultados.is-aberto {
-  display: block;
-}
-
-.topbar__busca-item {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
-  text-decoration: none;
-}
-
-.topbar__busca-item:hover,
-.topbar__busca-item.is-ativo {
-  background: var(--color-surface-inset);
-  text-decoration: none;
-}
-
-.topbar__busca-item-nome {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.topbar__busca-item-sub {
-  font-size: 11px;
-  color: var(--color-text-tertiary);
-}
-
-.topbar__busca-vazio {
-  padding: 10px;
-  font-size: 12px;
-  color: var(--color-text-tertiary);
 }
 
 /* ─── Tela de Importar ──────────────────────────────────────────────── */
@@ -324,30 +69,51 @@
   justify-content: flex-end;
 }
 
+/* ─── Botões ─────────────────────────────────────────────────────────────
+   Duas grafias do modificador convivem no repositório: `btn-primary` nas
+   telas, `btn--primary` nos diálogos. As duas são atendidas — unificar a
+   grafia seria um diff de quinze arquivos no meio do redesenho.
+   ─────────────────────────────────────────────────────────────────────── */
+
 .btn {
-  padding: 8px 18px;
-  border-radius: var(--radius-sm);
+  padding: 11px 24px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
   font-size: 14px;
   font-weight: 500;
+  line-height: 1.2;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background 150ms, border-color 150ms;
+  transition: background 150ms, border-color 150ms, color 150ms;
 }
 
-.btn-primary {
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary,
+.btn--primary {
   background: var(--color-navy);
   border-color: var(--color-navy);
   color: #fff;
 }
 
-.btn-primary:hover:not([disabled]) {
+.btn-primary:hover:not(:disabled),
+.btn--primary:hover:not(:disabled) {
   background: var(--color-navy-deep);
   border-color: var(--color-navy-deep);
 }
 
-.btn-primary[disabled] {
-  opacity: 0.5;
-  cursor: not-allowed;
+.btn--ghost {
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+  color: var(--color-navy);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--color-navy-tint);
 }
 
 .importar__progresso {
@@ -579,88 +345,26 @@
   color: var(--color-text-primary);
 }
 
-/* ─── Sidebar contextual ────────────────────────────────────────────── */
-
-.sidebar {
-  width: 220px;
-  flex-shrink: 0;
-  padding: 18px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-self: flex-start;
-  position: sticky;
-  top: 20px;
-}
-
-.sidebar__label {
-  padding: 6px 12px 10px;
-  font-size: 11px;
-  letter-spacing: 0.4px;
-  color: var(--color-text-tertiary);
-}
-
-.sidebar__item {
-  position: relative;
-  padding: 9px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  text-align: left;
-  transition: background 150ms, color 150ms;
-}
-
-.sidebar__item:hover {
-  background: var(--color-surface-inset);
-  color: var(--color-text-primary);
-}
-
-.sidebar__item.is-active {
-  background: rgba(27, 63, 139, 0.08);
-  color: var(--color-navy);
-  font-weight: 500;
-}
-
-.sidebar__item.is-active::before {
-  content: '';
-  position: absolute;
-  left: 3px;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--color-gold);
-}
-
 /* ─── Screen header ─────────────────────────────────────────────────── */
 
 .screen-header {
-  padding: 22px 24px 6px;
+  padding: 24px 26px 8px;
 }
 
+/* A trilha de volta agora é a migalha da topbar (casco.css). O que sobrou
+   desta classe é a sobrancelha de contexto acima do título. */
 .screen-breadcrumb {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: 13px;
   color: var(--color-text-tertiary);
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: color 150ms;
-}
-
-.screen-breadcrumb::before {
-  content: '←';
-  font-size: 14px;
-}
-
-.screen-breadcrumb:hover {
-  color: var(--color-navy);
+  margin-bottom: 6px;
 }
 
 .screen-title {
   font-size: 24px;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: -0.3px;
   color: var(--color-text-primary);
 }
@@ -782,21 +486,22 @@
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .data-table thead th {
   text-align: left;
-  font-weight: 500;
-  font-size: 12px;
+  font-weight: 400;
+  font-size: 13px;
   color: var(--color-text-tertiary);
-  padding: 10px 14px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
 }
 
 .data-table tbody td {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--color-divider);
   vertical-align: middle;
 }
 
@@ -812,19 +517,19 @@
 
 .tag {
   display: inline-block;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-  padding: 2px 8px;
+  font-size: 13px;
+  font-weight: 400;
+  padding: 5px 13px;
   border-radius: var(--radius-pill);
-  background: var(--color-surface-inset);
+  background: var(--color-neutral-soft);
   color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
 .tag.tone-vermelho { background: var(--color-red-soft); color: var(--color-red); }
-.tag.tone-ambar { background: var(--color-amber-soft); color: var(--color-amber); }
+.tag.tone-ambar { background: var(--color-amber-soft); color: var(--color-amber-text); }
 .tag.tone-verde { background: var(--color-green-soft); color: var(--color-green); }
-.tag.tone-navy { background: rgba(27, 63, 139, 0.08); color: var(--color-navy); }
+.tag.tone-navy { background: var(--color-navy-tint); color: var(--color-navy); }
 
 /* ─── Mini-visualizações ────────────────────────────────────────────── */
 
@@ -875,28 +580,31 @@
 .kpi {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
 }
 
 .kpi__rotulo {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--color-text-secondary);
 }
 
+/* Navy por padrão: o número é o protagonista do cartão, e o tom semântico
+   (verde/âmbar/vermelho) fica reservado para quando ele significa algo. */
 .kpi__valor {
-  font-size: 26px;
-  font-weight: 500;
-  color: var(--color-text-primary);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-navy);
   font-variant-numeric: tabular-nums;
 }
 
 .kpi__valor.tone-verde { color: var(--color-green); }
-.kpi__valor.tone-ambar { color: var(--color-amber); }
+.kpi__valor.tone-ambar { color: var(--color-amber-text); }
 .kpi__valor.tone-vermelho { color: var(--color-red); }
 .kpi__valor.tone-navy { color: var(--color-navy); }
 
 .kpi__sufixo {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text-secondary);
   margin-left: 4px;
   font-weight: 400;
@@ -904,8 +612,16 @@
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+/* Cada KPI num cartão próprio — é a faixa de quatro do topo das fichas. */
+.kpi-grid--cartoes .kpi {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 20px 22px;
 }
 
 /* ─── Histograma ────────────────────────────────────────────────────── */
@@ -1794,3 +1510,194 @@
   100% { background-position: -200% 0; }
 }
 
+
+/* ─── Faixa de filtros ──────────────────────────────────────────────────
+   Substituiu a sidebar de filtros. Horizontal, acima da tabela: devolve a
+   largura da coluna esquerda para os dados, que é onde ela faz falta.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.barra-filtros {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 14px 22px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.barra-filtros__grupo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.barra-filtros__rotulo {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.barra-filtros__sep {
+  width: 1px;
+  height: 28px;
+  background: var(--color-shell-border);
+  flex: none;
+}
+
+.barra-filtros__vazio {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.barra-filtros__limpar {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--color-navy);
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+}
+
+.barra-filtros__limpar:hover:not([disabled]) {
+  background: var(--color-navy-tint);
+}
+
+.barra-filtros__limpar[disabled] {
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+/* ─── Pílula selecionável ───────────────────────────────────────────────
+   Um só desenho para filtro, chip e seletor. Inativa é contorno; ativa é
+   navy sólido — a diferença precisa sobreviver a uma olhada de meio segundo.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.pill {
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 150ms, color 150ms, border-color 150ms;
+}
+
+.pill:hover:not(.is-active) {
+  border-color: var(--color-navy-light);
+  color: var(--color-navy);
+}
+
+.pill.is-active {
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+  color: #fff;
+}
+
+.pill__contagem {
+  margin-left: 6px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill-campo {
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-body);
+}
+
+/* ─── Abas ──────────────────────────────────────────────────────────────
+   Retângulos arredondados, não sublinhado: elas trocam a tela inteira, e
+   sublinhado sugere navegação dentro do mesmo conteúdo.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.abas {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.aba {
+  padding: 11px 26px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-navy);
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 150ms, color 150ms, border-color 150ms;
+}
+
+.aba:hover:not(.is-active) {
+  background: var(--color-navy-tint);
+  text-decoration: none;
+}
+
+.aba.is-active {
+  background: var(--color-navy);
+  border-color: var(--color-navy);
+  color: #fff;
+}
+
+/* ─── Avatar de iniciais ────────────────────────────────────────────────
+   Não há foto de aluno no SAS (LGPD, CLAUDE.md regra 6) — as iniciais dão
+   à linha o mesmo ponto de ancoragem sem armazenar imagem de menor.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-navy-soft);
+  color: var(--color-navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.celula-pessoa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.celula-pessoa__nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Cabeçalho de tela (fora de card) ─────────────────────────────────── */
+
+.tela-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.tela-titulo {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--color-text-primary);
+}
+
+.tela-subtitulo {
+  font-size: 15px;
+  color: var(--color-text-tertiary);
+  margin-top: 6px;
+}

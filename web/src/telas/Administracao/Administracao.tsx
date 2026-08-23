@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Campo, Dialogo, Linha2 } from '../../componentes/dialogos/Dialogo';
-import { Sidebar } from '../../componentes/layout/Sidebar';
-import { CorpoChips, PainelFiltros } from '../../componentes/ui/filtros/PainelFiltros';
+import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
+import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { useAcessosDeAlunos, useCoordenadores } from '../../hooks/consultas';
 import {
@@ -32,7 +32,6 @@ export function Administracao() {
   const { data: coordenadores = [] } = useCoordenadores();
   const { data: acessos } = useAcessosDeAlunos();
   const [filtros, setFiltros] = useState<ReadonlySet<string>>(new Set());
-  const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set(['acesso']));
   const [busca, setBusca] = useState('');
   const [criando, setCriando] = useState(false);
   // A senha sorteada aparece UMA vez, aqui, e nunca mais — é o contrato da
@@ -61,96 +60,94 @@ export function Administracao() {
   }
 
   return (
-    <>
-      <Sidebar rotulo="Filtros">
-        <PainelFiltros
-          abertas={abertas}
-          onToggleSecao={(chave) => setAbertas((a) => {
-            const novo = new Set(a);
-            if (novo.has(chave)) novo.delete(chave);
-            else novo.add(chave);
-            return novo;
-          })}
-          algumAtivo={filtros.size > 0}
-          onLimpar={() => setFiltros(new Set())}
-          secoes={[
-            {
-              chave: 'acesso', rotulo: 'Primeiro acesso', icone: 'turmas',
-              corpo: (
-                <CorpoChips
-                  opcoes={[
-                    { valor: 'com' satisfies FiltroAcesso, label: 'Já fez' },
-                    { valor: 'sem' satisfies FiltroAcesso, label: 'Nunca entrou' },
-                  ]}
-                  selecionados={filtros}
-                  onToggle={alternar}
-                />
-              ),
-            },
-          ]}
-        />
-      </Sidebar>
+    <div className="tela">
+      <AbasAdmin />
 
-      <main className="app-main">
-        <section className="card">
-          <div className="screen-header">
-            <div>
-              <div className="screen-breadcrumb">Administração</div>
-              <h1 className="screen-title">Contas da coordenação</h1>
-              <p className="screen-subtitle">Quem pode entrar no painel. Contas não são apagadas: desativar preserva a autoria na auditoria.</p>
-            </div>
-            <button className="btn btn--primary" onClick={() => setCriando(true)}>Nova conta</button>
-          </div>
+      <div className="tela-cabecalho">
+        <div>
+          <h1 className="tela-titulo">Contas da coordenação</h1>
+          <p className="tela-subtitulo">Quem pode entrar no painel. Contas não são apagadas: desativar preserva a autoria na auditoria.</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setCriando(true)}>Nova conta</button>
+      </div>
 
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Nome</th><th>E-mail</th><th>Canvas</th><th>Último login</th><th>Situação</th><th />
-              </tr>
-            </thead>
-            <tbody>
-              {coordenadores.map((u) => (
-                <LinhaCoordenador key={u.id} usuario={u} onSenha={(senha) => setSenhaRevelada({ email: u.email, senha })} />
-              ))}
-            </tbody>
-          </table>
-        </section>
+      <section className="card">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Nome</th><th>E-mail</th><th>Canvas</th><th>Último login</th><th>Situação</th><th />
+            </tr>
+          </thead>
+          <tbody>
+            {coordenadores.map((u) => (
+              <LinhaCoordenador key={u.id} usuario={u} onSenha={(senha) => setSenhaRevelada({ email: u.email, senha })} />
+            ))}
+          </tbody>
+        </table>
+      </section>
 
-        <section className="card" style={{ marginTop: 16 }}>
-          <div className="screen-header">
-            <div>
-              <h2 className="screen-title">Acesso dos alunos</h2>
-              <p className="screen-subtitle">Quem já criou a senha e quem nunca entrou. Para liberar de novo, use a ficha do aluno.</p>
-            </div>
-            <input
-              className="painel-busca"
-              placeholder="Buscar por nome ou matrícula…"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
-          </div>
+      <div className="tela-cabecalho">
+        <div>
+          <h2 className="tela-titulo">Acesso dos alunos</h2>
+          <p className="tela-subtitulo">Quem já criou a senha e quem nunca entrou. Para liberar de novo, use a ficha do aluno.</p>
+        </div>
+      </div>
 
-          {acessos && (
-            <div className="painel-kpis">
-              <Kpi rotulo="Alunos ativos" valor={acessos.total} />
-              <Kpi rotulo="Já fizeram primeiro acesso" valor={acessos.comAcesso} sufixo={` de ${acessos.total}`} tone="tone-verde" />
-              <Kpi rotulo="Nunca entraram" valor={acessos.total - acessos.comAcesso} tone={acessos.total - acessos.comAcesso > 0 ? 'tone-ambar' : ''} />
-            </div>
-          )}
+      {acessos && (
+        <div className="kpi-grid kpi-grid--cartoes">
+          <Kpi rotulo="Alunos ativos" valor={acessos.total} />
+          <Kpi rotulo="Já fizeram primeiro acesso" valor={acessos.comAcesso} sufixo={` de ${acessos.total}`} tone="tone-verde" />
+          <Kpi rotulo="Nunca entraram" valor={acessos.total - acessos.comAcesso} tone={acessos.total - acessos.comAcesso > 0 ? 'tone-ambar' : ''} />
+        </div>
+      )}
 
-          <table className="data-table">
-            <thead>
-              <tr><th>Aluno</th><th>Matrícula</th><th>E-mail</th><th>Primeiro acesso</th><th>Último login</th></tr>
-            </thead>
-            <tbody>
-              {alunos.slice(0, 300).map((a) => <LinhaAluno key={a.id} aluno={a} />)}
-            </tbody>
-          </table>
-          {alunos.length > 300 && (
-            <p className="section__subtitle">{`Mostrando 300 de ${alunos.length}. Use a busca ou os filtros.`}</p>
-          )}
-        </section>
-      </main>
+      <BarraFiltros
+        algumAtivo={filtros.size > 0}
+        onLimpar={() => setFiltros(new Set())}
+        grupos={[
+          {
+            chave: 'acesso', rotulo: 'Primeiro acesso',
+            corpo: (
+              <Pills
+                opcoes={[
+                  { valor: 'com' satisfies FiltroAcesso, label: 'Já fez' },
+                  { valor: 'sem' satisfies FiltroAcesso, label: 'Nunca entrou' },
+                ]}
+                selecionados={filtros}
+                onToggle={alternar}
+              />
+            ),
+          },
+          {
+            chave: 'busca', rotulo: 'Buscar',
+            corpo: (
+              <input
+                className="pill-campo"
+                placeholder="Nome ou matrícula…"
+                aria-label="Buscar aluno por nome ou matrícula"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            ),
+          },
+        ]}
+      />
+
+      <section className="card">
+        <table className="data-table">
+          <thead>
+            <tr><th>Aluno</th><th>Matrícula</th><th>E-mail</th><th>Primeiro acesso</th><th>Último login</th></tr>
+          </thead>
+          <tbody>
+            {alunos.slice(0, 300).map((a) => <LinhaAluno key={a.id} aluno={a} />)}
+          </tbody>
+        </table>
+        {alunos.length > 300 && (
+          <p className="section__subtitle" style={{ padding: '12px 16px' }}>
+            {`Mostrando 300 de ${alunos.length}. Use a busca ou os filtros.`}
+          </p>
+        )}
+      </section>
 
       {criando && (
         <NovaConta
@@ -174,7 +171,7 @@ export function Administracao() {
           <code className="agendar__preview-nome" style={{ fontSize: 18, userSelect: 'all' }}>{senhaRevelada.senha}</code>
         </Dialogo>
       )}
-    </>
+    </div>
   );
 }
 

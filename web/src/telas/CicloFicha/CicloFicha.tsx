@@ -5,6 +5,7 @@ import { Histograma } from '../../componentes/ui/Histograma';
 import { InsightsPainel } from '../../componentes/ui/InsightsPainel';
 import { LinhaTemporal } from '../../componentes/ui/LinhaTemporal';
 import { useCiclo, useEstatisticasCiclo, useSimulados } from '../../hooks/consultas';
+import { useTituloDaTela } from '../../componentes/layout/migalhas';
 import type {
   BlocoFase, EstatisticasCiclo, RecorteMateria, Simulado, StatsRecorte,
 } from '../../tipos/dominio';
@@ -47,38 +48,37 @@ export function CicloFicha() {
       .sort((a, b) => (a.dataAplicacao || '').localeCompare(b.dataAplicacao || ''));
   }, [ciclo, todos]);
 
+  // Antes de qualquer return: hook não pode ficar atrás de saída antecipada.
+  useTituloDaTela(ciclo?.nome);
+
   if (carregandoCiclo) {
     return (
-      <main className="app-main">
+      <div className="tela">
         <section className="card"><div className="empty-state">Carregando…</div></section>
-      </main>
+      </div>
     );
   }
 
   if (erroCiclo || !ciclo) {
     return (
-      <main className="app-main">
+      <div className="tela">
         <section className="card">
           <div className="empty-state">
             {`Ciclo ${id} não encontrado.`}
             <div className="empty-state__hint">
-              <Link to="/ciclos">← Voltar para a lista</Link>
+              <Link to="/provas">← Voltar para a lista</Link>
             </div>
           </div>
         </section>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="app-main">
+    <div className="tela">
       <section className="card ciclo-ficha">
         <div className="screen-header">
-          <div className="screen-breadcrumb">
-            <Link to="/ciclos">Ciclos</Link>
-            {' / '}
-            {ciclo.id}
-          </div>
+          <div className="screen-breadcrumb">{ciclo.id}</div>
           <h1 className="screen-title">{ciclo.nome}</h1>
           <p className="screen-subtitle">
             {ciclo.vestibularAlvo && (
@@ -128,7 +128,7 @@ export function CicloFicha() {
           </>
         )}
       </section>
-    </main>
+    </div>
   );
 }
 

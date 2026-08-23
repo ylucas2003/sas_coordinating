@@ -1,0 +1,444 @@
+/* ─── Casco da coordenação ───────────────────────────────────────────────
+   Rail de ícones à esquerda + topbar com migalhas + área de conteúdo.
+
+   Substituiu a topbar horizontal de 7 abas: com Ciclos e Simulados fundidos
+   em "Provas", sobraram 5 destinos — poucos o bastante para caber num rail
+   vertical, que devolve a largura inteira da janela para as tabelas.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.casco {
+  display: grid;
+  grid-template-columns: var(--rail-w) 1fr;
+  min-height: 100dvh;
+  background: var(--color-surface-inset);
+  transition: grid-template-columns 180ms ease;
+}
+
+/* Um rail de ícones sem rótulo é adivinhação. Ele abre no hover e também no
+   foco de teclado — senão quem navega por Tab nunca vê o nome do destino. */
+.casco:has(.rail:hover),
+.casco:has(.rail:focus-within) {
+  grid-template-columns: var(--rail-w-aberto) 1fr;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .casco {
+    transition: none;
+  }
+}
+
+/* ─── Rail ──────────────────────────────────────────────────────────────── */
+
+.rail {
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-shell-border);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 22px 12px;
+  overflow: hidden;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+}
+
+.rail__marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  flex: none;
+  margin-bottom: 14px;
+  color: var(--color-navy);
+  text-decoration: none;
+}
+
+.rail__marca:hover {
+  text-decoration: none;
+}
+
+.rail__logo {
+  width: 44px;
+  height: 40px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rail__marca-texto {
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+}
+
+.rail__marca-nome {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+  color: var(--color-navy-deep);
+}
+
+.rail__marca-sub {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  color: var(--color-text-tertiary);
+}
+
+.rail__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  flex: none;
+  border-radius: 13px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: background 150ms, color 150ms;
+}
+
+.rail__item:hover {
+  background: var(--color-navy-tint);
+  color: var(--color-navy);
+  text-decoration: none;
+}
+
+.rail__item.is-active {
+  background: var(--color-navy);
+  color: #fff;
+}
+
+.rail__item:focus-visible {
+  outline: 2px solid var(--color-navy-light);
+  outline-offset: 2px;
+}
+
+.rail__icone {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.rail__label {
+  font-size: 14px;
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* O rótulo só existe quando o rail está aberto. `visibility` em vez de
+   `display:none` para o leitor de tela continuar anunciando o destino. */
+.rail__label {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.rail:hover .rail__label,
+.rail:focus-within .rail__label {
+  opacity: 1;
+}
+
+.rail__espaco {
+  flex: 1;
+}
+
+/* Fica no pé do rail e só some quando ele fecha: espremido em 44px o logo
+   viraria borrão. */
+.rail__ari {
+  width: 100%;
+  max-width: 96px;
+  height: auto;
+  flex: none;
+  align-self: center;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.rail:hover .rail__ari,
+.rail:focus-within .rail__ari {
+  opacity: 1;
+}
+
+/* ─── Coluna de conteúdo ────────────────────────────────────────────────── */
+
+.casco__coluna {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  height: var(--topbar-h);
+  flex: none;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-shell-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.topbar__migalhas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.topbar__migalha {
+  color: var(--color-text-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar__migalha--link {
+  color: var(--color-navy);
+}
+
+.topbar__migalha--link:hover {
+  color: var(--color-navy-deep);
+  text-decoration: none;
+}
+
+.topbar__separador {
+  color: var(--color-text-tertiary);
+  font-size: 15px;
+  font-weight: 400;
+  flex: none;
+}
+
+.topbar__acoes {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+  color: var(--color-text-secondary);
+}
+
+.topbar__icone-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  transition: background 150ms, color 150ms;
+}
+
+.topbar__icone-btn:hover {
+  background: var(--color-navy-tint);
+  color: var(--color-navy);
+}
+
+.topbar__avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--color-navy-soft);
+  color: var(--color-navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  flex: none;
+}
+
+.topbar__ari {
+  height: 26px;
+  width: auto;
+  padding-right: 16px;
+  margin-right: 2px;
+  border-right: 1px solid var(--color-shell-border);
+}
+
+.casco__main {
+  flex: 1;
+  min-width: 0;
+  padding: 26px 28px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─── Busca global ──────────────────────────────────────────────────────── */
+
+.busca {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  width: 280px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-tertiary);
+  transition: border-color 150ms;
+}
+
+.busca:focus-within {
+  border-color: var(--color-navy-light);
+}
+
+.busca__input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text-body);
+}
+
+.busca__input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.busca__atalho {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  color: var(--color-text-tertiary);
+  flex: none;
+}
+
+.busca__resultados {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  min-width: 280px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-float);
+  padding: 6px;
+  z-index: 60;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.busca__resultados.is-aberto {
+  display: block;
+}
+
+.busca__item {
+  display: flex;
+  flex-direction: column;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-body);
+  text-decoration: none;
+}
+
+.busca__item:hover,
+.busca__item.is-ativo {
+  background: var(--color-surface-inset);
+  text-decoration: none;
+}
+
+.busca__item-nome {
+  font-size: 14px;
+}
+
+.busca__item-sub {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.busca__vazio {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+/* ─── Celular: o rail vira barra inferior ───────────────────────────────── */
+
+@media (max-width: 760px) {
+  .casco,
+  .casco:has(.rail:hover),
+  .casco:has(.rail:focus-within) {
+    grid-template-columns: 1fr;
+  }
+
+  .rail {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    height: auto;
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-right: none;
+    border-top: 1px solid var(--color-shell-border);
+    z-index: 50;
+  }
+
+  .rail__marca,
+  .rail__espaco,
+  .rail__ari,
+  .rail__label {
+    display: none;
+  }
+
+  .casco__main {
+    padding: 18px 16px calc(80px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    padding: 0 16px;
+    gap: 12px;
+  }
+
+  .topbar__migalhas {
+    font-size: 17px;
+  }
+
+  .busca {
+    width: 44px;
+    padding: 9px;
+    border-color: transparent;
+  }
+
+  .busca__input,
+  .busca__atalho,
+  .topbar__ari {
+    display: none;
+  }
+
+  .busca:focus-within {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    top: 17px;
+    width: auto;
+    background: var(--color-surface);
+    border-color: var(--color-navy-light);
+    z-index: 61;
+  }
+
+  .busca:focus-within .busca__input {
+    display: block;
+  }
+}

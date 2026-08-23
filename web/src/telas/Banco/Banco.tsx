@@ -21,14 +21,14 @@ import { MinhaLista } from './MinhaLista';
 // muda é permissão. Duplicar em `telas/Aluno/Banco` e `telas/Banco` garantiria
 // divergência — o primeiro conserto de CSS iria para um lado só (docs/22 §3.1).
 //
-// Quem monta `<main>` é a rota, não o casco (AppShell.tsx): `.app-main` serve
-// aos dois — na coordenação é o irmão da sidebar, no aluno é mais um bloco da
+// A tela devolve `.tela` (a coluna de blocos), que serve aos dois cascos: na
+// coordenação vira filha do `<main>` de AppShell, no aluno é mais um bloco da
 // coluna de `.alu-body__inner`.
 //
-// ⚠️ Não há `<Sidebar>` aqui de propósito. Os filtros são a coluna
-// `.banco-filtros` de `.banco-layout`, que nasce empilhada no celular e vira
-// coluna a partir de 880px — a `.sidebar` da coordenação tem largura fixa e é
-// exatamente a dívida que este sprint não podia recriar (docs/22 §3.5).
+// Os filtros são a coluna `.banco-filtros` de `.banco-layout`, que nasce
+// empilhada no celular e vira coluna a partir de 880px. O resto da coordenação
+// usa a `.barra-filtros` horizontal; aqui não, porque são muitos assuntos por
+// edital e eles não caberiam numa linha (docs/22 §3.5).
 
 /**
  * Perfil de quem está vendo a aba. Coincide com `DonoLista` (tipos/banco.ts):
@@ -124,7 +124,7 @@ export function Banco({ perfil }: { perfil: PerfilBanco }) {
   const abas = SUB_ABAS.filter((aba) => !aba.soAluno || perfil === 'aluno');
 
   return (
-    <main className="app-main">
+    <div className="tela">
       {/*
         banco.css não tem classe de sub-navegação, e a régua deste sprint é usar
         as classes que existem em vez de inventar (docs/22 §7.4). O arranjo é
@@ -183,6 +183,6 @@ export function Banco({ perfil }: { perfil: PerfilBanco }) {
         {/* Sub-aba desconhecida (ou /banco/mensagem na coordenação) volta ao banco. */}
         <Route path="*" element={<Navigate to="/banco" replace />} />
       </Routes>
-    </main>
+    </div>
   );
 }

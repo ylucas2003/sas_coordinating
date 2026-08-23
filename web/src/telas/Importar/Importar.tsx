@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
 import * as api from '../../servicos/api';
 import {
   INTERVALO_POLLING_MS, TOTAL_ETAPAS, etapaMaisAvancada, formatarBytes, formatarDataHora,
@@ -141,17 +142,20 @@ export function Importar() {
   }
 
   return (
-    <main className="app-main">
-      <section className="card">
-        <div className="screen-header">
-          <div className="screen-breadcrumb">Importar</div>
-          <h1 className="screen-title">Importar planilha do Canvas</h1>
-          <p className="screen-subtitle">
+    <div className="tela">
+      <AbasAdmin />
+
+      <div className="tela-cabecalho">
+        <div>
+          <h1 className="tela-titulo">Importar planilha do Canvas</h1>
+          <p className="tela-subtitulo">
             Suba a planilha exportada do gradebook. O sistema cria alunos, turmas, ciclos,
             simulados e notas automaticamente.
           </p>
         </div>
+      </div>
 
+      <section className="card">
         <div className="importar__form">
           <input
             ref={refInput}
@@ -231,7 +235,7 @@ export function Importar() {
           <Historico consulta={historico} />
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -345,9 +349,9 @@ function RelatorioSucesso({
         {'Já pode abrir '}
         <Link to="/alunos">Alunos</Link>
         {', '}
-        <Link to="/simulados">Simulados</Link>
+        <Link to="/provas?aba=simulados">Simulados</Link>
         {' ou '}
-        <Link to="/ciclos">Ciclos</Link>
+        <Link to="/provas">Ciclos</Link>
         {' pra ver os dados.'}
       </p>
     </div>
