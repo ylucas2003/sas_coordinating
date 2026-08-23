@@ -4,14 +4,14 @@
 > *por que* e *como*; este diz só *onde estamos*. Quando divergirem, corrija
 > aqui primeiro — é o que se lê antes de qualquer sprint.
 >
-> Atualizado em **22/08/2026**, depois do deploy da Sprint 2.
+> Atualizado em **23/08/2026**, depois do deploy do banco de questões.
 
 ---
 
 ## 1 · Em produção hoje (`portalsas.online`)
 
-Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0027**.
-Testes: **120** no backend, **91** no front.
+Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0029**.
+Testes: **120** no backend, **134** no front.
 
 ### Sprint 1 · Bloco A — o simulado nasce no SAS *(17–20/08)*
 
@@ -33,6 +33,24 @@ Origem: conversa com a coordenação em 21/08. Plano e decisões em [18](18-plan
 | P2 | Nada sobe ao Canvas sem o coordenador escolher; `divergente`; nota com `pontuacao_canvas` + `pontuacao_sas` | ✅ verificado contra o Canvas real |
 | P3 | Auditoria por canal, só criações e alterações; tela `/auditoria` | ✅ |
 | P4 | Login pelo Canvas (OAuth2), painel de administrador, logo do Ari, botão Sair; id do Canvas resolvido pelo e-mail | ✅ (SSO verificado como aluno; como coordenador fecha quando o Leo entrar) |
+
+### Sprint Banco de questões · o acervo ITA·IME vira aba *(22–23/08)*
+
+Furou a fila junto do mobile, por decisão direta. Plano e achados em
+[22](22-plano-banco-questoes.md). PR #16, deploy em 23/08.
+
+| Parte | O quê | Estado |
+|---|---|---|
+| P1 | O dado entra no SAS — `questao_vestibular` e a taxonomia dos editais (`0028`) | ✅ 934 questões, 65 tópicos, 351 assuntos |
+| P2 | API: listagem filtrada e paginada, recorrência agregada no servidor | ✅ 13 rotas |
+| P3 | A aba `/banco`, nos dois cascos | ✅ verificada a 390 e 360px |
+| P4 | Estatísticas sem Chart.js | ✅ |
+| P5 | Listas: montar, reordenar, exportar PDF e Word (`0029`) | ✅ |
+| P6 | Estudo do aluno: resolvida, anotação, mensagem | ✅ |
+
+**O Postgres é a fonte da verdade** ([22 §13](22-plano-banco-questoes.md)): os
+934 JSONs não são versionados, e `scripts/exportar_banco_questoes.py` é a saída
+— conferida em produção com zero divergência.
 
 ### Blocos B, C, D do [docs/10](10-problemas-e-visao.md) — o que já caiu no caminho
 
@@ -66,37 +84,6 @@ Três sprints, **uma frente por sprint**. "Escolher, não empilhar" ([10 §2.10]
 > andamento). Não renumerei o Sprint 3 abaixo porque a ordem dele entre si
 > não mudou, só a posição na fila — quando mobile for pro ar, esta nota sai
 > e o trabalho entra na [§1](#1--em-produção-hoje-portalsasonline).
-
-> ⚠️ **Furou a fila também em 22/08:** o **banco de questões ITA · IME** vira aba
-> do SAS, por decisão direta. É a importação do projeto `ita-por-assunto` — 934
-> questões de prova (2018–2025) classificadas por tópico do edital — para dentro
-> do repositório, como dado no Postgres e telas em React. Plano em
-> [22-plano-banco-questoes.md](22-plano-banco-questoes.md). Mesma regra da nota
-> acima: quando for pro ar, esta sai e o trabalho entra na
-> [§1](#1--em-produção-hoje-portalsasonline).
-
-### Sprint Banco de questões — *6 partes*
-
-Entra na fila junto do mobile, antes das três frentes abaixo. Detalhe em
-[22](22-plano-banco-questoes.md); aqui só o estado.
-
-| Parte | O quê | Estado |
-|---|---|---|
-| P1 | O dado entra no SAS — `questao_vestibular`, taxonomias, importador (`0028`) | ✅ 934 questões, 65 tópicos |
-| P2 | API: listagem filtrada, paginada, e agregação de recorrência | ✅ 13 rotas |
-| P3 | A aba `/banco`, nos dois cascos, responsiva desde o primeiro commit | ✅ verificada a 390 e 360px |
-| P4 | Estatísticas sem Chart.js — SVG à mão, como todo gráfico do SAS | ✅ |
-| P5 | Listas: montar, reordenar, exportar PDF e Word (`0029`) | ✅ |
-| P6 | Estudo do aluno: resolvida, anotação, mensagem — corta se faltar tempo | ✅ |
-
-**Estado: implementado na branch `feat/banco-questoes`, não deployado.** Detalhe
-e os cinco achados de execução em [22 §12](22-plano-banco-questoes.md).
-
-**Decidido em 22/08:** aluno monta e exporta a própria lista; a aba de mensagem
-vai só no casco do aluno; as imagens seguem no S3 (conta própria), sem cópia
-local; classificar as 1.031 questões do Canvas pela mesma taxonomia fica para o
-sprint seguinte — é o que destrava o gancho `questao.assunto` da `0015` e faz as
-237.081 respostas já gravadas dizerem *em que assunto* cada aluno erra.
 
 ### Sprint 3 · Fechar o Bloco A — *4 partes*
 
@@ -132,8 +119,7 @@ O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já te
 | P4 | **UI de critérios do coordenador** — o formato da Sprint 2 já nasceu pronto; falta a tela (A7) | [18 §1.10](18-plano-sprint-2.md#110-futuro-critérios-criados-pelo-coordenador) |
 | P5 | Gráficos em camadas: leigo → insight → estatística | visão de produto |
 
-**Total à frente: 4 sprints, 21 partes** — 6 do banco de questões e 15 das três
-frentes acima.
+**Total à frente: 3 sprints, 15 partes.**
 
 ---
 
@@ -151,6 +137,7 @@ frentes acima.
 
 | O quê | Por quê | Tamanho |
 |---|---|---|
+| **Backup do Postgres** | [14 §7](14-plano-producao.md) dispensou backup contínuo porque "o Canvas é o arquivo". O banco de questões é o primeiro dado que ele **não** restaura — e as imagens só existem no S3. Duas cópias únicas | M |
 | Renomear `get_supabase()` → `get_postgrest()`, `supabase_client.py` e as 33 anotações `Client` → `ClienteDados` | o nome mente desde 13/08; e é o que destrava o mypy como gate (72 dos 109 erros são isso) | M, mecânico |
 | `ShellAluno` redireciona o logout para `/login.html` (rota não existe; é `/login`) | resquício da migração React | P |
 | `web/dist/` versionado? conferir `.gitignore` | — | P |

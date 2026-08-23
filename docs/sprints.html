@@ -520,17 +520,17 @@
     <p class="subtitulo">Todo ciclo de trabalho que existe na documentação: o plano de cada um, o que
       de fato ficou pronto, e o que o produto passou a saber fazer no fim.</p>
     <p class="assinatura">
-      <span>Estado em 22/08/2026</span>
-      <span>migrations 0001 → 0027</span>
-      <span>120 testes na API · 91 no front</span>
+      <span>Estado em 23/08/2026</span>
+      <span>migrations 0001 → 0029</span>
+      <span>120 testes na API · 134 no front</span>
       <span>portalsas.online</span>
     </p>
   </header>
 
   <div class="placar">
-    <div><b>26</b><span>partes no ar</span></div>
+    <div><b>32</b><span>partes no ar</span></div>
     <div><b>3</b><span>partes em curso</span></div>
-    <div><b>21</b><span>partes à frente</span></div>
+    <div><b>15</b><span>partes à frente</span></div>
     <div><b>9</b><span>ciclos mapeados</span></div>
   </div>
 
@@ -874,11 +874,11 @@
     </article>
 
     <!-- ============================ 06 · Banco ============================ -->
-    <article class="ciclo" data-estado="proposta">
+    <article class="ciclo" data-estado="ar">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT BANCO</span>
-        <span class="selo selo--espera">proposta</span>
-        <span class="ciclo__quando">6 partes · furou a fila em 22/08, junto do mobile</span>
+        <span class="selo selo--ok">6 de 6 no ar</span>
+        <span class="ciclo__quando">22–23/08/2026 · PR #16</span>
       </div>
       <h2>Banco de questões ITA · IME vira aba do SAS</h2>
       <p class="ciclo__resumo">O projeto <code>ita-por-assunto</code> — 934 questões de prova de 2018 a 2025,
@@ -891,24 +891,24 @@
         <li><span class="cod">P1</span><span class="oque"><b>O dado entra no SAS</b><em>Tabelas
           <code>questao_vestibular</code>, <code>topico_taxonomia</code> e a ligação N:N; importador idempotente
           que falha alto em vez de engolir questão sem tópico. Chave da taxonomia é composta — <code>1.1</code>
-          existe nas três matérias e significa coisa diferente em cada uma.</em></span><span class="selo selo--espera">—</span></li>
+          existe nas três matérias e significa coisa diferente em cada uma.</em></span><span class="selo selo--ok">934 questões</span></li>
         <li><span class="cod">P2</span><span class="oque"><b>A API</b><em>Listagem filtrada e paginada, e a
           recorrência agregada no servidor. É a primeira vez no projeto em que paginar é o certo — e o código
-          precisa dizer por quê, senão alguém “conserta”.</em></span><span class="selo selo--espera">—</span></li>
+          precisa dizer por quê, senão alguém “conserta”.</em></span><span class="selo selo--ok">13 rotas</span></li>
         <li><span class="cod">P3</span><span class="oque"><b>A aba, nos dois cascos</b><em>Uma tela só, que
           recebe o perfil e esconde o que não se aplica. Sub-abas são rotas de verdade. Nasce verificada a
           360px — construir com sidebar fixa seria criar, no dia seguinte, a dívida que o sprint mobile acabou
-          de mapear.</em></span><span class="selo selo--espera">—</span></li>
+          de mapear.</em></span><span class="selo selo--ok">390 e 360px</span></li>
         <li><span class="cod">P4</span><span class="oque"><b>Estatísticas sem Chart.js</b><em>A biblioteca vem
           de CDN de terceiro e sai. Não entra como npm: o SAS não tem biblioteca de gráfico por decisão de
           projeto. <code>Histograma</code> e <code>LinhaTemporal</code> já existem e já escalam no
-          celular.</em></span><span class="selo selo--espera">—</span></li>
+          celular.</em></span><span class="selo selo--ok">no ar</span></li>
         <li><span class="cod">P5</span><span class="oque"><b>Listas</b><em>Montar, reordenar e exportar em PDF
           e DOCX — para os dois perfis. Mora no servidor, não no <code>localStorage</code>: uma lista que existe
-          só num aparelho é uma lista que o aluno perde sem saber por quê.</em></span><span class="selo selo--espera">—</span></li>
+          só num aparelho é uma lista que o aluno perde sem saber por quê.</em></span><span class="selo selo--ok">no ar</span></li>
         <li><span class="cod">P6</span><span class="oque"><b>Estudo do aluno</b><em>Marcar resolvida, anotar, e
           a aba de mensagem — só no casco do aluno. É o que faz o banco virar ferramenta de estudo em vez de
-          catálogo.</em></span><span class="selo selo--espera">corta se faltar tempo</span></li>
+          catálogo.</em></span><span class="selo selo--ok">não precisou cortar</span></li>
       </ul>
 
       <p class="nota nota--alerta"><b>O item que não pode entrar nem no histórico:</b> o site de hoje tem um
@@ -917,7 +917,7 @@
         depois o remova. O SAS já resolve isso melhor: matrícula é validada no servidor contra o e-mail do Canvas.</p>
 
       <div class="ganho">
-        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <span class="rotulo">No fim deste sprint, quem usa passa a ter</span>
         <ul>
           <li><b>Uma aba Banco dentro do próprio SAS</b> — o aluno para de trocar de site, e de login, para
             estudar por questão.</li>
@@ -931,6 +931,17 @@
             query, exatamente o defeito que o sprint mobile mapeou na coordenação.</li>
         </ul>
       </div>
+
+      <p class="nota"><b>Uma inversão que aconteceu durante a execução:</b> o plano tratava os 934 JSONs como
+        fonte da verdade versionada e as tabelas como projeção. Inverteu-se — o Postgres guarda, o repositório
+        guarda código, e o PR caiu de 992 arquivos para 59. O que torna isso seguro é a saída:
+        <code>exportar_banco_questoes.py</code> refaz os arquivos a partir do banco, e o <code>--conferir</code>
+        rodou contra produção com <b>zero divergência</b>. Nada de <code>jsonb</code>: alternativa e assunto do
+        edital viraram tabela.</p>
+
+      <p class="nota nota--alerta"><b>O Canvas deixou de ser o backup.</b> O plano de produção dispensou backup
+        contínuo porque todo dado do SAS vinha do Canvas e podia ser resincronizado. Este é o primeiro que ele
+        não restaura — e as imagens só existem no S3. Duas cópias únicas, agora na dívida técnica.</p>
 
       <p class="nota"><b>O prêmio que este sprint prepara e não colhe:</b> a mesma taxonomia serve para
         classificar as <b>1.031 questões dos simulados do colégio</b>, que hoje têm <code>assunto</code> nulo —

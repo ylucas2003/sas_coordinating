@@ -772,7 +772,10 @@ mobile, PR #15).
   apertada só existe na VPS, e é lá que o risco 7 mora.
 - **Safari real** — a aba herda os três itens não verificáveis do sprint mobile
   ([21 §12](21-plano-mobile.md#12--estado-em-22082026)).
-- **Deploy.** `./infra/vps/deploy.sh --migrar` (0028→0029).
+- ~~**Deploy.**~~ ✅ **Feito em 23/08**: `0028`/`0029` aplicadas, 10 smoke tests
+  verdes, carga inicial de 934 questões na VPS, e o `--conferir` rodado contra
+  produção deu zero divergência. As cinco rotas do banco respondem 401 (existem
+  e exigem auth) e a CSP nova chegou com o bucket em `img-src`.
 - **As três decisões de produto** da [§11](#11--o-que-falta-decidir) que sobraram:
   rótulo da aba, banco inteiro × vestibular-alvo, e lista do coordenador visível
   ao aluno.
