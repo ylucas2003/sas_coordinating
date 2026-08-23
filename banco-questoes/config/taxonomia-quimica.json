@@ -1,0 +1,372 @@
+{
+  "_comentario": "Taxonomia do edital de Química do ITA, organizada em blocos. IDs no formato X.Y.",
+  "blocos": [
+    {
+      "id": "1",
+      "nome": "Química Geral e Estrutura da Matéria",
+      "subareas": [
+        {
+          "id": "1.1",
+          "nome": "Estrutura Atômica",
+          "topicos": [
+            "Modelos atômicos (Dalton, Thomson, Rutherford, Bohr)",
+            "Números quânticos e orbitais",
+            "Configuração eletrônica e distribuição eletrônica",
+            "Isótopos, isóbaros e isótonos"
+          ]
+        },
+        {
+          "id": "1.2",
+          "nome": "Tabela Periódica e Propriedades dos Elementos",
+          "topicos": [
+            "Organização da tabela periódica",
+            "Propriedades periódicas: raio atômico, energia de ionização, eletronegatividade, afinidade eletrônica",
+            "Metais, não-metais e semimetais",
+            "Famílias e períodos"
+          ]
+        },
+        {
+          "id": "1.3",
+          "nome": "Ligações Químicas",
+          "topicos": [
+            "Ligação iônica",
+            "Ligação covalente (simples, dupla, tripla)",
+            "Ligação metálica",
+            "Polaridade de ligações e de moléculas",
+            "Geometria molecular (VSEPR)",
+            "Teoria do orbital molecular (básico)",
+            "Forças intermoleculares (van der Waals, ligação de hidrogênio)"
+          ]
+        },
+        {
+          "id": "1.4",
+          "nome": "Funções Inorgânicas",
+          "topicos": [
+            "Ácidos (Arrhenius, Brønsted-Lowry)",
+            "Bases",
+            "Sais",
+            "Óxidos (ácidos, básicos, anfóteros e neutros)",
+            "Nomenclatura inorgânica"
+          ]
+        },
+        {
+          "id": "1.5",
+          "nome": "Reações Inorgânicas",
+          "topicos": [
+            "Reações de síntese (adição) e decomposição (análise)",
+            "Reações de simples troca (deslocamento) e série de reatividade",
+            "Reações de dupla troca: critérios (precipitado, gás, eletrólito fraco)",
+            "Reações de neutralização ácido-base",
+            "Reações de oxirredução e balanceamento (método íon-elétron)",
+            "Reações com óxidos ácidos, básicos e anfóteros"
+          ]
+        },
+        {
+          "id": "1.6",
+          "nome": "Química do Estado Sólido",
+          "topicos": [
+            "Tipos de sólidos: iônicos, covalentes, metálicos e moleculares",
+            "Estrutura cristalina e célula unitária",
+            "Empacotamento compacto (CFC, HC, CCC) e número de coordenação",
+            "Alotropia (carbono, oxigênio, enxofre, fósforo)",
+            "Propriedades físicas dos sólidos (ponto de fusão, dureza, condutividade)",
+            "Defeitos em cristais (conceito)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "nome": "Química Nuclear",
+      "subareas": [
+        {
+          "id": "2.1",
+          "nome": "Química Nuclear",
+          "topicos": [
+            "Radioatividade natural e emissões alfa, beta e gama",
+            "Leis de Soddy e séries radioativas",
+            "Cinética de decaimento e tempo de meia-vida",
+            "Fissão e fusão nuclear",
+            "Reações nucleares (balanceamento de massa e carga)",
+            "Energia de ligação nuclear e defeito de massa",
+            "Aplicações (datação por C-14, radiotraçadores, medicina)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "nome": "Estequiometria e Gases",
+      "subareas": [
+        {
+          "id": "3.1",
+          "nome": "Estequiometria",
+          "topicos": [
+            "Leis ponderais (Lavoisier, Proust)",
+            "Conceito de mol e número de Avogadro",
+            "Massa molar e fórmula mínima/molecular",
+            "Cálculos estequiométricos com reagente limitante",
+            "Pureza e rendimento de reações",
+            "Composição percentual"
+          ]
+        },
+        {
+          "id": "3.2",
+          "nome": "Gases",
+          "topicos": [
+            "Leis dos gases (Boyle, Charles, Gay-Lussac)",
+            "Lei geral dos gases e equação de Clapeyron",
+            "Misturas gasosas e pressão parcial (Lei de Dalton)",
+            "Teoria cinética dos gases",
+            "Volume molar nas CNTP"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "nome": "Soluções",
+      "subareas": [
+        {
+          "id": "4.1",
+          "nome": "Soluções",
+          "topicos": [
+            "Tipos de soluções e solubilidade",
+            "Curvas de solubilidade e efeito da temperatura",
+            "Concentração molar, em g/L e percentual",
+            "Fração molar, molalidade e ppm",
+            "Diluição e mistura de soluções",
+            "Solubilidade de gases em líquidos (Lei de Henry)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "nome": "Propriedades Coligativas",
+      "subareas": [
+        {
+          "id": "5.1",
+          "nome": "Propriedades Coligativas",
+          "topicos": [
+            "Tonoscopia (abaixamento da pressão de vapor)",
+            "Ebulioscopia (elevação do ponto de ebulição)",
+            "Crioscopia (abaixamento do ponto de congelamento)",
+            "Osmoscopia e pressão osmótica",
+            "Fator de van't Hoff e efeito em soluções iônicas"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "nome": "Termoquímica",
+      "subareas": [
+        {
+          "id": "6.1",
+          "nome": "Termoquímica",
+          "topicos": [
+            "Entalpia de reação, formação e combustão",
+            "Reações endotérmicas e exotérmicas",
+            "Lei de Hess",
+            "Energia de ligação",
+            "Calor específico e capacidade térmica em processos químicos"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "nome": "Termodinâmica Física",
+      "subareas": [
+        {
+          "id": "7.1",
+          "nome": "Termodinâmica Física",
+          "topicos": [
+            "1ª Lei da Termodinâmica aplicada a sistemas químicos",
+            "Entropia e 2ª Lei da Termodinâmica",
+            "Energia livre de Gibbs (ΔG = ΔH − TΔS)",
+            "Espontaneidade de reações e condição de equilíbrio",
+            "Relação entre ΔG° e constante de equilíbrio (ΔG° = −RT ln K)",
+            "Trabalho de expansão e processos reversíveis/irreversíveis"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "nome": "Cinética Química",
+      "subareas": [
+        {
+          "id": "8.1",
+          "nome": "Cinética Química",
+          "topicos": [
+            "Velocidade de reação e fatores que a influenciam",
+            "Lei de velocidade e ordem de reação",
+            "Energia de ativação e catalisadores",
+            "Equação de Arrhenius",
+            "Mecanismos de reação e etapa determinante"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "nome": "Equilíbrio Químico",
+      "subareas": [
+        {
+          "id": "9.1",
+          "nome": "Equilíbrio Químico Geral",
+          "topicos": [
+            "Conceito de equilíbrio dinâmico",
+            "Constantes de equilíbrio Kc e Kp",
+            "Quociente de reação Q e previsão do deslocamento",
+            "Princípio de Le Chatelier (concentração, pressão, temperatura)",
+            "Grau de dissociação"
+          ]
+        },
+        {
+          "id": "9.2",
+          "nome": "Equilíbrio Iônico (Ácido-Base)",
+          "topicos": [
+            "pH e pOH",
+            "Ka e Kb, pKa e pKb",
+            "Grau de ionização",
+            "Hidrólise salina",
+            "Soluções tampão",
+            "Titulação ácido-base e curvas de titulação"
+          ]
+        },
+        {
+          "id": "9.3",
+          "nome": "Equilíbrio de Solubilidade",
+          "topicos": [
+            "Produto de solubilidade (Kps)",
+            "Solubilidade molar e em g/L",
+            "Efeito do íon comum",
+            "Precipitação fracionada",
+            "Dissolução de precipitados por formação de complexos (conceito)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "nome": "Eletroquímica",
+      "subareas": [
+        {
+          "id": "10.1",
+          "nome": "Eletroquímica",
+          "topicos": [
+            "Número de oxidação e reações de oxirredução",
+            "Células galvânicas (pilhas) e potencial de eletrodo",
+            "Equação de Nernst",
+            "Eletrólise e Leis de Faraday",
+            "Série de reatividade dos metais",
+            "Corrosão e proteção catódica"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "nome": "Química Orgânica",
+      "subareas": [
+        {
+          "id": "11.1",
+          "nome": "Fundamentos e Hidrocarbonetos",
+          "topicos": [
+            "Hibridização do carbono (sp, sp2, sp3)",
+            "Classificação das cadeias carbônicas",
+            "Alcanos, alcenos, alcinos, dienos",
+            "Ciclanos e ciclenos",
+            "Arenos (benzeno e derivados)",
+            "Nomenclatura IUPAC de hidrocarbonetos"
+          ]
+        },
+        {
+          "id": "11.2",
+          "nome": "Funções Orgânicas Oxigenadas e Nitrogenadas",
+          "topicos": [
+            "Álcoois e fenóis",
+            "Éteres",
+            "Aldeídos e cetonas",
+            "Ácidos carboxílicos e derivados (ésteres, anidridos, amidas, haletos)",
+            "Aminas",
+            "Aminoácidos e proteínas (básico)"
+          ]
+        },
+        {
+          "id": "11.3",
+          "nome": "Ácidos e Bases Orgânicas",
+          "topicos": [
+            "Caráter ácido de ácidos carboxílicos, fenóis e álcoois (comparação)",
+            "Efeitos indutivo e mesomérico sobre acidez/basicidade",
+            "Caráter básico de aminas alifáticas e aromáticas",
+            "Escala de pKa de grupos orgânicos",
+            "Reações ácido-base em meio orgânico"
+          ]
+        },
+        {
+          "id": "11.4",
+          "nome": "Isomeria",
+          "topicos": [
+            "Isomeria plana (cadeia, posição, função, metameria, tautomeria)",
+            "Isomeria geométrica (cis-trans / E-Z)",
+            "Isomeria óptica: carbono quiral, enantiômeros e diastereômeros",
+            "Atividade óptica e mistura racêmica",
+            "Configurações R/S (conceito)"
+          ]
+        },
+        {
+          "id": "11.5",
+          "nome": "Reações Orgânicas",
+          "topicos": [
+            "Substituição, adição e eliminação",
+            "Oxidação e redução de compostos orgânicos",
+            "Saponificação e esterificação",
+            "Reações aromáticas (substituição eletrofílica)",
+            "Reações radicalares (halogenação)"
+          ]
+        },
+        {
+          "id": "11.6",
+          "nome": "Polímeros",
+          "topicos": [
+            "Polimerização por adição",
+            "Polimerização por condensação",
+            "Homopolímeros e copolímeros",
+            "Polímeros naturais e sintéticos (exemplos)",
+            "Elastômeros, termoplásticos e termofixos (conceito)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "nome": "Química Analítica e Ambiental",
+      "subareas": [
+        {
+          "id": "12.1",
+          "nome": "Análise Qualitativa e Quantitativa",
+          "topicos": [
+            "Reações de identificação de cátions e ânions",
+            "Volumetria de neutralização, precipitação e oxirredução",
+            "Espectrofotometria (conceito)"
+          ]
+        },
+        {
+          "id": "12.2",
+          "nome": "Química Ambiental e Industrial",
+          "topicos": [
+            "Poluição do ar, água e solo",
+            "Efeito estufa e camada de ozônio",
+            "Processos industriais relevantes (Haber-Bosch, Contact, siderurgia)",
+            "Combustíveis e fontes de energia",
+            "Biocombustíveis (etanol, biodiesel)"
+          ]
+        }
+      ]
+    }
+  ]
+}

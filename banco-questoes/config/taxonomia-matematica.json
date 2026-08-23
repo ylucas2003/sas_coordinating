@@ -1,0 +1,314 @@
+{
+  "_comentario": "Taxonomia do edital de Matemática do ITA, organizada em blocos. IDs no formato X.Y.",
+  "blocos": [
+    {
+      "id": "1",
+      "nome": "Conjuntos e Lógica",
+      "subareas": [
+        {
+          "id": "1.1",
+          "nome": "Conjuntos e Lógica",
+          "topicos": [
+            "Operações com conjuntos (união, interseção, complementar)",
+            "Princípio da inclusão-exclusão",
+            "Proposições, conectivos e tabelas-verdade",
+            "Quantificadores e negação",
+            "Indução matemática"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "nome": "Aritmética",
+      "subareas": [
+        {
+          "id": "2.1",
+          "nome": "Aritmética",
+          "topicos": [
+            "Conjuntos numéricos (N, Z, Q, R, C)",
+            "Divisibilidade, MDC e MMC",
+            "Números primos e fatoração",
+            "Aritmética modular e congruências",
+            "Representação em bases numéricas"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "nome": "Álgebra e Funções",
+      "subareas": [
+        {
+          "id": "3.1",
+          "nome": "Funções Reais",
+          "topicos": [
+            "Domínio, imagem e contradomínio",
+            "Funções injetoras, sobrejetoras e bijetoras",
+            "Função composta e inversa",
+            "Funções pares, ímpares e periódicas",
+            "Gráficos e transformações de funções"
+          ]
+        },
+        {
+          "id": "3.2",
+          "nome": "Funções Algébricas",
+          "topicos": [
+            "Função afim (linear e constante)",
+            "Função quadrática: vértice, discriminante, raízes",
+            "Funções modulares",
+            "Funções racionais (hipérbole)"
+          ]
+        },
+        {
+          "id": "3.3",
+          "nome": "Funções Transcendentes",
+          "topicos": [
+            "Função exponencial e suas propriedades",
+            "Função logarítmica e mudança de base",
+            "Equações e inequações exponenciais e logarítmicas"
+          ]
+        },
+        {
+          "id": "3.4",
+          "nome": "Sistemas e Outras Equações",
+          "topicos": [
+            "Sistemas lineares e escalonamento",
+            "Sistemas não-lineares",
+            "Equações irracionais e com módulo"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "nome": "Álgebra Linear e Matrizes",
+      "subareas": [
+        {
+          "id": "4.1",
+          "nome": "Matrizes e Determinantes",
+          "topicos": [
+            "Operações com matrizes",
+            "Matriz inversa e transposta",
+            "Determinantes: regra de Sarrus e Laplace",
+            "Propriedades dos determinantes"
+          ]
+        },
+        {
+          "id": "4.2",
+          "nome": "Sistemas Lineares",
+          "topicos": [
+            "Discussão de sistemas (Cramer, Rouché-Capelli)",
+            "Escalonamento de Gauss",
+            "Dependência e independência linear (conceito)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "nome": "Polinômios",
+      "subareas": [
+        {
+          "id": "5.1",
+          "nome": "Polinômios",
+          "topicos": [
+            "Operações com polinômios (adição, multiplicação, divisão)",
+            "Divisão de polinômios e teorema do resto",
+            "Dispositivo de Briot-Ruffini",
+            "Funções polinomiais de grau superior",
+            "Teorema fundamental da álgebra",
+            "Teorema do fator e raízes racionais",
+            "Equações polinomiais: relações de Girard",
+            "Multiplicidade de raízes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "nome": "Geometria Plana",
+      "subareas": [
+        {
+          "id": "6.1",
+          "nome": "Geometria Plana",
+          "topicos": [
+            "Ângulos, retas e paralelismo",
+            "Triângulos: congruência, semelhança, relações métricas",
+            "Quadriláteros notáveis e polígonos",
+            "Circunferência e círculo: arcos, cordas, tangentes, inscrição",
+            "Áreas de figuras planas"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "nome": "Geometria Analítica",
+      "subareas": [
+        {
+          "id": "7.1",
+          "nome": "Geometria Analítica",
+          "topicos": [
+            "Ponto, reta e distâncias no plano cartesiano",
+            "Circunferência: equação e posições relativas",
+            "Cônicas: elipse, hipérbole e parábola",
+            "Translação e rotação de eixos",
+            "Coordenadas polares"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "nome": "Geometria Espacial",
+      "subareas": [
+        {
+          "id": "8.1",
+          "nome": "Geometria Espacial",
+          "topicos": [
+            "Posições relativas de retas e planos no espaço",
+            "Poliedros de Platão e relação de Euler",
+            "Prismas, pirâmides: áreas e volumes",
+            "Cilindros, cones e esferas: áreas e volumes",
+            "Secções planas e inscrição/circunscrição"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "nome": "Trigonometria",
+      "subareas": [
+        {
+          "id": "9.1",
+          "nome": "Trigonometria",
+          "topicos": [
+            "Razões trigonométricas no triângulo retângulo",
+            "Ciclo trigonométrico e ângulos em graus e radianos",
+            "Identidades trigonométricas fundamentais",
+            "Fórmulas de adição, duplicação e bisseção",
+            "Lei dos senos e lei dos cosenos",
+            "Funções trigonométricas (sen, cos, tg e inversas)",
+            "Equações e inequações trigonométricas",
+            "Funções inversas: arcsen, arccos, arctg"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "nome": "Combinatória, Probabilidade e Estatística",
+      "subareas": [
+        {
+          "id": "10.1",
+          "nome": "Análise Combinatória",
+          "topicos": [
+            "Princípio fundamental da contagem",
+            "Permutações simples e com repetição",
+            "Combinações simples e com repetição",
+            "Arranjos",
+            "Binômio de Newton e triângulo de Pascal",
+            "Contagem em grafos e reticulados"
+          ]
+        },
+        {
+          "id": "10.2",
+          "nome": "Probabilidade",
+          "topicos": [
+            "Espaço amostral e eventos",
+            "Probabilidade clássica e axiomática",
+            "Probabilidade condicional e independência",
+            "Teorema de Bayes",
+            "Distribuições discretas: binomial, geométrica",
+            "Variável aleatória e esperança matemática"
+          ]
+        },
+        {
+          "id": "10.3",
+          "nome": "Estatística",
+          "topicos": [
+            "Média, mediana e moda",
+            "Variância e desvio padrão",
+            "Representações gráficas (histograma, boxplot)",
+            "Correlação e regressão linear (conceito)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "nome": "Sequências e Progressões",
+      "subareas": [
+        {
+          "id": "11.1",
+          "nome": "Sequências e Progressões",
+          "topicos": [
+            "Progressão aritmética: termo geral e soma",
+            "Progressão geométrica: termo geral e soma",
+            "Séries infinitas convergentes (PG com |r|<1)",
+            "Sequências recursivas e relações de recorrência",
+            "Sequência de Fibonacci e razão áurea"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "nome": "Cálculo Diferencial e Integral",
+      "subareas": [
+        {
+          "id": "12.1",
+          "nome": "Limites e Continuidade",
+          "topicos": [
+            "Noção intuitiva de limite",
+            "Limites laterais e limites no infinito",
+            "Continuidade e descontinuidades",
+            "Limites fundamentais (sen x / x, (1+1/n)^n)"
+          ]
+        },
+        {
+          "id": "12.2",
+          "nome": "Derivadas",
+          "topicos": [
+            "Definição de derivada como limite",
+            "Regras de derivação (produto, quociente, cadeia)",
+            "Derivadas de funções elementares",
+            "Aplicações: crescimento, decrescimento, concavidade, extremos",
+            "Regra de L'Hôpital",
+            "Derivadas de ordem superior"
+          ]
+        },
+        {
+          "id": "12.3",
+          "nome": "Integrais",
+          "topicos": [
+            "Integral indefinida e primitivas",
+            "Técnicas de integração: substituição, partes, frações parciais",
+            "Integral definida e Teorema Fundamental do Cálculo",
+            "Cálculo de áreas e volumes de revolução",
+            "Integrais impróprias (conceito)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "nome": "Números Complexos",
+      "subareas": [
+        {
+          "id": "13.1",
+          "nome": "Números Complexos",
+          "topicos": [
+            "Forma algébrica e operações",
+            "Módulo e argumento",
+            "Forma trigonométrica (polar)",
+            "Fórmula de Moivre",
+            "Raízes de números complexos",
+            "Plano de Argand-Gauss"
+          ]
+        }
+      ]
+    }
+  ]
+}

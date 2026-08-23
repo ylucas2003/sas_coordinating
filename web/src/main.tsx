@@ -20,6 +20,7 @@ import '../styles/filtros.css';
 import '../styles/chat.css';
 import '../styles/edicao.css';
 import '../styles/aluno.css';
+import '../styles/banco.css';
 import '../styles/login.css';
 
 const queryClient = new QueryClient({

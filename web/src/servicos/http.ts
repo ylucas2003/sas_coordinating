@@ -88,6 +88,15 @@ export function patch<T>(caminho: string, corpo: unknown): Promise<T> {
   return requisitar<T>('PATCH', caminho, corpo);
 }
 
+/**
+ * `PUT` existe para o estado de estudo do banco de questões: a linha
+ * (aluno, questão) nasce na primeira marcação e é substituída nas seguintes —
+ * upsert, não remendo de recurso existente (docs/22 §P6).
+ */
+export function put<T>(caminho: string, corpo: unknown): Promise<T> {
+  return requisitar<T>('PUT', caminho, corpo);
+}
+
 export function del<T>(caminho: string): Promise<T> {
   return requisitar<T>('DELETE', caminho);
 }

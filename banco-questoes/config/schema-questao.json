@@ -1,0 +1,53 @@
+{
+  "_comentario": "Schema de referência: formato canônico de uma questão. Cada questão processada segue esta estrutura. O JSON é a fonte da verdade — HTML, LaTeX, DOCX e PDF são gerados a partir dele.",
+  "_exemplo": {
+    "id": "ita_2019_q01",
+    "prova": {
+      "vestibular": "ITA",
+      "ano": 2019,
+      "fase": 1,
+      "materia": "Física"
+    },
+    "numero": 1,
+    "enunciado_md": "Em férias no litoral, um estudante faz para um colega as seguintes observações:\n\nI. A luz solar consiste de uma onda eletromagnética transversal, não polarizada e policromática.\nII. A partir de um certo horário, toda a luz solar que incide sobre o mar sofre reflexão total.\nIII. A brisa marítima é decorrente da diferença entre o calor específico da areia e o da água do mar.\n\nA respeito dessas observações, é correto afirmar que",
+    "alternativas": {
+      "A": "todas são verdadeiras.",
+      "B": "apenas I é falsa.",
+      "C": "apenas II é falsa.",
+      "D": "apenas III é falsa.",
+      "E": "há mais de uma observação falsa."
+    },
+    "gabarito": "C",
+    "imagens": [],
+    "classificacao": {
+      "topicos_ids": ["7.1", "7.2", "6.1"],
+      "topicos_nomes": ["Óptica Geométrica", "Óptica Física", "Termodinâmica"],
+      "blocos": ["Óptica", "Termodinâmica"],
+      "classificado_por": "claude",
+      "confianca": "alta",
+      "observacao": "Questão mista: reflexão total (7.1), natureza da luz (7.2), calor específico (6.1)"
+    },
+    "fonte": {
+      "pdf": "2019_fase1.pdf",
+      "pagina": 2,
+      "bbox_questao": null
+    },
+    "status": {
+      "texto_extraido": true,
+      "alternativas_extraidas": true,
+      "figuras_recortadas": true,
+      "classificado": true,
+      "revisado": false
+    }
+  },
+  "_descricao_campos": {
+    "id": "identificador único no formato {vestibular}_{ano}_q{NN}",
+    "enunciado_md": "texto do enunciado em Markdown; fórmulas em LaTeX ($...$); quebras de linha para afirmações I,II,III",
+    "alternativas": "objeto com chaves A-E",
+    "gabarito": "letra da alternativa correta (A-E), extraída do PDF do gabarito",
+    "imagens": "lista de caminhos relativos para PNGs recortados; vazia se a questão não tiver figura",
+    "classificacao.topicos_ids": "lista de IDs da taxonomia — uma questão pode ter múltiplos (questões mistas)",
+    "classificacao.confianca": "alta | media | baixa — preenchido pelo classificador",
+    "status": "flags booleanos que controlam o pipeline: se tudo true, questão está pronta para publicação"
+  }
+}

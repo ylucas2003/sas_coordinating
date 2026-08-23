@@ -34,7 +34,20 @@ que decorrem disso:
 | `canvas_sync/` | Sincronização com o Canvas LMS — fonte de verdade das notas. `mapeador.py` compõe **e** parseia os nomes de assignment; as duas gramáticas precisam casar |
 | `ingest/` | Pipeline de planilha (CSV/XLSX), idempotente por construção |
 | `lembretes/` | Motor de e-mail via SES. Disparo é materializado na criação da regra e revalidado antes do envio |
+| `banco/` | Banco de questões ITA·IME (docs/22): consultas filtradas, recorrência por tópico e listas com dono. **É a única rota que pagina** — e o motivo está escrito em `schemas/banco.py`. As tabelas são a **fonte da verdade**: os JSONs não são versionados, e `scripts/exportar_banco_questoes.py` é a saída (docs/22 §13) |
 | `auditoria.py` | Quem fez o quê. **Nunca** grave senha, hash, token ou corpo de mensagem |
+
+### ⚠️ `questao` e `questao_vestibular` são coisas diferentes
+
+O erro de leitura mais provável do schema hoje:
+
+| Tabela | O que é | Chave |
+|---|---|---|
+| `questao` | Questão de um **simulado-Quiz do Canvas**. Só existe para simulado com `quiz_id`. Migration 0010 | `simulado_id` NOT NULL |
+| `questao_vestibular` | Questão de **prova passada de ITA/IME**, do banco por assunto. Nenhum simulado envolvido. Migration 0028 | `id` texto: `ita_2019_fase1_q01` |
+
+As duas vão se encontrar num sprint futuro: a taxonomia da 0028 é a que preenche
+o gancho `questao.assunto`, vazio desde a 0015.
 
 ## Autenticação
 

@@ -31,6 +31,14 @@ interface Props {
   onPontoClick?: ((ponto: PontoTemporal) => void) | null;
   /** Desenha a série tracejada se algum ponto trouxer `cicloAnteriorMedia`. */
   mostrarCicloAnterior?: boolean;
+  /**
+   * Como a série se chama na legenda e no tooltip. O default é do caso de
+   * origem (evolução de ciclo), mas o banco de questões reusa o mesmo desenho
+   * para "questões por ano" — e ali "Ciclo atual"/"Média" seriam mentira
+   * (docs/22 §P4). Aditivo: quem já chamava continua igual.
+   */
+  rotuloSerie?: string;
+  rotuloValor?: string;
 }
 
 const um = (n: number) => n.toFixed(1).replace('.', ',');
@@ -63,6 +71,8 @@ export function LinhaTemporal({
   corte = null,
   onPontoClick = null,
   mostrarCicloAnterior = true,
+  rotuloSerie = 'Ciclo atual',
+  rotuloValor = 'Média',
 }: Props) {
   const idGradiente = `linha-temporal-${useId()}`;
 
@@ -158,8 +168,10 @@ export function LinhaTemporal({
           const [x, y] = pontosAtual[i];
           const tooltip = [
             p.rotuloCurto || p.nome,
-            `Data: ${p.data || '—'}`,
-            `Média: ${p.media.toFixed(2).replace('.', ',')}`,
+            // Sem data não é "data vazia", é série que não tem eixo de data
+            // (recorrência por ano, docs/22 §P4). Linha ausente diz isso melhor.
+            p.data ? `Data: ${p.data}` : null,
+            `${rotuloValor}: ${p.media.toFixed(2).replace('.', ',')}`,
             p.cicloAnteriorMedia != null
               ? `Ciclo anterior: ${p.cicloAnteriorMedia.toFixed(2).replace('.', ',')}`
               : null,
@@ -207,7 +219,7 @@ export function LinhaTemporal({
       </svg>
 
       <div className="linha-temporal__legenda">
-        <ItemLegenda cor="var(--color-navy)" texto="Ciclo atual" />
+        <ItemLegenda cor="var(--color-navy)" texto={rotuloSerie} />
         {temAnterior && <ItemLegenda cor="var(--color-text-tertiary)" texto="Ciclo anterior" tracejado />}
         {corte?.valor != null && (
           <ItemLegenda

@@ -38,7 +38,12 @@ Não "modernize" essa pasta.
   contrário trava.
 - `tipos/dominio.ts` espelha `api/app/schemas/domain.py`. Mudou o schema
   Pydantic, mude aqui — é o que faz `turmaId` vs `turma_id` aparecer no build
-  em vez de em runtime.
+  em vez de em runtime. O mesmo vale para `tipos/banco.ts` ↔ `schemas/banco.py`.
+- **`telas/Banco/` serve os dois cascos.** A aba do banco de questões é o mesmo
+  produto para aluno e coordenação; o que muda é permissão, não código, e por
+  isso `Banco.tsx` recebe `perfil` e esconde o que não se aplica. Duplicar em
+  `telas/Aluno/Banco` garantiria divergência — o primeiro conserto de CSS iria
+  para um lado só. Ver docs/22 §3.1.
 
 ## Ferramentas
 

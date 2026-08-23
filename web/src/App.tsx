@@ -11,6 +11,7 @@ import { ShellAluno } from './telas/Aluno/ShellAluno';
 import { Painel } from './telas/Painel/Painel';
 import { Importar } from './telas/Importar/Importar';
 import { Auditoria } from './telas/Auditoria/Auditoria';
+import { Banco } from './telas/Banco/Banco';
 import { Administracao } from './telas/Administracao/Administracao';
 import { Login } from './telas/Login/Login';
 import { CallbackCanvas } from './telas/Login/CallbackCanvas';
@@ -58,6 +59,7 @@ function AppCoordenacao() {
         <Route path="/ciclos" element={<Ciclos />} />
         <Route path="/ciclos/:id" element={<CicloFicha />} />
         <Route path="/importar" element={<Importar />} />
+        <Route path="/banco/*" element={<Banco perfil="coordenacao" />} />
         <Route path="/auditoria" element={<Auditoria />} />
         <Route path="/administracao" element={<Administracao />} />
         {/* Rota desconhecida cai no painel, como o roteador antigo fazia. */}

@@ -1,0 +1,304 @@
+{
+  "_comentario": "Taxonomia do edital de Física do ITA, organizada em blocos. Cada tópico tem um ID hierárquico (bloco.subbloco) que é usado para classificar questões. Uma questão pode ter múltiplos IDs (questões mistas).",
+  "blocos": [
+    {
+      "id": "1",
+      "nome": "Fundamentos e Ferramentas Matemáticas",
+      "subareas": [
+        {
+          "id": "1.1",
+          "nome": "Fundamentos",
+          "topicos": [
+            "Noções sobre medidas físicas e algarismos significativos",
+            "Conceito de medida, erro e incerteza",
+            "Análise dimensional",
+            "Grandezas escalares e vetoriais",
+            "Soma e subtração de vetores",
+            "Escalas e gráficos",
+            "Funções e representação gráfica",
+            "Sistema Internacional de Unidades (SI)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "nome": "Cinemática",
+      "subareas": [
+        {
+          "id": "2.1",
+          "nome": "Cinemática",
+          "topicos": [
+            "Equação horária de um movimento",
+            "Trajetória, velocidade e aceleração",
+            "Estudo gráfico do movimento",
+            "Movimento de projéteis",
+            "Movimento circular",
+            "Cinemática vetorial"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "nome": "Estática e Equilíbrio",
+      "subareas": [
+        {
+          "id": "3.1",
+          "nome": "Estática e Equilíbrio",
+          "topicos": [
+            "Conceito de força",
+            "Equilíbrio de uma partícula",
+            "Momento de uma força",
+            "Equilíbrio de um corpo rígido",
+            "Equilíbrios estável e instável"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "nome": "Dinâmica",
+      "subareas": [
+        {
+          "id": "4.1",
+          "nome": "Dinâmica",
+          "topicos": [
+            "Leis fundamentais da Mecânica",
+            "Dinâmica do movimento retilíneo",
+            "Dinâmica do movimento circular",
+            "Força centrípeta",
+            "Sistemas acelerados de referência e força centrífuga",
+            "Impulso e quantidade de movimento",
+            "Centro de massa"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "nome": "Energia",
+      "subareas": [
+        {
+          "id": "5.1",
+          "nome": "Energia",
+          "topicos": [
+            "Trabalho e energia cinética",
+            "Energia potencial",
+            "Conservação da energia mecânica",
+            "Forças conservativas e dissipativas"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "nome": "Gravitação",
+      "subareas": [
+        {
+          "id": "6.1",
+          "nome": "Gravitação",
+          "topicos": [
+            "Gravitação universal",
+            "Campo gravitacional",
+            "Leis de Kepler do movimento planetário"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "nome": "Oscilações e Ondas Mecânicas",
+      "subareas": [
+        {
+          "id": "7.1",
+          "nome": "Movimento Harmônico Simples",
+          "topicos": [
+            "Movimentos periódicos",
+            "MHS",
+            "Superposição de MHS",
+            "Pêndulo simples"
+          ]
+        },
+        {
+          "id": "7.2",
+          "nome": "Ondas e Acústica",
+          "topicos": [
+            "Ondas transversais e longitudinais",
+            "Natureza do som",
+            "Altura, intensidade e timbre",
+            "Velocidade do som",
+            "Cordas vibrantes e tubos sonoros",
+            "Efeito Doppler"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "nome": "Hidrostática e Hidrodinâmica",
+      "subareas": [
+        {
+          "id": "8.1",
+          "nome": "Hidrostática e Hidrodinâmica",
+          "topicos": [
+            "Pressão e massa específica",
+            "Princípios de Arquimedes e de Pascal",
+            "Pressão atmosférica",
+            "Tipos de escoamento",
+            "Vazão e fluxo de massa",
+            "Equação da continuidade",
+            "Equação de Bernoulli",
+            "Equação de Torricelli"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "nome": "Termodinâmica",
+      "subareas": [
+        {
+          "id": "9.1",
+          "nome": "Termodinâmica",
+          "topicos": [
+            "Temperatura e graduação de termômetros",
+            "Escalas termométricas",
+            "Princípio zero da termodinâmica",
+            "Dilatação de sólidos e líquidos",
+            "Leis dos gases perfeitos e equação de Clapeyron",
+            "Teoria cinética dos gases",
+            "Quantidade de calor, calor específico e capacidade térmica",
+            "Equivalente mecânico do calor",
+            "1ª e 2ª Leis da Termodinâmica",
+            "Propagação do calor"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "nome": "Óptica",
+      "subareas": [
+        {
+          "id": "10.1",
+          "nome": "Óptica Geométrica",
+          "topicos": [
+            "Propagação retilínea da luz",
+            "Leis da reflexão e da refração",
+            "Reflexão total",
+            "Espelhos, lâminas e prismas",
+            "Dispersão da luz",
+            "Lentes delgadas",
+            "Sistemas ópticos"
+          ]
+        },
+        {
+          "id": "10.2",
+          "nome": "Óptica Física",
+          "topicos": [
+            "Natureza ondulatória da luz",
+            "Interferência e experiência de Young",
+            "Difração",
+            "Polarização",
+            "Modelos ondulatório e corpuscular da luz"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "nome": "Eletrostática",
+      "subareas": [
+        {
+          "id": "11.1",
+          "nome": "Eletrostática",
+          "topicos": [
+            "Cargas elétricas e processos de eletrização",
+            "Estrutura do átomo",
+            "Lei de Coulomb",
+            "Campo elétrico e linhas de força",
+            "Potencial eletrostático",
+            "Capacitores e capacitância do capacitor plano",
+            "Associação de capacitores"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "nome": "Eletrodinâmica",
+      "subareas": [
+        {
+          "id": "12.1",
+          "nome": "Eletrodinâmica",
+          "topicos": [
+            "Condutores e isolantes",
+            "Corrente elétrica e resistência elétrica",
+            "Lei de Ohm e associação de resistências",
+            "Variação da resistividade com a temperatura",
+            "Efeito Joule",
+            "Leis de Kirchhoff",
+            "Ponte de Wheatstone",
+            "Geradores, força eletromotriz e associação de geradores"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "nome": "Eletromagnetismo",
+      "subareas": [
+        {
+          "id": "13.1",
+          "nome": "Magnetismo",
+          "topicos": [
+            "Campo magnético e ímãs",
+            "Campo magnético produzido por uma corrente elétrica",
+            "Bobinas",
+            "Forças sobre cargas em movimento em campo magnético",
+            "Interação entre correntes"
+          ]
+        },
+        {
+          "id": "13.2",
+          "nome": "Indução Eletromagnética e Ondas EM",
+          "topicos": [
+            "Lei de Faraday e Lei de Lenz",
+            "Autoindução e indutância",
+            "Propagação e interferência de ondas eletromagnéticas"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "nome": "Física Moderna",
+      "subareas": [
+        {
+          "id": "14.1",
+          "nome": "Física Quântica",
+          "topicos": [
+            "Efeito fotoelétrico",
+            "Radiação do corpo negro",
+            "Espectro do hidrogênio e átomo de Bohr",
+            "Princípio da incerteza"
+          ]
+        },
+        {
+          "id": "14.2",
+          "nome": "Relatividade Restrita",
+          "topicos": [
+            "Postulados de Einstein",
+            "Transformações de Lorentz",
+            "Dilatação do tempo e contração do comprimento",
+            "Composição de velocidades",
+            "Efeito Doppler relativístico",
+            "Quantidade de movimento e energia cinética relativísticas",
+            "Relação massa-energia"
+          ]
+        }
+      ]
+    }
+  ]
+}
