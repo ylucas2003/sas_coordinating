@@ -51,6 +51,7 @@ class Aluno(BaseModel):
     zona: Zona = "cinzenta"
     media: float | None = None
     sparkline: list[float] = []
+    temFoto: bool = False   # foto_perfil_storage IS NOT NULL — não expõe a key
 
 
 class Ciclo(BaseModel):

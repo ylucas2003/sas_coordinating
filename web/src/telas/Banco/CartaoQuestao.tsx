@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { BotaoInfo } from '../../componentes/ui/BotaoInfo';
 import { ehDissertativa, rotuloQuestao, temGabarito } from '../../dominio/banco';
 import { useAtualizarEstudo } from '../../hooks/banco';
 import type { QuestaoVestibular, TopicoDaQuestao } from '../../tipos/banco';
@@ -43,6 +44,7 @@ export function CartaoQuestao({
   // apagaria o que o aluno está digitando quando outra invalidação chegasse.
   const [rascunho, setRascunho] = useState(questao.anotacao ?? '');
   const [imagemFalhou, setImagemFalhou] = useState(false);
+  const [imagemOriginalAberta, setImagemOriginalAberta] = useState(false);
 
   const estudo = useAtualizarEstudo();
 
@@ -50,10 +52,21 @@ export function CartaoQuestao({
   const resolvida = questao.resolvida === true;
   const rotulo = rotuloQuestao(questao);
   const dissertativa = ehDissertativa(questao);
+  // Página escaneada lida por visão (docs/22, piloto ITA 1973): o OCR não dá
+  // conta de datilografia antiga, e quem transcreveu foi um agente lendo a
+  // imagem — a transcrição sai mais legível que o recorte. Aqui o texto é o
+  // principal e a imagem vira consulta opcional, o inverso do caso comum.
+  const ehVisao = questao.extraidoPor === 'visao';
   // A imagem vive num bucket S3 sem cópia local (docs/22 §0.2, risco 6) e a CSP
   // de produção só libera `img-src 'self' data: blob:` (infra/vps/nginx.conf).
   // Quando ela não vem, o texto extraído do PDF é melhor que um retângulo vazio.
-  const mostrarImagem = questao.usaImagemNoRender && !!questao.imagemUrl && !imagemFalhou;
+  const mostrarImagem = !ehVisao && questao.usaImagemNoRender && !!questao.imagemUrl && !imagemFalhou;
+  const podeAbrirImagemOriginal = ehVisao && !!questao.imagemUrl;
+  // Modo página (docs/24): a imagem é a página inteira do PDF, não um recorte
+  // fino da questão — pode trazer questão vizinha junto. Card só encolhe pra
+  // ~330px, então uma A4 inteira em 200dpi fica pequena demais pra ler fórmula
+  // sem zoom; o link abre o PNG original (pinch-zoom nativo do navegador).
+  const ehPagina = questao.extraidoPor === 'pagina';
 
   function salvarAnotacao() {
     const texto = rascunho.trim();
@@ -112,14 +125,27 @@ export function CartaoQuestao({
 
       <div className="banco-questao__corpo">
         {mostrarImagem ? (
-          <img
-            className="banco-questao__imagem"
-            src={questao.imagemUrl ?? ''}
-            alt={`Enunciado da questão — ${rotulo}`}
-            loading="lazy"
-            decoding="async"
-            onError={() => setImagemFalhou(true)}
-          />
+          <>
+            {ehPagina && (
+              <p className="banco-questao__aviso-imagem">
+                Localize a <strong>Questão {questao.numero}</strong>
+                <BotaoInfo
+                  rotulo="Sobre esta imagem"
+                  texto="Página original da prova. Pode trazer outras questões junto; toque na imagem para abrir em tamanho real."
+                />
+              </p>
+            )}
+            <a href={questao.imagemUrl ?? ''} target="_blank" rel="noopener noreferrer">
+              <img
+                className="banco-questao__imagem"
+                src={questao.imagemUrl ?? ''}
+                alt={`Enunciado da questão — ${rotulo}`}
+                loading="lazy"
+                decoding="async"
+                onError={() => setImagemFalhou(true)}
+              />
+            </a>
+          </>
         ) : (
           // Texto cru, sem render de Markdown: não há biblioteca de Markdown no
           // projeto e o enunciado ainda traz sujeira de OCR (docs/22 §8, risco 5).
@@ -135,6 +161,39 @@ export function CartaoQuestao({
               </li>
             ))}
           </ul>
+        )}
+
+        {podeAbrirImagemOriginal && (
+          <div className="banco-questao__imagem-original">
+            <button
+              type="button"
+              className="banco-questao__acao"
+              aria-expanded={imagemOriginalAberta}
+              onClick={() => setImagemOriginalAberta((v) => !v)}
+            >
+              {imagemOriginalAberta ? 'Ocultar imagem da questão' : 'Abrir imagem da questão'}
+            </button>
+            {imagemOriginalAberta && !imagemFalhou && (
+              <>
+                <img
+                  className="banco-questao__imagem"
+                  src={questao.imagemUrl ?? ''}
+                  alt={`Página original digitalizada — ${rotulo}`}
+                  loading="lazy"
+                  decoding="async"
+                  onError={() => setImagemFalhou(true)}
+                />
+                {/* A digitalização é antiga e às vezes perde nitidez — a transcrição
+                    acima já passou por conferência, mas vale contrastar quando algo
+                    parecer estranho. */}
+                <p className="banco-questao__aviso-imagem">
+                  Página digitalizada, de resolução mais baixa — leia o enunciado
+                  acima e, se algum trecho parecer estranho, confira aqui a imagem
+                  original.
+                </p>
+              </>
+            )}
+          </div>
         )}
 
         <Gabarito
@@ -185,11 +244,11 @@ export function CartaoQuestao({
  * era essa a razão de o aluno abrir o banco. Antes só aparecia onde não havia
  * gabarito, o que escondia o link em 493 das 934.
  *
- * Sem link em 210 — a 2ª fase do IME, que o Ari não comenta. Ausência é
- * ausência de resolução publicada, não de dado (banco/resolucao.py).
+ * Sem link em 210 (2ª fase do IME, que o Ari não comenta) e em toda questão
+ * anterior a 2019 — o Ari só publica resolução comentada a partir daquele ano
+ * (banco/resolucao.py). É para esse acervo que existe `ResolucaoSugerida`.
  */
-function LinkResolucao({ url }: { url: string | null | undefined }) {
-  if (!url) return null;
+function LinkResolucao({ url }: { url: string }) {
   return (
     <a
       className="banco-questao__gabarito banco-questao__resolucao"
@@ -200,6 +259,48 @@ function LinkResolucao({ url }: { url: string | null | undefined }) {
       Ver resolução ↗
     </a>
   );
+}
+
+/**
+ * A resolução escrita no próprio cartão — o substituto do link do Ari onde ele
+ * não existe (todo o acervo anterior a 2019). Fica atrás de um clique como o
+ * gabarito, com o mesmo motivo: a resposta não pode aparecer antes de o aluno
+ * decidir olhar.
+ *
+ * `resolucaoMd` ainda não passa por um renderizador de Markdown — o projeto
+ * não tem um (web/CLAUDE.md), e o enunciado já convive com a mesma limitação
+ * (docs/22 §8, risco 5). Fórmula em LaTeX aparece crua; é dívida conhecida,
+ * não esquecimento.
+ */
+function ResolucaoSugerida({ md }: { md: string }) {
+  const [aberta, setAberta] = useState(false);
+  return (
+    <div className="banco-questao__resolucao-sugerida">
+      <button
+        type="button"
+        className="banco-questao__gabarito banco-questao__resolucao"
+        aria-expanded={aberta}
+        onClick={() => setAberta((v) => !v)}
+      >
+        {aberta ? 'Ocultar resolução' : 'Sugestão de resolução'}
+      </button>
+      {aberta && (
+        <div className="banco-questao__resolucao-corpo">
+          <p>{md}</p>
+          <p className="banco-questao__resolucao-aviso">
+            Sugestão de resolução — não é a resolução oficial da banca.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Escolhe entre o link do Ari e a resolução escrita — nunca as duas (CHECK da 0031). */
+function Resolucao({ questao }: { questao: QuestaoVestibular }) {
+  if (questao.resolucaoUrl) return <LinkResolucao url={questao.resolucaoUrl} />;
+  if (questao.resolucaoMd) return <ResolucaoSugerida md={questao.resolucaoMd} />;
+  return null;
 }
 
 /**
@@ -230,10 +331,17 @@ function Gabarito({
         {/* A resolução ocupa o lugar do gabarito, e por isso veste a mesma
             classe: `.banco-questao__gabarito` tem `align-self: flex-start`, o
             que a impede de esticar na coluna do corpo do cartão. */}
-        <LinkResolucao url={questao.resolucaoUrl} />
+        <Resolucao questao={questao} />
       </>
     );
   }
+
+  // 'sugerido' só chega aqui com confiança alta — é o próprio backend que não
+  // grava a letra abaixo disso (migration 0031, calibrado em 220 questões:
+  // 99,5% de acerto na faixa alta). Aqui só resta decidir a cor: âmbar, não
+  // verde — verde é "confirmado" neste projeto, e uma sugestão pintada de
+  // verde diria ao aluno que a banca respondeu isso.
+  const sugerido = questao.gabaritoOrigem === 'sugerido';
 
   return (
     <>
@@ -241,17 +349,24 @@ function Gabarito({
         type="button"
         // Mesmo elemento nos dois estados de propósito: trocar por um <div> ao
         // revelar tiraria o foco do teclado do cartão que a pessoa está lendo.
-        className={`banco-questao__gabarito${visivel ? ' banco-questao__gabarito--revelado' : ''}`}
+        className={`banco-questao__gabarito${visivel ? ' banco-questao__gabarito--revelado' : ''}${sugerido ? ' banco-questao__gabarito--sugerido' : ''}`}
         aria-expanded={visivel}
         onClick={onAlternar}
       >
         {visivel ? (
           <span className="banco-questao__gabarito-letra">{questao.gabarito}</span>
+        ) : sugerido ? (
+          'sugestão de gabarito'
         ) : (
           'ver gabarito'
         )}
       </button>
-      <LinkResolucao url={questao.resolucaoUrl} />
+      {visivel && sugerido && (
+        <span className="banco-questao__gabarito-aviso">
+          Sugestão de gabarito — a banca não publicou o oficial desta prova.
+        </span>
+      )}
+      <Resolucao questao={questao} />
     </>
   );
 }

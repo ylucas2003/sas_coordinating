@@ -63,6 +63,8 @@ export interface Aluno {
   zona: Zona;
   media: number | null;
   sparkline: number[];
+  /** `foto_perfil_storage IS NOT NULL` — não expõe a key, só se existe. */
+  temFoto: boolean;
 }
 
 export interface Ciclo {
@@ -310,6 +312,7 @@ export interface EventoAuditoria {
   ator_tipo: 'coordenador' | 'aluno' | null;
   ator_id: string | null;
   ator_nome: string | null;
+  ator_tem_foto: boolean;
   recurso: string | null;
   ip: string | null;
   detalhe: Record<string, unknown> | null;
@@ -333,6 +336,7 @@ export interface UsuarioCoordenacao {
   ultimo_login_em: string | null;
   /** id no Canvas — liga a conta ao SSO. `null` = só e-mail + senha. */
   canvas_user_id: string | null;
+  temFoto: boolean;
 }
 
 export interface AcessoAluno {
@@ -342,6 +346,7 @@ export interface AcessoAluno {
   email: string | null;
   temCanvas: boolean;
   primeiroAcessoFeito: boolean;
+  temFoto: boolean;
   ultimoLoginEm: string | null;
 }
 

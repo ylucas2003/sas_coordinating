@@ -16,6 +16,7 @@ import { Login } from './telas/Login/Login';
 import { CallbackCanvas } from './telas/Login/CallbackCanvas';
 import { ChatLauncher } from './componentes/chat/ChatLauncher';
 import { LimiteDeErro } from './componentes/LimiteDeErro';
+import { LembreteFotoPerfil } from './componentes/perfil/LembreteFotoPerfil';
 import {
   CAPACIDADES_ALUNO, CAPACIDADES_COORDENADOR, SUGESTOES_ALUNO, SUGESTOES_COORDENADOR,
 } from './dados/perfisSugestoes';
@@ -40,6 +41,7 @@ function AppAluno() {
         sugestoes={SUGESTOES_ALUNO}
         capacidades={CAPACIDADES_ALUNO}
       />
+      <LembreteFotoPerfil />
     </>
   );
 }
@@ -68,6 +70,7 @@ function AppCoordenacao() {
       </Routes>
 
       <ChatComLimite sugestoes={SUGESTOES_COORDENADOR} capacidades={CAPACIDADES_COORDENADOR} />
+      <LembreteFotoPerfil />
     </AppShell>
   );
 }

@@ -1,0 +1,156 @@
+{
+  "paginas": [
+    {
+      "pagina": 4,
+      "tipo": "questoes",
+      "observacao": "Página numerada \"- 3 -\" no original, com as questões 5, 6 e 7 (a 5 e a 7 acompanhadas de figura/gráfico)."
+    },
+    {
+      "pagina": 5,
+      "tipo": "questoes",
+      "observacao": "Página numerada \"- 4 -\" no original, com as questões 8, 9 e 10 (a 8 e a 10 acompanhadas de gráfico)."
+    },
+    {
+      "pagina": 6,
+      "tipo": "questoes",
+      "observacao": "Página numerada \"- 5 -\" no original, com as questões 11, 12 e 13, todas acompanhadas de figura."
+    }
+  ],
+  "questoes": [
+    {
+      "numero": 5,
+      "pagina": 4,
+      "enunciado_md": "Na Figura temos um bloco de massa igual a 10 kg sôbre uma mêsa que apresenta coeficientes de atrito estático de 0,3 e cinético de 0,25. Aplica-se ao bloco uma força F de 20 N. Utilize a lei fundamental da dinâmica (2ª lei de Newton) para assinalar abaixo o valor da força de atrito ($F_a$) no sistema indicado ($g = 9,8$ $m/s^2$).",
+      "alternativas": {
+        "A": "20 N",
+        "B": "24,5 N",
+        "C": "29,4 N",
+        "D": "6,0 N",
+        "E": "Nenhuma das respostas anteriores."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 6,
+      "pagina": 4,
+      "enunciado_md": "Um garôto dispõe de um elástico em cuja extremidade êle prende uma pedra de 10 gramas: Dando um raio R=1,00m (comprimento de repouso), êle faz a pedra girar num círculo horizontal sôbre sua cabeça com uma velocidade angular $\\omega$=2,0 rd/s. Considerando-se agora que o novo raio do círculo, R', é constante, e que a constante elástica do elástico é $k = 2,0 \\times 10^{-1} \\frac{N}{m}$, qual a diferença entre R' e R ?",
+      "alternativas": {
+        "A": "2,5 cm",
+        "B": "2,0 m",
+        "C": "2,0 cm",
+        "D": "0,20 m",
+        "E": "0,25 m ."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": false,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 7,
+      "pagina": 4,
+      "enunciado_md": "Dadas 3 partículas e respectivas posições, m(x,y), em que m é a massa em quilogramas, x e y as posições em metros, tais que: 2(3,6), 4(4,4), 2(1,2), indique qual dos pontos do gráfico representa o centro de massa do sistema.",
+      "alternativas": {
+        "A": "[gráfico]",
+        "B": "[gráfico]",
+        "C": "[gráfico]",
+        "D": "[gráfico]",
+        "E": "[gráfico]"
+      },
+      "alternativas_sao_figuras": true,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 8,
+      "pagina": 5,
+      "enunciado_md": "Uma massa m = 5,0 kg desloca-se ao longo do eixo x em função do tempo conforme o gráfico (1). Em certo instante, durante um curto intervalo de tempo $\\Delta t$ ela sofre a ação de uma força impulsiva e o seu movimento, após essa ação, passa a obedecer o gráfico (2). Qual foi o impulso dessa força sôbre o corpo?",
+      "alternativas": {
+        "A": "7,5 kg m/s",
+        "B": "26,3 kg m/s",
+        "C": "7,5 N.m",
+        "D": "12,5 J",
+        "E": "12,5 kg m/s ."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 9,
+      "pagina": 5,
+      "enunciado_md": "Na questão anterior, se $\\Delta t = 1,0 \\times 10^{-2}$s, qual foi o valor médio da força?",
+      "alternativas": {
+        "A": "7,5 N",
+        "B": "26,3 N",
+        "C": "125 N",
+        "D": "$7,5 \\times 10^{2}$ N",
+        "E": "12,5 N"
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": false,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 10,
+      "pagina": 5,
+      "enunciado_md": "Um balãozinho de borracha é gradativamente cheio de ar com o auxílio de um pequeno compressor. Chamamos de V o volume do balão quando no seu interior existe uma sobrepressão $\\pi$ ($\\pi$ = pressão interna - pressão atmosférica). Qual das curvas mais se aproximará da real relação entre V e $\\pi$?",
+      "alternativas": {
+        "A": "[gráfico]",
+        "B": "[gráfico]",
+        "C": "[gráfico]",
+        "D": "[gráfico]",
+        "E": "[gráfico]"
+      },
+      "alternativas_sao_figuras": true,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 11,
+      "pagina": 6,
+      "enunciado_md": "Na figura temos uma massa M = 132 g, inicialmente em repouso, prêsa a uma mola de constante $k = 1,6 \\times 10^{4}$ N/m podendo se deslocar sem atrito sôbre a mêsa em que se encontra. Atira-se uma bala de massa m = 12 g que encontra o bloco horizontalmente, com uma velocidade $v_o$ = 200 m/s, incrustando-se nêle. Qual é a amplitude do movimento que resulta dêsse impacto?",
+      "alternativas": {
+        "A": "25 cm",
+        "B": "50 cm",
+        "C": "5,0 cm",
+        "D": "1,6 m",
+        "E": "Nenhum dos resultados acima."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 12,
+      "pagina": 6,
+      "enunciado_md": "Na extremidade inferior de uma vela se fixa um cilindro de chumbo. A vela é acêsa e imersa em água conforme esquema ao lado. Supomos que o pavio tenha pêso desprezível e que não escôrra a cêra fundida enquanto a vela queima. Nestas condições, enquanto a vela queima:",
+      "alternativas": {
+        "A": "x permanece constante e y diminui",
+        "B": "x aumenta e y decresce",
+        "C": "o valor da relação x/y permanece constante",
+        "D": "x chega a zero antes de y",
+        "E": "depois de certo tempo a vela tende a tombar para um lado."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 13,
+      "pagina": 6,
+      "enunciado_md": "Emborca-se um tubo de ensaio numa vasilha com água, conforme a figura. Com respeito à pressão nos pontos a,b,c,d,e,f, qual das opções abaixo é válida?",
+      "alternativas": {
+        "A": "$P_a = P_d$",
+        "B": "$P_a = P_f$",
+        "C": "$P_c = P_d$",
+        "D": "$P_e = P_b$",
+        "E": "Nenhuma das opções acima é correta."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    }
+  ]
+}

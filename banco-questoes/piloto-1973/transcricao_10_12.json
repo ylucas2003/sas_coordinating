@@ -1,0 +1,117 @@
+{
+  "paginas": [
+    {
+      "pagina": 10,
+      "tipo": "questoes",
+      "observacao": "Página numerada '- 9 -' no original; traz as questões 20 (com dois gráficos I x V) e 21 (alternativas A-D em forma de esquemas de circuito)."
+    },
+    {
+      "pagina": 11,
+      "tipo": "questoes",
+      "observacao": "Página numerada '- 10 -' no original; traz as questões 22 (com figura de circuito com pilha e resistores) e 23 (com esquema de ímã S-N e pedaço de ferro)."
+    },
+    {
+      "pagina": 12,
+      "tipo": "questoes",
+      "observacao": "Página numerada '- 11 -' no original; traz as questões 24 (com figura de espira circular no campo H) e 25 (efeito Doppler entre duas fontes sonoras)."
+    }
+  ],
+  "questoes": [
+    {
+      "numero": 20,
+      "pagina": 10,
+      "enunciado_md": "Se as relações entre a corrente I e o potencial V para dois elementos de circuito podem ser representadas pelos gráficos abaixo.\n\n[figura: Fig. 1 — gráfico $I$ (eixo vertical) por $V$ (eixo horizontal), reta pela origem O formando ângulo $\\theta$ com o eixo $V$; Fig. 2 — gráfico $I$ por $V$, curva decrescente partindo de valor alto próximo do eixo $I$ e tendendo assintoticamente ao eixo $V$]\n\nPodemos afirmar que:",
+      "alternativas": {
+        "A": "Ambos os elementos obedecem a lei de Ohm.",
+        "B": "A resistividade para ambos os elementos é constante.",
+        "C": "Quanto maior o ângulo $\\theta$, menor é a resistência R do elemento linear.",
+        "D": "Nenhum dos elementos de circuito é considerado estritamente linear.",
+        "E": "A resistência R do elemento de circuito linear é proporcio - nal à tangente do ângulo $\\theta$."
+      },
+      "dissertativa": false,
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 21,
+      "pagina": 10,
+      "enunciado_md": "Na questão anterior os elementos de circuito que deram origem aos dois gráficos podem ser assim representados:\n\nFigura 1                    Figura 2",
+      "alternativas": {
+        "A": "[gráfico]",
+        "B": "[gráfico]",
+        "C": "[gráfico]",
+        "D": "[gráfico]",
+        "E": "Nenhum dos arranjos acima corresponde à questão."
+      },
+      "dissertativa": false,
+      "alternativas_sao_figuras": true,
+      "tem_figura_no_enunciado": false,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 22,
+      "pagina": 11,
+      "enunciado_md": "Dado o circuito abaixo, determine a f.e.m. da pilha para que a potencia dissipada em qualquer das resistências não ultrapas se 4W.\n\n[figura: circuito com resistores de $3\\Omega$ (ramo superior), $3\\Omega$ e $4\\Omega$ em série com a pilha (ramo do meio, com os polos + e - indicados) e $6\\Omega$ (ramo inferior), todos ligados entre os mesmos dois nós]",
+      "alternativas": {
+        "A": "9V",
+        "B": "4,5V",
+        "C": "1,5V",
+        "D": "90V",
+        "E": "45V"
+      },
+      "dissertativa": false,
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 23,
+      "pagina": 11,
+      "enunciado_md": "Um pedaço de ferro é pôsto nas proximidades de um imã conforme esquema abaixo. Qual é a única afirmação correta relativa à situação em aprêço?\n\n[figura: barra imantada retangular com polo S à esquerda e polo N à direita, e à direita dela um pedaço irregular de ferro marcado \"Fe\"]",
+      "alternativas": {
+        "A": "É o imã que atrai o ferro.",
+        "B": "É o ferro que atrai o imã.",
+        "C": "A atração do ferro pelo imã é mais intensa do que a atração do imã pelo ferro.",
+        "D": "A atração do imã pelo ferro é mais intensa do que a atração do ferro pelo imã.",
+        "E": "A atração do ferro pelo imã é igual à atração do imã pelo ferro."
+      },
+      "dissertativa": false,
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 24,
+      "pagina": 12,
+      "enunciado_md": "Um campo magnético H é perpendicular ao papel e dirigido para cima. Uma corrente I flui numa espira circular de raio r cujo plano coincide com o do papel. As forças que agem sôbre a espira são tais que tendem a produzir nela :\n\n[figura: espira circular de raio $r$ com corrente $I$, imersa em campo $H$ representado por pontos (saindo do papel); eixo tracejado vertical $E-E'$ passando pelo centro da espira, com os terminais descendo para baixo]",
+      "alternativas": {
+        "A": "um encolhimento.",
+        "B": "um alargamento .",
+        "C": "uma rotação no sentido horário em tôrno de um eixo vertical pelo seu centro.",
+        "D": "uma rotação no sentido anti-horário em tôrno do eixo vertical pelo centro.",
+        "E": "uma rotação em tôrno do eixo $E-E'$ do plano da espira."
+      },
+      "dissertativa": false,
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 25,
+      "pagina": 12,
+      "enunciado_md": "Com que velocidade deve um observador deslocar-se entre duas fontes sonoras estacionárias que emitem sons de mesma frequência, para que êle tenha a sensação de que essas frequências estão na razão 9:8?\nA velocidade do som no ar é 340 m/s.",
+      "alternativas": {
+        "A": "20 m/s",
+        "B": "25 m/s",
+        "C": "40 m/s",
+        "D": "10 m/s",
+        "E": "Nenhuma das respostas acima."
+      },
+      "dissertativa": false,
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": false,
+      "trechos_ilegiveis": 0
+    }
+  ]
+}

@@ -4,15 +4,18 @@
 > contam *por que* e *como*; este diz só *onde estamos*. Quando divergirem,
 > corrija aqui primeiro — é o que se lê antes de qualquer sprint.
 >
-> Atualizado em **23/08/2026**, depois do redesenho do casco — que está
-> escrito mas **não verificado** ([§1.5](#15--escrito-mas-não-em-produção)).
+> Atualizado em **24/08/2026**, depois do deploy que juntou o redesenho do
+> casco, a SPRINT FOTO e o acervo histórico do banco de questões — ver §9.8
+> de [23-banco-questoes-historico.md](23-banco-questoes-historico.md) pra
+> como isso quase saiu errado (checkout desatualizado, importador sem
+> acesso aos JSONs dentro do container).
 
 ---
 
 ## 1 · Em produção hoje (`portalsas.online`)
 
-Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0029**.
-Testes: **120** no backend, **134** no front.
+Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0032**.
+Testes: **165** no backend, **142** no front.
 
 ### Sprint 1 · Bloco A — o simulado nasce no SAS *(17–20/08)*
 
@@ -53,6 +56,49 @@ Furou a fila junto do mobile, por decisão direta. Plano e achados em
 934 JSONs não são versionados, e `scripts/exportar_banco_questoes.py` é a saída
 — conferida em produção com zero divergência.
 
+### Sprint Acervo histórico do banco de questões *(23–24/08)*
+
+ITA 2008–2018 + IME 1996–2019 (lotes A+B; C+D — pré-2008/1996, majoritariamente
+escaneados — ficaram de fora por decisão de escopo). Plano, achados e a
+novela do deploy em [23-banco-questoes-historico.md](23-banco-questoes-historico.md).
+
+| Parte | O quê | Estado |
+|---|---|---|
+| Extração + classificação + resolução (1ª passada) | 1444 questões, todas | ✅ |
+| Correção com imagem (2ª passada) | 482 questões citando figura — 263 via OpenAI, 204 via Claude | ✅ 467/482 (15 pendentes, sem recorte baixado ainda) |
+| Import em produção | `questao_vestibular`, migration `0031` | ✅ 24/08 — 2378 questões no total |
+
+**O Postgres de produção passa a ter 2378 questões** (934 + 1444). Lotes C/D
+(257 PDFs escaneados) seguem fora — [23-banco-questoes-historico.md §6](23-banco-questoes-historico.md#6--coisas-descobertas-que-mudam-a-forma-de-abordar-cd-no-futuro).
+
+### Sprint Redesenho do casco *(23/08)*
+
+Rail de ícones no lugar da topbar de 7 abas, migalhas, faixa de filtros
+horizontal, Ciclos+Simulados fundidos em `/provas`. Plano em
+[23-plano-redesenho-casco.md](23-plano-redesenho-casco.md).
+
+| Parte | O quê | Estado |
+|---|---|---|
+| P1 | Tokens — paleta do canvas, cinza azulado, âmbar separado em traço e texto | ✅ |
+| P2 | Casco — rail, topbar com migalhas, barra inferior no celular | ✅ |
+| P3 | Telas — `BarraFiltros`, `/provas`, abas de Administração | ✅ |
+| P4 | Polimento tela a tela, com o browser aberto | ⏳ **não feito** — foi pro ar sem essa checagem, ver §1.5 |
+
+### Sprint Foto de perfil *(23–24/08)*
+
+"O rosto no cadastro" — pedir a foto no primeiro acesso, guardar no banco
+(`foto_perfil`, migration `0032`), servir por rota autenticada da própria
+API. Documentado em `docs/sprints.html · SPRINT FOTO` (sem doc próprio em
+`docs/` ainda).
+
+| Parte | O quê | Estado |
+|---|---|---|
+| P1 | Onde a foto mora — coluna `foto_perfil` em `aluno` e `usuario_coordenacao` | ✅ |
+| P2 | Pedido no primeiro acesso, recorte por `<canvas>` | ✅ |
+| P3 | Pedido reaparece pra quem já tinha conta e não tem foto | ✅ |
+| P4 | Onde o rosto aparece — casco do aluno, topbar, `/alunos`, ficha, `/auditoria` | ✅ |
+| P5 | Consentimento (andaime técnico), troca, remoção auditada | ✅ |
+
 ### Blocos B, C, D do [docs/10](10-problemas-e-visao.md) — o que já caiu no caminho
 
 | Item | Estado | Onde |
@@ -65,26 +111,19 @@ Furou a fila junto do mobile, por decisão direta. Plano e achados em
 
 ## 1.5 · Escrito mas **não em produção**
 
-### Sprint Redesenho do casco *(23/08)*
+*(vazio — o que estava aqui, redesenho do casco + banco de questões
+histórico + SPRINT FOTO, foi para produção em 24/08. Ver §1 e
+[23-banco-questoes-historico.md §9.8](23-banco-questoes-historico.md#98--deploy-e-import-de-verdade--2408-madrugada)
+para a novela do deploy.)
 
-Rail de ícones no lugar da topbar de 7 abas, migalhas, faixa de filtros
-horizontal, Ciclos+Simulados fundidos em `/provas`. Plano, divergências em
-relação ao canvas e armadilhas em [23](23-plano-redesenho-casco.md).
-
-> ⚠️ **Implementado, não verificado.** O código foi escrito numa máquina sem
-> Node, npm ou Docker: **sem typecheck, sem lint, sem teste, sem uma abertura
-> no browser.** A conferência foi por leitura ([23 §6](23-plano-redesenho-casco.md#6--o-que-foi-conferido-à-mão-e-o-que-isso-não-cobre)).
-> Não trate como pronto antes do roteiro da [23 §7](23-plano-redesenho-casco.md#7--roteiro-de-verificação).
-
-| Parte | O quê | Estado |
-|---|---|---|
-| P1 | Tokens — paleta do canvas, cinza azulado, âmbar separado em traço e texto | ✅ escrito · ⚠️ não verificado |
-| P2 | Casco — rail, topbar com migalhas, barra inferior no celular | ✅ escrito · ⚠️ não verificado |
-| P3 | Telas — `BarraFiltros`, `/provas`, abas de Administração | ✅ escrito · ⚠️ não verificado |
-| P4 | Polimento tela a tela, com o browser aberto | ⏳ **não começou** |
-
-**Bloqueia o deploy:** o sino da topbar aponta para `/painel#alertas`, que não
-existe ([23 §8](23-plano-redesenho-casco.md#8--o-que-falta--p4) · item 3).
+> ⚠️ **Foi pro ar com um blocker conhecido não resolvido**: o sino da topbar
+> aponta para `/painel#alertas`, e esse id não existe em `Painel.tsx` —
+> confirmado ainda ausente em 24/08, na hora do deploy. Clicar no sino não dá
+> erro, só não rola pra lugar nenhum. Documentado aqui antes desse deploy
+> como "bloqueia o deploy" ([23-plano-redesenho-casco.md §8](23-plano-redesenho-casco.md#8--o-que-falta--p4)
+> · item 3) e foi pro ar assim mesmo — decisão de escopo do usuário
+> ("tudo que está na árvore hoje"), não descuido. Conserto pequeno: um
+> `id="alertas"` em algum bloco de `Painel.tsx`.
 
 ---
 

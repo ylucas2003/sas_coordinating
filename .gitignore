@@ -27,3 +27,24 @@ banco-questoes/imagens/
 banco-questoes/output/
 banco-questoes/logs/
 banco-questoes/**/pendentes.txt
+banco-questoes/.venv/
+banco-questoes/**/__pycache__/
+# Relatório/manifesto de rodar o pipeline — saída de cada execução, não fonte
+# da verdade (mesmo raciocínio de logs/ e output/ acima).
+banco-questoes/_relatorio_extracao_*.json
+banco-questoes/manifesto_correcao.json
+banco-questoes/pipeline/manifesto_correcao.json
+banco-questoes/pipeline/_pendencias_correcao_imagem.json
+
+# Fonte adicional de PDFs do acervo histórico (docs/23 §21.5) — provas
+# resolvidas de cursinho ("CURSO OBJETIVO", "ELITE"), material de terceiros,
+# 577 MB. Mesma regra dos PDFs de banco-questoes/pdfs_originais/ acima: fica
+# fora do git — entrada bruta, e de origem que não é nossa pra redistribuir.
+Provas Resolvidas ITA/
+
+# Piloto ITA 1973 (docs/23) — mesma regra do banco-questoes/imagens/ acima:
+# os PNGs recortados foram pro S3 (prefixo piloto-1973/), não ficam no git.
+# analise_*.json, transcricao_*.json, como-fica-no-site.html e os scripts
+# continuam versionados — são a fonte da verdade do piloto, não regeneráveis.
+banco-questoes/piloto-1973/recortes/
+banco-questoes/piloto-1973/*.png

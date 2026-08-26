@@ -60,7 +60,7 @@ export function Login() {
 
   /** Login e primeiro acesso devolvem o mesmo shape — a sessão nasce igual. */
   function entrar(dados: {
-    access_token: string; tipo: string; nome: string; aluno_id?: string;
+    access_token: string; tipo: string; nome: string; aluno_id?: string; temFoto: boolean;
   }) {
     sessao.iniciar(dados);
     navegar('/', { replace: true });
@@ -142,7 +142,7 @@ function FormularioLogin({
 }: {
   modo: Modo;
   rotulos: (typeof MODOS)[Modo];
-  onEntrar: (dados: { access_token: string; tipo: string; nome: string; aluno_id?: string }) => void;
+  onEntrar: (dados: { access_token: string; tipo: string; nome: string; aluno_id?: string; temFoto: boolean }) => void;
 }) {
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
@@ -223,7 +223,7 @@ function FormularioLogin({
 function FormularioPrimeiroAcesso({
   onEntrar, onVoltar,
 }: {
-  onEntrar: (dados: { access_token: string; tipo: string; nome: string; aluno_id?: string }) => void;
+  onEntrar: (dados: { access_token: string; tipo: string; nome: string; aluno_id?: string; temFoto: boolean }) => void;
   onVoltar: () => void;
 }) {
   const [matricula, setMatricula] = useState('');

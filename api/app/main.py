@@ -7,7 +7,7 @@ OpenAPI: http://localhost:8000/docs
 """
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +21,6 @@ from .observabilidade import (
     handler_erro_nao_tratado,
     middleware_request_id,
 )
-from .supabase_client import get_supabase
 from .routes import (
     administracao,
     alertas,
@@ -35,11 +34,13 @@ from .routes import (
     dimensoes,
     disparos,
     email_eventos,
+    foto_perfil,
     me,
     notas,
     simulados,
     uploads,
 )
+from .supabase_client import get_supabase
 
 
 def _validar_configuracao(settings) -> None:
@@ -139,6 +140,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(auth_canvas.router)
     app.include_router(me.router)
+    app.include_router(foto_perfil.router)
     app.include_router(alertas.router)
     app.include_router(alunos.router)
     app.include_router(simulados.router)
@@ -198,7 +200,7 @@ def create_app() -> FastAPI:
             cliente = get_supabase()
             cliente.table("materia").select("id").limit(1).execute()
             detalhe["banco"] = "ok"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             detalhe["banco"] = "falhou"
             problemas.append(f"banco inacessível: {type(exc).__name__}")
 
@@ -225,7 +227,7 @@ def create_app() -> FastAPI:
                     quando = datetime.fromisoformat(
                         str(linhas[0]["finalizado_em"]).replace("Z", "+00:00")
                     )
-                    idade = datetime.now(timezone.utc) - quando
+                    idade = datetime.now(UTC) - quando
                     detalhe["ultimo_sync"] = quando.isoformat()
                     detalhe["ha_minutos"] = int(idade.total_seconds() // 60)
                     if idade > timedelta(minutes=limite_min):
@@ -233,7 +235,7 @@ def create_app() -> FastAPI:
                             f"sem sync bem-sucedido há {detalhe['ha_minutos']} min "
                             f"(limite {limite_min})"
                         )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 problemas.append(f"não consegui ler o histórico de sync: {type(exc).__name__}")
 
         if problemas:

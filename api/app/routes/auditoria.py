@@ -74,9 +74,13 @@ async def listar_eventos(
 
     # Nome de quem fez, para a tela não mostrar uuid. Melhor-esforço: um
     # ator que não existe mais continua aparecendo pelo id.
-    nomes = _nomes_dos_atores(cliente, eventos)
+    nomes, tem_foto = _nomes_dos_atores(cliente, eventos)
     for e in eventos:
         e["ator_nome"] = nomes.get(e.get("ator_id") or "")
+        # Sinal barato (uma coluna a mais no mesmo select) pro front decidir
+        # se vale buscar a foto — sem isso, cada linha da lista tentaria
+        # `/foto` mesmo para quem nunca teve uma.
+        e["ator_tem_foto"] = tem_foto.get(e.get("ator_id") or "", False)
 
     return {
         "eventos": eventos,
@@ -85,7 +89,7 @@ async def listar_eventos(
     }
 
 
-def _nomes_dos_atores(cliente, eventos: list[dict]) -> dict[str, str]:
+def _nomes_dos_atores(cliente, eventos: list[dict]) -> tuple[dict[str, str], dict[str, bool]]:
     coord_ids = sorted({
         e["ator_id"] for e in eventos
         if e.get("ator_tipo") == "coordenador" and e.get("ator_id") and len(e["ator_id"]) == 36
@@ -95,10 +99,29 @@ def _nomes_dos_atores(cliente, eventos: list[dict]) -> dict[str, str]:
         if e.get("ator_tipo") == "aluno" and e.get("ator_id") and len(e["ator_id"]) == 36
     })
     nomes: dict[str, str] = {}
+    tem_foto: dict[str, bool] = {}
     if coord_ids:
-        for u in cliente.table("usuario_coordenacao").select("id, nome").in_("id", coord_ids).execute().data or []:
+        linhas = (
+            cliente.table("usuario_coordenacao")
+            .select("id, nome, foto_perfil_storage")
+            .in_("id", coord_ids)
+            .execute()
+            .data
+            or []
+        )
+        for u in linhas:
             nomes[u["id"]] = u["nome"]
+            tem_foto[u["id"]] = u.get("foto_perfil_storage") is not None
     if aluno_ids:
-        for a in cliente.table("aluno").select("id, nome").in_("id", aluno_ids).execute().data or []:
+        linhas = (
+            cliente.table("aluno")
+            .select("id, nome, foto_perfil_storage")
+            .in_("id", aluno_ids)
+            .execute()
+            .data
+            or []
+        )
+        for a in linhas:
             nomes[a["id"]] = a["nome"]
-    return nomes
+            tem_foto[a["id"]] = a.get("foto_perfil_storage") is not None
+    return nomes, tem_foto

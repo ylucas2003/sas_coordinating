@@ -48,7 +48,9 @@ TOPICO_SEM_CLASSIFICACAO = "sem-assunto"
 # numa ida só. Duas consultas separadas dariam N+1 na listagem de 20 questões.
 _COLUNAS_QUESTAO = (
     "id, vestibular, ano, fase, materia, numero, dissertativa, enunciado_md, "
-    "gabarito, imagem_url, usa_imagem_no_render, resolucao_url, revisado, "
+    "gabarito, gabarito_origem, gabarito_confianca, "
+    "imagem_url, usa_imagem_no_render, resolucao_url, resolucao_md, resolucao_origem, "
+    "extraido_por, revisado, "
     "questao_vestibular_alternativa(letra, texto)"
 )
 _COLUNAS_LIGACAO = "questao_id, materia, topico_codigo, confianca, observacao"
@@ -330,9 +332,14 @@ def _para_questao(
         # das 934, e é o esperado, não falta de dado (docs/22 §8, risco 4).
         alternativas=_alternativas_da_questao(linha),
         gabarito=linha.get("gabarito"),
+        gabaritoOrigem=linha.get("gabarito_origem"),
+        gabaritoConfianca=linha.get("gabarito_confianca"),
         imagemUrl=linha.get("imagem_url"),
         usaImagemNoRender=bool(linha.get("usa_imagem_no_render")),
         resolucaoUrl=linha.get("resolucao_url"),
+        resolucaoMd=linha.get("resolucao_md"),
+        resolucaoOrigem=linha.get("resolucao_origem"),
+        extraidoPor=linha.get("extraido_por"),
         topicos=topicos,
         revisado=bool(linha.get("revisado")),
     )

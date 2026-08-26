@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { Avatar } from '../../componentes/ui/Avatar';
 import { Sparkline } from '../../componentes/ui/Sparkline';
 import { TheadOrdenavel } from '../../componentes/ui/TabelaOrdenavel';
 import { ordenarLinhas, proximaOrdenacao } from '../../componentes/ui/ordenacao';
@@ -8,7 +9,7 @@ import type { ColunaTabela, Ordenacao } from '../../componentes/ui/ordenacao';
 import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import { useAlunos, useSedes, useTurmas } from '../../hooks/consultas';
 import type { Aluno } from '../../tipos/dominio';
-import { fmtNota, iniciais } from '../../util/formato';
+import { fmtNota } from '../../util/formato';
 
 const PERFIL_LABEL = { ancora: 'Âncora', misterio: 'Mistério', regular: 'Regular' } as const;
 const TENDENCIA_LABEL = { subindo: '↑ Subindo', estavel: '→ Estável', caindo: '↓ Caindo' } as const;
@@ -171,7 +172,7 @@ export function Alunos() {
                 <tr key={a.id} onClick={() => navegar(`/alunos/${a.id}`)}>
                   <td>
                     <span className="celula-pessoa">
-                      <span className="avatar" aria-hidden="true">{iniciais(a.nome)}</span>
+                      <Avatar tipo="aluno" id={a.id} nome={a.nome} temFoto={a.temFoto} className="avatar" />
                       <span className="celula-pessoa__nome">{a.nome}</span>
                     </span>
                   </td>

@@ -1,0 +1,153 @@
+/* Foto de perfil (docs/sprints.html · SPRINT FOTO) — a <img> dentro dos
+   círculos de avatar já existentes (.alu-avatar, .topbar__avatar, .avatar) e
+   o editor de recorte do primeiro-acesso. */
+
+.avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+/* ─── Avatar genérico (lista de alunos, ficha, auditoria) ─────────────── */
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(27, 63, 139, 0.1);
+  color: var(--color-navy);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(27, 63, 139, 0.15);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatar--linha {
+  margin-right: 8px;
+}
+
+.avatar--grande {
+  width: 56px;
+  height: 56px;
+  font-size: 22px;
+}
+
+.avatar--auditoria {
+  width: 18px;
+  height: 18px;
+  font-size: 9px;
+  margin-right: 4px;
+  vertical-align: -3px;
+}
+
+/* Avatar do próprio coordenador na topbar — mesma régua do .alu-avatar. */
+.topbar__avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(27, 63, 139, 0.1);
+  color: var(--color-navy);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(27, 63, 139, 0.15);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* ─── Editor de recorte ──────────────────────────────────────────────── */
+
+.foto-editor__escolher {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 32px 16px;
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: center;
+  color: var(--color-navy);
+  font-weight: 600;
+  transition: border-color 150ms, background 150ms;
+}
+
+.foto-editor__escolher:hover {
+  border-color: var(--color-navy);
+  background: var(--color-surface-inset);
+}
+
+.foto-editor__input-arquivo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.foto-editor__dica {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.foto-editor__corpo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.foto-editor__viewport {
+  position: relative;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-inset);
+  touch-action: none;
+  cursor: grab;
+}
+
+.foto-editor__viewport:active {
+  cursor: grabbing;
+}
+
+.foto-editor__imagem {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.foto-editor__zoom {
+  width: 100%;
+  max-width: 240px;
+}
+
+.foto-editor__trocar {
+  font-size: 13px;
+}
+
+.foto-editor__autorizacao {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  max-width: 320px;
+}
+
+.foto-editor__autorizacao input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}

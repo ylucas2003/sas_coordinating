@@ -25,11 +25,13 @@ Duas regras que não são detalhe:
 
 from __future__ import annotations
 
+import base64
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
+from .. import storage
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador, hash_senha
 from ..canvas_sync import identidade
@@ -91,12 +93,17 @@ async def listar_coordenadores() -> list[dict]:
     cliente = get_supabase()
     linhas = (
         cliente.table("usuario_coordenacao")
-        .select("id, email, nome, ativo, criado_em, ultimo_login_em, canvas_user_id")
+        .select(
+            "id, email, nome, ativo, criado_em, ultimo_login_em, canvas_user_id, "
+            "foto_perfil_storage"
+        )
         .order("nome")
         .execute()
         .data
         or []
     )
+    for linha in linhas:
+        linha["temFoto"] = linha.pop("foto_perfil_storage") is not None
     return linhas
 
 
@@ -265,7 +272,10 @@ async def acessos_de_alunos() -> dict:
     while True:
         lote = (
             cliente.table("aluno")
-            .select("id, nome, matricula, email, ativo, senha_hash, canvas_user_id")
+            .select(
+                "id, nome, matricula, email, ativo, senha_hash, canvas_user_id, "
+                "foto_perfil_storage"
+            )
             .eq("ativo", True)
             .order("nome")
             .range(offset, offset + _TAMANHO_PAGINA - 1)
@@ -285,6 +295,7 @@ async def acessos_de_alunos() -> dict:
             "email": a.get("email"),
             "temCanvas": bool(a.get("canvas_user_id")),
             "primeiroAcessoFeito": a.get("senha_hash") is not None,
+            "temFoto": a.get("foto_perfil_storage") is not None,
             "ultimoLoginEm": ultimo_login.get(a["id"]),
         }
         for a in alunos
@@ -315,4 +326,33 @@ def _ultimo_login_por_aluno(cliente) -> dict[str, str]:
         if e.get("ator_id") and e["ator_id"] not in saida:
             saida[e["ator_id"]] = e["ocorrido_em"]
     return saida
+
+
+# ─── Foto de perfil (visão de outra coordenação) ─────────────────────────
+# Cada conta gerencia a própria foto por PUT/DELETE /me/foto
+# (routes/foto_perfil.py). Isto aqui é só leitura, para a auditoria e a
+# administração conseguirem mostrar a foto de outro coordenador na lista.
+
+
+@router.get("/coordenadores/{usuario_id}/foto")
+async def foto_do_coordenador(usuario_id: str) -> dict:
+    cliente = get_supabase()
+    resp = (
+        cliente.table("usuario_coordenacao")
+        .select("foto_perfil_storage")
+        .eq("id", usuario_id)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+    caminho = resp.data[0].get("foto_perfil_storage")
+    if not caminho:
+        return {"fotoDataUrl": None}
+
+    lido = storage.ler_foto_perfil(caminho)
+    if lido is None:
+        return {"fotoDataUrl": None}
+    conteudo, content_type = lido
+    return {"fotoDataUrl": f"data:{content_type};base64,{base64.b64encode(conteudo).decode()}"}
 

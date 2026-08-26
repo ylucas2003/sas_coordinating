@@ -69,6 +69,10 @@ export interface QuestaoVestibular {
   /** `null` quando dissertativa: 2ª fase não tem alternativa nem letra. */
   alternativas: Record<string, string> | null;
   gabarito: string | null;
+  /** 'banca' = letra publicada pela banca; 'sugerido' = deduzida (0031). `null` sem gabarito. */
+  gabaritoOrigem: 'banca' | 'sugerido' | null;
+  /** Só existe quando gabaritoOrigem é 'sugerido'. Decide se a letra aparece — só 'alta' entra na tela. */
+  gabaritoConfianca: Confianca | null;
   imagemUrl: string | null;
   /**
    * O enunciado é renderizado como imagem para preservar fórmula e figura da
@@ -76,6 +80,15 @@ export interface QuestaoVestibular {
    */
   usaImagemNoRender: boolean;
   resolucaoUrl: string | null;
+  /** Resolução escrita no cartão — o acervo histórico que o Ari não comenta (0031). */
+  resolucaoMd: string | null;
+  resolucaoOrigem: 'ari' | 'sugerida' | null;
+  /**
+   * 'visao' = página escaneada lida como imagem; texto é o principal, imagem
+   * vira consulta. 'pagina' = a imagem é a página inteira do PDF onde a
+   * questão está (docs/24), sem recorte fino — usada no acervo histórico.
+   */
+  extraidoPor: 'pipeline' | 'visao' | 'pagina' | null;
   topicos: TopicoDaQuestao[];
   revisado: boolean;
   /** Só vem preenchido para aluno autenticado. `null` = perfil sem estudo. */

@@ -8,6 +8,7 @@ em ordem cronológica.
 
 from __future__ import annotations
 
+import base64
 import math
 import statistics as st
 from collections import defaultdict
@@ -15,6 +16,7 @@ from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from .. import storage
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
 from ..schemas.domain import Aluno
@@ -93,7 +95,12 @@ async def listar_alunos(
     vestibulares = _vestibulares_por_aluno(cliente)
     sparklines = _classif.sparkline_por_aluno(cliente)
 
-    resp = cliente.table("aluno").select("id, nome, ativo").order("nome").execute()
+    resp = (
+        cliente.table("aluno")
+        .select("id, nome, ativo, foto_perfil_storage")
+        .order("nome")
+        .execute()
+    )
 
     alunos: list[Aluno] = []
     for linha in resp.data or []:
@@ -121,6 +128,7 @@ async def listar_alunos(
             zona=classif.get("zona", "cinzenta"),
             media=como_float(classif.get("media_recente")),
             sparkline=sparklines.get(id_aluno, []),
+            temFoto=linha.get("foto_perfil_storage") is not None,
         )
         if not _passar_recorte(aluno, recorte):
             continue
@@ -134,7 +142,7 @@ async def obter_aluno(aluno_id: str) -> Aluno:
     cliente = get_supabase()
     resp = (
         cliente.table("aluno")
-        .select("id, nome, ativo, email")
+        .select("id, nome, ativo, email, foto_perfil_storage")
         .eq("id", aluno_id)
         .limit(1)
         .execute()
@@ -166,6 +174,7 @@ async def obter_aluno(aluno_id: str) -> Aluno:
         zona=classif.get("zona", "cinzenta"),
         media=como_float(classif.get("media_recente")),
         sparkline=sparklines.get(aluno_id, []),
+        temFoto=linha.get("foto_perfil_storage") is not None,
     )
 
 
@@ -418,7 +427,7 @@ def _distancia(a: list[float | None], b: list[float | None]) -> float | None:
         return None
     soma = 0.0
     dimensoes_validas = 0
-    for x, y in zip(a, b):
+    for x, y in zip(a, b, strict=True):
         if x is None or y is None:
             continue
         soma += (x - y) ** 2
@@ -475,3 +484,69 @@ async def resetar_acesso_aluno(
     )
 
     return {"ok": True, "email": patch.get("email") or resp.data[0].get("email")}
+
+
+# ─── Foto de perfil (visão da coordenação) ───────────────────────────────
+# Upload é sempre autosserviço (routes/foto_perfil.py, POST /me/foto) — a
+# coordenação só VÊ e REMOVE. Decisão em aberto (docs/sprints.html · SPRINT
+# FOTO): quem consente pela foto de um menor. Enquanto isso não está fechado,
+# a coordenação não tem como mandar foto por outra pessoa — só tirar uma foto
+# imprópria do ar (P5).
+
+
+@router.get("/{aluno_id}/foto")
+async def foto_do_aluno(aluno_id: str) -> dict:
+    cliente = get_supabase()
+    resp = (
+        cliente.table("aluno")
+        .select("foto_perfil_storage")
+        .eq("id", aluno_id)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail=f"aluno {aluno_id} não encontrado")
+    caminho = resp.data[0].get("foto_perfil_storage")
+    if not caminho:
+        return {"fotoDataUrl": None}
+
+    lido = storage.ler_foto_perfil(caminho)
+    if lido is None:
+        return {"fotoDataUrl": None}
+    conteudo, content_type = lido
+    return {"fotoDataUrl": f"data:{content_type};base64,{base64.b64encode(conteudo).decode()}"}
+
+
+@router.delete("/{aluno_id}/foto")
+async def remover_foto_do_aluno(
+    aluno_id: str, request: Request, coordenador: dict = Depends(get_current_coordenador)
+) -> dict:
+    """Tira uma foto imprópria do ar (docs/sprints.html · SPRINT FOTO · P5).
+    O titular também pode remover a própria foto — via DELETE /me/foto."""
+    cliente = get_supabase()
+    resp = (
+        cliente.table("aluno")
+        .select("foto_perfil_storage")
+        .eq("id", aluno_id)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail=f"aluno {aluno_id} não encontrado")
+    caminho = resp.data[0].get("foto_perfil_storage")
+    if not caminho:
+        return {"ok": True}
+
+    cliente.table("aluno").update(
+        {"foto_perfil_storage": None, "foto_perfil_atualizada_em": None}
+    ).eq("id", aluno_id).execute()
+    storage.remover_foto_perfil(caminho)
+
+    auditar(
+        cliente, "foto_perfil_removida", canal="acesso",
+        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        recurso=f"aluno/{aluno_id}",
+        ip=request.client.host if request.client else None,
+        detalhe={"por_titular": False},
+    )
+    return {"ok": True}
