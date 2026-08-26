@@ -23,6 +23,7 @@ import '../styles/edicao.css';
 import '../styles/aluno.css';
 import '../styles/banco.css';
 import '../styles/login.css';
+import '../styles/foto-perfil.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

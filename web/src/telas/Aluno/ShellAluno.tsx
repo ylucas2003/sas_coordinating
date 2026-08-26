@@ -3,6 +3,7 @@ import { NavLink, Route, Routes, Navigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 
 import { Icone } from '../../componentes/aluno/graficos';
+import { Avatar } from '../../componentes/ui/Avatar';
 import { PainelAluno } from './PainelAluno';
 import { DetalheSimuladoAlunoTela, ListaSimuladosAluno } from './SimuladosAluno';
 import { Banco } from '../Banco/Banco';
@@ -43,7 +44,6 @@ function Logo({ tamanho = 34 }: { tamanho?: number }) {
 export function ShellAluno() {
   const nome = sessao.nome();
   const primeiro = nome.split(' ')[0] || nome;
-  const inicial = (nome || 'A').charAt(0).toUpperCase();
 
   const [modal, setModal] = useState<'nenhum' | 'senha' | 'conta'>('nenhum');
 
@@ -80,7 +80,7 @@ export function ShellAluno() {
           <div className="alu-header__user-info">
             <div className="alu-header__user-name">{nome}</div>
           </div>
-          <div className="alu-avatar">{inicial}</div>
+          <Avatar tipo="aluno" proprio nome={nome} className="alu-avatar" />
           <button className="alu-header__sair" onClick={() => setModal('senha')}>Trocar senha</button>
           <button className="alu-header__sair" onClick={sair}>Sair</button>
         </div>
@@ -95,13 +95,14 @@ export function ShellAluno() {
         </div>
         <div className="alu-header__user" style={{ marginLeft: 'auto' }}>
           {/* No mobile o avatar abre o menu de conta (trocar senha / sair). */}
-          <div
+          <Avatar
+            tipo="aluno"
+            proprio
+            nome={nome}
             className="alu-avatar"
             style={{ width: 30, height: 30, fontSize: 13, cursor: 'pointer' }}
             onClick={() => setModal('conta')}
-          >
-            {inicial}
-          </div>
+          />
         </div>
       </header>
 

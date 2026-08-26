@@ -23,7 +23,7 @@ function aluno(id: string, nome: string): Aluno {
   return {
     id, nome, turmaId: 'T1', sedeId: 'SD1', vestibularesAlvo: ['ITA'], ativo: true,
     email: null, perfil: 'regular', tendencia: 'estavel', zona: 'cinzenta',
-    media: null, sparkline: [],
+    media: null, sparkline: [], temFoto: false,
   } as Aluno;
 }
 

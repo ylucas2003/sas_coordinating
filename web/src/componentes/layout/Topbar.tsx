@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAlunos, useTurmas } from '../../hooks/consultas';
+import { Avatar } from '../ui/Avatar';
 import * as sessao from '../../servicos/sessao';
-import { iniciais, normalizar } from '../../util/formato';
+import { normalizar } from '../../util/formato';
 import { useMigalhas } from './migalhas';
 
 const MAX_RESULTADOS = 8;
@@ -187,12 +188,11 @@ export function Topbar() {
           <IconeSino />
         </Link>
         <button
-          className="topbar__avatar"
           onClick={sair}
           title={nome ? `Sair (${nome})` : 'Sair'}
           aria-label={nome ? `Sair da conta de ${nome}` : 'Sair'}
         >
-          {iniciais(nome)}
+          <Avatar tipo="coordenador" proprio nome={nome} className="topbar__avatar" />
         </button>
       </div>
     </header>

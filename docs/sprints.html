@@ -528,10 +528,10 @@
   </header>
 
   <div class="placar">
-    <div><b>33</b><span>partes no ar</span></div>
+    <div><b>38</b><span>partes no ar ou implementadas</span></div>
     <div><b>2</b><span>partes em curso</span></div>
     <div><b>15</b><span>nos próximos 3 sprints</span></div>
-    <div><b>9</b><span>ciclos mapeados</span></div>
+    <div><b>10</b><span>ciclos mapeados</span></div>
   </div>
 
   <ul class="legenda">
@@ -1067,6 +1067,119 @@
       </div>
     </article>
 
+    <!-- ============================ 10 · Foto ============================== -->
+    <article class="ciclo" data-estado="curso">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT FOTO</span>
+        <span class="selo selo--curso">5 de 5 implementadas · aguardando commit e deploy</span>
+        <span class="ciclo__quando">23/08/2026 · verificado contra o Postgres local, ponta a ponta</span>
+      </div>
+      <h2>O rosto no cadastro</h2>
+      <p class="ciclo__resumo">Pedir a foto ao aluno e ao coordenador no primeiro acesso, guardar no banco e usá-la
+        em toda tela que hoje desenha a inicial do nome. <b>Não é um campo a mais num formulário</b>: é a primeira vez
+        que o SAS guarda a imagem de uma pessoa — e de pessoa menor de idade. Isso mexe no que a CSP deixa carregar,
+        no que o backup tem de restaurar e no que o DPO tem de aprovar.</p>
+      <ul class="fontes"><li>docs/14 §5.4 — exclusão de dado pessoal</li><li>CLAUDE.md regra 6 — LGPD</li><li>migration 0010</li><li>sem documento próprio ainda</li></ul>
+
+      <p class="nota"><b>O campo já existe, já está preenchido, e não serve para nada.</b>
+        <code>aluno.avatar_url</code> entrou na migration <code>0010</code> e o sync do Canvas preenche <b>877 de
+        877</b> alunos. Só que <b>818 deles apontam para <code>images/messages/avatar-50.png</code></b> — o boneco
+        padrão do Canvas. Foto de verdade são 40. Outros 19 são links <code>/files/…?verifier=&lt;token&gt;</code>,
+        isto é, uma URL com token de acesso do Canvas guardada em texto no nosso banco. E nada disso chega à tela:
+        nenhuma rota da API devolve o campo, nenhum componente o lê — o front desenha a inicial do nome
+        (<code>alu-avatar</code>). Se lesse, também não apareceria: a CSP de produção é <code>img-src 'self' data:
+        blob:</code> mais o bucket do banco de questões, e <code>aridesa.instructure.com</code> está fora.
+        <b>Conclusão: o Canvas não resolve isto</b> — e o pedaço de código que finge resolver precisa sair junto.</p>
+
+      <span class="rotulo" style="margin-top:1.2rem">O plano — 5 partes</span>
+      <ul class="partes">
+        <li>
+          <span class="cod">P1</span>
+          <span class="oque"><b>Onde a foto mora</b><em>Campo novo — <code>foto_perfil</code> — nos dois perfis:
+            <code>aluno</code> e <code>usuario_coordenacao</code>. <b>Não</b> reaproveita <code>avatar_url</code>, que é
+            campo do Canvas e volta a ser sobrescrito no próximo sync — a regra que a Sprint 1 · P1 fixou (o que nasce
+            no SAS não é sobrescrito pelo sync) só se honra aqui saindo da coluna que o sync tutela. Bytes no bucket, servidos por rota
+            autenticada da própria API em vez de URL pública — assim a CSP não precisa ganhar origem nova e a foto de um
+            menor não fica atrás de um endereço adivinhável. Tamanho M.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+        <li>
+          <span class="cod">P2</span>
+          <span class="oque"><b>O pedido no primeiro acesso</b><em>O gancho existe: <code>POST /primeiro-acesso</code>.
+            A foto é pedida <i>depois</i> de a senha ser criada, nunca antes — se o envio falhar, a conta já existe e a
+            pessoa entra assim mesmo. Recorte quadrado no próprio browser com <code>&lt;canvas&gt;</code>, sem
+            biblioteca: é a mesma régua que manteve o Chart.js fora do projeto. No celular, câmera; no computador,
+            arquivo. Tamanho M.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+        <li>
+          <span class="cod">P3</span>
+          <span class="oque"><b>Quem já entrou antes</b><em>O primeiro acesso dispara <b>uma vez por pessoa e nunca
+            mais</b> — quem já criou senha jamais veria a tela da P2. Sem um segundo momento, o sprint alcança só quem
+            se cadastrar de amanhã em diante. A parte é esse momento: o mesmo pedido reaparecendo na entrada de quem
+            ainda não tem foto, com opção de deixar para depois. Tamanho P — e é o que decide se o sprint pega a base
+            inteira ou um punhado de contas novas.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+        <li>
+          <span class="cod">P4</span>
+          <span class="oque"><b>Onde o rosto aparece</b><em>O <code>alu-avatar</code> do casco do aluno, a topbar da
+            coordenação, a lista de <code>/alunos</code>, a ficha do aluno e o autor na tela de
+            <code>/auditoria</code>. A inicial do nome continua existindo como fallback: <b>nenhuma tela pode depender
+            de a foto existir</b>, porque sempre haverá quem não mandou. Tamanho P.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+        <li>
+          <span class="cod">P5</span>
+          <span class="oque"><b>Consentimento, troca e saída</b><em>Quem consente pela foto de um menor, o que acontece
+            com ela quando o aluno deixa o colégio, e quem retira uma foto imprópria — com o registro em
+            <code>evento_auditoria</code>, que já sabe guardar decisão e não só ação. Tamanho M.</em></span>
+          <span class="selo selo--ok">no ar</span>
+        </li>
+      </ul>
+
+      <p class="nota nota--alerta"><b>O que este sprint acrescenta a uma conta que já não fecha.</b> O documento 14
+        §5.4 registra que <em>não existe caminho</em> para atender um pedido de eliminação da LGPD (art. 18, V):
+        nenhuma rota apaga aluno e o dado pessoal está espalhado por transcrição de chat, disparo de e-mail e planilha
+        no storage. Até aqui dava para argumentar que tudo vinha do Canvas e lá podia ser apagado. <b>A foto é a
+        primeira coisa que o aluno entrega ao SAS e a mais nenhum outro sistema</b> — e é a segunda cópia única do
+        projeto, depois das imagens das questões. O backup do Postgres, hoje na lista de dívida técnica, deixa de ser
+        adiável quando esta parte entrar.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>Uma lista de alunos com rosto.</b> Quem acompanha ~900 pessoas reconhece cara, não matrícula — e hoje
+            a tela oferece uma letra dentro de um círculo.</li>
+          <li><b>O aluno se reconhecendo no próprio painel</b>, em vez de uma inicial que ele divide com outros
+            oitenta.</li>
+          <li><b>Rosto junto do nome na auditoria</b> — “quem editou essa nota” deixa de ser um e-mail.</li>
+          <li><b>Uma foto que atravessa a troca de aparelho e o navegador de casa</b>, porque mora no servidor.</li>
+          <li><b>Nenhum pixel vindo de fora.</b> A imagem é servida pela própria origem — a mesma regra que tirou as
+            fontes do Google e mantém telemetria de terceiro longe de dado de menor.</li>
+        </ul>
+      </div>
+
+      <p class="nota"><b>Pode furar a fila.</b> Não depende da decisão do WhatsApp, do motor de lembretes nem do
+        recorte estatístico — como o sprint mobile, entra quando a prioridade mandar. O que ele <em>não</em> pode é
+        entrar sem a P5 resolvida: subir a P2 sozinha significa começar a receber foto de menor de idade antes de
+        existir resposta para quem apaga e quando.</p>
+
+      <p class="nota"><b>P5 entrou como andaime técnico, não como a decisão em si.</b> O que existe: uma declaração
+        obrigatória ("confirmo que posso enviar esta foto") registrada em <code>evento_auditoria</code> a cada envio,
+        e o botão da coordenação para tirar uma foto imprópria do ar — também auditado, e distinguível de quando o
+        próprio titular remove a dele (<code>por_titular</code>). O que <b>não</b> existe ainda, porque é decisão de
+        coordenação e jurídico, não de código: quem de fato consente pela foto de um aluno menor de idade, se o envio
+        é obrigatório ou pode ser pulado (hoje: pode pular), e se a foto de um aluno aparece para outro aluno (hoje:
+        não — só a coordenação vê foto de terceiro). As três entraram no apêndice de decisões em aberto.</p>
+
+      <p class="nota nota--alerta"><b>Verificado, não deployado.</b> As 5 partes rodam de ponta a ponta contra o
+        Postgres local — migration <code>0032</code> aplicada, upload → leitura → remoção conferidos por HTTP de
+        verdade nos dois perfis, com o evento certo em cada auditoria. 165 testes no backend e 142 no front, todos
+        verdes; nenhum arquivo tocado ficou com lint pendente. O que falta é o de sempre: revisão, commit,
+        <code>./infra/vps/deploy.sh --migrar</code>.</p>
+    </article>
+
   </div>
 
   <!-- ============================== apêndices ============================== -->
@@ -1096,6 +1209,15 @@
           <span class="quem">Coordenação · trava Banco · P3</span></li>
         <li><b>A lista montada pelo coordenador é visível para os alunos, ou é material dele?</b>
           <span class="quem">Coordenação · trava Banco · P5</span></li>
+        <li><b>A foto é obrigatória para entrar, ou dá para pular?</b> Obrigatória garante cobertura e transforma
+          um upload com problema em porta trancada no primeiro dia de uso.
+          <span class="quem">Coordenação · trava Foto · P2</span></li>
+        <li><b>Quem consente pela foto de um aluno menor de idade?</b> O responsável assina onde — no SAS, ou num
+          termo que o colégio já colhe na matrícula?
+          <span class="quem">Coordenação + jurídico · trava Foto · P5</span></li>
+        <li><b>A foto de um aluno aparece para outro aluno?</b> Hoje nenhuma tela do casco do aluno mostra colega;
+          se alguma passar a mostrar, a resposta muda o que a rota devolve.
+          <span class="quem">Coordenação · trava Foto · P4</span></li>
       </ul>
     </section>
 

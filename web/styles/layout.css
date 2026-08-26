@@ -1649,8 +1649,9 @@
 }
 
 /* ─── Avatar de iniciais ────────────────────────────────────────────────
-   Não há foto de aluno no SAS (LGPD, CLAUDE.md regra 6) — as iniciais dão
-   à linha o mesmo ponto de ancoragem sem armazenar imagem de menor.
+   Fallback para quem não tem foto de perfil (SPRINT FOTO) — ou para antes
+   dela carregar. foto-perfil.css, importado depois, redefine esta regra
+   com o círculo que também recebe a <img>; a de baixo é só o piso.
    ─────────────────────────────────────────────────────────────────────── */
 
 .avatar {

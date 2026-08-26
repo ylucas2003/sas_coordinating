@@ -216,7 +216,7 @@ def _sessao_para(cliente, canvas_user_id: str) -> tuple[str | None, str | None]:
     aluno, porque um coordenador pode também estar matriculado em curso."""
     coord = (
         cliente.table("usuario_coordenacao")
-        .select("id, nome, ativo")
+        .select("id, nome, ativo, foto_perfil_storage")
         .eq("canvas_user_id", canvas_user_id)
         .limit(1)
         .execute()
@@ -224,11 +224,15 @@ def _sessao_para(cliente, canvas_user_id: str) -> tuple[str | None, str | None]:
     )
     if coord and coord[0].get("ativo"):
         u = coord[0]
-        return criar_token({"sub": u["id"], "tipo": "coordenador", "nome": u["nome"]}), "coordenador"
+        token = criar_token({
+            "sub": u["id"], "tipo": "coordenador", "nome": u["nome"],
+            "temFoto": u.get("foto_perfil_storage") is not None,
+        })
+        return token, "coordenador"
 
     aluno = (
         cliente.table("aluno")
-        .select("id, nome, ativo")
+        .select("id, nome, ativo, foto_perfil_storage")
         .eq("canvas_user_id", canvas_user_id)
         .limit(1)
         .execute()
@@ -236,9 +240,11 @@ def _sessao_para(cliente, canvas_user_id: str) -> tuple[str | None, str | None]:
     )
     if aluno and aluno[0].get("ativo"):
         a = aluno[0]
-        return criar_token(
-            {"sub": a["id"], "tipo": "aluno", "nome": a["nome"], "aluno_id": a["id"]}
-        ), "aluno"
+        token = criar_token({
+            "sub": a["id"], "tipo": "aluno", "nome": a["nome"], "aluno_id": a["id"],
+            "temFoto": a.get("foto_perfil_storage") is not None,
+        })
+        return token, "aluno"
     return None, None
 
 

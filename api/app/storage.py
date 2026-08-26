@@ -13,10 +13,12 @@ só muda de onde os bytes são lidos.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import logging
 import re
 import unicodedata
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
 
@@ -24,6 +26,8 @@ from jose import jwt
 
 from .config import get_settings
 from .supabase_client import get_supabase
+
+log = logging.getLogger("sas.storage")
 
 _PADRAO_CARACTERE_INVALIDO_STORAGE = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -114,7 +118,7 @@ def salvar_planilha(*, arquivo_origem: str, conteudo: bytes) -> str:
     Path determinístico: `uploads/AAAA/MM/DD/HHMMSS-<arquivo>`.
     Sufixo no nome evita colisão; histórico fica organizado por data.
     """
-    agora = datetime.now(timezone.utc)
+    agora = datetime.now(UTC)
     caminho = f"uploads/{agora:%Y/%m/%d}/{agora:%H%M%S}-{arquivo_origem}"
     return _salvar(caminho, conteudo, content_type="application/octet-stream")
 
@@ -148,7 +152,7 @@ def gerar_url_download_arquivo(
                 "tipo": _TIPO_TOKEN_DOWNLOAD,
                 "caminho": caminho_storage,
                 "nome": nome_download,
-                "exp": datetime.now(timezone.utc) + timedelta(seconds=expira_em_segundos),
+                "exp": datetime.now(UTC) + timedelta(seconds=expira_em_segundos),
             },
             _segredo_download(),
             algorithm=_ALGORITMO_TOKEN,
@@ -171,3 +175,107 @@ def ler_token_download(token: str) -> tuple[str, str]:
     if payload.get("tipo") != _TIPO_TOKEN_DOWNLOAD:
         raise ValueError("Token não é de download de arquivo.")
     return payload["caminho"], payload["nome"]
+
+
+# ─── Foto de perfil (SPRINT FOTO) ──────────────────────────────────────────
+#
+# Diferente do PDF de simulado, a foto nunca sai por URL assinada: ela volta
+# embutida (data URL, base64) na resposta JSON de `/me/foto` e afins. Não há
+# link para expirar nem token para vazar, e o `img-src 'self' data: blob:`
+# da CSP de produção já cobre `data:` sem precisar de origem nova.
+
+TAMANHO_MAXIMO_FOTO_BYTES = 2 * 1024 * 1024  # 2 MB — a saída do crop cliente fica bem abaixo disso.
+
+# Extensão pela qual a key é salva, e assinatura de bytes (magic number) para
+# conferir que o conteúdo é mesmo o que o Content-Type diz ser — o crop do
+# browser sempre gera um destes três, então qualquer coisa fora daqui já é
+# um cliente adulterado ou quebrado.
+_TIPOS_DE_FOTO: dict[str, tuple[str, bytes]] = {
+    "image/jpeg": ("jpg", b"\xff\xd8\xff"),
+    "image/png": ("png", b"\x89PNG\r\n\x1a\n"),
+    "image/webp": ("webp", b"RIFF"),  # bytes 8-11 == b"WEBP", conferidos à parte
+}
+
+
+def content_type_de_foto_valido(content_type: str, conteudo: bytes) -> bool:
+    """True se `content_type` é um dos aceitos e os bytes começam com a
+    assinatura correspondente. Usada antes de qualquer `salvar_foto_perfil`."""
+    par = _TIPOS_DE_FOTO.get(content_type)
+    if par is None:
+        return False
+    _, assinatura = par
+    if not conteudo.startswith(assinatura):
+        return False
+    return not (content_type == "image/webp" and conteudo[8:12] != b"WEBP")
+
+
+def _caminho_foto_perfil(entidade: str, entidade_id: str, extensao: str) -> str:
+    return f"fotos-perfil/{entidade}/{entidade_id}.{extensao}"
+
+
+def salvar_foto_perfil(*, entidade: str, entidade_id: str, conteudo: bytes, content_type: str) -> str:
+    """Sobe a foto (já cropada/redimensionada pelo cliente) pro Storage.
+
+    `entidade` é "aluno" ou "coordenador" — dois namespaces no mesmo bucket,
+    nunca dois ids colidindo. Path determinístico por entidade_id (não por
+    timestamp): trocar de foto substitui a anterior, não acumula lixo órfão.
+    `upsert=True` é o que permite a substituição no backend Supabase; no
+    filesystem local `_salvar` já sobrescreve sempre.
+    """
+    if len(conteudo) > TAMANHO_MAXIMO_FOTO_BYTES:
+        raise ValueError(f"Imagem maior que o limite de {TAMANHO_MAXIMO_FOTO_BYTES // (1024 * 1024)} MB.")
+    if not content_type_de_foto_valido(content_type, conteudo):
+        raise ValueError("Conteúdo não é uma imagem JPEG, PNG ou WebP válida.")
+    extensao = _TIPOS_DE_FOTO[content_type][0]
+    caminho = _caminho_foto_perfil(entidade, entidade_id, extensao)
+    return _salvar(caminho, conteudo, content_type=content_type, upsert=True)
+
+
+def _content_type_por_extensao(caminho: str) -> str:
+    extensao = caminho.rsplit(".", 1)[-1].lower()
+    return {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}.get(
+        extensao, "application/octet-stream"
+    )
+
+
+def ler_foto_perfil(caminho_storage: str) -> tuple[bytes, str] | None:
+    """Bytes + content-type da foto, ou None se a key não existir mais no
+    Storage (arquivo removido por fora, backend trocado). Nunca levanta —
+    quem chama trata None como "sem foto", igual a `foto_perfil_storage` nulo."""
+    raiz = _raiz_local()
+    content_type = _content_type_por_extensao(caminho_storage)
+    if raiz is not None:
+        try:
+            destino = resolver_caminho_local(caminho_storage)
+        except ValueError:
+            return None
+        if not destino.is_file():
+            return None
+        return destino.read_bytes(), content_type
+
+    settings = get_settings()
+    try:
+        conteudo = get_supabase().storage.from_(settings.storage_bucket).download(caminho_storage)
+    except Exception:
+        # Qualquer falha do Storage (rede, 404, credencial) vira "sem foto",
+        # não 500 — o fallback de inicial na UI já cobre esse caso.
+        log.warning("não consegui ler foto de perfil do Storage: %s", caminho_storage, exc_info=True)
+        return None
+    return bytes(conteudo), content_type
+
+
+def remover_foto_perfil(caminho_storage: str) -> None:
+    """Apaga a foto do Storage. Melhor-esforço: uma key que já sumiu (ou um
+    Storage fora do ar) não pode impedir o UPDATE que zera a coluna no banco —
+    a foto some da UI de qualquer forma assim que a coluna vira NULL."""
+    raiz = _raiz_local()
+    if raiz is not None:
+        with contextlib.suppress(ValueError):
+            resolver_caminho_local(caminho_storage).unlink(missing_ok=True)
+        return
+
+    settings = get_settings()
+    try:
+        get_supabase().storage.from_(settings.storage_bucket).remove([caminho_storage])
+    except Exception:
+        log.warning("não consegui remover foto de perfil do Storage: %s", caminho_storage, exc_info=True)

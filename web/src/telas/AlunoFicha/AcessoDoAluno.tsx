@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import * as api from '../../servicos/api';
+import { useRemoverFotoDeAluno } from '../../hooks/mutacoes';
 import type { Aluno } from '../../tipos/dominio';
 
 /**
@@ -16,6 +17,21 @@ export function AcessoDoAluno({ aluno }: { aluno: Aluno }) {
     mutationFn: (corpo: { email?: string }) =>
       api.resetarAcessoAluno(aluno.id, corpo) as Promise<{ email?: string }>,
   });
+  const removerFoto = useRemoverFotoDeAluno();
+
+  async function tirarFoto() {
+    const confirmado = window.confirm(
+      `Remover a foto de perfil de ${aluno.nome}? Ele pode enviar outra a qualquer momento.`,
+    );
+    if (!confirmado) return;
+    setStatus('');
+    try {
+      await removerFoto.mutateAsync(aluno.id);
+      setStatus('Foto removida.');
+    } catch (e) {
+      setStatus(`Erro ao remover a foto: ${(e as Error).message}`);
+    }
+  }
 
   async function liberar() {
     const confirmado = window.confirm(
@@ -54,6 +70,11 @@ export function AcessoDoAluno({ aluno }: { aluno: Aluno }) {
           <button className="btn" disabled={resetar.isPending} onClick={liberar}>
             Liberar primeiro acesso
           </button>
+          {aluno.temFoto && (
+            <button className="btn btn--ghost" disabled={removerFoto.isPending} onClick={tirarFoto}>
+              Remover foto de perfil
+            </button>
+          )}
         </div>
         {status && <div className="section__subtitle" style={{ marginTop: 8 }}>{status}</div>}
       </div>

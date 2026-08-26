@@ -23,12 +23,12 @@ function lerFragmento(): { token: string; tipo: string; proximo: string } | null
   return { token, tipo, proximo: proximo.startsWith('/') && !proximo.startsWith('//') ? proximo : '/' };
 }
 
-function nomeDoToken(token: string): { nome: string; aluno_id?: string } {
+function nomeDoToken(token: string): { nome: string; aluno_id?: string; temFoto: boolean } {
   try {
     const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-    return { nome: payload.nome ?? '', aluno_id: payload.aluno_id };
+    return { nome: payload.nome ?? '', aluno_id: payload.aluno_id, temFoto: Boolean(payload.temFoto) };
   } catch {
-    return { nome: '' };
+    return { nome: '', temFoto: false };
   }
 }
 
@@ -38,8 +38,8 @@ export function CallbackCanvas() {
   useEffect(() => {
     const dados = lerFragmento();
     if (dados) {
-      const { nome, aluno_id } = nomeDoToken(dados.token);
-      sessao.iniciar({ access_token: dados.token, tipo: dados.tipo, nome, aluno_id });
+      const { nome, aluno_id, temFoto } = nomeDoToken(dados.token);
+      sessao.iniciar({ access_token: dados.token, tipo: dados.tipo, nome, aluno_id, temFoto });
       window.history.replaceState(null, '', '/login/canvas');
       navegar(dados.proximo, { replace: true });
       return;

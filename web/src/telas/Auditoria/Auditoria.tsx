@@ -3,6 +3,7 @@ import { useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
+import { Avatar } from '../../componentes/ui/Avatar';
 import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import * as api from '../../servicos/api';
 import type { CanalAuditoria, EventoAuditoria } from '../../tipos/dominio';
@@ -194,6 +195,15 @@ function Evento({ evento: e }: { evento: EventoAuditoria }) {
         {e.canal ? CANAL_LABEL[e.canal] : '—'}
       </span>
       <span className="auditoria__texto">
+        {(e.ator_tipo === 'aluno' || e.ator_tipo === 'coordenador') && e.ator_id && (
+          <Avatar
+            tipo={e.ator_tipo}
+            id={e.ator_id}
+            nome={quem}
+            temFoto={e.ator_tem_foto}
+            className="avatar avatar--auditoria"
+          />
+        )}
         <strong>{quem}</strong>
         {` ${ACAO_LABEL[e.acao] ?? e.acao} `}
         <LinkRecurso recurso={e.recurso} />

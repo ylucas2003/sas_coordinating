@@ -121,3 +121,34 @@ export function useRedefinirSenhaCoordenador() {
     onSuccess: () => invalidarAdministracao(queryClient),
   });
 }
+
+// ─── Foto de perfil ───────────────────────────────────────────────────────
+// `invalidarTudo`, e não só `chaves.fotoPropria`: a mesma foto aparece em
+// /alunos, na ficha e na auditoria (via `temFoto`/`ator_tem_foto`), e a
+// mutação não sabe de antemão quais telas estão montadas.
+
+export function useSalvarMinhaFoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (corpo: { conteudo_base64: string; content_type: string; declaracao_autorizacao: true }) =>
+      api.salvarMinhaFoto(corpo),
+    onSuccess: () => invalidarTudo(queryClient),
+  });
+}
+
+export function useRemoverMinhaFoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.removerMinhaFoto(),
+    onSuccess: () => invalidarTudo(queryClient),
+  });
+}
+
+/** Ação da staff: tira do ar a foto de um aluno específico (P5). */
+export function useRemoverFotoDeAluno() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (alunoId: string) => api.removerFotoDeAluno(alunoId),
+    onSuccess: () => invalidarTudo(queryClient),
+  });
+}

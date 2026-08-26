@@ -2,8 +2,8 @@
 
 import logging
 import time
-from datetime import datetime, timezone
 from collections import defaultdict
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, field_validator
@@ -73,8 +73,6 @@ async def login(body: LoginBody, request: Request) -> dict:
     ip = request.client.host if request.client else "?"
     _limitar_tentativas(f"login:{ip}:{body.usuario.strip().lower()}")
 
-    settings = get_settings()
-
     if body.tipo == "coordenador":
         # Uma conta por pessoa, com PBKDF2, em vez da credencial única do .env
         # (migration 0021). O `sub` do token passa a ser o id do usuário, e não
@@ -83,7 +81,7 @@ async def login(body: LoginBody, request: Request) -> dict:
         email = body.usuario.strip().lower()
         resp = (
             cliente.table("usuario_coordenacao")
-            .select("id, nome, senha_hash, ativo")
+            .select("id, nome, senha_hash, ativo, foto_perfil_storage")
             .eq("email", email)
             .limit(1)
             .execute()
@@ -101,9 +99,9 @@ async def login(body: LoginBody, request: Request) -> dict:
         # Melhor esforço: falhar aqui não pode impedir alguém de entrar.
         try:
             cliente.table("usuario_coordenacao").update(
-                {"ultimo_login_em": datetime.now(timezone.utc).isoformat()}
+                {"ultimo_login_em": datetime.now(UTC).isoformat()}
             ).eq("id", usuario["id"]).execute()
-        except Exception:  # noqa: BLE001
+        except Exception:
             log.warning("nao consegui registrar ultimo_login_em", exc_info=True)
 
         auditar(cliente, "login_ok", ator_tipo="coordenador",
@@ -117,13 +115,14 @@ async def login(body: LoginBody, request: Request) -> dict:
             "tipo": "coordenador",
             "aluno_id": None,
             "nome": usuario["nome"],
+            "temFoto": usuario.get("foto_perfil_storage") is not None,
         }
 
     if body.tipo == "aluno":
         cliente = get_supabase()
         resp = (
             cliente.table("aluno")
-            .select("id, nome, senha_hash, ativo")
+            .select("id, nome, senha_hash, ativo, foto_perfil_storage")
             .eq("matricula", body.usuario)
             .limit(1)
             .execute()
@@ -156,6 +155,7 @@ async def login(body: LoginBody, request: Request) -> dict:
             "tipo": "aluno",
             "aluno_id": aluno["id"],
             "nome": aluno["nome"],
+            "temFoto": aluno.get("foto_perfil_storage") is not None,
         }
 
     raise HTTPException(status_code=400, detail="tipo deve ser 'aluno' ou 'coordenador'")
@@ -198,7 +198,7 @@ async def primeiro_acesso(body: PrimeiroAcessoBody, request: Request) -> dict:
     cliente = get_supabase()
     resp = (
         cliente.table("aluno")
-        .select("id, nome, email, ativo")
+        .select("id, nome, email, ativo, foto_perfil_storage")
         .eq("matricula", matricula)
         .limit(1)
         .execute()
@@ -230,4 +230,5 @@ async def primeiro_acesso(body: PrimeiroAcessoBody, request: Request) -> dict:
         "tipo": "aluno",
         "aluno_id": aluno["id"],
         "nome": aluno["nome"],
+        "temFoto": aluno.get("foto_perfil_storage") is not None,
     }

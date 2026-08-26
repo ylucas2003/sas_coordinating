@@ -4,7 +4,7 @@
 // Convenção: funções puras de I/O. Nada de estado, nada de invalidação — quem
 // invalida é o hook que chama (ver src/hooks/).
 
-import { del, get, patch, post, postArquivo, qs, streamSSE } from './http';
+import { del, get, patch, post, postArquivo, put, qs, streamSSE } from './http';
 import type { EventoSSE, OpcoesUpload } from './http';
 import type {
   Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria,
@@ -20,6 +20,7 @@ export interface RespostaAutenticacao {
   tipo: string;
   nome: string;
   aluno_id?: string;
+  temFoto: boolean;
 }
 
 /** O SSO pelo Canvas só aparece na tela se o servidor tiver a Developer Key. */
@@ -54,6 +55,14 @@ export const alunosSimilares = (id: string, k = 5) =>
 export const resetarAcessoAluno = (id: string, corpo: { email?: string } = {}) =>
   post<unknown>(`/alunos/${enc(id)}/resetar-acesso`, corpo);
 
+export interface RespostaFoto {
+  fotoDataUrl: string | null;
+}
+
+export const fotoDeAluno = (id: string) => get<RespostaFoto>(`/alunos/${enc(id)}/foto`);
+/** Tira uma foto imprópria do ar (ação da staff) — o titular usa removerMinhaFoto. */
+export const removerFotoDeAluno = (id: string) => del<{ ok: true }>(`/alunos/${enc(id)}/foto`);
+
 // ─── Aluno autenticado (visão do próprio aluno) ──────────────────────────
 
 export const obterMe = () => get<unknown>('/me');
@@ -73,6 +82,19 @@ export const insightMe = () =>
   }>('/me/insight');
 export const trocarSenhaMe = (corpo: { senha_atual: string; senha_nova: string }) =>
   post<unknown>('/me/senha', corpo);
+
+/**
+ * Foto de perfil — a MESMA rota para aluno e coordenação (routes/foto_perfil.py
+ * lê o tipo do JWT). `conteudo_base64` já vem cropado/redimensionado do
+ * `FotoPerfilEditor`; a foto nunca sai por URL, só embutida na resposta.
+ */
+export const minhaFoto = () => get<RespostaFoto>('/me/foto');
+export const salvarMinhaFoto = (corpo: {
+  conteudo_base64: string;
+  content_type: string;
+  declaracao_autorizacao: true;
+}) => put<{ ok: true }>('/me/foto', corpo);
+export const removerMinhaFoto = () => del<{ ok: true }>('/me/foto');
 
 // ─── Simulados ───────────────────────────────────────────────────────────
 
@@ -214,3 +236,5 @@ export const ligarCoordenadorAoCanvas = (id: string) =>
 export const redefinirSenhaCoordenador = (id: string) =>
   post<{ id: string; senha_nova: string }>(`/administracao/coordenadores/${enc(id)}/redefinir-senha`, {});
 export const acessosDeAlunos = () => get<PainelAcessos>('/administracao/alunos-acesso');
+export const fotoDeCoordenador = (id: string) =>
+  get<RespostaFoto>(`/administracao/coordenadores/${enc(id)}/foto`);

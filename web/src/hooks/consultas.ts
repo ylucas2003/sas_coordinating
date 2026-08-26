@@ -29,6 +29,8 @@ export const chaves = {
   sedes: ['sedes'] as const,
   turmas: ['turmas'] as const,
   materias: ['materias'] as const,
+  fotoPropria: ['foto', 'propria'] as const,
+  foto: (tipo: 'aluno' | 'coordenador', id: string) => ['foto', tipo, id] as const,
 };
 
 export function useAlertas() {
@@ -220,5 +222,31 @@ export function useNotasDoCiclo(ciclo: Ciclo | null | undefined, simulados: read
       ids.forEach((id, i) => { mapa[id] = resultados[i] ?? []; });
       return mapa;
     },
+  });
+}
+
+// ─── Foto de perfil ───────────────────────────────────────────────────────
+
+/**
+ * Uma foto por vez, sob demanda — nunca em lote. `<Avatar>` só habilita
+ * depois que o próprio componente entra na viewport (useVisivelUmaVez), então
+ * uma tabela com centenas de linhas não dispara centenas de requisições no
+ * primeiro render; só pelas que a pessoa de fato rolou até ver.
+ */
+export function useFotoPerfil({
+  tipo, id, proprio = false, habilitada = true,
+}: {
+  tipo: 'aluno' | 'coordenador';
+  id?: string;
+  /** Foto da própria sessão (GET /me/foto) — dispensa `id`. */
+  proprio?: boolean;
+  habilitada?: boolean;
+}) {
+  return useQuery({
+    queryKey: proprio ? chaves.fotoPropria : chaves.foto(tipo, id ?? ''),
+    queryFn: () =>
+      proprio ? api.minhaFoto() : tipo === 'aluno' ? api.fotoDeAluno(id ?? '') : api.fotoDeCoordenador(id ?? ''),
+    enabled: habilitada && (proprio || !!id),
+    staleTime: 10 * 60 * 1000,
   });
 }

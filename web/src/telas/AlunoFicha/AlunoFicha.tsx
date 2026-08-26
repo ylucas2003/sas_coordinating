@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { Avatar } from '../../componentes/ui/Avatar';
 import { Heatmap } from '../../componentes/ui/Heatmap';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { LinhaEvolucao } from '../../componentes/ui/LinhaEvolucao';
@@ -145,12 +146,15 @@ export function AlunoFicha() {
       <div className="screen-stack">
         <section className="card">
           <div className="aluno-ficha__header">
-            <div className="aluno-ficha__header-info">
-              <div className="screen-breadcrumb">{aluno.id}</div>
-              <h1 className="screen-title">{aluno.nome}</h1>
-              <p className="screen-subtitle">
-                {`${turma?.nome ?? '—'} · ${sede?.nome ?? '—'} · alvos: ${alvos}`}
-              </p>
+            <div className="aluno-ficha__header-info" style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <Avatar tipo="aluno" id={aluno.id} nome={aluno.nome} temFoto={aluno.temFoto} className="avatar avatar--grande" />
+              <div>
+                <div className="screen-breadcrumb">{aluno.id}</div>
+                <h1 className="screen-title">{aluno.nome}</h1>
+                <p className="screen-subtitle">
+                  {`${turma?.nome ?? '—'} · ${sede?.nome ?? '—'} · alvos: ${alvos}`}
+                </p>
+              </div>
             </div>
 
             <MenuExportar
