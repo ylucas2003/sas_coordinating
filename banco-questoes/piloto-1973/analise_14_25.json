@@ -1,0 +1,139 @@
+{
+ "questoes": [
+  {
+   "numero": 14,
+   "topicos_ids": [
+    "2.1",
+    "7.1"
+   ],
+   "observacao": "Projeção da sombra de um pino em MCU feita por fonte PONTUAL a distância finita (a figura marca R + R entre F e o centro, logo FC = 2R). Cinemática do movimento circular somada à comparação com o MHS, que é o caso-limite de fonte no infinito. Li a imagem e medi os quatro gráficos pixel a pixel: em C o pico cai em 122° e o vale em 244° (previsão do modelo: 120° e 240°); em B o pico cai em ~140° (corresponderia a F a 1,3R); A é senoide pura e D é triangular.",
+   "gabarito_sugerido": "C",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "O pino descreve um movimento circular uniforme, mas quem projeta a sombra é uma fonte **pontual a distância finita** — e por isso a curva **não** é uma senoide.\n\nColoque $F$ na origem e o centro do prato em $2R$ (a figura marca $R+R$ entre $F$ e o centro). Com $\\theta = \\omega t$, o pino está em $(2R + R\\cos\\theta,\\ R\\,\\mathrm{sen}\\,\\theta)$; prolongando o raio $FP$ até o anteparo, a uma distância $D$, obtém-se $x(t) = D\\,\\dfrac{\\mathrm{sen}\\,\\theta}{2 + \\cos\\theta}$.\n\nDerivando, o máximo ocorre onde $\\cos\\theta = -\\tfrac12$, isto é, em $\\theta = 120^\\circ$ (e o mínimo em $240^\\circ$) — e não em $90^\\circ$, como seria numa senoide.\n\nO gráfico correto tem, portanto, subida lenta, pico atrasado (a $\\tfrac13$ do período), queda rápida cruzando o zero e vale a $\\tfrac23$ do período: é o **gráfico C**. O gráfico A é a senoide pura, que só valeria com o farolete no infinito, iluminando com luz paralela."
+  },
+  {
+   "numero": 15,
+   "topicos_ids": [
+    "10.1"
+   ],
+   "observacao": "Refração e reflexão total interna em prisma de 45°; óptica geométrica pura. Li a imagem: o feixe entra perpendicular à face vertical, incide a 45° na hipotenusa e sai perpendicular pela face inferior. Vale notar que 1,5, 1,65 e 1,73 também produziriam reflexão total — a alternativa procurada é o valor-limite, n = √2.",
+   "gabarito_sugerido": "C",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "A luz entra em $A$ perpendicularmente à face, portanto sem desvio, e chega à hipotenusa com incidência de $45^\\circ$.\n\nPara que **nada** escape por ali, é preciso reflexão total interna: o ângulo de incidência tem de ser maior ou igual ao ângulo-limite $L$, definido por $\\mathrm{sen}\\,L = \\dfrac{1}{n}$.\n\nNo caso-limite, $L = 45^\\circ$ e $n = \\dfrac{1}{\\mathrm{sen}\\,45^\\circ} = \\sqrt{2} \\approx 1{,}41$.\n\nCom índice menor que esse, parte da luz atravessa a hipotenusa e o feixe se perde. Em $B$ a saída é de novo perpendicular à face, sem novo desvio — o prisma desvia o feixe exatamente $90^\\circ$. Alternativa **C**."
+  },
+  {
+   "numero": 16,
+   "topicos_ids": [
+    "9.1",
+    "12.1"
+   ],
+   "observacao": "Calorimetria com mudança de estado (aquecimento até 100 °C, patamar de vaporização, garrafa aberta) alimentada por aquecedor elétrico de potência constante — daí o segundo tópico. Li a imagem e medi os gráficos: no de referência a rampa termina em ~3,2 divisões e o degrau final em ~7,2; em A a rampa termina em ~1,4 e o degrau em ~3,5 (tudo pela metade, com a mesma altura de patamar). Em C a rampa dobra de inclinação, mas o patamar continua com a duração do caso de 200 g.",
+   "gabarito_sugerido": "A",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "A resistência praticamente não varia e a tensão é constante, então a potência entregue $P = V^2/R$ é **a mesma** nos dois casos. Todo o resto sai disso.\n\nFase de aquecimento: $P\\,t = m\\,c\\,\\Delta T$. Com metade da massa, a temperatura sobe com o **dobro** da inclinação e chega aos $100^\\circ\\mathrm{C}$ na metade do tempo.\n\nPatamar: a garrafa não está fechada com rolha, então a água ferve à pressão ambiente e a temperatura trava em $100^\\circ\\mathrm{C}$ — **a altura do patamar não muda**.\n\nDuração do patamar: $P\\,t = m\\,L_v$; vaporizar 100 g leva metade do tempo que vaporizar 200 g. Logo o degrau final — a água acabou e o aquecedor volta a esquentar — também aparece na metade do tempo.\n\nMesma altura, tudo comprimido horizontalmente por um fator 2: **gráfico A**. Em C a rampa até dobra de inclinação, mas o patamar continua tão longo quanto o de 200 g, o que contraria $P\\,t = m\\,L_v$."
+  },
+  {
+   "numero": 17,
+   "topicos_ids": [
+    "10.1"
+   ],
+   "observacao": "Lente delgada junto ao olho, ponto próximo e equação dos pontos conjugados. Confiança média porque NENHUMA alternativa reproduz o intervalo correto: o cálculo dá 4,1 cm < d < 5,0 cm, e C (2 cm < d < 5 cm) é a única que acerta o limite superior d < f = 5 cm, embora inclua distâncias menores que 4,1 cm, nas quais a imagem virtual cai aquém do ponto próximo. Li a imagem para conferir os números das alternativas (C é mesmo '2 cm', não '4 cm').",
+   "gabarito_sugerido": "C",
+   "confianca": "media",
+   "leu_imagem": true,
+   "resolucao_md": "A lente só ajuda se formar uma imagem **virtual** dentro do alcance do olho, ou seja, a pelo menos 24 cm dele — o ponto próximo.\n\nCom $\\dfrac{1}{f} = \\dfrac{1}{p} + \\dfrac{1}{p'}$ e $f = 5{,}0$ cm, os dois extremos são: imagem virtual no ponto próximo ($p' = -24$ cm), que dá $\\dfrac1p = \\dfrac15 + \\dfrac1{24}$ e $p \\approx 4{,}1$ cm; e imagem no infinito, com o olho relaxado, que dá $p = f = 5{,}0$ cm.\n\nSe $p > f$, a imagem passa a ser real e se forma **atrás** do olho: o feixe chega convergente e o olho normal não consegue focalizá-lo. Se $p < 4{,}1$ cm, a imagem virtual fica mais perto que 24 cm e também sai desfocada.\n\nO objeto precisa então estar dentro da distância focal, entre cerca de 4,1 cm e 5,0 cm. A única alternativa com esse limite superior é a **C** ($d < 5$ cm)."
+  },
+  {
+   "numero": 18,
+   "topicos_ids": [
+    "10.2"
+   ],
+   "observacao": "Relação λ = c/ν e localização no espectro visível — natureza ondulatória da luz. O enunciado erra a unidade dos limites (escreve 10⁻⁵ m, quando o certo seria 10⁻⁵ cm ou 10⁻⁷ m), mas a comparação continua válida porque a mesma potência de dez vale para os dois limites. Li a imagem e confirmei o expoente impresso.",
+   "gabarito_sugerido": "B",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "O que decide a cor é o comprimento de onda, não a frequência crua — então converta primeiro: $\\lambda = \\dfrac{c}{\\nu} = \\dfrac{3{,}0 \\times 10^{8}}{4{,}0 \\times 10^{14}} = 7{,}5 \\times 10^{-7}\\ \\mathrm{m}$.\n\nCompare agora com os limites dados, escritos na mesma potência de dez: vermelho em $7{,}0$ e violeta em $4{,}0$ (o enunciado escorrega na unidade, mas a comparação vale). Como $7{,}5 > 7{,}0$, a emissão está **além do vermelho**.\n\nE o gás é raríssimo, ou seja, não há espalhamento que pinte o céu de outra cor: o que a atmosfera de Patropi emite simplesmente não é visível. A radiação é **infravermelha** — alternativa **B**."
+  },
+  {
+   "numero": 19,
+   "topicos_ids": [
+    "11.1"
+   ],
+   "observacao": "Eletrização por indução em eletroscópio de folhas com carcaça aterrada. Li a imagem: a esfera M está carregada positivamente (sinais + no desenho) e sustentada por haste isolante, e o terminal T atravessa a carcaça aterrada até as folhas, no interior.",
+   "gabarito_sugerido": "E",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "Primeiro, o contato transitório entre $T$ e $R$, com $M$ ainda longe, descarrega o conjunto haste + folhas: ele começa a experiência **neutro**.\n\nAo aproximar a esfera positiva $M$, o eletroscópio se polariza por **indução**: elétrons livres sobem para o terminal $T$, atraídos por $M$, e as folhas ficam com falta de elétrons, isto é, com carga positiva.\n\nCargas de mesmo sinal se repelem, então as folhas se abrem **sem precisar de contato nenhum**, e a abertura aumenta à medida que $M$ se aproxima.\n\nA carcaça aterrada blinda o interior do campo externo, mas $T$ atravessa essa blindagem: é o próprio condutor $T$ que leva a indução para dentro. Alternativa **E**."
+  },
+  {
+   "numero": 20,
+   "topicos_ids": [
+    "12.1"
+   ],
+   "observacao": "Lei de Ohm e leitura de gráfico I × V. Ponto decisivo, só visível na imagem: a seta dupla do ângulo θ vai do EIXO I (vertical) até a reta, e não do eixo V. Com θ medido a partir do eixo I, R = V/I = tg θ, o que valida E e derruba C. Se θ fosse medido do eixo V, a resposta viraria C — as duas alternativas foram montadas justamente nesse par.",
+   "gabarito_sugerido": "E",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "Na Fig. 1 a reta passa pela origem: $I \\propto V$, elemento ôhmico. Na Fig. 2 a curva não é reta, logo a resistência muda com a tensão — cai a alternativa A (nem todos obedecem a Ohm) e cai a B (a resistividade não é constante). A D também cai, porque o primeiro elemento é linear.\n\nResta olhar o ângulo com cuidado: na figura, $\\theta$ é medido a partir do **eixo $I$** (vertical) até a reta. A inclinação da reta vale então $\\dfrac{\\Delta I}{\\Delta V} = \\cot\\theta$, de modo que $R = \\dfrac{V}{I} = \\tan\\theta$.\n\nOu seja, a resistência do elemento linear é proporcional à tangente de $\\theta$ — e **cresce** com $\\theta$, o que derruba a alternativa C. Alternativa **E**."
+  },
+  {
+   "numero": 21,
+   "topicos_ids": [
+    "12.1"
+   ],
+   "observacao": "Identificação dos elementos a partir das curvas I × V da questão 20. Li a imagem: A = resistor+indutor e capacitor; B = resistor e capacitor+indutor; C = resistor+capacitor e resistor+indutor; D = resistor e capacitor. Confiança média porque a curva da Fig. 2 é desenhada de forma solta (decaimento assintótico) e admite mais de uma leitura; D é o único par 'resistor puro / capacitor puro', que é a interpretação mais direta.",
+   "gabarito_sugerido": "D",
+   "confianca": "media",
+   "leu_imagem": true,
+   "resolucao_md": "A Fig. 1 é uma reta pela origem: corrente proporcional à tensão em qualquer ponto, sem atraso e sem memória. Isso é um **resistor puro** — nada de indutor junto, que faria a relação depender do tempo.\n\nNa Fig. 2 a corrente é máxima quando a tensão no elemento é quase nula e decai assintoticamente a zero conforme a tensão sobe. É o retrato de um **capacitor sendo carregado**: descarregado, ele quase não se opõe à passagem de carga; conforme se carrega, a tensão entre as placas sobe e a corrente definha.\n\nQue a curva encoste no eixo $V$ diz o essencial: em regime permanente o elemento não conduz — o capacitor bloqueia corrente contínua.\n\nO par pedido é, portanto, resistor na Fig. 1 e capacitor na Fig. 2: alternativa **D**."
+  },
+  {
+   "numero": 22,
+   "topicos_ids": [
+    "12.1"
+   ],
+   "observacao": "Associação mista de resistores e potência dissipada. Li a imagem para reconstruir o circuito: três ramos entre os mesmos dois nós — 3 Ω em cima, 6 Ω embaixo e, no ramo do meio, a pilha em série com 3 Ω e 4 Ω.",
+   "gabarito_sugerido": "A",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "Comece organizando o circuito: os ramos de $3\\,\\Omega$ (cima) e $6\\,\\Omega$ (baixo) estão em paralelo, $R_p = \\dfrac{3 \\cdot 6}{3 + 6} = 2\\,\\Omega$, e em série com eles, no ramo da pilha, estão $3\\,\\Omega$ e $4\\,\\Omega$. Logo $R_{eq} = 3 + 4 + 2 = 9\\,\\Omega$.\n\nChame de $I$ a corrente da pilha. Ela passa **inteira** pelos resistores em série, que dissipam $3I^2$ e $4I^2$; já o paralelo fica sob tensão $2I$, e seus ramos dissipam $\\dfrac{(2I)^2}{3} = \\dfrac43 I^2$ e $\\dfrac{(2I)^2}{6} = \\dfrac23 I^2$.\n\nA resistência mais exigida é a de $4\\,\\Omega$. Impondo o teto: $4I^2 \\le 4\\ \\mathrm{W} \\Rightarrow I \\le 1\\ \\mathrm{A}$.\n\nCom $I = 1$ A todas as outras ficam abaixo de 4 W (3 W, 1,33 W e 0,67 W), e a f.e.m. máxima é $\\varepsilon = R_{eq}\\,I = 9 \\cdot 1 = 9\\ \\mathrm{V}$. Alternativa **A**."
+  },
+  {
+   "numero": 23,
+   "topicos_ids": [
+    "13.1",
+    "4.1"
+   ],
+   "observacao": "Ímã e ferro (magnetização por indução) resolvido pela 3ª lei de Newton — combinação natural de magnetismo com dinâmica. Li a imagem: barra imantada S-N e pedaço de ferro à direita, sem contato.",
+   "gabarito_sugerido": "E",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "Aqui não há privilégio do ímã: o que vale é a **terceira lei de Newton**.\n\nO ímã magnetiza o ferro por indução magnética — o pedaço de ferro vira ele próprio um ímã, com o polo voltado para o ímã de sinal oposto ao que está à sua frente. A partir daí são dois ímãs interagindo.\n\nForças de interação aparecem sempre aos pares, de mesmo módulo, mesma direção e sentidos opostos, aplicadas em corpos diferentes: $\\vec{F}_{\\text{ímã} \\to \\text{ferro}} = -\\,\\vec{F}_{\\text{ferro} \\to \\text{ímã}}$.\n\nNão importa quem está imantado de fábrica nem qual é mais pesado — a intensidade da atração é a mesma nos dois sentidos. Alternativa **E**."
+  },
+  {
+   "numero": 24,
+   "topicos_ids": [
+    "13.1"
+   ],
+   "observacao": "Força magnética sobre espira circular percorrida por corrente. Li a imagem: o campo está representado por pontinhos (saindo do papel) e as setas da espira mostram corrente ANTI-HORÁRIA (sobe do lado direito, desce do lado esquerdo). Com B saindo do papel, I dl × B aponta radialmente para fora em todos os pontos.",
+   "gabarito_sugerido": "B",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "A força sobre cada pedacinho de fio é $d\\vec{F} = I\\,d\\vec{\\ell} \\times \\vec{B}$ — e o segredo é aplicar isso ponto a ponto, não à espira inteira de uma vez.\n\nO campo sai do papel (os pontinhos) e a corrente é anti-horária: as setas mostram a corrente subindo do lado direito e descendo do esquerdo. Tome o ponto mais alto da espira — ali $d\\vec{\\ell}$ aponta para a esquerda e $d\\vec{\\ell} \\times \\vec{B}$ aponta para cima, isto é, **para fora** do centro.\n\nPor simetria, o mesmo raciocínio em qualquer outro ponto dá um resultado radial e para fora.\n\nA resultante é nula (não há translação) e o torque também é nulo (o plano da espira já é perpendicular a $\\vec{B}$), mas a espira fica tracionada de dentro para fora: ela tende a **se alargar**. Alternativa **B**."
+  },
+  {
+   "numero": 25,
+   "topicos_ids": [
+    "7.2"
+   ],
+   "observacao": "Efeito Doppler acústico com fontes fixas e observador em movimento entre elas — aproxima-se de uma e afasta-se da outra ao mesmo tempo. Questão sem figura; li a imagem apenas para conferir os valores.",
+   "gabarito_sugerido": "A",
+   "confianca": "alta",
+   "leu_imagem": true,
+   "resolucao_md": "Fonte parada e observador em movimento: a frequência percebida é $f' = f\\,\\dfrac{V \\pm v}{V}$, com sinal $+$ na aproximação e $-$ no afastamento ($V = 340$ m/s é a velocidade do som).\n\nAndando de uma fonte para a outra, o observador se aproxima de uma e se afasta da outra **ao mesmo tempo**, então $\\dfrac{f_1}{f_2} = \\dfrac{V + v}{V - v} = \\dfrac{9}{8}$ — repare que a frequência $f$ das fontes se cancela, o resultado não depende dela.\n\nResolvendo: $8(340 + v) = 9(340 - v) \\Rightarrow 17v = 340 \\Rightarrow v = 20\\ \\mathrm{m/s}$.\n\nAlternativa **A**."
+  }
+ ]
+}

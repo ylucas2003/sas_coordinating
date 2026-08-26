@@ -69,9 +69,23 @@ class QuestaoVestibular(BaseModel):
     # None quando dissertativa — 2ª fase não tem alternativa nem letra.
     alternativas: dict[str, str] | None = None
     gabarito: str | None = None
+    # 'banca' = a letra é a publicada pela banca; 'sugerido' = deduzida
+    # resolvendo a questão (acervo histórico sem gabarito oficial, confiança
+    # alta apenas — 0031). None quando `gabarito` também é None.
+    gabaritoOrigem: str | None = None
+    gabaritoConfianca: Confianca | None = None
     imagemUrl: str | None = None
     usaImagemNoRender: bool
     resolucaoUrl: str | None = None
+    # Resolução escrita no próprio cartão, para o acervo que o Ari não comenta
+    # (tudo antes de 2019 — resolucao.py). Convive com resolucaoUrl; nunca as
+    # duas ao mesmo tempo (CHECK da 0031).
+    resolucaoMd: str | None = None
+    resolucaoOrigem: str | None = None
+    # 'visao' = página escaneada lida como imagem, o OCR não dá conta de prova
+    # datilografada (docs/22, piloto 1973). O cartão troca texto por padrão e
+    # imagem por consulta só nesse caso — em 'pipeline' é o inverso.
+    extraidoPor: str | None = None
     topicos: list[TopicoDaQuestao]
     revisado: bool
     # Só preenchido para aluno autenticado (P6). None = perfil sem estudo.

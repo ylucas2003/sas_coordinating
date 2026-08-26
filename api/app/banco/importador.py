@@ -174,6 +174,9 @@ def _linha_questao(
     """
     status = dados.get("status") or {}
     fonte = dados.get("fonte") or {}
+    _resolucao_url = url_da_resolucao(
+        prova["vestibular"], prova["ano"], prova["fase"], materia, dados["numero"]
+    )
     return {
         "id": dados["id"],
         "vestibular": prova["vestibular"],
@@ -186,14 +189,33 @@ def _linha_questao(
         # (a questão é só imagem). Vazio é dado; None derrubaria a importação.
         "enunciado_md": _sem_controles(dados.get("enunciado_md") or ""),
         "gabarito": dados.get("gabarito") or None,
+        # Os 934 JSONs de antes da 0031 não têm este campo — e todo gabarito
+        # deles veio de PDF de banca (extrair_gabarito.py nunca inventou letra;
+        # "sugerido" só existe a partir do acervo histórico). Por isso o default
+        # é 'banca', não None: se fosse None, reimportar o banco original
+        # apagaria a origem que a migration 0031 preencheu direto no banco.
+        "gabarito_origem": (dados.get("gabarito_origem") or "banca") if dados.get("gabarito") else None,
+        # Gabarito de banca não carrega confiança (CHECK da 0031 proíbe) — só o
+        # sugerido tem, e só quando a letra também existe.
+        "gabarito_confianca": (
+            dados.get("gabarito_confianca")
+            if dados.get("gabarito") and dados.get("gabarito_origem") == "sugerido"
+            else None
+        ),
         "imagem_url": dados.get("imagem_questao_url") or None,
         "usa_imagem_no_render": bool(dados.get("usa_imagem_no_render", False)),
         # Derivada, não lida do JSON: o arquivo nunca teve este campo — quem o
         # calculava era o gerador do HTML estático, que saiu na migração e
-        # levou junto a tabela de galerias do Ari (resolucao.py).
-        "resolucao_url": url_da_resolucao(
-            prova["vestibular"], prova["ano"], prova["fase"], materia, dados["numero"]
-        ),
+        # levou junto a tabela de galerias do Ari (resolucao.py). Só cobre
+        # 2019 em diante — o acervo histórico (0031) usa resolucao_md abaixo.
+        "resolucao_url": _resolucao_url,
+        "resolucao_md": dados.get("resolucao_md") or None,
+        # Mesmo raciocínio do gabarito_origem: os 934 JSONs antigos não têm este
+        # campo, mas TÊM resolucao_url (calculada acima) sempre que o Ari
+        # comenta a prova — o default segue o dado que já existe, não None, pelo
+        # mesmo motivo (reimportar não pode apagar o que a 0031 preencheu).
+        "resolucao_origem": dados.get("resolucao_origem") or ("ari" if _resolucao_url else None),
+        "extraido_por": dados.get("extraido_por") or "pipeline",
         "arquivo_origem": origem,
         "revisado": bool(status.get("revisado", False)),
         # Proveniência e bastidor do pipeline (0030). Com os JSONs fora do git

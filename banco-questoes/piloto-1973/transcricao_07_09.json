@@ -1,0 +1,111 @@
+{
+  "paginas": [
+    {
+      "pagina": 7,
+      "tipo": "questoes",
+      "observacao": "Página numerada \"- 6 -\" no original; traz a questão 14 (com figura do prato de vitrola e alternativas em gráfico) e a questão 15 (prisma de 45°, com figura)."
+    },
+    {
+      "pagina": 8,
+      "tipo": "questoes",
+      "observacao": "Página numerada \"- 7 -\" no original; traz a questão 16 (garrafa térmica, gráfico X de referência e cinco alternativas em gráfico) e a questão 17 (lente convergente junto ao olho)."
+    },
+    {
+      "pagina": 9,
+      "tipo": "questoes",
+      "observacao": "Página numerada \"- 8 -\" no original; traz a questão 18 (gás Lola no planêta Patropi) e a questão 19 (esfera carregada e eletroscópio de fôlhas, com esquema)."
+    }
+  ],
+  "questoes": [
+    {
+      "numero": 14,
+      "pagina": 7,
+      "enunciado_md": "A figura representa uma vista de cima de um arranjo formado por um prato de vitrola, de raio R, com um pino P, cravado em sua borda. Um farolête, F, projeta a imagem dêsse pino num anteparo, A. Quando o prato gira com velocidade angular $\\omega$, qual das figuras abaixo representa aproximadamente a coordenada $\\underline{x}$ em função do tempo?",
+      "alternativas": {
+        "A": "[gráfico]",
+        "B": "[gráfico]",
+        "C": "[gráfico]",
+        "D": "[gráfico]",
+        "E": "Nenhum dos gráficos acima satisfaz."
+      },
+      "alternativas_sao_figuras": true,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 15,
+      "pagina": 7,
+      "enunciado_md": "Um prisma de $45^\\circ$ é usado para desviar um feixe luminoso de $90^\\circ$. Qual deverá ser o índice de refração do vidro em relação ao ar para que tôda a luz que entra em A saia em B?",
+      "alternativas": {
+        "A": "1,5",
+        "B": "1,73",
+        "C": "1,41",
+        "D": "0,71",
+        "E": "1,65"
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 16,
+      "pagina": 8,
+      "enunciado_md": "Numa garrafa térmica contendo água foi introduzido um aquecedor de imersão cuja resistência pràticamente não varia com a temperatura. O aquecedor é ligado a uma fonte de tensão constante. O gráfico (curva tracejada) corresponde aproximadamente ao que se observa caso a garrafa térmica contenha 200 gramas de água. Escôlha o gráfico, (todos na mesma escala) que melhor representa o que se pode observar caso a garrafa térmica contenha só 100 gramas de água. (Observação: a garrafa não é fechada com rôlha). T = temperatura; t = tempo.",
+      "alternativas": {
+        "A": "[gráfico]",
+        "B": "[gráfico]",
+        "C": "[gráfico]",
+        "D": "[gráfico]",
+        "E": "[gráfico]"
+      },
+      "alternativas_sao_figuras": true,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 17,
+      "pagina": 8,
+      "enunciado_md": "A vista de uma pessoa normal é capaz de focalizar um objeto que esteja no mínimo a uma distância de 24 cm. Coloca-se junto do ôlho de uma pessoa normal uma lente delgada convergente de distância focal igual a 5,0 cm. Nêste caso, para que um objeto seja visto claramente pela pessoa, é suficiente que êle esteja a uma distância $\\underline{d}$ do ôlho tal que:",
+      "alternativas": {
+        "A": "3 cm < d < 10 cm",
+        "B": "d < 4 cm",
+        "C": "2 cm <d< 5 cm",
+        "D": "2 cm <d< 24 cm",
+        "E": "d > 4,5 cm"
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": false,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 18,
+      "pagina": 9,
+      "enunciado_md": "A atmosfera no distante planêta Patropi é constituida do raríssimo gás Lola. Os elétrons dos átomos dêsse gás emitem, quando excitados, uma luz de frequência $\\nu = 4,0 \\times 10^{14}$ Hertz. De que côr deve ser o céu em Patropi? (Observação: Os limites do espectro visível são: $\\lambda = 7,0 \\times 10^{-5}$ m, para o vermelho e $\\lambda = 4,0 \\times 10^{-5}$ m, para o violeta).",
+      "alternativas": {
+        "A": "Azul",
+        "B": "Infravermelho",
+        "C": "Amarelo",
+        "D": "Verde",
+        "E": "Ultravioleta"
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": false,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 19,
+      "pagina": 9,
+      "enunciado_md": "Uma esfera metálica carregada ($\\underline{M}$) é aproximada de um eletroscópio de fôlhas de alumínio, conforme esquema abaixo. A carcassa metálica R do eletroscópio está em contato elétrico permanente com o solo. Enquanto a esfera $\\underline{M}$ está muito afastada do eletroscópio estabeleceu-se um contato elétrico transitório entre T e R. Qual é a única afirmação correta em relação à experiência em aprêço?",
+      "alternativas": {
+        "A": "As fôlhas só abrirão quando a esfera $\\underline{M}$ tocar no terminal $\\underline{T}$.",
+        "B": "As fôlhas só abrirão quando a esfera $\\underline{M}$ tocar na carcassa $\\underline{R}$.",
+        "C": "As fôlhas só abrirão se o contato elétrico entre $\\underline{T}$ e $\\underline{R}$ fôr mantido permanentemente.",
+        "D": "As fôlhas só abrirão se a carcassa $\\underline{R}$ receber uma carga de mesmo valor, mas de sinal opôsto ao da esfera $\\underline{M}$.",
+        "E": "As fôlhas se abrirão à medida que $\\underline{M}$ se aproxima de $\\underline{T}$."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    }
+  ]
+}

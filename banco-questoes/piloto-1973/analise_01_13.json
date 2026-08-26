@@ -1,0 +1,122 @@
+{
+  "prova": "ITA 1973 - Física",
+  "questoes": [
+    {
+      "numero": 1,
+      "topicos_ids": ["5.1", "4.1"],
+      "observacao": "Teorema do trabalho-energia num plano inclinado com atrito, emendado com queda livre. Sem figura; conferido no recorte. A alternativa A (0,82 J) é a energia cinética só na borda do telhado — é a pegadinha.",
+      "gabarito_sugerido": "B",
+      "confianca": "alta",
+      "resolucao_md": "O que destrava é o **teorema do trabalho–energia**: a energia cinética final é tudo o que o peso realiza menos o que o atrito dissipa. Não é preciso achar a velocidade em nenhum ponto.\n\nNo telhado, ao longo de $L = 5{,}0$ m: $W_{peso} = mgL\\sin 30^\\circ$ e $W_{atrito} = -\\mu mgL\\cos 30^\\circ$. Na queda livre de $h = 2{,}0$ m só o peso trabalha: $W = mgh$.\n\n$E_c = mgL(\\sin 30^\\circ - \\mu\\cos 30^\\circ) + mgh$\n\n$E_c = 0{,}050\\cdot 10\\cdot 5{,}0\\,(0{,}500 - 0{,}2\\cdot 0{,}866) + 0{,}050\\cdot 10\\cdot 2{,}0$\n\n$E_c = 2{,}5\\cdot 0{,}327 + 1{,}0 = 0{,}82 + 1{,}0 \\approx 1{,}82\\ \\text{J}$\n\nRepare que $0{,}82$ J (alternativa A) é só a parcela ganha no telhado — quem esquece a queda cai nela. Resposta: **B**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 2,
+      "topicos_ids": ["2.1", "4.1"],
+      "observacao": "Lançamento oblíquo para baixo: a pedra deixa a borda a 30° abaixo da horizontal, com o módulo da velocidade vindo da dinâmica da questão 1. Sem figura.",
+      "gabarito_sugerido": "D",
+      "confianca": "alta",
+      "resolucao_md": "A chave é perceber que a pedra **não** cai na vertical: ela sai da borda com a velocidade do telhado, inclinada $30^\\circ$ abaixo da horizontal. Decomponha e trate como lançamento oblíquo.\n\nDa questão anterior, $a = g(\\sin 30^\\circ - \\mu\\cos 30^\\circ) = 3{,}27$ m/s$^2$, logo $v = \\sqrt{2aL} = \\sqrt{2\\cdot 3{,}27\\cdot 5{,}0} = 5{,}7$ m/s.\n\nComponentes: $v_x = 5{,}7\\cos 30^\\circ = 4{,}95$ m/s e $v_y = 5{,}7\\sin 30^\\circ = 2{,}86$ m/s (para baixo).\n\nQueda de 2,0 m: $2{,}0 = 2{,}86\\,t + 5t^2 \\Rightarrow t = 0{,}41$ s.\n\nDistância à parede (deslocamento horizontal): $x = v_x t = 4{,}95\\cdot 0{,}41 \\approx 2{,}0$ m. Resposta: **D**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 3,
+      "topicos_ids": ["2.1"],
+      "observacao": "Movimento circular uniformemente variado lido de um gráfico ω×t. Li o recorte: a reta parte de ω = 1 rd/s em t = 0 e passa por ω = 5 rd/s em t = 20 s — daí α = 0,20 (e não 0,25, que sairia se alguém ignorasse o ω inicial).",
+      "gabarito_sugerido": "D",
+      "confianca": "alta",
+      "resolucao_md": "Gráfico $\\omega \\times t$ reto significa **aceleração angular constante**: $\\alpha$ é a inclinação da reta. Cuidado com o intercepto — a reta não sai da origem.\n\nDo gráfico, $\\omega$ vai de 1 rd/s ($t=0$) a 5 rd/s ($t=20$ s):\n\n$\\alpha = \\dfrac{5-1}{20} = 0{,}20\\ \\text{rd/s}^2 \\qquad \\Rightarrow \\qquad \\omega(t) = 1 + 0{,}20\\,t$\n\nAceleração tangencial: $a = \\alpha R = 0{,}20\\cdot 0{,}8 = 0{,}16$ m/s$^2$.\n\nCentrípeta: $a_c = \\omega^2 R = 0{,}8\\,(1+0{,}2t)^2 = 0{,}8 + 0{,}32\\,t + 0{,}032\\,t^2$ m/s$^2$.\n\nQuem lê $\\alpha = 0{,}25$ está dividindo $5/20$, isto é, esquecendo que $\\omega_0 = 1$ rd/s. Resposta: **D**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 4,
+      "topicos_ids": ["4.1", "2.1"],
+      "observacao": "Tração como resultante centrípeta, combinada com a função ω(t) obtida do gráfico da questão 3. A componente tangencial da força vale só 0,32 N e é desprezível diante dos 40 N.",
+      "gabarito_sugerido": "D",
+      "confianca": "alta",
+      "resolucao_md": "O fio só puxa para o centro, então a **tração é a resultante centrípeta**: $T = m\\,a_c = m\\omega^2 R$. O fio arrebenta quando $\\omega$ atinge o valor que leva $T$ ao limite.\n\n$40 = 2{,}0\\cdot \\omega^2\\cdot 0{,}8 \\;\\Rightarrow\\; \\omega^2 = 25 \\;\\Rightarrow\\; \\omega = 5{,}0$ rd/s.\n\nUsando $\\omega(t) = 1 + 0{,}20\\,t$ da questão anterior:\n\n$5{,}0 = 1 + 0{,}20\\,t \\;\\Rightarrow\\; t = 20\\ \\text{s}$\n\n(A força tangencial vale apenas $ma = 2{,}0\\cdot 0{,}16 = 0{,}32$ N, irrelevante frente aos 40 N — por isso é legítimo igualar $T$ à centrípeta.) Resposta: **D**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 5,
+      "topicos_ids": ["4.1", "3.1"],
+      "observacao": "Atrito estático: o teste é comparar F com o atrito estático máximo antes de calcular qualquer coisa. Li a figura — F é horizontal, então N = mg. As alternativas B (μc·N) e C (μs·N) são exatamente os valores que se obtêm aplicando fórmula sem fazer o teste.",
+      "gabarito_sugerido": "A",
+      "confianca": "alta",
+      "resolucao_md": "A armadilha aqui é sair multiplicando $\\mu N$. O atrito estático **não** tem valor fixo: ele vale o quanto precisar para segurar o bloco, até um teto $F_{at}^{max} = \\mu_e N$.\n\nCom $F$ horizontal, $N = mg = 10\\cdot 9{,}8 = 98$ N, logo\n\n$F_{at}^{max} = \\mu_e N = 0{,}3\\cdot 98 = 29{,}4\\ \\text{N}$\n\nComo $F = 20$ N $< 29{,}4$ N, o bloco **não desliza**. Pela 2ª lei de Newton com $a = 0$: $F - F_a = 0$, ou seja,\n\n$F_a = 20\\ \\text{N}$\n\nOs 29,4 N (alternativa C) são só o limite, e os 24,5 N (alternativa B) seriam o atrito cinético — que só valeria se o bloco estivesse em movimento. Resposta: **A**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 6,
+      "topicos_ids": ["4.1"],
+      "observacao": "MCU com força elástica: o ponto é que a força centrípeta usa o raio NOVO, R', não o de repouso. Usar R por engano dá exatamente 0,20 m (alternativa D). Solução oficial despreza o peso (o círculo é tratado como puramente horizontal).",
+      "gabarito_sugerido": "E",
+      "confianca": "alta",
+      "resolucao_md": "A força elástica do elástico é a **resultante centrípeta**, e o detalhe que decide a questão é o raio que entra em cada lado: a deformação é $R'-R$, mas a centrípeta usa o raio efetivo $R'$.\n\n$k(R'-R) = m\\omega^2 R'$\n\n$0{,}20\\,(R'-1{,}00) = 0{,}010\\cdot (2{,}0)^2\\cdot R' = 0{,}040\\,R'$\n\n$0{,}20R' - 0{,}20 = 0{,}040R' \\;\\Rightarrow\\; 0{,}16R' = 0{,}20 \\;\\Rightarrow\\; R' = 1{,}25\\ \\text{m}$\n\nLogo $R' - R = 0{,}25$ m. Se você escrever $k\\Delta R = m\\omega^2 R$ (com o raio antigo), acha 0,20 m — a alternativa D, plantada justamente para isso. Resposta: **E**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 7,
+      "topicos_ids": ["4.1"],
+      "observacao": "Centro de massa de três partículas; as alternativas são pontos num gráfico. Li o recorte e identifiquei as coordenadas: A(1,4), B(3,4), C(2,5;2,5), D(4,3), E(6,2). O CM calculado, (3,4), coincide com B.",
+      "gabarito_sugerido": "B",
+      "confianca": "alta",
+      "resolucao_md": "Centro de massa é uma **média das posições ponderada pelas massas** — faça uma coordenada de cada vez.\n\nMassa total: $M = 2 + 4 + 2 = 8$ kg.\n\n$x_{cm} = \\dfrac{2(3) + 4(4) + 2(1)}{8} = \\dfrac{6+16+2}{8} = \\dfrac{24}{8} = 3{,}0\\ \\text{m}$\n\n$y_{cm} = \\dfrac{2(6) + 4(4) + 2(2)}{8} = \\dfrac{12+16+4}{8} = \\dfrac{32}{8} = 4{,}0\\ \\text{m}$\n\nO centro de massa está em $(3;4)$, que no gráfico é o ponto **B**. Note que a partícula de 4 kg puxa o CM para perto de $(4,4)$ — se você tivesse feito a média simples das posições, cairia em $(2{,}7;4{,}0)$, sem ponto correspondente. Resposta: **B**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 8,
+      "topicos_ids": ["4.1", "2.1"],
+      "observacao": "Impulso = variação da quantidade de movimento, com as velocidades lidas como inclinações num gráfico x×t. Li o recorte: trecho (1) passa por (0,0) e (2 s, 2 m) → v1 = 1,0 m/s; trecho (2) passa por (4 s, 6 m) e (6 s, 11 m) → v2 = 2,5 m/s. As alternativas C e D estão em unidades erradas para impulso.",
+      "gabarito_sugerido": "A",
+      "confianca": "alta",
+      "resolucao_md": "**Teorema do impulso**: $J = \\Delta p = m(v_2 - v_1)$. Num gráfico $x \\times t$, a velocidade é a inclinação de cada reta — é só medir as duas.\n\nAntes (reta 1): de $(0;0)$ a $(2\\,\\text{s};2\\,\\text{m})$, $v_1 = \\dfrac{2}{2} = 1{,}0$ m/s.\n\nDepois (reta 2): de $(4\\,\\text{s};6\\,\\text{m})$ a $(6\\,\\text{s};11\\,\\text{m})$, $v_2 = \\dfrac{11-6}{6-4} = 2{,}5$ m/s.\n\n$J = 5{,}0\\,(2{,}5 - 1{,}0) = 7{,}5\\ \\text{kg}\\cdot\\text{m/s}$\n\nAntes de marcar, confira a unidade: impulso é kg·m/s (= N·s). As opções em N·m e em J são energia/trabalho, não impulso. Resposta: **A**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 9,
+      "topicos_ids": ["4.1"],
+      "observacao": "Continuação direta da 8: força média a partir do impulso e do intervalo. Sem figura.",
+      "gabarito_sugerido": "D",
+      "confianca": "alta",
+      "resolucao_md": "A definição de **força média** num choque é justamente $\\bar{F}\\,\\Delta t = J$: a força varia muito durante o impacto, mas seu efeito total é o impulso.\n\nCom $J = 7{,}5$ kg·m/s da questão anterior e $\\Delta t = 1{,}0\\times 10^{-2}$ s:\n\n$\\bar{F} = \\dfrac{J}{\\Delta t} = \\dfrac{7{,}5}{1{,}0\\times 10^{-2}} = 7{,}5\\times 10^{2}\\ \\text{N}$\n\nÉ o mecanismo por trás de qualquer colisão: um $\\Delta t$ pequeno transforma um impulso modesto numa força enorme (750 N para uma variação de velocidade de 1,5 m/s). Resposta: **D**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 10,
+      "topicos_ids": ["8.1", "3.1"],
+      "observacao": "CONFIANÇA BAIXA — questão qualitativa, sem conta que feche. Li o recorte e identifiquei as cinco curvas: A é decrescente (hiperbólica), B e C são crescentes e côncavas para cima (C quase vertical), D é praticamente uma reta crescente e E é crescente e saturante. Escolhi A pela lei de Laplace ($\\pi = 4\\sigma/r$: quanto maior o balão, MENOR a sobrepressão — é o mesmo efeito de dois balões ligados, em que o pequeno esvazia no grande), e porque a palavra 'real' no enunciado sugere que a resposta é a contraintuitiva. Mas se a banca modelou a borracha como hookeana, o resultado seria uma curva crescente com assíntota vertical, isto é, a alternativa B. Não consegui decidir com segurança entre A e B.",
+      "gabarito_sugerido": "A",
+      "confianca": "baixa",
+      "resolucao_md": "O princípio é a **lei de Laplace** para uma membrana esférica: $\\pi = \\dfrac{4\\sigma}{r}$, em que $\\sigma$ é a tensão da borracha e $r$ o raio do balão.\n\nDepois que a borracha é esticada, $\\sigma$ varia pouco numa larga faixa de deformação. Com $\\sigma$ aproximadamente constante, a sobrepressão cai com o raio: quanto **maior** o balão, **menor** a sobrepressão necessária para mantê-lo.\n\nComo $V \\propto r^3$ e $r \\propto 1/\\pi$, resulta $V \\propto \\pi^{-3}$ — uma curva decrescente do tipo hiperbólico.\n\nÉ exatamente a experiência de encher balão: o difícil é o começo (raio pequeno, sobrepressão alta) e depois fica fácil. É também o motivo de, ligando dois balões de tamanhos diferentes por um tubo, o pequeno esvaziar dentro do grande.\n\nA curva com esse comportamento é a **A**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 11,
+      "topicos_ids": ["4.1", "7.1"],
+      "observacao": "Duas etapas: colisão perfeitamente inelástica (conserva momento, não energia) seguida de MHS (conserva energia mecânica). Li a figura — bloco preso à mola horizontal, sem atrito.",
+      "gabarito_sugerido": "C",
+      "confianca": "alta",
+      "resolucao_md": "Separe em duas etapas, cada uma com sua lei de conservação. Na **colisão** (bala incrusta) só o momento se conserva; **depois** dela, com a mola, a energia mecânica se conserva.\n\nEtapa 1 — quantidade de movimento:\n\n$m v_0 = (M+m)V \\;\\Rightarrow\\; V = \\dfrac{0{,}012\\cdot 200}{0{,}144} = 16{,}7\\ \\text{m/s}$\n\nEtapa 2 — na amplitude toda a energia cinética virou energia elástica:\n\n$\\tfrac{1}{2}(M+m)V^2 = \\tfrac{1}{2}kA^2 \\;\\Rightarrow\\; A = V\\sqrt{\\dfrac{M+m}{k}} = 16{,}7\\sqrt{\\dfrac{0{,}144}{1{,}6\\times 10^{4}}}$\n\n$A = 16{,}7\\cdot 3{,}0\\times 10^{-3} = 0{,}050\\ \\text{m} = 5{,}0\\ \\text{cm}$\n\nO erro clássico é conservar energia na colisão — boa parte dela vira calor e deformação. Resposta: **C**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 12,
+      "topicos_ids": ["8.1"],
+      "observacao": "Flutuação com empuxo. Li a figura: x é o trecho emerso (linha d'água até o topo da vela) e y o trecho imerso (linha d'água até a base do cilindro de chumbo), com x + y = comprimento total. O chumbo, muito mais denso que a água, é o que garante que x zere antes de y.",
+      "gabarito_sugerido": "D",
+      "confianca": "alta",
+      "resolucao_md": "O princípio é o **empuxo de Arquimedes**: em equilíbrio, o peso do conjunto vela + chumbo iguala o peso da água deslocada, e é isso que fixa a profundidade $y$ a cada instante.\n\nCom seção $A$, comprimento de vela $L$ e cilindro de chumbo de altura $h$:\n\n$\\rho_{cera}AL + \\rho_{Pb}Ah = \\rho_{ag}Ay \\;\\Rightarrow\\; y = \\dfrac{\\rho_{cera}L + \\rho_{Pb}h}{\\rho_{ag}}$\n\nComo $x = (L+h) - y$, vem $x = L\\left(1 - \\dfrac{\\rho_{cera}}{\\rho_{ag}}\\right) - h\\left(\\dfrac{\\rho_{Pb}}{\\rho_{ag}} - 1\\right)$.\n\nQueimando, $L$ diminui: $x$ e $y$ **diminuem os dois**. Mas o termo do chumbo é uma constante negativa grande ($\\rho_{Pb}\\approx 11\\rho_{ag}$), enquanto o fator da cera é pequeno ($1-0{,}9 \\approx 0{,}1$). Então $x$ chega a zero enquanto $y$ ainda vale $L+h > 0$ — a chama alcança a água antes de a vela afundar por completo. E, com o chumbo embaixo, o conjunto é estável e não tomba. Resposta: **D**.",
+      "leu_imagem": true
+    },
+    {
+      "numero": 13,
+      "topicos_ids": ["8.1"],
+      "observacao": "Pressão em fluido em repouso. Li a figura: a e b estão no nível da água externa (b já dentro do gás preso), c e d no nível da superfície interna do tubo (mais baixa), e e f mais fundo, na altura da boca do tubo. c e d estão no mesmo nível e ligados pela mesma massa de água por baixo da boca do tubo.",
+      "gabarito_sugerido": "C",
+      "confianca": "alta",
+      "resolucao_md": "Use o **princípio de Stevin na forma dos vasos comunicantes**: pontos no mesmo nível, dentro do mesmo líquido em repouso e **ligados** por ele, têm a mesma pressão.\n\nO ponto $c$ está na água da vasilha e o ponto $d$ na superfície da água dentro do tubo, ambos na mesma altura. Eles se comunicam pela água que passa por baixo da boca do tubo, logo\n\n$P_c = P_d$\n\nEsse valor também dá a pressão do ar preso: $P_{gas} = P_d = P_{atm} + \\rho g h$, com $h$ o desnível entre as duas superfícies — o gás está comprimido acima da atmosférica, e é por isso que a água interna fica mais baixa.\n\nAs outras caem por comparar níveis diferentes: $P_a = P_{atm}$ é menor que $P_d$ e que $P_f$; e $P_e > P_b$ porque $e$ está mais fundo que o nível de $b$. Resposta: **C**.",
+      "leu_imagem": true
+    }
+  ]
+}

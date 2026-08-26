@@ -535,6 +535,133 @@
   cursor: default;
 }
 
+/* Gabarito SUGERIDO (0031): âmbar, nunca verde — verde é "confirmado" neste
+   projeto (comentário de .banco-questao__gabarito acima), e uma sugestão
+   pintada de verde diria ao aluno que a banca respondeu isso. */
+.banco-questao__gabarito--sugerido {
+  border-style: dashed;
+  border-color: var(--color-amber);
+  color: var(--color-amber);
+}
+
+.banco-questao__gabarito--sugerido:hover {
+  border-color: var(--color-amber);
+}
+
+.banco-questao__gabarito--sugerido.banco-questao__gabarito--revelado {
+  border-style: solid;
+  border-color: transparent;
+  background: var(--color-amber-soft);
+  color: var(--color-amber);
+}
+
+.banco-questao__gabarito-aviso {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+/* ── Resolução sugerida (0031) ──
+   Mesma ideia visual do gabarito sugerido: contorno âmbar tracejado fechado,
+   preenchido ao abrir. Fica junto de `.banco-questao__resolucao` — o botão de
+   abrir é visualmente igual ao link do Ari, para não fragmentar "onde eu clico
+   pra ver a resolução" em dois lugares diferentes do cartão. */
+.banco-questao__resolucao-sugerida {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.banco-questao__resolucao-corpo {
+  padding: 12px 14px;
+  background: var(--color-surface-inset);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.banco-questao__resolucao-corpo p {
+  margin: 0 0 10px;
+}
+
+.banco-questao__resolucao-corpo p:last-child {
+  margin-bottom: 0;
+}
+
+.banco-questao__resolucao-aviso {
+  margin-top: 10px !important;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+/* ── Imagem original (questão extraída por visão, docs/22 piloto 1973) ──
+   O texto transcrito já é o principal do cartão (ver CartaoQuestao.tsx); isto
+   é só o botão de consulta e o aviso que aparece quando ele abre. */
+.banco-questao__imagem-original {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.banco-questao__aviso-imagem {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+/* ── Botão de informação (quadradinho dourado, balão sob demanda) ──
+   componentes/ui/BotaoInfo.tsx. Nasceu do aviso de "página original da
+   prova", que antes era uma frase inteira fixa no cartão. */
+
+.botao-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: var(--color-gold);
+  color: var(--color-navy);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.botao-info:hover,
+.botao-info:focus-visible {
+  background: var(--color-gold-deep);
+  outline: none;
+}
+
+/* `position: fixed` porque o balão vive num portal no <body> (BotaoInfo.tsx)
+   — o card tem `overflow: hidden` (.banco-questao acima) e cortaria um
+   balão posicionado por dentro dele. */
+.botao-info__balao {
+  position: fixed;
+  z-index: 500;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-navy-deep);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: var(--shadow-float);
+}
+
 /* ── Tópicos e anotação ── */
 
 .banco-questao__topicos {

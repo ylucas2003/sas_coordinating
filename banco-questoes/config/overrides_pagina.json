@@ -1,0 +1,4 @@
+{
+  "_comentario": "Mapa manual id_questao -> [páginas] para quando gerar_imagem_pagina.py não conseguir localizar o marcador da questão automaticamente (nenhuma variante de VARIANTES_QUESTAO_ITA/IME bate). Vazio hoje: o trio ime_1998_fase2/_mat/_qui, que motivou este arquivo, acabou resolvido adicionando a variante '{n}a Questã' (ver comentário em gerar_imagem_pagina.py) — não precisou de entrada manual. Preencher só quando a localização automática relatar 'sem_localizacao' para uma questão específica.",
+  "_exemplo": {"ime_1998_fase2_q01": [1]}
+}

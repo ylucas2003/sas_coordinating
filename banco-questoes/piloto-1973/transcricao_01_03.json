@@ -1,0 +1,81 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "tipo": "capa",
+      "observacao": "Folha de rosto do Ministério da Aeronáutica / CTA / ITA com o título \"CONCURSO DE ADMISSÃO DE 1973 - EXAME DE FÍSICA\" e as 12 instruções ao candidato."
+    },
+    {
+      "pagina": 2,
+      "tipo": "questoes",
+      "observacao": "Página numerada \"- 1 -\", com o cabeçalho \"QUESTÕES DE MÚLTIPLA ESCOLHA\" e as questões 1 e 2 completas."
+    },
+    {
+      "pagina": 3,
+      "tipo": "questoes",
+      "observacao": "Página numerada \"- 2 -\", com as questões 3 (enunciado acompanhado de gráfico $\\omega \\times t$) e 4, ambas completas."
+    }
+  ],
+  "questoes": [
+    {
+      "numero": 1,
+      "pagina": 2,
+      "enunciado_md": "Uma pedra de massa igual a 50 gramas <u>desliza</u>, a partir do repouso, sôbre um telhado inclinado de $30^\\circ$ com a horizontal. Percorrendo uma distância de 5,0 m com um coeficiente de atrito cinético igual a 0,2, ela chega à borda do telhado e inicia uma queda livre. Qual será sua energia cinética após ter caido 2,0 m? (suponha $g = 10$ m/s$^2$).",
+      "alternativas": {
+        "A": "0,82 J",
+        "B": "1,82 J",
+        "C": "2,25 J",
+        "D": "2.250 J",
+        "E": "Nenhuma das respostas acima."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": false,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 2,
+      "pagina": 2,
+      "enunciado_md": "Na questão anterior, a dois metros de queda livre, qual é a distância <u>aproximada</u> da pedra à parêde? (Suponha a parêde na mesma linha da borda do telhado).",
+      "alternativas": {
+        "A": "0,2 m",
+        "B": "1,82 m",
+        "C": "2,82 m",
+        "D": "2,0 m",
+        "E": "Nenhuma das respostas acima."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": false,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 3,
+      "pagina": 3,
+      "enunciado_md": "Um flutuador em colchão de ar, de massa <u>m</u>, desloca-se num círculo horizontal, sôbre uma mêsa e prêso à extremidade de um fio inextensível, de comprimento igual a 0,8 m, com a velocidade angular mostrada no gráfico (a propulsão é dada pelos gases expelidos pelo aparêlho). Suponha a massa do aparêlho constante. Calcule as acelerações angular ($\\alpha$), tangencial (a) e centrípeta ($a_c$) e assinale a resposta correta abaixo.\n\n[figura: gráfico de $\\omega$ (rd/s) no eixo vertical, com marcas em 1, 3, 5 e 7, contra $t$ (s) no eixo horizontal, com marcas em 0, 5, 10, 15, 20, 25; reta crescente partindo de aproximadamente $\\omega = 1$ em $t = 0$ e passando por $\\omega = 5$ em $t = 20$, indicado por linhas tracejadas]\n\nCabeçalho das colunas das alternativas: $\\alpha$(rd/s$^2$) — a(m/s$^2$) — $a_c$(m/s$^2$).",
+      "alternativas": {
+        "A": "$\\alpha = 0{,}25$ ; $a = 0{,}20$ ; $a_c = 0{,}8 + 0{,}32t + 0{,}032t^2$",
+        "B": "$\\alpha = 0{,}20$ ; $a = 0{,}16$ ; $a_c = 0{,}8 + 0{,}4t + 0{,}05t^2$",
+        "C": "$\\alpha = 0{,}25$ ; $a = 0{,}20$ ; $a_c = 0{,}8 + 0{,}4t + 0{,}05t^2$",
+        "D": "$\\alpha = 0{,}20$ ; $a = 0{,}16$ ; $a_c = 0{,}8 + 0{,}32t + 0{,}032t^2$",
+        "E": "$\\alpha = 0{,}25$ ; $a = 0{,}16$ ; $a_c = 0{,}8 + 0{,}32t + 0{,}032t^2$"
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": true,
+      "trechos_ilegiveis": 0
+    },
+    {
+      "numero": 4,
+      "pagina": 3,
+      "enunciado_md": "Na questão anterior, se a massa do aparêlho é 2,0 kg e se a tensão máxima que o fio permite é 40 N, após quantos segundos êste se rompe?",
+      "alternativas": {
+        "A": "5,0 s",
+        "B": "12 s",
+        "C": "15 s",
+        "D": "20 s",
+        "E": "Nenhum dos resultados acima é correto."
+      },
+      "alternativas_sao_figuras": false,
+      "tem_figura_no_enunciado": false,
+      "trechos_ilegiveis": 0
+    }
+  ]
+}
