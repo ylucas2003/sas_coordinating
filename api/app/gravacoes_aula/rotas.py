@@ -41,7 +41,7 @@ from ..auth import exigir_scheduler_secret
 from ..canvas_sync.cliente import ClienteCanvas
 from ..config import get_settings
 from ..supabase_client import criar_cliente_supabase
-from . import armazenamento_s3, compositor, downloader, publicador_youtube
+from . import armazenamento_s3, compositor, downloader, publicador_youtube, titulo
 
 _log = logging.getLogger(__name__)
 
@@ -257,6 +257,20 @@ def _processar_uma(cliente: Any, aula: dict[str, Any]) -> dict[str, Any]:
             "observacao": "já estava no canal; id recuperado e estado reconciliado",
         }
 
+    # Nome do curso e professor padrão saem daqui para montar o título no
+    # padrão do canal. Falhar isso não pode derrubar a publicação: sem a
+    # linha, o título só perde o "Prof X" quando a conferência também não traz.
+    curso: dict[str, Any] | None = None
+    with contextlib.suppress(Exception):
+        achados = (
+            cliente.table("curso_monitorado_gravacao")
+            .select("nome,professor_padrao")
+            .eq("curso_id", aula["curso_id"])
+            .execute()
+            .data
+        )
+        curso = achados[0] if achados else None
+
     trabalho = Path(
         tempfile.mkdtemp(prefix=f"{_PREFIXO_TRABALHO}{aula['conferencia_id']}-")
     )
@@ -289,9 +303,17 @@ def _processar_uma(cliente: Any, aula: dict[str, Any]) -> dict[str, Any]:
         marcar(s3_bucket=bucket, s3_chave_composto=chave)
 
         marcar(status="publicando")
+        # O título da conferência no Canvas é datilografado à mão e não segue
+        # padrão nenhum; o canal segue. Ver titulo.py.
+        titulo_video = titulo.compor_titulo(
+            titulo_canvas=aula["titulo"],
+            nome_curso=curso.get("nome", "") if curso else "",
+            iniciada_em=datetime.fromisoformat(aula["iniciada_em"].replace("Z", "+00:00")),
+            professor_padrao=(curso or {}).get("professor_padrao"),
+        )
         video_id = publicador_youtube.publicar(
             composto,
-            titulo=aula["titulo"],
+            titulo=titulo_video,
             curso_id=aula["curso_id"],
             conferencia_id=aula["conferencia_id"],
         )
