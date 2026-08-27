@@ -22,6 +22,18 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Leva de 60 a 100 min — daí o timeout de 2h e o horário de madrugada.
 0 3 * * * /opt/sas/infra/vps/cron-sas.sh /canvas-sync/reconciliar 7200
 
+# Publicação de aula gravada (app/gravacoes_aula/). `verificar` lista as
+# conferências do Canvas e registra as novas — é barato e cabe no --max-time.
+#
+# `processar` DISPARA a rodada e responde na hora (BackgroundTasks): o trabalho
+# de verdade — baixar ~500 MB, recodificar 93 min de 1080p e subir pro YouTube —
+# leva de 45 a 90 min por aula e não caberia em requisição nenhuma. Por isso o
+# 280 aqui continua certo: ele mede o disparo, não o trabalho. Uma aula por
+# rodada; a trava faz a chamada seguinte devolver "ignorado" enquanto a
+# anterior ainda roda, e a fila drena com folga dentro dos ~7 dias de retenção.
+20 * * * * /opt/sas/infra/vps/cron-sas.sh /gravacoes-aula/verificar 280
+25 * * * * /opt/sas/infra/vps/cron-sas.sh /gravacoes-aula/processar 280
+
 # Vigia de saúde: consulta /health/ready e registra. É o que transforma o
 # endpoint em alerta — sem isto, ninguém lê o 503 (docs/15 §Etapa 8).
 */10 * * * * /opt/sas/infra/vps/cron-saude.sh

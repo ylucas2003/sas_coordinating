@@ -45,7 +45,10 @@ sas/
 ├── infra/
 │   ├── vps/      stack de PRODUÇÃO — autônoma, não é override do compose da raiz
 │   ├── postgres/ init dos papéis do PostgREST
-│   └── sas_scheduler/  CDK do agendador na AWS
+│   └── cdk.out/  artefato morto do agendador AWS (EventBridge). O código-fonte
+│                 saiu na migração pro VPS; hoje quem agenda é o cron do
+│                 sistema — `infra/vps/crontab-sas` + `cron-sas.sh`. Vários
+│                 comentários no backend ainda dizem "EventBridge": é resíduo
 ├── docs/         00→22, numerados; 14 e 15 são produção; **19 é o estado**
 │                 (feito / pendente / próximo); 20 e 21 são o sprint mobile;
 │                 22 é o banco de questões

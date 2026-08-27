@@ -234,6 +234,20 @@ class ClienteCanvas:
         as pastas de ano antigo dentro de uma pasta de ciclo ficam de fora)."""
         return await self._get_paginado(f"/folders/{folder_id}/files")
 
+    async def listar_conferencias(self, course_id: str) -> list[dict[str, Any]]:
+        """Conferências (BigBlueButton) do curso, com gravações se houver —
+        usado por app/gravacoes_aula/ pra detectar aula nova e achar a URL de
+        replay (`recordings[].playback_formats[0].url`).
+
+        Resposta vem envelopada em {"conferences": [...]}, diferente dos
+        demais endpoints deste cliente — por isso NÃO usa _get_paginado (que
+        assume array puro). Um curso não passa de ~100 conferências/ano;
+        per_page=100 já cobre isso numa página só."""
+        resposta = await self._get(
+            f"/courses/{course_id}/conferences", params={"per_page": 100}
+        )
+        return resposta.json().get("conferences", [])
+
     # ─── Endpoints usados pelo agendamento (P1 — escrita SAS → Canvas) ────
 
     async def criar_assignment_group(self, course_id: str, *, nome: str) -> dict[str, Any]:

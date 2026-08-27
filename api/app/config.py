@@ -147,6 +147,26 @@ class Settings(BaseSettings):
     # Mesmo valor do parâmetro SSM /sas/scheduler/secret — ver infra/README.md.
     scheduler_secret: str = ""
 
+    # --- Publicação de aula gravada (app/gravacoes_aula/) -----------------
+    # Pipeline: baixa a gravação do Canvas/BigBlueButton, compõe com o
+    # template da marca, guarda no S3 e publica no YouTube como "não
+    # listado". Vazios → as rotas /gravacoes-aula/* falham com mensagem
+    # explícita; o resto do sistema não muda.
+    #
+    # O bucket é OUTRO que o do banco de questões: lá são PNGs públicos de
+    # prova, aqui é gravação de sala com aluno menor de idade (LGPD).
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_region: str = "us-east-1"
+    s3_bucket_gravacoes: str = ""
+
+    # OAuth de usuário do YouTube (Data API v3) — não service account: só uma
+    # conta com acesso ao canal pode publicar. O refresh token é gerado uma
+    # vez no Google Cloud Console + fluxo de consentimento.
+    youtube_client_id: str = ""
+    youtube_client_secret: str = ""
+    youtube_refresh_token: str = ""
+
     @property
     def segredo_lembrete(self) -> str:
         """Chave do HMAC do descadastro — dedicada se houver, senão a do JWT."""

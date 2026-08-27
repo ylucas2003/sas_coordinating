@@ -111,10 +111,51 @@ API. Documentado em `docs/sprints.html · SPRINT FOTO` (sem doc próprio em
 
 ## 1.5 · Escrito mas **não em produção**
 
-*(vazio — o que estava aqui, redesenho do casco + banco de questões
-histórico + SPRINT FOTO, foi para produção em 24/08. Ver §1 e
-[23-banco-questoes-historico.md §9.8](23-banco-questoes-historico.md#98--deploy-e-import-de-verdade--2408-madrugada)
-para a novela do deploy.)
+### Publicação automática de aulas no YouTube *(27/08)*
+
+Substitui o processo manual em que um auxiliar de coordenação gravava a
+própria tela durante a aula e subia o vídeo depois. Roda em
+`api/app/gravacoes_aula/`, disparado pelo cron do VPS como o resto
+(`/gravacoes-aula/verificar` e `/gravacoes-aula/processar`, de hora em hora).
+
+| Etapa | Estado |
+|---|---|
+| Detectar aula nova com gravação no Canvas | ✅ testado contra o Canvas real |
+| Baixar do BigBlueButton | ✅ aula real de 97 min, ~480 MB |
+| Compor com o template da marca | ✅ ffmpeg, câmera + tela sobre o PNG |
+| Guardar no S3 | ✅ bucket privado dedicado |
+| Publicar no YouTube como *não listado* | ✅ comprovado com vídeo de teste |
+
+**O achado que viabilizou tudo:** a documentação oficial e as ferramentas de
+terceiros (`bbb-dl`) dizem que o plano de BigBlueButton do colégio não permite
+baixar arquivo de vídeo. É meia-verdade — a página de replay é mesmo só um
+player HTML5, mas **existem os arquivos brutos** por trás dela:
+`{replay}/video/webcams.mp4` (câmera + áudio) e
+`{replay}/deskshare/deskshare.mp4` (tela compartilhada, só se a aula usou).
+A busca anterior falhava por procurar `.webm`, a convenção antiga do BBB.
+
+**Retenção de ~7 dias**, medida cruzando idade da aula com presença de
+gravação em três matérias: aula com ≤7 dias tem gravação, com ≥8 não tem.
+É a janela em que o pipeline precisa rodar — daí o cron de hora em hora e
+não diário.
+
+**Decisões de LGPD** (são menores de idade na câmera e no chat):
+- Vídeo publicado como **não listado**: o aluno abre pelo link sem precisar de
+  conta Google, e a aula não aparece em busca, no canal nem em recomendações.
+  *Privado* não serviria — o link não funciona para quem não foi convidado
+  individualmente por e-mail, nem quando o vídeo é incorporado no Canvas.
+- **Bucket S3 dedicado e privado** (`sas-gravacoes-aula`), com as quatro
+  proteções de Block Public Access ligadas e criptografia padrão. Os buckets
+  que já existiam na conta são todos públicos — reaproveitar um deles deixaria
+  vídeo de aluno a uma edição de política de exposição.
+- O token do YouTube tem só `youtube.upload` + `youtube.readonly`: **não pode
+  apagar vídeo**. Pedido de eliminação por um responsável exige um humano no
+  YouTube Studio. É o padrão mais seguro, mas a coordenação precisa saber.
+
+**Pendente para ir a produção:** preencher `AWS_*`, `S3_BUCKET_GRAVACOES` e
+`YOUTUBE_*` no `infra/vps/.env`, e instalar o `crontab-sas` atualizado. A
+imagem da API passou a incluir `ffmpeg` (~250 MB) — o build de produção fica
+maior.
 
 > ⚠️ **Foi pro ar com um blocker conhecido não resolvido**: o sino da topbar
 > aponta para `/painel#alertas`, e esse id não existe em `Painel.tsx` —

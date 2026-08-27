@@ -35,6 +35,7 @@ que decorrem disso:
 | `ingest/` | Pipeline de planilha (CSV/XLSX), idempotente por construção |
 | `lembretes/` | Motor de e-mail via SES. Disparo é materializado na criação da regra e revalidado antes do envio |
 | `banco/` | Banco de questões ITA·IME (docs/22): consultas filtradas, recorrência por tópico e listas com dono. **É a única rota que pagina** — e o motivo está escrito em `schemas/banco.py`. As tabelas são a **fonte da verdade**: os JSONs não são versionados, e `scripts/exportar_banco_questoes.py` é a saída (docs/22 §13) |
+| `gravacoes_aula/` | Publica a aula gravada do Canvas no YouTube: baixa os dois componentes do BigBlueButton, compõe com o template da marca (ffmpeg), guarda no S3 e publica como **não listado** (LGPD — são menores). A gravação some do Canvas em ~7 dias, então o cron roda de hora em hora. Estados `publicado`/`publicado_sem_confirmacao` são TERMINAIS: reprocessar geraria segunda cópia no canal |
 | `auditoria.py` | Quem fez o quê. **Nunca** grave senha, hash, token ou corpo de mensagem |
 
 ### ⚠️ `questao` e `questao_vestibular` são coisas diferentes
