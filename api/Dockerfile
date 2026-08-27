@@ -22,6 +22,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# ffmpeg é a ÚNICA dependência de sistema da imagem (~250 MB). Entra porque
+# app/gravacoes_aula/compositor.py sobrepõe câmera + tela compartilhada no
+# template da marca antes de publicar a aula no YouTube — sem o binário aqui,
+# toda aula falha, e falha DEPOIS de já ter baixado ~500 MB e queimado o
+# token de uso único do BigBlueButton.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 # Todas as deps de api/requirements.txt têm wheel pronta pra linux/amd64 e
 # arm64 (inclusive psycopg[binary] e cryptography) — por isso nenhum
 # compilador ou libpq-dev precisa entrar aqui.

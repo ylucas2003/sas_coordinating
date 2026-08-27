@@ -27,5 +27,11 @@ openai==1.55.0
 httpx==0.27.2
 
 # E-mail via AWS SES (api/app/lembretes/) — motor de lembretes (P2).
-# Import tardio: sem envio configurado, a API sobe sem tocar nisto.
+# Também usado pelo S3 em api/app/gravacoes_aula/ (vídeo de aula publicado).
+# Import tardio nos dois: sem credencial configurada, a API sobe sem tocar nisto.
 boto3==1.43.73
+
+# Publicação no YouTube (api/app/gravacoes_aula/) — Data API v3 com OAuth de
+# usuário. Import tardio, mesmo padrão do boto3 acima.
+google-api-python-client==2.149.0
+google-auth==2.35.0

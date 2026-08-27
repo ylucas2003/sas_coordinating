@@ -12,6 +12,10 @@
 # Artefatos de auditoria mobile (capturas, relatório do Lighthouse). Ver docs/19.
 .auditoria-mobile/
 
+# Vídeos de aula gravados pelo serviço `gravador` (gravador-aulas/) — binários
+# grandes, nunca versionados.
+gravacoes_baixadas/
+
 # Pipeline do banco de questões (docs/22). Entra no git só o que é fonte da
 # verdade — os JSONs e as taxonomias. O resto é entrada bruta ou regenerável:
 # os PDFs das provas, as páginas renderizadas e os PNGs recortados (que vivem no
