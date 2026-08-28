@@ -25,8 +25,14 @@ LARGURA_SAIDA, ALTURA_SAIDA = 1920, 1080
 # e o `scale` arredonda pra cima pra conseguir isso — com um lado ímpar aqui,
 # o vídeo escalado fica 1px maior que o `pad` de destino e o ffmpeg aborta com
 # "Padded dimensions cannot be smaller than input dimensions".
-TELA_X, TELA_Y, TELA_W, TELA_H = 482, 0, 1438, 1080
-CAM_X, CAM_Y, CAM_W, CAM_H = 1479, 736, 392, 278
+# Coordenadas ESCOLHIDAS, não medidas: o template é montado por composição
+# (ver scripts de montagem), então estes números são a fonte da verdade e o
+# PNG é derivado deles — não o contrário.
+#
+# A tela compartilhada é 16:9 para o deskshare (1280x720) encaixar sem tarja
+# preta; a câmera é 4:3 porque a webcam do BBB é 640x480.
+TELA_X, TELA_Y, TELA_W, TELA_H = 480, 135, 1440, 810
+CAM_X, CAM_Y, CAM_W, CAM_H = 44, 393, 392, 294
 
 # Teto de núcleos do ffmpeg. A composição divide CPU com a API que serve o
 # site — melhor a aula demorar mais do que o site engasgar no horário de aula.
