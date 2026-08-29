@@ -24,6 +24,7 @@ import '../styles/aluno.css';
 import '../styles/banco.css';
 import '../styles/login.css';
 import '../styles/foto-perfil.css';
+import '../styles/integracoes.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -12,6 +12,8 @@ import { Importar } from './telas/Importar/Importar';
 import { Auditoria } from './telas/Auditoria/Auditoria';
 import { Banco } from './telas/Banco/Banco';
 import { Administracao } from './telas/Administracao/Administracao';
+import { Integracoes } from './telas/Integracoes/Integracoes';
+import { SincronizacaoAulas } from './telas/Integracoes/SincronizacaoAulas';
 import { Login } from './telas/Login/Login';
 import { CallbackCanvas } from './telas/Login/CallbackCanvas';
 import { ChatLauncher } from './componentes/chat/ChatLauncher';
@@ -65,6 +67,8 @@ function AppCoordenacao() {
         <Route path="/banco/*" element={<Banco perfil="coordenacao" />} />
         <Route path="/auditoria" element={<Auditoria />} />
         <Route path="/administracao" element={<Administracao />} />
+        <Route path="/integracoes" element={<Integracoes />} />
+        <Route path="/integracoes/aulas" element={<SincronizacaoAulas />} />
         {/* Rota desconhecida cai no painel, como o roteador antigo fazia. */}
         <Route path="*" element={<Navigate to="/painel" replace />} />
       </Routes>

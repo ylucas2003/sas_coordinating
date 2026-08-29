@@ -8,7 +8,7 @@ import { del, get, patch, post, postArquivo, put, qs, streamSSE } from './http';
 import type { EventoSSE, OpcoesUpload } from './http';
 import type {
   Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria,
-  PainelAcessos, Sede, Simulado, Turma, UsuarioCoordenacao,
+  PainelAcessos, PainelGravacoes, Sede, Simulado, Turma, UsuarioCoordenacao,
 } from '../tipos/dominio';
 
 const enc = encodeURIComponent;
@@ -238,3 +238,8 @@ export const redefinirSenhaCoordenador = (id: string) =>
 export const acessosDeAlunos = () => get<PainelAcessos>('/administracao/alunos-acesso');
 export const fotoDeCoordenador = (id: string) =>
   get<RespostaFoto>(`/administracao/coordenadores/${enc(id)}/foto`);
+
+// ─── Integrações · gravações de aula ─────────────────────────────────────
+
+/** Cursos e aulas numa chamada só — a tela filtra em memória. */
+export const painelGravacoes = () => get<PainelGravacoes>('/gravacoes-aula');

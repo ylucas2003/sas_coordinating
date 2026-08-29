@@ -16,6 +16,7 @@ const ABAS = [
   { para: '/administracao', label: 'Contas' },
   { para: '/auditoria', label: 'Auditoria' },
   { para: '/importar', label: 'Importar planilha' },
+  { para: '/integracoes', label: 'Integrações' },
 ];
 
 export function AbasAdmin() {

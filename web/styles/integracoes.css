@@ -1,0 +1,221 @@
+/* ─── Integrações ─────────────────────────────────────────────────────────
+   Aba de Administração que reúne o que o SAS troca com sistemas de fora.
+   Só o que tem prefixo próprio mora aqui; .card, .tag, .tone-*, .data-table e
+   .empty-state continuam globais (layout.css). */
+
+.integracoes-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.integracao-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 24px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid transparent;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.integracao-card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-card-hover, var(--shadow-card));
+  text-decoration: none;
+}
+/* O card é um link: sem foco visível ele some para quem navega por teclado. */
+.integracao-card:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
+}
+
+.integracao-card__topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.integracao-card__titulo {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+.integracao-card__estado {
+  font-size: 13px;
+  white-space: nowrap;
+}
+/* `.tone-navy` só existe no global combinado com `.tag` e `.kpi__valor`; solto
+   num span ele não pinta nada. As outras três (verde/âmbar/vermelho) têm
+   regra própria em layout.css e vêm de graça. */
+.integracao-card__estado.tone-navy {
+  color: var(--color-navy);
+}
+.integracao-card__texto {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+.integracao-card__acao {
+  font-size: 14px;
+  color: var(--color-navy);
+  margin-top: 2px;
+}
+
+/* ─── Lista de aulas ──────────────────────────────────────────────────── */
+
+.gravacoes-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+/* O card é `article` e não link: a aula não tem tela própria, e os dois
+   destinos possíveis (YouTube e página do Canvas) já são links próprios. Um
+   card clicável precisaria escolher um dos dois no lugar do coordenador. */
+.gravacao {
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+/* A tarja da data. `flex: 0 0 auto` com largura fixa para os dias alinharem
+   entre cards de larguras diferentes — é o que faz a grade ser varrida na
+   vertical. */
+.gravacao__data {
+  flex: 0 0 74px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 18px 8px;
+  background: var(--color-surface-inset);
+  border-right: 1px solid var(--color-border);
+}
+.gravacao__dia {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.gravacao__mes {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.gravacao__ano {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A cor da tarja é a situação — a mesma escala das tags, em fundo suave. As
+   classes `tone-*` globais pintam só o texto; o fundo é daqui. */
+.gravacao__data.tone-verde {
+  background: var(--color-green-soft);
+  color: var(--color-green);
+}
+.gravacao__data.tone-ambar {
+  background: var(--color-amber-soft);
+  color: var(--color-amber-text);
+}
+.gravacao__data.tone-vermelho {
+  background: var(--color-red-soft);
+  color: var(--color-red);
+}
+.gravacao__data.tone-navy {
+  background: var(--color-navy-tint);
+  color: var(--color-navy);
+}
+
+.gravacao__corpo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+}
+
+.gravacao__titulo {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--color-text-primary);
+  margin: 0;
+  /* Título de professor não tem teto de tamanho. Duas linhas e reticências
+     mantêm a altura dos cards comparável sem cortar no meio de uma palavra. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.gravacao__curso {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gravacao__selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.gravacao__selos .tag {
+  font-size: 12px;
+  padding: 3px 10px;
+}
+.gravacao__selos a {
+  text-decoration: none;
+}
+
+.gravacao__erro {
+  font-size: 12px;
+  color: var(--color-red);
+  margin: 2px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: help;
+}
+
+/* `margin-top: auto` empurra o rodapé para baixo: cards de alturas diferentes
+   na mesma linha da grade mantêm hora e link alinhados. */
+.gravacao__rodape {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 10px;
+}
+.gravacao__quando {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.gravacao__assistir {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .gravacoes-grade {
+    grid-template-columns: 1fr;
+  }
+  .gravacao__data {
+    flex-basis: 62px;
+  }
+}
