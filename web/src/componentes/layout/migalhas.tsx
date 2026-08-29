@@ -76,6 +76,10 @@ export function useMigalhas(): Migalha[] {
         return [ADMIN, { texto: 'Auditoria' }];
       case 'importar':
         return [ADMIN, { texto: 'Importar planilha' }];
+      case 'integracoes':
+        return temId
+          ? [ADMIN, { texto: 'Integrações', para: '/integracoes' }, folha('Sincronização')]
+          : [ADMIN, { texto: 'Integrações' }];
       default:
         return [{ texto: 'Painel' }];
     }

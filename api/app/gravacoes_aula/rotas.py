@@ -41,7 +41,14 @@ from ..auth import exigir_scheduler_secret
 from ..canvas_sync.cliente import ClienteCanvas
 from ..config import get_settings
 from ..supabase_client import criar_cliente_supabase
-from . import armazenamento_s3, compositor, downloader, publicador_youtube, titulo
+from . import (
+    armazenamento_s3,
+    canvas_publicacao,
+    compositor,
+    downloader,
+    publicador_youtube,
+    titulo,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -87,6 +94,13 @@ _STATUS_RETENTAVEIS = [*_STATUS_INICIAIS, *_STATUS_INTERMEDIARIOS, "publicando"]
 
 # Folga acima do pior caso de uma rodada (baixar ~500 MB + recodificar 93 min).
 _HORAS_ATE_ORFAO = 3
+
+# Conferência SEM gravação só é registrada se ainda puder ganhar uma. A
+# retenção do BigBlueButton é de ~7 dias; passou disso, a gravação não volta
+# mais e a linha só poluiria o painel — na primeira execução deste filtro,
+# 37 das 41 conferências sem gravação eram de abril a julho, mortas.
+# A folga de 10 dias cobre imprecisão na janela de retenção.
+_DIAS_ESPERANCA_DE_GRAVACAO = 10
 
 
 _PREFIXO_TRABALHO = "aula-"
@@ -144,13 +158,29 @@ def _mais_velho_que(carimbo: str | None, corte: datetime) -> bool:
         return True
 
 
-async def _listar_conferencias_com_gravacao(curso_id: str) -> list[dict[str, Any]]:
+def _pode_ainda_gravar(conf: dict[str, Any]) -> bool:
+    """Conferência sem gravação vale a pena registrar?
+
+    Só se for futura ou recente: passada a retenção do BBB, a gravação não
+    aparece mais, e a linha viraria uma "aula futura" eterna no painel."""
+    bruto = conf.get("started_at") or conf.get("start_at")
+    if not bruto:
+        return True  # sem data, não dá para descartar: registra e deixa visível
+    try:
+        quando = datetime.fromisoformat(str(bruto).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    return quando >= datetime.now(UTC) - timedelta(days=_DIAS_ESPERANCA_DE_GRAVACAO)
+
+
+async def _listar_conferencias(curso_id: str) -> list[dict[str, Any]]:
+    """TODAS as conferências, com e sem gravação — as sem gravação viram
+    'aguardando_gravacao' e aparecem no painel como aula futura."""
     settings = get_settings()
     async with ClienteCanvas(
         base_url=settings.canvas_base_url, token=settings.canvas_api_token
     ) as canvas:
-        conferencias = await canvas.listar_conferencias(curso_id)
-    return [c for c in conferencias if c.get("recordings")]
+        return await canvas.listar_conferencias(curso_id)
 
 
 @router.post("/verificar")
@@ -175,8 +205,16 @@ def verificar_gravacoes(_: None = Depends(exigir_scheduler_secret)) -> dict:
             # ruim esconde aula nova de todos os demais até alguém notar, e a
             # janela de retenção é de só ~7 dias.
             try:
-                for conf in asyncio.run(_listar_conferencias_com_gravacao(curso_id)):
-                    rec = (conf.get("recordings") or [{}])[0]
+                for conf in asyncio.run(_listar_conferencias(curso_id)):
+                    gravacoes = conf.get("recordings") or []
+                    rec = gravacoes[0] if gravacoes else {}
+                    # Sem gravação a aula entra como 'aguardando_gravacao': é o
+                    # que deixa a aula FUTURA aparecer no painel. Esse status
+                    # fica fora de _STATUS_RETENTAVEIS, então o processar nunca
+                    # a pega nem queima tentativa com ela.
+                    tem_gravacao = bool(gravacoes)
+                    if not tem_gravacao and not _pode_ainda_gravar(conf):
+                        continue
                     resposta = (
                         cliente.table("aula_gravacao")
                         .upsert(
@@ -184,8 +222,9 @@ def verificar_gravacoes(_: None = Depends(exigir_scheduler_secret)) -> dict:
                                 "curso_id": curso_id,
                                 "conferencia_id": str(conf["id"]),
                                 "titulo": conf.get("title") or f"Aula {conf['id']}",
-                                "iniciada_em": conf.get("started_at"),
+                                "iniciada_em": conf.get("started_at") or conf.get("start_at"),
                                 "duracao_minutos": rec.get("duration_minutes"),
+                                "status": "pendente" if tem_gravacao else "aguardando_gravacao",
                             },
                             on_conflict="curso_id,conferencia_id",
                             ignore_duplicates=True,
@@ -193,6 +232,26 @@ def verificar_gravacoes(_: None = Depends(exigir_scheduler_secret)) -> dict:
                         .execute()
                     )
                     novas += len(resposta.data or [])
+
+                    # Promoção: a gravação ficou pronta depois do registro.
+                    #
+                    # O .eq("status","aguardando_gravacao") NÃO é otimização.
+                    # Sem ele este UPDATE alcançaria uma linha já 'publicado' e
+                    # a devolveria ao pool de pendentes — segunda cópia de
+                    # menor de idade no canal. O upsert acima nunca atualiza
+                    # (ignore_duplicates), então é aqui que titulo/iniciada_em
+                    # ganham os valores reais.
+                    if tem_gravacao:
+                        cliente.table("aula_gravacao").update(
+                            {
+                                "status": "pendente",
+                                "titulo": conf.get("title") or f"Aula {conf['id']}",
+                                "iniciada_em": conf.get("started_at"),
+                                "duracao_minutos": rec.get("duration_minutes"),
+                            }
+                        ).eq("curso_id", curso_id).eq(
+                            "conferencia_id", str(conf["id"])
+                        ).eq("status", "aguardando_gravacao").execute()
             except Exception as exc:
                 erros.append({"curso_id": curso_id, "detalhe": _descrever(exc)[:200]})
         return {
@@ -341,7 +400,8 @@ def _processar_uma(cliente: Any, aula: dict[str, Any]) -> dict[str, Any]:
     # status TERMINAL (nunca retentável), não 'erro'.
     for tentativa in range(_TENTATIVAS_PERSISTIR_ID):
         try:
-            marcar(status="publicado", youtube_video_id=video_id, erro_detalhe=None)
+            marcar(status="publicado", youtube_video_id=video_id,
+                   youtube_titulo=titulo_video, erro_detalhe=None)
             return {"aula_id": aula_id, "status": "publicado", "youtube_video_id": video_id}
         except Exception as exc:
             if tentativa == _TENTATIVAS_PERSISTIR_ID - 1:
@@ -446,9 +506,30 @@ def _rodada_em_background() -> None:
             na_fila,
             quentes,
         )
+        # Canvas na mesma rodada: o vídeo publicado agora já ganha página,
+        # em vez de esperar a próxima hora. NUNCA derruba a rodada de vídeo —
+        # publicar no YouTube é o que não pode ser perdido.
+        with contextlib.suppress(Exception):
+            _log.info("gravacoes-aula: canvas — %s", canvas_publicacao.varrer(cliente))
     except Exception:
         # Sem isto, uma falha antes do laço (ex.: banco fora) sobe como
         # exceção não tratada de background task e some do log da rodada.
         _log.exception("gravacoes-aula: rodada abortou antes de terminar")
     finally:
         _trava_processamento.release()
+
+
+@router.post("/publicar-no-canvas")
+def publicar_no_canvas(
+    simular: bool = False, _: None = Depends(exigir_scheduler_secret)
+) -> dict:
+    """Embute no Canvas os vídeos já publicados que ainda não têm página.
+
+    Rota separada do `processar` porque é barata e porque é a única que
+    escreve num curso com ~900 alunos: dá para retentar o Canvas sem tocar no
+    YouTube, e dá para ensaiar antes.
+
+    `?simular=true` calcula o casamento e devolve o plano SEM escrever nada —
+    nem no Canvas, nem no banco — e ignorando o interruptor
+    `publicar_no_canvas`. É assim que se confere um curso antes de ligá-lo."""
+    return canvas_publicacao.varrer(criar_cliente_supabase(), simular=simular)

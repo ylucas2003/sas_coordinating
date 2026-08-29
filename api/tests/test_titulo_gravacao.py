@@ -106,3 +106,62 @@ def test_sem_professor_em_lugar_nenhum_omite_o_segmento():
     )
     assert titulo == "SAS ITA/IME 2026 - Turma 1 e 2 - Aula 7 (24/08/2026)"
     assert extrair_professor("Aula 07 - Trigonometria") is None
+
+
+# ─── Curso 581 (SAS Preparatório): a conferência JÁ vem no padrão do canal ───
+#
+# Os títulos abaixo são literais, copiados da API do Canvas em 29/08/2026.
+# Sem tratamento, compor_titulo somaria prefixo ao prefixo e produziria
+# "SAS ITA/IME 2026 - Turma 1 e 2 - Prof Daniel - SAS ITA/IME 2026 - ... (28/08/2026) (28/08/2026)".
+
+_TITULO_581 = "SAS ITA/IME 2026 - Turma 1 e 2 - Inglês - Prof Daniel Nicolas - 17:30 (28/08/2026)"
+
+
+def test_titulo_ja_no_padrao_nao_ganha_prefixo_duplicado():
+    resultado = compor_titulo(
+        titulo_canvas=_TITULO_581,
+        nome_curso="SAS Preparatório ITA/IME 2026",
+        iniciada_em=_em(2026, 8, 28),
+    )
+    assert resultado == "SAS ITA/IME 2026 - Turma 1 e 2 - Inglês - Prof Daniel Nicolas (28/08/2026)"
+    assert resultado.count("SAS ITA/IME") == 1
+    assert resultado.count("Prof") == 1
+
+
+def test_compor_titulo_e_idempotente():
+    """Aplicar sobre o próprio resultado não pode empilhar prefixo — a saída
+    daqui sempre começa com "SAS ITA/IME", então ela reentra pelo mesmo ramo."""
+    kw = {"nome_curso": "2026 SAS ITA/IME Física (2º SEMESTRE)", "iniciada_em": _em(2026, 8, 21)}
+    uma_vez = compor_titulo(titulo_canvas="Física - Prof. Renan - AULA 5 - 17:30", **kw)
+    assert compor_titulo(titulo_canvas=uma_vez, **kw) == uma_vez
+
+
+def test_data_do_texto_e_substituida_pela_real():
+    """O título é digitado à mão e já veio errado na prática (conferência de
+    25/06 intitulada "AULA 13 - 11/06"). Quem manda é `iniciada_em`."""
+    assert "(29/08/2026)" in compor_titulo(
+        titulo_canvas="SAS ITA/IME 2026 - Turma 1 e 2 - Redação - Prof Camila (11/06/2026)",
+        nome_curso="SAS Preparatório ITA/IME 2026",
+        iniciada_em=_em(2026, 8, 29),
+    )
+
+
+def test_aula_por_materia_preserva_a_materia():
+    """No 581 a aula é identificada pela matéria, não por número. Ela não pode
+    sumir nem virar "Aula N"."""
+    r = compor_titulo(
+        titulo_canvas="SAS ITA/IME 2026 - Turma 1 e 2 - Redação - Prof Camila Oliveira - 09:00 (29/08/2026)",
+        nome_curso="SAS Preparatório ITA/IME 2026",
+        iniciada_em=_em(2026, 8, 29),
+    )
+    assert "Redação" in r and "Aula " not in r
+
+
+def test_titulo_cabe_no_limite_do_youtube():
+    """publicador_youtube.publicar corta em 100 caracteres SEM avisar."""
+    r = compor_titulo(
+        titulo_canvas=_TITULO_581,
+        nome_curso="SAS Preparatório ITA/IME 2026",
+        iniciada_em=_em(2026, 8, 28),
+    )
+    assert len(r) <= 100, f"{len(r)} caracteres: seria truncado em silêncio"

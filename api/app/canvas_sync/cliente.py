@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import re
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -233,6 +234,42 @@ class ClienteCanvas:
         """Arquivos DIRETOS da pasta — não recursa em subpastas (é assim que
         as pastas de ano antigo dentro de uma pasta de ciclo ficam de fora)."""
         return await self._get_paginado(f"/folders/{folder_id}/files")
+
+    # ─── Páginas (usadas por gravacoes_aula/ para embutir o vídeo da aula) ─
+
+    async def listar_paginas(self, course_id: str) -> list[dict[str, Any]]:
+        """Todas as páginas do curso, com `url` (o slug) e `title`.
+
+        SEM filtrar por published: uma página em rascunho ainda é a página
+        daquela aula, e ignorá-la faria o publicador criar uma duplicata ao
+        lado."""
+        return await self._get_paginado(f"/courses/{course_id}/pages")
+
+    async def obter_pagina(self, course_id: str, slug: str) -> dict[str, Any]:
+        """Página com o `body` — a listagem não traz o corpo."""
+        return (await self._get(f"/courses/{course_id}/pages/{quote(slug, safe='')}")).json()
+
+    async def criar_pagina(
+        self, course_id: str, *, titulo: str, corpo: str, publicada: bool = True
+    ) -> dict[str, Any]:
+        resposta = await self._post(
+            f"/courses/{course_id}/pages",
+            json={"wiki_page": {"title": titulo, "body": corpo, "published": publicada}},
+        )
+        return resposta.json()
+
+    async def atualizar_pagina(self, course_id: str, slug: str, *, corpo: str) -> dict[str, Any]:
+        """PUT com o corpo COMPLETO — por isso é idempotente e o retry do
+        _put é seguro aqui.
+
+        O `slug` TEM que ser o `url` que listar_paginas devolveu. Um PUT em
+        slug inexistente CRIA a página no Canvas, então slug montado à mão
+        vira página fantasma."""
+        resposta = await self._put(
+            f"/courses/{course_id}/pages/{quote(slug, safe='')}",
+            json={"wiki_page": {"body": corpo}},
+        )
+        return resposta.json()
 
     async def listar_conferencias(self, course_id: str) -> list[dict[str, Any]]:
         """Conferências (BigBlueButton) do curso, com gravações se houver —

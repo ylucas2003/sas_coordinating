@@ -355,3 +355,76 @@ export interface PainelAcessos {
   comAcesso: number;
   alunos: AcessoAluno[];
 }
+
+// ─── Integrações · gravação de aula (Canvas → YouTube → Canvas) ──────────
+//
+// Espelha `api/app/gravacoes_aula/consulta.py` (`_para_camel`). São dois
+// eixos independentes de propósito: `status` é o pipeline do vídeo e
+// `canvasEstado` é o embed na página da aula. Um vídeo pode estar publicado
+// no canal e ainda não ter chegado ao Canvas.
+
+/**
+ * Pipeline do vídeo. `publicado` e `publicado_sem_confirmacao` são TERMINAIS:
+ * reprocessar geraria segunda cópia no canal (api/CLAUDE.md).
+ * `aguardando_gravacao` é a aula futura — a conferência existe no Canvas, mas
+ * o BigBlueButton ainda não devolveu a gravação.
+ */
+export type StatusGravacao =
+  | 'aguardando_gravacao'
+  | 'pendente'
+  | 'baixando'
+  | 'baixado'
+  | 'compondo'
+  | 'composto'
+  | 'publicando'
+  | 'publicado'
+  | 'publicado_sem_confirmacao'
+  | 'erro';
+
+/**
+ * Embed do vídeo na página da aula. `ambiguo` e `conflito` são recusas
+ * deliberadas de escrever: duas páginas na mesma data, ou uma página que já
+ * tem outro vídeo. `ignorado` é curso com `publicarNoCanvas` desligado.
+ */
+export type EstadoCanvasGravacao =
+  | 'pendente'
+  | 'publicado'
+  | 'falhou'
+  | 'ambiguo'
+  | 'conflito'
+  | 'ignorado';
+
+export interface GravacaoAula {
+  id: string;
+  cursoId: string;
+  conferenciaId: number;
+  /** Título como o professor escreveu no Canvas — cru, sem padronização. */
+  titulo: string;
+  /** Nulo enquanto a conferência está agendada e ainda não começou. */
+  iniciadaEm: string | null;
+  duracaoMinutos: number | null;
+  status: StatusGravacao;
+  tentativas: number;
+  youtubeVideoId: string | null;
+  /** Título com que o vídeo foi ao canal — é o que o iframe do Canvas usa. */
+  youtubeTitulo: string | null;
+  youtubeUrl: string | null;
+  erroDetalhe: string | null;
+  canvasEstado: EstadoCanvasGravacao;
+  canvasUrl: string | null;
+  canvasErro: string | null;
+  atualizadoEm: string | null;
+}
+
+export interface CursoGravacao {
+  cursoId: string;
+  nome: string;
+  ativo: boolean;
+  /** Interruptor da escrita no Canvas — nasce desligado, curso a curso. */
+  publicarNoCanvas: boolean;
+}
+
+export interface PainelGravacoes {
+  cursos: CursoGravacao[];
+  aulas: GravacaoAula[];
+}

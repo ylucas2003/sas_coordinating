@@ -16,7 +16,8 @@ from fastapi.responses import JSONResponse
 from .canvas_sync import rotas as canvas_sync_rotas
 from .chat import rotas as chat_rotas
 from .config import get_settings
-from .gravacoes_aula import rotas as gravacoes_aula_rotas
+from .gravacoes_aula import consulta as gravacoes_consulta
+from .gravacoes_aula import rotas as gravacoes_rotas
 from .observabilidade import (
     configurar_logging,
     handler_erro_nao_tratado,
@@ -159,7 +160,9 @@ def create_app() -> FastAPI:
     app.include_router(chat_rotas.router)
     app.include_router(canvas_sync_rotas.router)
     app.include_router(disparos.router)
-    app.include_router(gravacoes_aula_rotas.router)
+    app.include_router(gravacoes_rotas.router)
+    # Leitura do painel: JWT de coordenador, não X-Scheduler-Secret.
+    app.include_router(gravacoes_consulta.router)
     # O webhook do SNS é o único endpoint público que não dá para proteger por
     # header custom nem por VPN — quem chama é a AWS. A verificação de
     # assinatura ainda não existe e o handler faz GET cego na SubscribeURL

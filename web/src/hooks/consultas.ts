@@ -11,6 +11,7 @@ import type {
   QuebraSimulado, RespostaHistograma,
 } from '../tipos/dominio';
 import type { PayloadHeatmap } from '../componentes/ui/Heatmap';
+import { algumEmAndamento } from '../dominio/gravacoes';
 import type { NotaDoPainel, NotasPorSimulado } from '../dominio/painel';
 import type { Ciclo, Simulado } from '../tipos/dominio';
 
@@ -248,5 +249,26 @@ export function useFotoPerfil({
       proprio ? api.minhaFoto() : tipo === 'aluno' ? api.fotoDeAluno(id ?? '') : api.fotoDeCoordenador(id ?? ''),
     enabled: habilitada && (proprio || !!id),
     staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * Acompanhamento das gravações de aula (aba Integrações).
+ *
+ * O polling se autodesliga: `refetchInterval` como FUNÇÃO lê a própria
+ * resposta e devolve `false` assim que nenhuma aula está mais na fila ou em
+ * processamento. Passar o intervalo de fora exigiria um segundo observador na
+ * mesma chave só para descobrir o estado — dois observadores discordando de
+ * quanto vale o intervalo é justamente o que não dá para depurar depois.
+ */
+export function usePainelGravacoes() {
+  return useQuery({
+    queryKey: ['integracoes', 'gravacoes'],
+    queryFn: api.painelGravacoes,
+    // 30 s, e não os 600 ms do Importar: a etapa cara aqui (baixar ~500 MB,
+    // recodificar e subir) leva de 45 a 90 min.
+    refetchInterval: (consulta) =>
+      algumEmAndamento(consulta.state.data?.aulas ?? []) ? 30_000 : false,
+    staleTime: 0,
   });
 }
