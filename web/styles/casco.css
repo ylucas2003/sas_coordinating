@@ -67,10 +67,19 @@
   justify-content: center;
 }
 
+/* Some com o rail fechado, como o rótulo dos destinos e o logo do Ari — foi o
+   único dos três que ficou sem a regra. Fechado sobram 63px de área útil
+   (88 de coluna − 1 de borda − 24 de padding) e o logo come 44 + 12 de gap:
+   o texto começa em x=68 e o `overflow:hidden` do rail corta em x=87, então
+   vazavam ~19px, o bastante para se ler "SA" e "COO" ao lado do asterisco.
+   `opacity` e não `display:none` para o leitor de tela continuar anunciando a
+   marca no link do topo. */
 .rail__marca-texto {
   display: flex;
   flex-direction: column;
   white-space: nowrap;
+  opacity: 0;
+  transition: opacity 120ms ease;
 }
 
 .rail__marca-nome {
@@ -133,7 +142,7 @@
   white-space: nowrap;
 }
 
-/* O rótulo só existe quando o rail está aberto. `visibility` em vez de
+/* O rótulo só existe quando o rail está aberto. `opacity` em vez de
    `display:none` para o leitor de tela continuar anunciando o destino. */
 .rail__label {
   opacity: 0;
@@ -142,6 +151,11 @@
 
 .rail:hover .rail__label,
 .rail:focus-within .rail__label {
+  opacity: 1;
+}
+
+.rail:hover .rail__marca-texto,
+.rail:focus-within .rail__marca-texto {
   opacity: 1;
 }
 
