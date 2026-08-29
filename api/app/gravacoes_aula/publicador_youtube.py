@@ -181,3 +181,20 @@ def publicar(
             resposta["id"],
         )
     return resposta["id"]
+
+
+def privacidade(video_id: str) -> str:
+    """Privacidade REAL do vídeo no canal, lida de volta do YouTube.
+
+    Existe para uma guarda específica antes de embutir no Canvas: enquanto o
+    projeto de API não passar pela auditoria de compliance, o `videos.insert`
+    força 'private' mesmo tendo sido pedido 'unlisted'. Um vídeo privado
+    embutido numa página vira "Video unavailable" para ~900 alunos — e o banco
+    diria "publicado". Melhor não embutir e deixar o erro visível.
+
+    Devolve 'unlisted' | 'private' | 'public' | 'desconhecida'."""
+    resposta = _servico().videos().list(part="status", id=video_id).execute()
+    itens = resposta.get("items") or []
+    if not itens:
+        return "desconhecida"
+    return (itens[0].get("status") or {}).get("privacyStatus") or "desconhecida"
