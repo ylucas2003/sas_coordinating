@@ -26,7 +26,7 @@ router = APIRouter(
 _CAMPOS = (
     "id,curso_id,conferencia_id,titulo,iniciada_em,duracao_minutos,status,"
     "tentativas,youtube_video_id,youtube_titulo,erro_detalhe,"
-    "canvas_estado,canvas_pagina_url,canvas_erro,criado_em,atualizado_em"
+    "canvas_estado,canvas_pagina_url,canvas_modulo_nome,canvas_erro,criado_em,atualizado_em"
 )
 
 
@@ -49,6 +49,9 @@ def _para_camel(a: dict[str, Any]) -> dict[str, Any]:
         "erroDetalhe": (a.get("erro_detalhe") or None) and a["erro_detalhe"][:300],
         "canvasEstado": a.get("canvas_estado") or "pendente",
         "canvasUrl": a.get("canvas_pagina_url"),
+        # Nulo com a página publicada = fora de módulo: existe, mas o aluno
+        # não acha, porque é por módulo que ele navega.
+        "canvasModulo": a.get("canvas_modulo_nome"),
         "canvasErro": (a.get("canvas_erro") or None) and a["canvas_erro"][:300],
         "atualizadoEm": a.get("atualizado_em"),
     }
@@ -64,7 +67,7 @@ async def listar_gravacoes() -> dict:
     cliente = get_supabase()
     cursos = (
         cliente.table("curso_monitorado_gravacao")
-        .select("curso_id,nome,ativo,publicar_no_canvas")
+        .select("curso_id,nome,ativo,publicar_no_canvas,canvas_modulo_id")
         .order("nome")
         .execute()
         .data
@@ -83,6 +86,7 @@ async def listar_gravacoes() -> dict:
                 "nome": c["nome"],
                 "ativo": c["ativo"],
                 "publicarNoCanvas": c["publicar_no_canvas"],
+                "canvasModuloId": c.get("canvas_modulo_id"),
             }
             for c in cursos
         ],

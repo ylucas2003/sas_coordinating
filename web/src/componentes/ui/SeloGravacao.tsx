@@ -3,6 +3,7 @@ import {
   ROTULO_CANVAS,
   ROTULO_SITUACAO,
   esperaCanvas,
+  foraDeModulo,
   situacaoDe,
   toneCanvas,
   toneSituacao,
@@ -44,9 +45,18 @@ export function SeloCanvasGravacao({
   const r = ROTULO_CANVAS[estado];
   if (!r) return null;
 
+  // "na página do Canvas" seria meia verdade para uma página fora de módulo:
+  // ela existe e toca, mas o aluno navega por módulo e não a encontra.
+  const orfa = publicaNoCanvas && foraDeModulo(aula);
+  const texto = orfa ? 'fora de módulo' : r.texto;
+  const tone = orfa ? 'tone-ambar' : toneCanvas(estado);
+  const dica = orfa
+    ? aula.canvasErro || 'A página existe, mas não está em nenhum módulo — o aluno não a encontra.'
+    : aula.canvasErro || r.titulo;
+
   const selo = (
-    <span className={`tag ${toneCanvas(estado)}`} title={aula.canvasErro || r.titulo}>
-      {r.texto}
+    <span className={`tag ${tone}`} title={dica}>
+      {texto}
     </span>
   );
 

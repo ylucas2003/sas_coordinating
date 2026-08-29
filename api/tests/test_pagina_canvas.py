@@ -159,3 +159,154 @@ def test_titulo_criado_e_reconhecido_pelo_proprio_parser():
     assert t == "Aula 08 - 25/08/2026 - Complexos: Forma Trigonométrica"
     lido = parse_titulo_pagina(t)
     assert (lido.numero, lido.dia, lido.mes, lido.ano) == (8, 25, 8, 2026)
+
+
+# ─── Escolha do módulo ──────────────────────────────────────────────────────
+#
+# Os itens abaixo são os títulos REAIS dos dois módulos do curso 691, lidos da
+# API do Canvas em 29/08/2026. São eles que provam por que a escolha não pode
+# ser por data.
+
+from app.gravacoes_aula.pagina_canvas import (  # noqa: E402
+    ItemModulo,
+    ModuloCanvas,
+    ModuloEscolhido,
+    SemModulo,
+    chave_de_assunto,
+    escolher_modulo,
+)
+
+_TRIGONOMETRIA = ModuloCanvas(
+    id="2730",
+    nome="Aulas - Trigonometria",
+    itens=(
+        ItemModulo("Aula 01 - 03/08/2026 - Trigonometria: Arcos e ângulos", 1),
+        ItemModulo("Aula 03 - 10/08/2026 - Trigonometria: Triângulo Retângulo", 2),
+        ItemModulo("Aula 05 - 17/08/2026 - Trigonometria: Ciclo Trigonométrico", 3),
+        ItemModulo("Aula 07 - 24/08/2026 -  Trigonometria: Soma de Arcos", 4),
+        ItemModulo("Aula 26 - 22/06/2026 - Geometria: Questões Diversas", 22),
+    ),
+)
+
+_COMPLEXOS = ModuloCanvas(
+    id="2731",
+    nome="Aulas - Números Complexos",
+    itens=(
+        ItemModulo("Aula 02 - 04/08/2026 - Complexos: Forma Algébrica", 1),
+        ItemModulo("Aula 04 - 11/08/2026 - Complexos: Forma Trigonométrica", 2),
+        ItemModulo(" Aula 06 - 18/08/2026 - Complexos: Forma Trigonométrica (Parte 2)", 3),
+        ItemModulo(" Aula 27 - 23/06/2026 - Conjuntos e Funções: Questões Diversas", 19),
+    ),
+)
+
+_MODULOS_691 = (_TRIGONOMETRIA, _COMPLEXOS)
+
+
+def test_assunto_decide_e_a_data_enganaria():
+    """O caso que motiva a função inteira.
+
+    "Aula 08 - 25/08/2026 - Complexos: ..." é de Complexos, mas a aula anterior
+    POR DATA é a 07 de 24/08, que é de Trigonometria. Escolher pelo vizinho de
+    data penduraria Complexos na trilha errada."""
+    r = escolher_modulo(
+        _MODULOS_691,
+        titulo_pagina="Aula 08 - 25/08/2026 - Complexos: Forma Trigonométrica (pt3)",
+        data_aula=date(2026, 8, 25),
+        modulo_padrao_id=None,
+    )
+    assert isinstance(r, ModuloEscolhido)
+    assert r.nome == "Aulas - Números Complexos"
+    # Logo depois da Aula 06 (18/08), não no fim depois do bloco de junho.
+    assert r.posicao == 4
+
+
+def test_a_outra_trilha_tambem_acerta():
+    r = escolher_modulo(
+        _MODULOS_691,
+        titulo_pagina="Aula 09 - 31/08/2026 - Trigonometria: Equações",
+        data_aula=date(2026, 8, 31),
+        modulo_padrao_id=None,
+    )
+    assert isinstance(r, ModuloEscolhido)
+    assert r.nome == "Aulas - Trigonometria"
+    assert r.posicao == 5
+
+
+def test_chave_ignora_a_palavra_da_outra_trilha_no_resto():
+    """"Complexos: Forma TRIGONOMÉTRICA" contém a palavra da outra trilha.
+    Por isso o corte é nos dois-pontos, não uma busca no título inteiro."""
+    assert chave_de_assunto("Aula 04 - 11/08/2026 - Complexos: Forma Trigonométrica") == "complexos"
+
+
+def test_chave_ignora_acento_e_caixa():
+    """O 693 escreve "AULA 20" em maiúsculo; os títulos são datilografados."""
+    assert chave_de_assunto("AULA 20 - 19/08/2026 - FÍSICA: Óptica") == "fisica"
+    assert chave_de_assunto("Aula 20 - 19/08/2026 - Física: Óptica") == "fisica"
+
+
+def test_assunto_em_dois_modulos_nao_escolhe():
+    """Empate não vira chute — melhor página fora de módulo, que dá para
+    arrastar, que página na trilha errada."""
+    duplicado = ModuloCanvas("9", "Aulas - Cópia", (ItemModulo("Aula 02 - 04/08/2026 - Complexos: x", 1),))
+    r = escolher_modulo(
+        (*_MODULOS_691, duplicado),
+        titulo_pagina="Aula 08 - 25/08/2026 - Complexos: y",
+        data_aula=date(2026, 8, 25),
+        modulo_padrao_id=None,
+    )
+    assert isinstance(r, SemModulo) and "mais de um módulo" in r.motivo
+
+
+def test_sem_assunto_cai_no_modulo_do_curso():
+    """Física e Química não escrevem assunto na conferência, e a página nasce
+    "Aula 07 - 27/08/2026 - Física". Nenhum item antigo tem essa chave."""
+    fisica = ModuloCanvas(
+        "2738",
+        "Aulas - Física 2 - Professores Logam e Renan",
+        (
+            ItemModulo("Aula 05 - 20/08/2026 - Movimento Circular", 5),
+            ItemModulo("Aula 06 - 21/08/2026 - MCUV e Aceleração angular", 6),
+            ItemModulo("Aula 07 - 15/04/2026 - 2ª Lei da Termodinâmica", 7),
+        ),
+    )
+    r = escolher_modulo(
+        (fisica,),
+        titulo_pagina="Aula 07 - 27/08/2026 - Física",
+        data_aula=date(2026, 8, 27),
+        modulo_padrao_id="2738",
+    )
+    assert isinstance(r, ModuloEscolhido)
+    # Depois da Aula 06 (21/08), ANTES do bloco de abril que está no fim.
+    assert r.posicao == 7
+
+
+def test_sem_assunto_e_sem_padrao_nao_pendura():
+    r = escolher_modulo(
+        (_TRIGONOMETRIA,),
+        titulo_pagina="Aula 07 - 27/08/2026 - Física",
+        data_aula=date(2026, 8, 27),
+        modulo_padrao_id=None,
+    )
+    assert isinstance(r, SemModulo)
+
+
+def test_modulo_padrao_apagado_no_canvas_nao_estoura():
+    r = escolher_modulo(
+        (_TRIGONOMETRIA,),
+        titulo_pagina="Aula 07 - 27/08/2026 - Física",
+        data_aula=date(2026, 8, 27),
+        modulo_padrao_id="9999",
+    )
+    assert isinstance(r, SemModulo) and "não existe mais" in r.motivo
+
+
+def test_modulo_sem_aula_anterior_anexa_no_fim():
+    """O 581 tem só "LINK PARA AULA AO VIVO", que não tem data."""
+    ao_vivo = ModuloCanvas("2609", "AULA AO VIVO", (ItemModulo("LINK PARA AULA AO VIVO", 1),))
+    r = escolher_modulo(
+        (ao_vivo,),
+        titulo_pagina="Aula - 28/08/2026 - Inglês",
+        data_aula=date(2026, 8, 28),
+        modulo_padrao_id="2609",
+    )
+    assert isinstance(r, ModuloEscolhido) and r.posicao is None
