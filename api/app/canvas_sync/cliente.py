@@ -369,3 +369,41 @@ class ClienteCanvas:
         reaproveita o mesmo retry/semáforo de `_get` usado pro Link de paginação."""
         resposta = await self._get(url)
         return resposta.content
+
+    # ─── Módulos ───────────────────────────────────────────────────────────
+    # Criar página e pendurar página são chamadas SEPARADAS. Sem a segunda, a
+    # página fica publicada e fora de módulo — existe, mas o aluno não acha,
+    # porque é por módulo que ele navega.
+
+    async def listar_modulos(self, course_id: str) -> list[dict[str, Any]]:
+        resposta = await self._get(f"/courses/{course_id}/modules", params={"per_page": 100})
+        return resposta.json()
+
+    async def listar_itens_modulo(self, course_id: str, modulo_id: str) -> list[dict[str, Any]]:
+        resposta = await self._get(
+            f"/courses/{course_id}/modules/{modulo_id}/items", params={"per_page": 100}
+        )
+        return resposta.json()
+
+    async def criar_item_modulo(
+        self,
+        course_id: str,
+        modulo_id: str,
+        *,
+        titulo: str,
+        page_url: str,
+        posicao: int | None = None,
+    ) -> dict[str, Any]:
+        """`page_url` é o slug da página, não a URL completa.
+
+        Sem `posicao` o Canvas anexa no fim — que no módulo de um curso com dois
+        semestres é depois do bloco antigo e despublicado, longe da aula
+        anterior. Ver `_posicao_cronologica` em pagina_canvas."""
+        item: dict[str, Any] = {"title": titulo, "type": "Page", "page_url": page_url,
+                                "published": True}
+        if posicao is not None:
+            item["position"] = posicao
+        resposta = await self._post(
+            f"/courses/{course_id}/modules/{modulo_id}/items", json={"module_item": item}
+        )
+        return resposta.json()

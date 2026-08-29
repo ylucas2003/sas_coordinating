@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import html
 import re
+import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
@@ -175,3 +177,133 @@ def titulo_pagina_padrao(numero: int | None, data_aula: date, assunto: str) -> s
     # nem toda conferência traz assunto (ver _assunto_da_conferencia).
     base = f"{prefixo} - {data_aula:%d/%m/%Y}"
     return (f"{base} - {limpo}" if limpo else base)[:255]
+
+
+# ─── Módulo: onde a página fica pendurada ───────────────────────────────────
+#
+# Criar a página NÃO a coloca em módulo nenhum — são dois objetos distintos no
+# Canvas, e o aluno navega por módulo. Uma página publicada e fora de módulo
+# existe, mas ninguém acha: foi assim que as quatro primeiras nasceram.
+#
+# A escolha do módulo não pode ser por data. O curso 691 tem DUAS trilhas
+# paralelas de Matemática, com aulas alternadas:
+#
+#   Aulas - Trigonometria      → 01, 03, 05, 07 ("Trigonometria:")
+#   Aulas - Números Complexos  → 02, 04, 06, 08 ("Complexos:")
+#
+# A aula 08 de 25/08 é de Complexos, mas a aula anterior POR DATA é a 07, de
+# Trigonometria. Escolher "o módulo da aula anterior" penduraria Complexos na
+# trilha de Trigonometria — em silêncio, num curso com ~900 alunos.
+#
+# O que decide é o ASSUNTO: o pedaço antes dos dois-pontos. Conferido contra as
+# 40 aulas reais dos dois módulos do 691, ele separa 100% — e não se apoia no
+# NOME do módulo, que envelhece quando o tópico do semestre muda.
+
+_SEPARADOR_ASSUNTO = ":"
+
+
+@dataclass(frozen=True)
+class ItemModulo:
+    titulo: str
+    posicao: int
+
+
+@dataclass(frozen=True)
+class ModuloCanvas:
+    id: str
+    nome: str
+    itens: tuple[ItemModulo, ...]
+
+
+@dataclass(frozen=True)
+class ModuloEscolhido:
+    modulo_id: str
+    nome: str
+    #: `None` = anexar no fim; é o que acontece quando não há aula anterior.
+    posicao: int | None
+
+
+@dataclass(frozen=True)
+class SemModulo:
+    motivo: str
+
+
+EscolhaModulo = ModuloEscolhido | SemModulo
+
+
+def chave_de_assunto(titulo: str) -> str:
+    """O assunto que identifica a trilha, normalizado para comparação.
+
+    De "Aula 08 - 25/08/2026 - Complexos: Forma Trigonométrica (pt3)" tira
+    "complexos". Repare que o resto do título contém "Trigonométrica", que é a
+    palavra da OUTRA trilha — por isso o corte é nos dois-pontos e não uma
+    busca de substring pelo título inteiro."""
+    lido = parse_titulo_pagina(titulo)
+    resto = lido.resto if lido else (titulo or "")
+    if _SEPARADOR_ASSUNTO in resto:
+        resto = resto.split(_SEPARADOR_ASSUNTO, 1)[0]
+    return _normalizar(resto)
+
+
+def _normalizar(texto: str) -> str:
+    """Sem acento e sem caixa: os títulos são datilografados e "Física" aparece
+    como "FISICA" na mesma trilha."""
+    sem_acento = unicodedata.normalize("NFKD", texto or "")
+    sem_acento = "".join(c for c in sem_acento if not unicodedata.combining(c))
+    return " ".join(sem_acento.split()).casefold()
+
+
+def _data_do_item(titulo: str) -> date | None:
+    lido = parse_titulo_pagina(titulo)
+    if not lido:
+        return None
+    try:
+        return date(lido.ano or date.today().year, lido.mes, lido.dia)
+    except ValueError:
+        return None
+
+
+def _posicao_cronologica(itens: tuple[ItemModulo, ...], data_aula: date) -> int | None:
+    """Logo depois da aula com a maior data anterior a esta.
+
+    Anexar no fim colocaria a aula nova depois do bloco do semestre passado,
+    que costuma estar embaixo e despublicado — foi o que aconteceu nas três
+    primeiras que penduramos à mão."""
+    anteriores = [
+        (d, i.posicao) for i in itens if (d := _data_do_item(i.titulo)) and d <= data_aula
+    ]
+    if not anteriores:
+        return None
+    return max(anteriores)[1] + 1
+
+
+def escolher_modulo(
+    modulos: Sequence[ModuloCanvas],
+    *,
+    titulo_pagina: str,
+    data_aula: date,
+    modulo_padrao_id: str | None,
+) -> EscolhaModulo:
+    """Qual módulo recebe a página, e em que posição.
+
+    Em ordem: o assunto decide quando casa com exatamente um módulo; se não
+    decidir, vale o módulo configurado no curso; se não houver, NÃO pendura e
+    diz por quê — melhor página fora de módulo, que dá para arrastar, que
+    página na trilha errada."""
+    chave = chave_de_assunto(titulo_pagina)
+    if chave:
+        casam = [m for m in modulos if any(chave_de_assunto(i.titulo) == chave for i in m.itens)]
+        if len(casam) == 1:
+            m = casam[0]
+            return ModuloEscolhido(m.id, m.nome, _posicao_cronologica(m.itens, data_aula))
+        if len(casam) > 1:
+            nomes = ", ".join(sorted(m.nome for m in casam))
+            return SemModulo(f"assunto {chave!r} aparece em mais de um módulo: {nomes}")
+
+    if modulo_padrao_id:
+        m = next((x for x in modulos if str(x.id) == str(modulo_padrao_id)), None)
+        if m:
+            return ModuloEscolhido(m.id, m.nome, _posicao_cronologica(m.itens, data_aula))
+        return SemModulo(f"canvas_modulo_id {modulo_padrao_id!r} não existe mais no curso")
+
+    return SemModulo(f"assunto {chave!r} não casa com módulo nenhum e o curso não tem padrão")

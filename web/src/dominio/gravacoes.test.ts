@@ -6,6 +6,7 @@ import {
   aplicarFiltros,
   contarPorChip,
   esperaCanvas,
+  foraDeModulo,
   formatarDuracao,
   ordenarParaAcompanhamento,
   partesDaData,
@@ -29,6 +30,7 @@ function aula(p: Partial<GravacaoAula> & { id: string }): GravacaoAula {
     erroDetalhe: null,
     canvasEstado: 'pendente',
     canvasUrl: null,
+    canvasModulo: null,
     canvasErro: null,
     atualizadoEm: '2026-08-20T22:00:00+00:00',
     ...p,
@@ -230,5 +232,25 @@ describe('partesDaData', () => {
 
   it('nulo não vira data de hoje', () => {
     expect(partesDaData(null)).toBeNull();
+  });
+});
+
+describe('foraDeModulo', () => {
+  it('página publicada sem módulo é pendência visível', () => {
+    // Criar a página no Canvas não a põe em módulo — são duas chamadas de API.
+    // Foi assim que as quatro primeiras nasceram: publicadas e invisíveis.
+    expect(
+      foraDeModulo(aula({ id: 'a', canvasEstado: 'publicado', canvasModulo: null })),
+    ).toBe(true);
+  });
+
+  it('com módulo, está resolvida', () => {
+    expect(
+      foraDeModulo(aula({ id: 'a', canvasEstado: 'publicado', canvasModulo: 'Aulas - Física 2' })),
+    ).toBe(false);
+  });
+
+  it('aula que ainda nem tem página não é "fora de módulo"', () => {
+    expect(foraDeModulo(aula({ id: 'a', canvasEstado: 'pendente', canvasModulo: null }))).toBe(false);
   });
 });

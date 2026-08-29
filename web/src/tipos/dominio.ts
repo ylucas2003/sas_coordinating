@@ -412,6 +412,12 @@ export interface GravacaoAula {
   erroDetalhe: string | null;
   canvasEstado: EstadoCanvasGravacao;
   canvasUrl: string | null;
+  /**
+   * Módulo em que a página foi pendurada. Nulo com o vídeo já publicado
+   * significa página criada e FORA de módulo: ela existe, mas o aluno não
+   * acha, porque é por módulo que ele navega no Canvas.
+   */
+  canvasModulo: string | null;
   canvasErro: string | null;
   atualizadoEm: string | null;
 }
@@ -422,6 +428,8 @@ export interface CursoGravacao {
   ativo: boolean;
   /** Interruptor da escrita no Canvas — nasce desligado, curso a curso. */
   publicarNoCanvas: boolean;
+  /** Módulo que recebe a página quando o assunto não decide sozinho. */
+  canvasModuloId: string | null;
 }
 
 export interface PainelGravacoes {

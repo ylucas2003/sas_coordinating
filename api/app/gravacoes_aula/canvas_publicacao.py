@@ -63,6 +63,12 @@ _RUIDO_TITULO = (
     re.compile(r"\d{1,2}/\d{1,2}(?:/\d{2,4})?"),
     re.compile(r"\d{1,2}[:h]\d{2}"),
     re.compile(r"\(\s*\)"),
+    # O 581 nomeia a conferência com o prefixo do canal e a turma
+    # ("SAS ITA/IME 2026 - Turma 1 e 2 - Inglês - ..."), e sem limpar isso a
+    # página nascia "Aula - 28/08/2026 - SAS ITA/IME 2026 Turma 1 e 2 Inglês".
+    # Nos outros três cursos não muda nada — não há esses pedaços no título.
+    re.compile(r"\bSAS\s+(?:Preparat[óo]rio\s+)?ITA/IME\s*\d{0,4}", re.IGNORECASE),
+    re.compile(r"\bTurma\s+\d(?:\s+e\s+\d)?", re.IGNORECASE),
 )
 
 
@@ -89,8 +95,63 @@ def _assunto_da_conferencia(titulo_conferencia: str) -> str:
     return limpo.strip(" -–|")
 
 
+async def _pendurar_no_modulo(
+    canvas: ClienteCanvas,
+    *,
+    curso_id: str,
+    slug: str,
+    titulo_pagina: str,
+    data_aula: Any,
+    modulo_padrao_id: str | None,
+) -> tuple[str | None, str | None]:
+    """Pendura a página recém-criada. Devolve (nome do módulo, motivo da falha).
+
+    NUNCA propaga exceção: a página já existe e já tem o vídeo. Perder a
+    publicação inteira porque a listagem de módulos falhou seria trocar um
+    problema pequeno (página fora de módulo, que se arrasta) por um grande
+    (aula sem vídeo, e a gravação some do Canvas em ~7 dias)."""
+    try:
+        brutos = await canvas.listar_modulos(curso_id)
+        modulos = []
+        for m in brutos:
+            itens = await canvas.listar_itens_modulo(curso_id, str(m["id"]))
+            modulos.append(
+                pagina_canvas.ModuloCanvas(
+                    id=str(m["id"]),
+                    nome=m.get("name") or "",
+                    itens=tuple(
+                        pagina_canvas.ItemModulo(i.get("title") or "", i.get("position") or 0)
+                        for i in itens
+                    ),
+                )
+            )
+        escolha = pagina_canvas.escolher_modulo(
+            modulos,
+            titulo_pagina=titulo_pagina,
+            data_aula=data_aula,
+            modulo_padrao_id=modulo_padrao_id,
+        )
+        if isinstance(escolha, pagina_canvas.SemModulo):
+            return None, f"página fora de módulo: {escolha.motivo}"[:400]
+        await canvas.criar_item_modulo(
+            curso_id,
+            escolha.modulo_id,
+            titulo=titulo_pagina,
+            page_url=slug,
+            posicao=escolha.posicao,
+        )
+        return escolha.nome, None
+    # A publicação do vídeo não pode cair por causa da arrumação.
+    except Exception as exc:
+        return None, f"página fora de módulo: {type(exc).__name__}: {exc}"[:400]
+
+
 async def _publicar_uma(
-    canvas: ClienteCanvas, aula: dict[str, Any], *, simular: bool
+    canvas: ClienteCanvas,
+    aula: dict[str, Any],
+    *,
+    simular: bool,
+    modulo_padrao_id: str | None = None,
 ) -> dict[str, Any]:
     """Devolve o que fazer/foi feito com uma aula. NÃO escreve no banco."""
     curso_id = aula["curso_id"]
@@ -136,13 +197,25 @@ async def _publicar_uma(
         if simular:
             return {"plano": "criar", "titulo_pagina": novo_titulo, "canvas_estado": "pendente"}
         criada = await canvas.criar_pagina(curso_id, titulo=novo_titulo, corpo=iframe)
+        modulo, erro_modulo = await _pendurar_no_modulo(
+            canvas,
+            curso_id=curso_id,
+            slug=criada.get("url") or "",
+            titulo_pagina=novo_titulo,
+            data_aula=data_aula,
+            modulo_padrao_id=modulo_padrao_id,
+        )
         return {
             "canvas_estado": "publicado",
             "canvas_pagina_url": criada.get("html_url"),
             "canvas_pagina_slug": criada.get("url"),
             "canvas_pagina_criada": True,
-            "canvas_erro": None,
-            "plano": "criada",
+            "canvas_modulo_nome": modulo,
+            # A página existe e tem o vídeo; ficar fora de módulo é pendência
+            # de arrumação, não falha da publicação. Por isso vai em
+            # `canvas_erro` e o estado continua 'publicado'.
+            "canvas_erro": erro_modulo,
+            "plano": "criada" if modulo else "criada (fora de módulo)",
         }
 
     pagina = escolha.pagina
@@ -227,11 +300,11 @@ def varrer(cliente: Any, *, simular: bool = False, limite: int = _MAX_POR_VARRED
         if not simular and not curso.get("publicar_no_canvas"):
             continue
 
-        async def _ida(a=aula):
+        async def _ida(a=aula, modulo=curso.get("canvas_modulo_id")):
             async with ClienteCanvas(
                 base_url=settings.canvas_base_url, token=settings.canvas_api_token
             ) as canvas:
-                return await _publicar_uma(canvas, a, simular=simular)
+                return await _publicar_uma(canvas, a, simular=simular, modulo_padrao_id=modulo)
 
         try:
             r = asyncio.run(_ida())

@@ -132,6 +132,17 @@ export function toneCanvas(e: EstadoCanvasGravacao): string {
   return 'tone-cinza';
 }
 
+/**
+ * Página criada, vídeo dentro, e fora de módulo.
+ *
+ * É pendência de arrumação, não falha: a página existe e toca. Mas o aluno
+ * navega por módulo, então na prática ele não a encontra — e por isso precisa
+ * aparecer na tela em vez de sumir dentro de um "publicado".
+ */
+export function foraDeModulo(a: GravacaoAula): boolean {
+  return a.canvasEstado === 'publicado' && !a.canvasModulo;
+}
+
 /** Só faz sentido cobrar o Canvas de aula cujo vídeo já existe. */
 export function esperaCanvas(a: GravacaoAula): boolean {
   return situacaoDe(a) === 'publicado';
