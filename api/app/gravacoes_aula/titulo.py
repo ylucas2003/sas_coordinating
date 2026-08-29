@@ -43,6 +43,24 @@ _PADRAO_NUMERO_AULA = re.compile(r"aula\s*0*(\d+)", re.IGNORECASE)
 # Nesses casos o título é aproveitado como está; só a data é reescrita.
 _PADRAO_JA_NO_CANAL = re.compile(r"^\s*SAS\s+ITA/IME\b", re.IGNORECASE)
 
+# O 581 é o único curso cujo NOME contém "SAS ... ITA/IME" com um miolo no meio
+# ("SAS Preparatório ITA/IME 2026"), e o único em que o professor às vezes
+# copia o nome do curso inteiro para o título da conferência. Aí o padrão acima
+# não casa, o título é recomposto do zero, e sai assim:
+#
+#   SAS ITA/IME 2026 - Turma 1 e 2 - Prof Daniel Nicolas - SAS Preparatório
+#   ITA/IME 2026 - Turma 1 e 2 - Inglês - Prof Daniel Nicolas (28/08/2026)
+#
+# 142 caracteres, com "Prof" duas vezes — e `publicador_youtube.publicar` corta
+# em 100 SEM avisar, então o vídeo iria ao canal com o título cortado no meio.
+#
+# `if` explícito por curso, e não um regex mais frouxo (`SAS \w+ ITA/IME`): o
+# frouxo casaria título de curso que NÃO está no padrão do canal e o devolveria
+# sem tratamento nenhum. É um curso só, com um nome só — que seja hardcoded e
+# visível.
+CURSO_PREPARATORIO = "581"
+_PREFIXO_POR_EXTENSO = re.compile(r"^\s*SAS\s+Preparat[óo]rio\s+ITA/IME\b", re.IGNORECASE)
+
 # Sufixos datilografados que saem do fim antes de a data real entrar: "(28/08/2026)"
 # e o "- 17:30", que é hora de agenda e não faz parte do padrão do canal.
 _SUFIXO_DATA = re.compile(r"\s*\(\s*\d{1,2}/\d{1,2}/\d{2,4}\s*\)\s*$")
@@ -102,6 +120,7 @@ def compor_titulo(
     nome_curso: str,
     iniciada_em: datetime,
     professor_padrao: str | None = None,
+    curso_id: str | None = None,
 ) -> str:
     """Monta o título no padrão do canal, omitindo o que não der para saber.
 
@@ -112,6 +131,12 @@ def compor_titulo(
     Isso importa porque a saída daqui já começa com "SAS ITA/IME", e sem o
     desvio abaixo uma reexecução empilharia prefixo a cada rodada."""
     local = iniciada_em.astimezone(_FUSO_COLEGIO)
+
+    # Ver `CURSO_PREPARATORIO`: encurta o nome do curso para o prefixo do canal
+    # ANTES do desvio abaixo, que é quem evita a duplicação.
+    if curso_id == CURSO_PREPARATORIO:
+        titulo_canvas = _PREFIXO_POR_EXTENSO.sub("SAS ITA/IME", titulo_canvas, count=1)
+
     if ja_no_padrao_do_canal(titulo_canvas):
         return _normalizar_titulo_do_canal(titulo_canvas, local)
 

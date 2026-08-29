@@ -369,6 +369,7 @@ def _processar_uma(cliente: Any, aula: dict[str, Any]) -> dict[str, Any]:
             nome_curso=curso.get("nome", "") if curso else "",
             iniciada_em=datetime.fromisoformat(aula["iniciada_em"].replace("Z", "+00:00")),
             professor_padrao=(curso or {}).get("professor_padrao"),
+            curso_id=aula["curso_id"],
         )
         video_id = publicador_youtube.publicar(
             composto,

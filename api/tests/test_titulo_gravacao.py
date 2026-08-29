@@ -165,3 +165,63 @@ def test_titulo_cabe_no_limite_do_youtube():
         iniciada_em=_em(2026, 8, 28),
     )
     assert len(r) <= 100, f"{len(r)} caracteres: seria truncado em silêncio"
+
+
+# ─── O `if` hardcoded do curso 581 ──────────────────────────────────────────
+#
+# O 581 é o único curso cujo nome tem um miolo entre "SAS" e "ITA/IME"
+# ("SAS Preparatório ITA/IME 2026"), e o único em que o professor às vezes cola
+# o nome do curso inteiro no título da conferência.
+
+_TITULO_581_POR_EXTENSO = (
+    "SAS Preparatório ITA/IME 2026 - Turma 1 e 2 - Inglês - Prof Daniel Nicolas - 17:30 (28/08/2026)"
+)
+
+
+def test_nome_do_curso_por_extenso_nao_duplica_prefixo():
+    """Sem o desvio do 581 este caso saía com 142 caracteres e "Prof" duas
+    vezes — e `publicador_youtube.publicar` corta em 100 SEM avisar, então o
+    vídeo iria ao canal com o título cortado no meio."""
+    r = compor_titulo(
+        titulo_canvas=_TITULO_581_POR_EXTENSO,
+        nome_curso="SAS Preparatório ITA/IME 2026",
+        iniciada_em=_em(2026, 8, 28),
+        curso_id="581",
+    )
+    assert r == "SAS ITA/IME 2026 - Turma 1 e 2 - Inglês - Prof Daniel Nicolas (28/08/2026)"
+    assert r.count("SAS ITA/IME") == 1
+    assert r.count("Prof") == 1
+    assert len(r) <= 100
+
+
+def test_as_duas_grafias_do_581_dao_o_mesmo_titulo():
+    """"SAS ITA/IME 2026" e "SAS Preparatório ITA/IME 2026" são a mesma aula
+    escrita de dois jeitos: o canal não pode ganhar dois títulos diferentes."""
+    kw = {
+        "nome_curso": "SAS Preparatório ITA/IME 2026",
+        "iniciada_em": _em(2026, 8, 28),
+        "curso_id": "581",
+    }
+    assert compor_titulo(titulo_canvas=_TITULO_581_POR_EXTENSO, **kw) == compor_titulo(
+        titulo_canvas=_TITULO_581, **kw
+    )
+
+
+def test_o_desvio_e_so_do_581():
+    """É `if` por curso de propósito. Um regex frouxo (`SAS \\w+ ITA/IME`)
+    casaria título de outro curso que NÃO está no padrão do canal e o devolveria
+    sem tratamento nenhum."""
+    bruto = "SAS Preparatório ITA/IME 2026 - Turma 1 e 2 - Inglês"
+    de_outro_curso = compor_titulo(
+        titulo_canvas=bruto, nome_curso="x (2º SEMESTRE)", iniciada_em=_em(2026, 8, 28), curso_id="692"
+    )
+    assert "SAS Preparatório" in de_outro_curso
+
+
+def test_sem_curso_id_o_comportamento_e_o_de_antes():
+    """`curso_id` é opcional: quem não passa continua caindo no caminho geral."""
+    assert compor_titulo(
+        titulo_canvas="Física - Prof. Renan - AULA 5 - 17:30 (20/08/2026)",
+        nome_curso="2026 SAS ITA/IME Física (2º SEMESTRE)",
+        iniciada_em=_em(2026, 8, 20),
+    ) == "SAS ITA/IME 2026 - Turma 1 e 2 - Prof Renan - Aula 5 (20/08/2026)"
