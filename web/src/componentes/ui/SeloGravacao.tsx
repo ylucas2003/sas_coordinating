@@ -26,12 +26,21 @@ export function SeloSituacao({ aula }: { aula: GravacaoAula }) {
   );
 }
 
-export function SeloCanvasGravacao({ aula }: { aula: GravacaoAula }) {
+export function SeloCanvasGravacao({
+  aula,
+  publicaNoCanvas = true,
+}: {
+  aula: GravacaoAula;
+  /** O interruptor do curso. Desligado, a aula fica `pendente` no banco para
+      poder ser publicada quando alguém ligar — mas prometer "a publicar" aqui
+      seria mentira, porque nada vai acontecer enquanto o curso estiver assim. */
+  publicaNoCanvas?: boolean;
+}) {
   // Sem vídeo não há o que embutir: um selo aqui sugeriria pendência do Canvas
   // quando quem está devendo é o pipeline do vídeo.
   if (!esperaCanvas(aula)) return null;
 
-  const estado: EstadoCanvasGravacao = aula.canvasEstado;
+  const estado: EstadoCanvasGravacao = publicaNoCanvas ? aula.canvasEstado : 'ignorado';
   const r = ROTULO_CANVAS[estado];
   if (!r) return null;
 

@@ -33,7 +33,16 @@ _MAX_POR_VARREDURA = 20
 
 # Estados que a varredura pega. 'ambiguo' e 'conflito' ficam de FORA: são
 # decisões de "não escrever" que exigem gente olhando, não retentativa cega.
-_CANVAS_RETENTAVEIS = ("pendente", "falhou")
+#
+# 'ignorado' ESTÁ aqui, e a distinção importa: ele não é uma recusa, é um "não
+# agora" — quer dizer só que o curso estava desligado quando a rodada passou.
+# Deixá-lo fora tornava o estado terminal, e isso quebrava as duas coisas que a
+# migration 0035 manda fazer para ligar um curso: as aulas já carimbadas nunca
+# voltavam ao pool quando o interruptor era ligado, e o ensaio `?simular=true`
+# devolvia zero candidatas, porque o filtro da consulta roda ANTES do desvio
+# que ignora o interruptor. Resgatar o que já foi carimbado em produção depende
+# exatamente disto.
+_CANVAS_RETENTAVEIS = ("pendente", "falhou", "ignorado")
 
 
 def _data_da_aula(aula: dict[str, Any]) -> Any:
@@ -185,12 +194,23 @@ def varrer(cliente: Any, *, simular: bool = False, limite: int = _MAX_POR_VARRED
         c["curso_id"]: c
         for c in cliente.table("curso_monitorado_gravacao").select("*").execute().data
     }
+    # Curso desligado nem entra na consulta. Antes ele entrava, era carimbado
+    # 'ignorado' e ocupava uma das 20 vagas da rodada — com três cursos
+    # desligados e um ligado, as aulas mais antigas (que são as ignoradas, pela
+    # ordenação) empurrariam para fora justamente as que têm trabalho a fazer.
+    # No modo simular a lista é outra: ensaiar é para ANTES de ligar.
+    ligados = [cid for cid, c in cursos.items() if c.get("publicar_no_canvas")]
+    if not simular and not ligados:
+        return {"status": "ok", "simulado": False, "analisadas": 0, "resultados": [],
+                "nota": "nenhum curso com publicar_no_canvas ligado"}
+
     candidatas = (
         cliente.table("aula_gravacao")
         .select("id,curso_id,conferencia_id,titulo,iniciada_em,youtube_video_id,youtube_titulo,canvas_estado,canvas_tentativas")
         .not_.is_("youtube_video_id", "null")
         .in_("canvas_estado", list(_CANVAS_RETENTAVEIS))
         .lt("canvas_tentativas", _MAX_TENTATIVAS_CANVAS)
+        .in_("curso_id", ligados if not simular else list(cursos))
         .order("iniciada_em", desc=False)
         .limit(limite)
         .execute()
@@ -200,14 +220,11 @@ def varrer(cliente: Any, *, simular: bool = False, limite: int = _MAX_POR_VARRED
     resultados: list[dict[str, Any]] = []
     for aula in candidatas:
         curso = cursos.get(aula["curso_id"]) or {}
-        # No modo simular o interruptor é ignorado DE PROPÓSITO: é justamente
-        # com ele desligado que se confere o plano antes de ligar.
+        # Cinto de segurança: a consulta acima já filtrou por curso ligado. NÃO
+        # carimba 'ignorado' — carimbar tirava a aula do pool e era o que
+        # impedia o curso de ser ligado depois. No modo simular o interruptor é
+        # ignorado DE PROPÓSITO: ensaiar é para antes de ligar.
         if not simular and not curso.get("publicar_no_canvas"):
-            cliente.table("aula_gravacao").update(
-                {"canvas_estado": "ignorado",
-                 "canvas_erro": "publicar_no_canvas desligado neste curso"}
-            ).eq("id", aula["id"]).execute()
-            resultados.append({"aula": aula["titulo"][:40], "plano": "ignorado (curso desligado)"})
             continue
 
         async def _ida(a=aula):

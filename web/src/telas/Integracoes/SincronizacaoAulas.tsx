@@ -55,6 +55,10 @@ export function SincronizacaoAulas() {
     () => new Map(cursosDisponiveis.map((c) => [c.cursoId, c.nome])),
     [cursosDisponiveis],
   );
+  const publicaNoCanvasPorCurso = useMemo(
+    () => new Map(cursosDisponiveis.map((c) => [c.cursoId, c.publicarNoCanvas])),
+    [cursosDisponiveis],
+  );
 
   const filtro = useMemo(() => ({ cursos, situacoes }), [cursos, situacoes]);
   const filtradas = useMemo(() => aplicarFiltros(aulas, filtro), [aulas, filtro]);
@@ -146,7 +150,12 @@ export function SincronizacaoAulas() {
       ) : (
         <div className="gravacoes-grade">
           {filtradas.map((a) => (
-            <Cartao key={a.id} aula={a} curso={nomePorCurso.get(a.cursoId) ?? a.cursoId} />
+            <Cartao
+              key={a.id}
+              aula={a}
+              curso={nomePorCurso.get(a.cursoId) ?? a.cursoId}
+              publicaNoCanvas={publicaNoCanvasPorCurso.get(a.cursoId) ?? false}
+            />
           ))}
         </div>
       )}
@@ -162,7 +171,15 @@ export function SincronizacaoAulas() {
  * Canvas, e é por data que a coordenação procura ("a de terça saiu?"). A cor
  * da tarja repete a situação para a grade ser legível de longe, sem ler.
  */
-function Cartao({ aula, curso }: { aula: GravacaoAula; curso: string }) {
+function Cartao({
+  aula,
+  curso,
+  publicaNoCanvas,
+}: {
+  aula: GravacaoAula;
+  curso: string;
+  publicaNoCanvas: boolean;
+}) {
   const data = partesDaData(aula.iniciadaEm);
   // O título do vídeo só existe depois da publicação; até lá o que há é o
   // texto cru que o professor escreveu no Canvas.
@@ -190,7 +207,7 @@ function Cartao({ aula, curso }: { aula: GravacaoAula; curso: string }) {
 
         <div className="gravacao__selos">
           <SeloSituacao aula={aula} />
-          <SeloCanvasGravacao aula={aula} />
+          <SeloCanvasGravacao aula={aula} publicaNoCanvas={publicaNoCanvas} />
         </div>
 
         {situacaoDe(aula) === 'erro' && aula.erroDetalhe && (

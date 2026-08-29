@@ -37,6 +37,11 @@ class Query:
     def gte(self, c, v): self.filtros.append(("gte", c, v)); return self
     def in_(self, c, v): self.filtros.append(("in", c, list(v))); return self
     def is_(self, c, v): self.filtros.append(("is", c, v)); return self
+
+    @property
+    def not_(self):
+        """`.not_.is_(col, "null")` — só a negação de `is`, que é a usada."""
+        return _Negado(self)
     def like(self, c, v): self.filtros.append(("like", c, v)); return self
     def limit(self, n): self._limit = n; return self
     def order(self, c, desc=False): self._order = (c, desc); return self
@@ -47,6 +52,7 @@ class Query:
             if tipo == "eq" and atual != val: return False
             if tipo == "in" and atual not in val: return False
             if tipo == "is" and val == "null" and atual is not None: return False
+            if tipo == "nao_is" and val == "null" and atual is None: return False
             if tipo == "lt" and not (atual is not None and str(atual) < str(val)): return False
             if tipo == "lte" and not (atual is not None and str(atual) <= str(val)): return False
             if tipo == "gte" and not (atual is not None and str(atual) >= str(val)): return False
@@ -106,6 +112,14 @@ class Query:
                     afetadas.append(linha)
             return Resp(afetadas)
         raise AssertionError(self.op)
+
+
+class _Negado:
+    """O `.not_` do postgrest-py devolve um proxy; aqui só `is_` é preciso."""
+    def __init__(self, q): self.q = q
+    def is_(self, c, v):
+        self.q.filtros.append(("nao_is", c, v))
+        return self.q
 
 
 class Tabela:
