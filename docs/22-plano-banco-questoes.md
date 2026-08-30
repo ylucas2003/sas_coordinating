@@ -248,6 +248,15 @@ Três exigências, todas por experiência já paga no projeto:
 
 ### 1.4 Os números esperados
 
+> ⚠️ **Esta tabela é de 22/08 e descreve o acervo daquele dia (934 questões).**
+> O banco tem **2.693** desde 29/08. A régua que o importador usa de verdade é a
+> constante `ESPERADO` em
+> [`scripts/importar_banco_questoes.py`](../api/scripts/importar_banco_questoes.py),
+> atualizada junto com o acervo — ela ficou parada nos 934 por uma semana e
+> fazia toda importação terminar com "8 números fora do esperado", que é como
+> um alarme deixa de ser lido (docs/23 §23.9). Ao processar prova nova,
+> atualize a constante **e** esta tabela.
+
 Conferidos em 22/08 contra os arquivos:
 
 | | |
