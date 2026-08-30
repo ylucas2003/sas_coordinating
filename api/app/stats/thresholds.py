@@ -20,29 +20,26 @@ FATOR_DESVIO_ANCORA = 0.25  # desvio do aluno < FATOR * desvio_padrao_turma
 # Perfil mistério: desvio do aluno > FATOR * mediana_desvios_turma.
 FATOR_DESVIO_MISTERIO = 2.0
 
-# ─── Zona (regra ITA/IME) ─────────────────────────────────────────────────
+# ─── Zona (regra ITA/IME) — MUDOU DE ARQUIVO ─────────────────────────────
 #
-# ITA e IME cortam por MATÉRIA, não por média geral: basta uma disciplina
-# abaixo do mínimo para o candidato ser eliminado. O valor abaixo é o piso
-# absoluto que vale tanto pra ITA quanto pra IME na Fase 2.
-
-NOTA_CORTE_FASE_2 = 4.0
-
-# Matérias core que entram no cálculo de "cortado" (Fase 2, escala 0-10).
-# Mat / Fis / Quim / Port aparecem em ITA E IME. Inglês aparece só no IME.
-# Redação tem tratamento especial (IME é binária); fica fora da regra de
-# corte numérica mas continua sendo exibida na ficha.
-MATERIAS_PARA_CORTE: tuple[str, ...] = ("matematica", "fisica", "quimica", "portugues")
-
-# Acima do corte por uma margem confortável → zona "top".
-MARGEM_TOP_SOBRE_CORTE = 1.0    # ex.: 4.0 + 1.0 = todas as matérias ≥ 5.0
-# Atalho de risco: aluno passou no corte mas perigosamente perto.
-MARGEM_RISCO_ABAIXO_CORTE = 0.0  # já é "cortado" se < corte exato
-
-# Mantidos por compatibilidade — usados em comparações antigas com nota_corte
-# genérica. Podem ser removidos quando nota_corte_vestibular sair do schema.
-MARGEM_TOP = 0.5
-MARGEM_RISCO = 0.5
+# `NOTA_CORTE_FASE_2`, `CORTE_INGLES_ITA_F1`, `MATERIAS_PARA_CORTE` e
+# `MARGEM_TOP_SOBRE_CORTE` moravam aqui e saíram em 30/08/2026.
+#
+# O critério da separação: **se o número tem artigo de edital, é regra; se ele
+# foi escolhido por nós olhando dados, é calibração.** Regra é dado, mora em
+# `criterios.py` e tem versão; calibração é constante, mora aqui e se edita à
+# mão. Enquanto os dois estavam no mesmo arquivo, um corte de edital era
+# editável como se fosse um parâmetro nosso — e a Fase 2 acabou com 4,0 aqui e
+# 5,0 no front (docs/18 §1.1).
+#
+# Onde procurar agora:
+#   corte por matéria .......... criterios.corte_da_materia(criterio, materia)
+#   corte da média ............. criterios.corte_da_media(criterio)
+#   margem da zona "top" ....... criterios.MARGEM_CONFORTAVEL
+#   régua quando ninguém escolheu   criterios.CRITERIO_DA_CASA
+#
+# `MARGEM_TOP` e `MARGEM_RISCO` também saíram: eram código morto desde que
+# `nota_corte_vestibular` deixou de ser lido.
 
 
 # ─── Alertas ──────────────────────────────────────────────────────────────

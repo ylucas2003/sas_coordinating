@@ -23,6 +23,12 @@ interface PayloadLinha {
   }>;
 }
 
+interface PayloadNavegacao {
+  rota?: string;
+  rotulo?: string;
+  entidade?: string;
+}
+
 interface PayloadCsv {
   conteudo?: string;
   nLinhas?: number;
@@ -73,6 +79,26 @@ export function Artefato({ artefato }: { artefato: ArtefatoChat }) {
           altura={220}
           onPontoClick={(ponto) => ponto.simuladoId && navegar(`/simulados/${ponto.simuladoId}`)}
         />
+      </div>
+    );
+  }
+
+  if (artefato.tipo === 'navegacao') {
+    const p = artefato.payload as PayloadNavegacao;
+    if (!p?.rota) return <ArtefatoNaoRenderizavel tipo={artefato.tipo} />;
+    return (
+      <div className="chat-artefato chat-artefato--link">
+        {/* `button` e não `a`: navegação de SPA. Um href faria o browser
+            recarregar a aplicação e derrubar a conversa aberta ao lado —
+            justamente o que o painel não-modal existe para evitar. */}
+        <button
+          type="button"
+          className="chat-artefato__link"
+          onClick={() => navegar(p.rota!)}
+        >
+          <span className="chat-artefato__link-icone" aria-hidden="true">→</span>
+          {p.rotulo || p.rota}
+        </button>
       </div>
     );
   }

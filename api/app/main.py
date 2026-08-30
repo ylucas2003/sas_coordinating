@@ -33,6 +33,7 @@ from .routes import (
     auth_canvas,
     banco,
     ciclos,
+    criterios,
     dimensoes,
     disparos,
     email_eventos,
@@ -148,6 +149,7 @@ def create_app() -> FastAPI:
     app.include_router(simulados.router)
     app.include_router(notas.router)
     app.include_router(ciclos.router)
+    app.include_router(criterios.router)
     app.include_router(auditoria.router)
     app.include_router(banco.router)
     app.include_router(administracao.router)

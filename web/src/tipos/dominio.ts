@@ -178,6 +178,8 @@ export interface StatsRecorte {
 export interface BlocoFase {
   stats: StatsRecorte;
   histograma: RespostaHistograma | null;
+  /** Corte usado neste bloco, vindo da régua — nunca de um número no TSX. */
+  corte?: number | null;
 }
 
 /** Insights do LLM: leitura acessível e leitura técnica do mesmo recorte. */
@@ -188,8 +190,14 @@ export interface Insights {
 
 export interface RecorteMateria {
   materia: MateriaResumo;
-  /** Inglês na Fase 1 do ITA é eliminatório, com corte 5 em vez de 4. */
-  eliminatoriaF1?: boolean;
+  /**
+   * A régua em uso elimina sozinho quem falha nesta matéria (inglês do ITA na
+   * F1, redação do IME). Era `eliminatoriaF1`, deduzido no front de "é ITA e é
+   * inglês" — agora quem diz é o critério, e vale para as duas fases.
+   */
+  eliminatoria?: boolean;
+  /** Mínimo que a régua exige nesta matéria, em 0–10. */
+  corte?: number | null;
   fase1: BlocoFase | null;
   fase2: BlocoFase | null;
   deltaF1F2?: { media?: number | null; pctAprovados?: number | null } | null;
@@ -228,6 +236,8 @@ export interface EstatisticasCiclo {
     insights?: Insights | null;
   } | null;
   porMateria?: RecorteMateria[] | null;
+  /** A régua que produziu todos os cortes deste payload. */
+  criterio?: CriterioClassificacao | null;
 }
 
 /** Um ponto da trajetória do aluno (GET /alunos/{id}/trajetoria). */
@@ -278,6 +288,20 @@ export interface CriterioClassificacao {
   combinador: 'todos' | 'algum';
   desempate: string[];
   predicados: PredicadoCriterio[];
+  /**
+   * Mínimo por matéria, já resolvido pelo servidor — inclusive o que vem do
+   * predicado "qualquer disciplina". Existe para desenhar a linha de corte sem
+   * percorrer `predicados` no front, que seria a regra de corte em TypeScript.
+   */
+  cortes?: Record<string, number>;
+  /** Mínimo do predicado "qualquer disciplina", quando a régua tem um. */
+  corteGenerico?: number | null;
+  /** Mínimo que a régua exige da média geral. */
+  corteMedia?: number | null;
+  /** Matérias em que falhar reprova sozinho, sem consultar o combinador. */
+  eliminatorias?: string[];
+  /** `false` = criada pela coordenação; ausente ou `true` = vem do arquivo. */
+  embutido?: boolean;
 }
 
 export interface AlunoClassificado {
@@ -302,7 +326,7 @@ export interface ClassificacaoCiclo {
 
 // ─── Auditoria ───────────────────────────────────────────────────────────
 
-export type CanalAuditoria = 'acesso' | 'nota' | 'simulado' | 'ciclo' | 'canvas';
+export type CanalAuditoria = 'acesso' | 'nota' | 'simulado' | 'ciclo' | 'canvas' | 'criterio';
 
 export interface EventoAuditoria {
   id: number;

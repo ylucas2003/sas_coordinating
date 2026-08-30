@@ -16,7 +16,7 @@ Estrutura do payload:
         {
           "materia": {codigo, nome},
           "eliminatoria": false,
-          "corte": 4.0,
+          "corte": 4.0,       # da régua, não constante — ver `criterio` em calcular()
           "fase1": { stats, histograma } | None,
           "fase2": { stats, histograma } | None,
           "deltaF1F2": { media, mediana, pctAprovados } | None
@@ -42,7 +42,7 @@ from typing import Any
 
 from supabase import Client
 
-from .thresholds import NOTA_CORTE_FASE_2
+from . import criterios
 from .utils import (
     como_float,
     detectar_bimodalidade,
@@ -59,7 +59,8 @@ log = logging.getLogger("sas.stats.ciclo_estatisticas")
 
 LARGURA_BIN = 0.5
 NOTA_MAXIMA_NORMALIZADA = 10.0
-CORTE_INGLES_ITA_F1 = 5.0
+# 7,0 não é corte de edital: é a faixa que a coordenação chama de excelência.
+# Os CORTES saem da régua — ver o parâmetro `criterio` de `calcular`.
 NOTA_EXCELENCIA = 7.0
 
 
@@ -67,14 +68,23 @@ def calcular(
     cliente: Client,
     *,
     ciclo_id: str,
+    criterio: criterios.Criterio | None = None,
 ) -> dict[str, Any] | None:
     """Devolve o payload completo do ciclo (F1 + F2 + conjunta + por matéria).
 
     Retorna None se o ciclo não existir.
+
+    `criterio` é a régua que decide **todos** os cortes do payload — a linha
+    vertical dos histogramas, o `pctAprovados`, o que conta como zona crítica.
+    Ausente = a régua da casa. Antes daqui os cortes eram dois números escritos
+    no módulo (4,0 e 5,0), então trocar o critério no Painel reordenava a
+    tabela e não mexia no gráfico ao lado (docs/31 §1.1).
     """
     ciclo = _carregar_ciclo(cliente, ciclo_id)
     if ciclo is None:
         return None
+
+    regua = criterio or criterios.por_slug(criterios.CRITERIO_DA_CASA)
 
     ciclo_anterior = _carregar_ciclo_anterior(cliente, ciclo)
     materias = _mapa_materias(cliente)
@@ -89,14 +99,15 @@ def calcular(
     else:
         simulados_ant, notas_ant = [], {}
 
-    is_ita = ciclo.get("vestibular_alvo") == "ITA"
-
     # ── Análise conjunta (ciclo todo, F1+F2 agregados por aluno) ──
+    # O eixo aqui é a MÉDIA do aluno no ciclo, então o corte que vale é o que
+    # a régua exige da média — não o corte por matéria.
     conjunta_atual = _agregado_por_aluno(simulados_atual, notas_atual)
     conjunta_ant = _agregado_por_aluno(simulados_ant, notas_ant)
     bloco_conjunta = _resumir(
         valores=conjunta_atual,
-        corte=NOTA_CORTE_FASE_2,
+        # Sem `or 0.0`: régua que não exige média não desenha linha nenhuma.
+        corte=criterios.corte_da_media(regua),
         anterior=conjunta_ant or None,
     )
 
@@ -107,7 +118,7 @@ def calcular(
         simulados_ant=simulados_ant,
         notas_ant=notas_ant,
         materias=materias,
-        is_ita=is_ita,
+        criterio=regua,
     )
 
     # ── Evolução temporal: tudo cronologicamente, com fase no payload ──
@@ -245,7 +256,7 @@ def _por_materia_dual_fase(
     simulados_ant: list[dict],
     notas_ant: dict[str, list[dict]],
     materias: dict[str, dict],
-    is_ita: bool,
+    criterio: criterios.Criterio,
 ) -> list[dict]:
     """Para cada matéria, produz {fase1, fase2, deltaF1F2}.
 
@@ -272,9 +283,16 @@ def _por_materia_dual_fase(
         if not materia:
             continue
         codigo = materia["codigo"]
-        eliminatoria_f1 = is_ita and codigo == "ingles"
-        corte_f1 = CORTE_INGLES_ITA_F1 if eliminatoria_f1 else NOTA_CORTE_FASE_2
-        corte_f2 = NOTA_CORTE_FASE_2
+        # Um corte por matéria, vindo da régua. As duas fases usam o mesmo:
+        # quando o critério distingue fase, quem escolhe o critério certo é
+        # quem chama (`ita-f1` e `ita-f2` são réguas diferentes).
+        # Matéria que a régua não menciona cai na exigência da média; se ela
+        # também não existir, o corte é None — e None é "sem linha", não zero.
+        corte = criterios.corte_da_materia(criterio, codigo)
+        if corte is None:
+            corte = criterios.corte_da_media(criterio)
+        corte_f1 = corte_f2 = corte
+        eliminatoria = criterios.e_eliminatoria(criterio, codigo)
 
         # Fase 1
         f1_atual = _agregado_por_aluno(sim_por_mat_fase.get((materia_id, "fase_1"), []), notas)
@@ -299,7 +317,11 @@ def _por_materia_dual_fase(
 
         saida.append({
             "materia": {"codigo": codigo, "nome": materia["nome"]},
-            "eliminatoriaF1": eliminatoria_f1,
+            # Era `eliminatoriaF1`, calculado como `is_ita and codigo ==
+            # "ingles"`. Agora quem diz é a régua — e ela vale para as duas
+            # fases, porque "eliminatória" é propriedade do critério em uso.
+            "eliminatoria": eliminatoria,
+            "corte": corte,
             "fase1": bloco_f1,
             "fase2": bloco_f2,
             "deltaF1F2": delta_f1_f2,
@@ -347,7 +369,7 @@ def _evolucao_temporal(
 def _resumir(
     *,
     valores: list[float],
-    corte: float,
+    corte: float | None,
     anterior: list[float] | None,
 ) -> dict[str, Any]:
     bloco = _stats_payload(valores, corte=corte)
@@ -362,7 +384,7 @@ def _resumir(
     return bloco
 
 
-def _stats_payload(valores: list[float], *, corte: float) -> dict[str, Any]:
+def _stats_payload(valores: list[float], *, corte: float | None) -> dict[str, Any]:
     if not valores:
         return {"stats": _stats_vazio(), "histograma": None}
 

@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { GraficoEmCamadas } from '../../componentes/ui/GraficoEmCamadas';
 import { Histograma } from '../../componentes/ui/Histograma';
+import { corteDaMateria, eliminaSozinho } from '../../dominio/criterios';
+import { lerDistribuicao } from '../../dominio/leituraDeGrafico';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { EdicaoNota } from '../../componentes/dialogos/EdicaoNota';
 import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
@@ -9,7 +12,7 @@ import { EdicaoSimulado } from '../../componentes/dialogos/EdicaoSimulado';
 import { SeloCanvas } from '../../componentes/ui/SeloCanvas';
 import type { PatchSimulado } from '../../componentes/dialogos/EdicaoSimulado';
 import {
-  useHistogramaSimulado, useNotasSimulado, useSimulado,
+  useCriteriosDisponiveis, useHistogramaSimulado, useNotasSimulado, useSimulado,
   useSimuladoPorMateria, useSimuladoPorSede,
 } from '../../hooks/consultas';
 import { useCancelarSimulado, useEditarNota, useEditarSimulado, useRetrySimuladoCanvas } from '../../hooks/mutacoes';
@@ -36,6 +39,13 @@ export function SimuladoFicha() {
   const navegar = useNavigate();
   const [desmarcando, setDesmarcando] = useState(false);
   const editarNota = useEditarNota();
+
+  // A régua da casa: esta ficha não escolhe critério, e o corte da matéria do
+  // simulado é o que o gráfico precisa desenhar.
+  const { data: criterios = [] } = useCriteriosDisponiveis();
+  const regua = criterios.find((c) => c.slug === 'tio-leo') ?? criterios[0] ?? null;
+  const corte = corteDaMateria(regua, simulado?.materia?.codigo);
+  const elimina = eliminaSozinho(regua, simulado?.materia?.codigo);
 
   const [editandoSimulado, setEditandoSimulado] = useState(false);
   const [notaEmEdicao, setNotaEmEdicao] = useState<NotaSimulado | null>(null);
@@ -156,15 +166,27 @@ export function SimuladoFicha() {
         </div>
 
         <div className="section">
-          <div className="section__title">Distribuição</div>
-          <p className="section__subtitle">
-            Histograma de notas com bins de 0,5 ponto. Linhas tracejadas: média (vermelho) e
-            mediana (âmbar).
-          </p>
-          <Histograma
-            payload={hist}
-            media={hist?.media ?? simulado.media}
-            mediana={hist?.mediana ?? simulado.mediana}
+          <GraficoEmCamadas
+            titulo="Distribuição"
+            legenda="Histograma de notas com bins de 0,5 ponto. Linhas tracejadas: média (vermelho) e mediana (âmbar)."
+            frase={lerDistribuicao({
+              histograma: hist,
+              media: hist?.media ?? simulado.media,
+              corte,
+              rotuloGrupo: 'de quem fez',
+            })?.frase ?? null}
+            grafico={(camada) => (
+              <Histograma
+                payload={hist}
+                media={hist?.media ?? simulado.media}
+                mediana={hist?.mediana ?? simulado.mediana}
+                // Esta ficha desenhava a distribuição SEM linha de corte
+                // nenhuma — o número existia na régua e não chegava aqui.
+                corte={corte != null ? { valor: corte, eliminatoria: elimina } : null}
+                kde={camada === 'estatistica'}
+                eixoYAbsoluto={camada === 'estatistica' ? {} : null}
+              />
+            )}
           />
         </div>
 

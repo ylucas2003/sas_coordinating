@@ -2,10 +2,13 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Histograma } from '../../componentes/ui/Histograma';
+import { GraficoEmCamadas } from '../../componentes/ui/GraficoEmCamadas';
 import { InsightsPainel } from '../../componentes/ui/InsightsPainel';
+import { SeletorCriterio } from '../../componentes/ui/SeletorCriterio';
 import { LinhaTemporal } from '../../componentes/ui/LinhaTemporal';
-import { useCiclo, useEstatisticasCiclo, useSimulados } from '../../hooks/consultas';
-import { useTituloDaTela } from '../../componentes/layout/migalhas';
+import { lerDistribuicao, lerDuasFases, lerEvolucao } from '../../dominio/leituraDeGrafico';
+import { useCiclo, useCriteriosDisponiveis, useEstatisticasCiclo, useSimulados } from '../../hooks/consultas';
+import { useRecorteDaTela, useTituloDaTela } from '../../componentes/layout/migalhas';
 import type {
   BlocoFase, EstatisticasCiclo, RecorteMateria, Simulado, StatsRecorte,
 } from '../../tipos/dominio';
@@ -37,7 +40,13 @@ export function CicloFicha() {
   const { id = '' } = useParams();
   const { data: ciclo, isPending: carregandoCiclo, isError: erroCiclo } = useCiclo(id);
   const { data: todos = [] } = useSimulados();
-  const { data: stats, isPending: carregandoStats, isError: erroStats } = useEstatisticasCiclo(id);
+  // A régua escolhida decide TODOS os cortes desta tela — a linha vertical de
+  // cada histograma, a da evolução e o pctAprovados. Antes eram números
+  // escritos aqui (4 e 5), então trocar a régua no Painel não mexia em nada
+  // aqui (docs/31 §0.4).
+  const [criterio, setCriterio] = useState('tio-leo');
+  const { data: criterios = [] } = useCriteriosDisponiveis();
+  const { data: stats, isPending: carregandoStats, isError: erroStats } = useEstatisticasCiclo(id, criterio);
 
   const [avancadoAberto, setAvancadoAberto] = useState(false);
 
@@ -50,6 +59,7 @@ export function CicloFicha() {
 
   // Antes de qualquer return: hook não pode ficar atrás de saída antecipada.
   useTituloDaTela(ciclo?.nome);
+  useRecorteDaTela(useMemo(() => ({ cicloId: id, criterio }), [id, criterio]));
 
   if (carregandoCiclo) {
     return (
@@ -86,6 +96,10 @@ export function CicloFicha() {
             )}
             {`Período: ${ciclo.periodoInicio || '—'} → ${ciclo.periodoFim || '—'} · ${doCiclo.length} simulados`}
           </p>
+          <div className="ciclo-ficha__regua">
+            <span className="ciclo-ficha__regua-rotulo">Régua de corte</span>
+            <SeletorCriterio criterios={criterios} valor={criterio} onEscolher={setCriterio} />
+          </div>
         </div>
 
         {carregandoStats ? (
@@ -103,14 +117,11 @@ export function CicloFicha() {
             <Hero stats={stats} />
             <Evolucao stats={stats} />
 
-            <div className="section">
-              <InsightsPainel
-                bullets={stats.conjunta?.insights?.pratico ?? null}
-                titulo="Leitura do coordenador"
-                legenda="Análise em linguagem acessível, gerada a partir dos números do ciclo."
-              />
-            </div>
-
+            {/* A "Leitura do coordenador" solta saiu daqui: são os mesmos
+                bullets do `conjunta.insights.pratico`, que agora aparecem na
+                camada "Leitura" do gráfico a que se referem. Soltos no meio
+                da página, eles falavam de um recorte que o leitor tinha de
+                adivinhar (docs/31 §P5). */}
             <Conjunta stats={stats} />
             <PorMateria recortes={stats.porMateria ?? []} />
             <TabelaSimuladosDoCiclo simulados={doCiclo} />
@@ -184,6 +195,10 @@ function HeroCard({
 
 function Evolucao({ stats }: { stats: EstatisticasCiclo }) {
   const navegar = useNavigate();
+  // A linha do corte sai da régua que gerou o payload. Era `valor: 4` escrito
+  // aqui — a mesma regra-como-código que a Sprint 2 tirou do Painel e que
+  // tinha sobrevivido nos gráficos (docs/31 §0.4).
+  const corteMedia = stats.conjunta?.corte;
   const pontos = (stats.evolucaoTemporal ?? []).map((p) => ({
     ...p,
     // Sublinha a fase no rótulo curto — F1 e F2 aparecem na mesma série.
@@ -192,16 +207,21 @@ function Evolucao({ stats }: { stats: EstatisticasCiclo }) {
 
   return (
     <div className="section">
-      <div className="section__title">Evolução temporal</div>
-      <div className="section__subtitle">
-        Médias dos simulados ao longo do ciclo, do mais antigo ao mais recente.
-      </div>
-      <LinhaTemporal
-        pontos={pontos}
-        largura={760}
-        altura={220}
-        corte={{ valor: 4, eliminatoria: false }}
-        onPontoClick={(p) => p.simuladoId && navegar(`/simulados/${p.simuladoId}`)}
+      <GraficoEmCamadas
+        titulo="Evolução temporal"
+        legenda="Médias dos simulados ao longo do ciclo, do mais antigo ao mais recente."
+        frase={lerEvolucao(pontos.map((p) => p.media), 'A média do ciclo')}
+        insight={stats.conjunta?.insights?.pratico ?? null}
+        insightTecnico={stats.conjunta?.insights?.tecnico ?? null}
+        grafico={() => (
+          <LinhaTemporal
+            pontos={pontos}
+            largura={760}
+            altura={220}
+            corte={corteMedia != null ? { valor: corteMedia, eliminatoria: false } : null}
+            onPontoClick={(p) => p.simuladoId && navegar(`/simulados/${p.simuladoId}`)}
+          />
+        )}
       />
     </div>
   );
@@ -219,32 +239,52 @@ function Conjunta({ stats }: { stats: EstatisticasCiclo }) {
     );
   }
 
+  const leitura = lerDistribuicao({
+    histograma: c.histograma,
+    media: c.stats.media,
+    corte: c.corte,
+    rotuloGrupo: 'dos alunos do ciclo',
+  });
+
   return (
     <div className="section">
-      <div className="section__title">Visão geral do ciclo</div>
-      <div className="section__subtitle">
-        {`Distribuição da nota média de cada aluno no ciclo todo (F1 + F2 combinados). n = ${c.stats.n} alunos.`}
-      </div>
-      <div className="ciclo-conjunta__layout">
-        <div className="ciclo-conjunta__grafico">
-          <Histograma
-            payload={c.histograma}
-            largura={480}
-            altura={200}
-            media={c.stats.media}
-            mediana={c.stats.mediana}
-            corte={c.corte != null ? { valor: c.corte, eliminatoria: false } : null}
-            cicloAnterior={c.anterior?.histograma ?? null}
-            kde
-          />
-        </div>
-        <div className="ciclo-conjunta__numeros">
-          <MiniCard rotulo="Média" valor={fmtNota(c.stats.media)} />
-          <MiniCard rotulo="Mediana" valor={fmtNota(c.stats.mediana)} />
-          <MiniCard rotulo="Desvio padrão" valor={fmtNota(c.stats.desvioPadrao)} />
-          <MiniCard rotulo="Alunos" valor={String(c.stats.n)} />
-        </div>
-      </div>
+      <GraficoEmCamadas
+        titulo="Visão geral do ciclo"
+        legenda={`Distribuição da nota média de cada aluno no ciclo todo (F1 + F2 combinados). n = ${c.stats.n} alunos.`}
+        frase={leitura?.frase ?? null}
+        insight={c.insights?.pratico ?? null}
+        insightTecnico={c.insights?.tecnico ?? null}
+        grafico={(camada) => {
+          // Comparação com o ciclo anterior, curva de densidade e eixo Y
+          // absoluto são leitura de quem já sabe ler histograma. Na camada
+          // leigo seriam três elementos a mais sem explicação nenhuma.
+          const fundo = camada === 'estatistica';
+          return (
+          <div className="ciclo-conjunta__layout">
+            <div className="ciclo-conjunta__grafico">
+              <Histograma
+                payload={c.histograma}
+                largura={480}
+                altura={200}
+                media={c.stats.media}
+                mediana={c.stats.mediana}
+                corte={c.corte != null ? { valor: c.corte, eliminatoria: false } : null}
+                cicloAnterior={fundo ? c.anterior?.histograma ?? null : null}
+                kde={fundo}
+                eixoYAbsoluto={fundo ? {} : null}
+              />
+            </div>
+            <div className="ciclo-conjunta__numeros">
+              <MiniCard rotulo="Média" valor={fmtNota(c.stats.media)} />
+              <MiniCard rotulo="Mediana" valor={fmtNota(c.stats.mediana)} />
+              <MiniCard rotulo="Desvio padrão" valor={fmtNota(c.stats.desvioPadrao)} />
+              <MiniCard rotulo="Alunos" valor={String(c.stats.n)} />
+            </div>
+          </div>
+          );
+        }}
+        estatistica={<GridAvancado stats={c.stats} />}
+      />
     </div>
   );
 }
@@ -265,7 +305,7 @@ function PorMateria({ recortes }: { recortes: RecorteMateria[] }) {
     <div className="section">
       <div className="section__title">Por matéria</div>
       <div className="section__subtitle">
-        Cada matéria mostra Fase 1 e Fase 2 lado a lado. As linhas tracejadas verticais marcam o corte.
+        Cada matéria mostra Fase 1 e Fase 2 lado a lado. As linhas tracejadas verticais marcam o corte que a régua em uso exige naquela matéria.
       </div>
       <div className="ciclo-materias">
         {recortes.map((rec) => (
@@ -282,23 +322,29 @@ function BlocoMateria({ rec }: { rec: RecorteMateria }) {
       <div className="ciclo-materia__cabecalho">
         <h3 className="ciclo-materia__titulo">
           {rec.materia.nome}
-          {rec.eliminatoriaF1 && (
-            <span className="tag tone-vermelho" style={{ marginLeft: 8 }}>F1 ELIMINATÓRIA</span>
+          {rec.eliminatoria && (
+            <span className="tag tone-vermelho" style={{ marginLeft: 8 }}>ELIMINATÓRIA</span>
           )}
         </h3>
         <ResumoF1F2 rec={rec} />
       </div>
 
-      <div className="ciclo-materia__graficos">
-        {/* Corte 5 na F1 eliminatória (Inglês no ITA); 4 nos demais casos. */}
-        <MiniHistogramaFase bloco={rec.fase1} label="Fase 1" corte={rec.eliminatoriaF1 ? 5 : 4} eliminatoria={!!rec.eliminatoriaF1} />
-        <MiniHistogramaFase bloco={rec.fase2} label="Fase 2" corte={4} eliminatoria={false} />
-      </div>
-
-      <InsightsPainel
-        bullets={rec.insights?.pratico ?? null}
-        titulo={`Leitura — ${rec.materia.nome}`}
-        legenda=""
+      <GraficoEmCamadas
+        frase={lerDuasFases({
+          fase1: { histograma: rec.fase1?.histograma, media: rec.fase1?.stats.media },
+          fase2: { histograma: rec.fase2?.histograma, media: rec.fase2?.stats.media },
+          corte: rec.corte,
+          deltaMedia: rec.deltaF1F2?.media,
+        })}
+        insight={rec.insights?.pratico ?? null}
+        insightTecnico={rec.insights?.tecnico ?? null}
+        grafico={(camada) => (
+          <div className="ciclo-materia__graficos">
+            {/* Corte e "elimina sozinho" vêm da régua, por matéria. */}
+            <MiniHistogramaFase bloco={rec.fase1} label="Fase 1" corte={rec.corte} eliminatoria={!!rec.eliminatoria} kde={camada === 'estatistica'} />
+            <MiniHistogramaFase bloco={rec.fase2} label="Fase 2" corte={rec.corte} eliminatoria={!!rec.eliminatoria} kde={camada === 'estatistica'} />
+          </div>
+        )}
       />
     </div>
   );
@@ -327,12 +373,14 @@ function ResumoF1F2({ rec }: { rec: RecorteMateria }) {
 }
 
 function MiniHistogramaFase({
-  bloco, label, corte, eliminatoria,
+  bloco, label, corte, eliminatoria, kde = false,
 }: {
   bloco: BlocoFase | null;
   label: string;
-  corte: number;
+  corte?: number | null;
   eliminatoria: boolean;
+  /** Curva de densidade — só na camada estatística. */
+  kde?: boolean;
 }) {
   if (!bloco || bloco.stats.n === 0) {
     return (
@@ -355,7 +403,8 @@ function MiniHistogramaFase({
         altura={140}
         media={bloco.stats.media}
         mediana={bloco.stats.mediana}
-        corte={{ valor: corte, eliminatoria }}
+        corte={corte != null ? { valor: corte, eliminatoria } : null}
+        kde={kde}
       />
     </div>
   );
@@ -429,8 +478,8 @@ function Avancado({ stats }: { stats: EstatisticasCiclo }) {
         <div key={rec.materia.codigo} className="ciclo-avancado__bloco">
           <h3 className="ciclo-avancado__h">
             {rec.materia.nome}
-            {rec.eliminatoriaF1 && (
-              <span className="tag tone-vermelho" style={{ marginLeft: 8 }}>F1 ELIM.</span>
+            {rec.eliminatoria && (
+              <span className="tag tone-vermelho" style={{ marginLeft: 8 }}>ELIM.</span>
             )}
           </h3>
           <div className="ciclo-avancado__fases">

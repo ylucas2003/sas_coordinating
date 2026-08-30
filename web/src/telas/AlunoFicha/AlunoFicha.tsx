@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Avatar } from '../../componentes/ui/Avatar';
+import { GraficoEmCamadas } from '../../componentes/ui/GraficoEmCamadas';
 import { Heatmap } from '../../componentes/ui/Heatmap';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { LinhaEvolucao } from '../../componentes/ui/LinhaEvolucao';
@@ -16,9 +17,10 @@ import {
 } from '../../dominio/simulados';
 import type { FiltroSimulados } from '../../dominio/simulados';
 import { decidirCorte, montarEixoCiclos, montarSeries } from '../../dominio/evolucaoAluno';
+import { lerSeries } from '../../dominio/leituraDeGrafico';
 import {
-  useAluno, useAlunosSimilares, useHeatmapAluno, useSedes, useSimulados,
-  useTrajetoriaAluno, useTurmas,
+  useAluno, useAlunosSimilares, useCriteriosDisponiveis, useHeatmapAluno, useSedes,
+  useSimulados, useTrajetoriaAluno, useTurmas,
 } from '../../hooks/consultas';
 import { useEditarNota } from '../../hooks/mutacoes';
 import { useTituloDaTela } from '../../componentes/layout/migalhas';
@@ -79,7 +81,11 @@ export function AlunoFicha() {
     [filtrados, notasPorSimulado, filtro],
   );
   const ciclosEixo = useMemo(() => montarEixoCiclos(filtrados, rotuloCiclo), [filtrados]);
-  const corte = decidirCorte(filtro);
+  // A régua é a da casa: esta ficha não tem seletor próprio, e o gráfico de
+  // evolução mistura ciclos de ITA e de IME — escolher um edital aqui seria
+  // desenhar o corte errado em metade dos pontos.
+  const { data: criterios = [] } = useCriteriosDisponiveis();
+  const corte = decidirCorte(filtro, criterios.find((c) => c.slug === 'tio-leo') ?? criterios[0]);
 
   const turma = turmas.find((t) => t.id === aluno?.turmaId);
   const sede = sedes.find((s) => s.id === aluno?.sedeId);
@@ -198,20 +204,23 @@ export function AlunoFicha() {
 
         <section className="card">
           <div className="section">
-            <div className="section__title">Evolução do aluno</div>
-            <div className="section__subtitle">
-              {filtro.materias.size > 0
+            <GraficoEmCamadas
+              titulo="Evolução do aluno"
+              legenda={filtro.materias.size > 0
                 ? `${series.length} matéria(s), ${totalPontos} ponto(s) no gráfico — passe o mouse pra detalhes.`
                 : 'Linha agregada: média do aluno por ciclo. Filtre por matéria pra ver linhas separadas.'}
-            </div>
-            <div ref={refGrafico}>
-              <LinhaEvolucao
-                series={series}
-                ciclosEixo={ciclosEixo}
-                corte={corte.valor}
-                corteRotulo={corte.rotulo}
-              />
-            </div>
+              frase={lerSeries(series.map((s) => ({ nome: s.nome, notas: s.pontos.map((p) => p.nota) })))}
+              grafico={() => (
+                <div ref={refGrafico}>
+                  <LinhaEvolucao
+                    series={series}
+                    ciclosEixo={ciclosEixo}
+                    corte={corte?.valor}
+                    corteRotulo={corte?.rotulo}
+                  />
+                </div>
+              )}
+            />
           </div>
         </section>
 
@@ -234,12 +243,17 @@ export function AlunoFicha() {
 
         <section className="card aluno-ficha__nao-imprimir">
           <div className="section">
-            <div className="section__title">Heatmap matérias × simulados</div>
-            <div className="section__subtitle">
-              Cores: verde = nota alta · vermelho = nota baixa. Cobre todo o histórico do aluno
-              (independente dos filtros acima).
-            </div>
-            <Heatmap payload={heat} notaMaxima={10} />
+            <GraficoEmCamadas
+              titulo="Heatmap matérias × simulados"
+              legenda="Cores: verde = nota alta · vermelho = nota baixa. Cobre todo o histórico do aluno (independente dos filtros acima)."
+              // O heatmap não tem insight de LLM por trás — não existe recorte
+              // em `insight_ciclo` que corresponda a "este aluno, todas as
+              // matérias". A camada aparece vazia, com a mensagem que o
+              // `InsightsPainel` já dá nesse caso, em vez de sumir: o degrau
+              // sumindo em um gráfico e não em outro é pior que o degrau vazio.
+              frase={null}
+              grafico={() => <Heatmap payload={heat} notaMaxima={10} />}
+            />
           </div>
         </section>
 

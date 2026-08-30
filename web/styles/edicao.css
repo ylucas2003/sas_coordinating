@@ -457,3 +457,155 @@
   background: var(--color-red);
   border-color: var(--color-red);
 }
+
+/* ─── Régua de corte do coordenador (docs/31 §P4) ────────────────────────
+   O formulário tem de caber num diálogo e continuar legível a 360px, onde a
+   linha de requisito não cabe em quatro colunas — ela quebra em duas. */
+
+.criterio__slug {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+.criterio__combinador {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.criterio__opcao {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  /* 36px de alvo de toque (docs/20 §1.2) mesmo com o texto em duas linhas. */
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.criterio__opcao:has(input:checked) {
+  border-color: var(--color-navy-light);
+  background: var(--color-bg);
+}
+
+.criterio__opcao span { display: flex; flex-direction: column; }
+.criterio__opcao b { font-size: 13px; font-weight: 600; }
+.criterio__opcao em {
+  font-size: 12px;
+  font-style: normal;
+  color: var(--color-text-tertiary);
+}
+
+.criterio__requisitos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.criterio__requisito {
+  display: grid;
+  grid-template-columns: 1fr auto 5rem auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.criterio__nota { text-align: right; }
+
+.criterio__remover {
+  min-width: 36px;
+  min-height: 36px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.criterio__remover:hover {
+  color: var(--color-red);
+  border-color: var(--color-red);
+}
+
+/* As opções de edital ocupam a linha inteira, abaixo do requisito a que
+   pertencem — o `grid-column: 1 / -1` é o que as prende ao requisito certo. */
+.criterio__avancado {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+}
+
+.criterio__avancado label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.criterio__peso { width: 4rem; }
+
+.criterio__acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.criterio__btn-pequeno {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
+/* A prévia é o que impede alguém de salvar 7 onde queria 4. Fica destacada
+   por isso, e não por enfeite. */
+.criterio__previa {
+  margin-top: 14px;
+  padding: 12px 14px;
+  font-size: 13px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.criterio__previa.is-recalculando { opacity: 0.55; }
+
+.criterio__previa--vazia,
+.criterio__previa--erro {
+  color: var(--color-text-tertiary);
+}
+
+.criterio__previa--erro {
+  color: var(--color-red);
+  border-color: var(--color-red);
+}
+
+.criterio__previa-numero b {
+  font-size: 20px;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.criterio__previa-lista {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 480px) {
+  .criterio__requisito {
+    grid-template-columns: 1fr auto;
+  }
+  /* Numa coluna, a nota fica ao lado do operador e o × fecha a linha. */
+  .criterio__requisito > select:first-child { grid-column: 1 / -1; }
+}

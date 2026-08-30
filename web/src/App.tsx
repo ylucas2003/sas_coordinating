@@ -24,7 +24,9 @@ import { LimiteDeErro } from './componentes/LimiteDeErro';
 import { LembreteFotoPerfil } from './componentes/perfil/LembreteFotoPerfil';
 // As do aluno (`SUGESTOES_ALUNO`, `CAPACIDADES_ALUNO`) saíram daqui: quem as
 // consome agora é a folha do Tio Léo, dentro do casco do aluno.
-import { CAPACIDADES_COORDENADOR, SUGESTOES_COORDENADOR } from './dados/perfisSugestoes';
+import {
+  CAPACIDADES_COORDENADOR, SUGESTOES_COORDENADOR, sugestoesDoCoordenador,
+} from './dados/perfisSugestoes';
 import * as sessao from './servicos/sessao';
 
 
@@ -82,7 +84,11 @@ function AppCoordenacao() {
         <Route path="*" element={<Navigate to="/painel" replace />} />
       </Routes>
 
-      <ChatComLimite sugestoes={SUGESTOES_COORDENADOR} capacidades={CAPACIDADES_COORDENADOR} />
+      <ChatComLimite
+        sugestoes={SUGESTOES_COORDENADOR}
+        capacidades={CAPACIDADES_COORDENADOR}
+        derivarSugestoes={sugestoesDoCoordenador}
+      />
       <LembreteFotoPerfil />
     </AppShell>
   );

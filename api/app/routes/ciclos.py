@@ -9,7 +9,13 @@ from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
 from ..canvas_sync import escrita
 from ..schemas.domain import Ciclo, VestibularAlvo
-from ..stats import ciclo_estatisticas, classificacao_ciclo, criterios, insights
+from ..stats import (
+    ciclo_estatisticas,
+    classificacao_ciclo,
+    criterios,
+    criterios_repo,
+    insights,
+)
 from ..supabase_client import get_supabase
 
 router = APIRouter(
@@ -213,12 +219,14 @@ async def classificacao_do_ciclo(
     A resposta carrega o critério usado para o front mostrar a legenda certa
     ("corte abaixo de 4,0 · ITA §4.6.6.5") sem conhecer a regra.
     """
+    cliente = get_supabase()
     try:
-        regua = criterios.por_slug(criterio)
+        # `resolver`, e não `por_slug`: as réguas que a coordenação cria só
+        # existem no banco, e o Painel tem de conseguir classificar por elas.
+        regua = criterios_repo.resolver(cliente, criterio)
     except KeyError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    cliente = get_supabase()
     existe = cliente.table("ciclo").select("id").eq("id", ciclo_id).limit(1).execute()
     if not existe.data:
         raise HTTPException(status_code=404, detail=f"ciclo {ciclo_id} não encontrado")
@@ -235,14 +243,31 @@ async def classificacao_do_ciclo(
     }
 
 
+#: As matérias do `materia` (carga inicial da 0001). Enumerar aqui é o que
+#: permite entregar o corte de cada uma resolvido: o predicado `*` da régua do
+#: colégio não sabe listar as disciplinas que ele cobre.
+_MATERIAS_CONHECIDAS = ("matematica", "fisica", "quimica", "portugues", "ingles", "redacao")
+
+
 @router.get("/criterios/disponiveis")
 async def criterios_disponiveis() -> list[dict]:
-    """Os critérios que o seletor do painel oferece."""
-    return [_descrever_criterio(c) for c in criterios.CRITERIOS.values()]
+    """Os critérios que o seletor do painel oferece — embutidos e criados."""
+    cliente = get_supabase()
+    return [
+        {**_descrever_criterio(c), "embutido": c.slug in criterios.CRITERIOS}
+        for c in criterios_repo.listar(cliente)
+    ]
 
 
 def _descrever_criterio(c: criterios.Criterio) -> dict:
-    """Forma serializável de um critério — o suficiente para legenda e tooltip."""
+    """Forma serializável de um critério — legenda, tooltip e cortes prontos.
+
+    `cortes`, `corteGenerico` e `corteMedia` existem para o front **não**
+    precisar reimplementar `corte_da_materia`. Sem eles, desenhar a linha do
+    corte num gráfico obriga a percorrer `predicados` procurando a matéria e
+    caindo no `*` — que é a regra de corte outra vez, em TypeScript, que é
+    exatamente o que a Sprint 2 proibiu (docs/18 §1.2).
+    """
     return {
         "slug": c.slug,
         "nome": c.nome,
@@ -250,6 +275,17 @@ def _descrever_criterio(c: criterios.Criterio) -> dict:
         "fase": c.fase,
         "combinador": c.combinador,
         "desempate": list(c.desempate),
+        # Mínimo por matéria já resolvido, incluindo o que vem do `*`.
+        "cortes": {
+            codigo: criterios.corte_da_materia(c, codigo)
+            for codigo in _MATERIAS_CONHECIDAS
+            if criterios.corte_da_materia(c, codigo) is not None
+        },
+        "corteGenerico": criterios.corte_da_materia(c, "__qualquer__"),
+        "corteMedia": criterios.corte_da_media(c),
+        "eliminatorias": [
+            codigo for codigo in _MATERIAS_CONHECIDAS if criterios.e_eliminatoria(c, codigo)
+        ],
         "predicados": [
             {
                 "materia": p.materia,
@@ -276,6 +312,10 @@ async def estatisticas_do_ciclo(
         True,
         description="Se true, anexa bullets LLM (prático + técnico) em conjunta.insights e porMateria[*].insights.",
     ),
+    criterio: str = Query(
+        criterios.CRITERIO_DA_CASA,
+        description="Slug da régua que define os cortes do payload. Default: a régua da casa.",
+    ),
 ) -> dict:
     """Payload completo do ciclo — F1, F2, análise conjunta e por matéria.
 
@@ -284,14 +324,25 @@ async def estatisticas_do_ciclo(
     em duas linguagens: 'pratico' (visível por default) e 'tecnico' (dentro
     da seção "dados estatísticos avançados").
 
+    `criterio` decide TODOS os cortes do payload — a linha vertical dos
+    histogramas e o `pctAprovados` de cada bloco. É o mesmo parâmetro de
+    `/classificacao`, de propósito: com ele, trocar a régua no Painel move a
+    tabela e o gráfico juntos, que era a divergência descrita em docs/31 §1.1.
+
     Insights LLM são opcionais (controlados por `com_insights`) e retornam
     listas vazias se OPENAI_API_KEY não estiver configurada.
     """
     cliente = get_supabase()
-    payload = ciclo_estatisticas.calcular(cliente, ciclo_id=ciclo_id)
+    try:
+        regua = criterios_repo.resolver(cliente, criterio)
+    except KeyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    payload = ciclo_estatisticas.calcular(cliente, ciclo_id=ciclo_id, criterio=regua)
     if payload is None:
         raise HTTPException(status_code=404, detail=f"ciclo {ciclo_id} não encontrado")
 
+    payload["criterio"] = _descrever_criterio(regua)
     if com_insights:
         _anexar_insights(cliente, payload)
     return payload
@@ -304,6 +355,11 @@ def _anexar_insights(cliente, payload: dict) -> None:
         "nomeCiclo": ciclo.get("nome"),
         "vestibularAlvo": ciclo.get("vestibularAlvo"),
         "temCicloAnterior": payload.get("cicloAnterior") is not None,
+        # Qual régua produziu os cortes deste payload. Sem isto o modelo
+        # escrevia "62% abaixo do corte de 4,0" ao lado de um histograma com a
+        # linha em 5,0 — os prompts decoravam o par 4,0/5,0 e o bloco conjunta
+        # não carregava `corte` nenhum.
+        "regua": (payload.get("criterio") or {}).get("nome"),
     }
 
     # ── Conjunta (ciclo todo, F1+F2 agregados) ──
@@ -340,7 +396,7 @@ def _anexar_insights(cliente, payload: dict) -> None:
             **contexto_base,
             "recorte": "materia",
             "materia": materia,
-            "eliminatoriaF1": recorte_materia.get("eliminatoriaF1", False),
+            "eliminatoria": recorte_materia.get("eliminatoria", False),
         }
         recorte_materia["insights"] = {
             "pratico": insights.gerar_para_recorte(

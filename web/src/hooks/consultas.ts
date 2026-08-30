@@ -119,10 +119,15 @@ export function useCiclo(id: string) {
   return useQuery({ queryKey: chaves.ciclo(id), queryFn: () => api.obterCiclo(id) });
 }
 
-export function useEstatisticasCiclo(id: string) {
+/**
+ * Estatísticas do ciclo sob uma régua. O critério entra na chave porque muda
+ * todo corte do payload — trocar a régua tem que redesenhar os gráficos, e não
+ * devolver o cache da régua anterior.
+ */
+export function useEstatisticasCiclo(id: string, criterio?: string) {
   return useQuery({
-    queryKey: [...chaves.ciclo(id), 'estatisticas'],
-    queryFn: () => api.estatisticasCiclo(id) as Promise<EstatisticasCiclo>,
+    queryKey: [...chaves.ciclo(id), 'estatisticas', criterio ?? null],
+    queryFn: () => api.estatisticasCiclo(id, { criterio }) as Promise<EstatisticasCiclo>,
     // O cálculo passa pelo stats engine e pode chamar o LLM: é caro o
     // suficiente para não valer refazer a cada volta à ficha.
     staleTime: 15 * 60 * 1000,

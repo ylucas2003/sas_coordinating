@@ -13,6 +13,7 @@ PostgREST não existe. Isso é a §6 do plano, com curl e psql.
 from __future__ import annotations
 
 import uuid
+from typing import ClassVar
 
 
 class Resp:
@@ -61,13 +62,27 @@ class Query:
                 if not str(atual or "").startswith(alvo): return False
         return True
 
+    #: Embeds de FILHO: {tabela_filha: coluna_fk}. O PostgREST resolve pela FK
+    #: declarada no schema; aqui a relação é declarada à mão, uma por vez, para
+    #: o fake não virar um ORM.
+    FILHOS: ClassVar[dict[str, str]] = {"predicado_criterio": "criterio_id"}
+
     def _embed(self, linha):
-        """Resolve 'evento_agenda(...)' do select aninhado."""
-        if "evento_agenda(" not in self.colunas:
-            return linha
+        """Resolve os selects aninhados — o pai `evento_agenda` e os filhos."""
         copia = dict(linha)
-        eid = linha.get("evento_agenda_id")
-        copia["evento_agenda"] = dict(self.db["evento_agenda"].get(eid, {})) if eid else None
+
+        if "evento_agenda(" in self.colunas:
+            eid = linha.get("evento_agenda_id")
+            copia["evento_agenda"] = dict(self.db["evento_agenda"].get(eid, {})) if eid else None
+
+        for tabela, fk in self.FILHOS.items():
+            if f"{tabela}(" not in self.colunas:
+                continue
+            copia[tabela] = [
+                dict(f) for f in self.db.get(tabela, {}).values()
+                if f.get(fk) == linha.get("id")
+            ]
+
         return copia
 
     def execute(self):
@@ -104,6 +119,17 @@ class Query:
             item.setdefault("id", id_)
             tabela[id_] = {**tabela.get(id_, {}), **item}
             return Resp([tabela[id_]])
+        if self.op == "delete":
+            apagadas = [k for k, l in tabela.items() if self._bate(l)]
+            saida = [tabela.pop(k) for k in apagadas]
+            # ON DELETE CASCADE do schema — sem isto o teste da compensação
+            # veria predicados órfãos que o Postgres real já teria levado.
+            for filha, fk in self.FILHOS.items():
+                alvo = self.db.get(filha, {})
+                for k in [k for k, l in alvo.items() if l.get(fk) in
+                          {linha["id"] for linha in saida}]:
+                    alvo.pop(k)
+            return Resp(saida)
         if self.op == "update":
             afetadas = []
             for linha in tabela.values():
@@ -129,6 +155,7 @@ class Tabela:
     def insert(self, json, **kw): return Query(self.db, self.nome, "insert", json, **kw)
     def upsert(self, json, **kw): return Query(self.db, self.nome, "upsert", json, **kw)
     def update(self, json, **kw): return Query(self.db, self.nome, "update", json, **kw)
+    def delete(self, **kw): return Query(self.db, self.nome, "delete", None, **kw)
 
 
 class FakeCliente:

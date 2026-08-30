@@ -80,14 +80,17 @@ def gerar_resposta(
     nova_msg_user: str,
     perfil: PerfilAgente,
     modelo: str | None = None,
+    preambulo: str | None = None,
 ) -> AsyncIterator[Evento]:
     """Streaming SSE da resposta do agente.
 
     `historico` no formato OpenAI: lista de dicts {role, content, tool_calls?, tool_call_id?, name?}.
     `nova_msg_user` é o texto que o usuário acabou de mandar — adicionado ao histórico aqui.
     `perfil` define prompt, tools e modelo (coordenador ou aluno — ver perfis.py).
+    `preambulo` é o contexto da tela (chat/navegacao.py), colado imediatamente
+    antes da mensagem do usuário — nunca no system, que é fixo e cacheável.
     """
-    return _gerar(cliente_db, thread_id, historico, nova_msg_user, perfil, modelo)
+    return _gerar(cliente_db, thread_id, historico, nova_msg_user, perfil, modelo, preambulo)
 
 
 async def _gerar(
@@ -97,6 +100,7 @@ async def _gerar(
     nova_msg_user: str,
     perfil: PerfilAgente,
     modelo_override: str | None,
+    preambulo: str | None = None,
 ) -> AsyncIterator[Evento]:
     settings = get_settings()
     if not _SDK_DISPONIVEL or not settings.openai_api_key:
@@ -110,6 +114,10 @@ async def _gerar(
     mensagens: list[dict] = [perfil.system_message]
     # Janela: mantém só as últimas N (mais o system fixo na frente).
     mensagens.extend(historico[-MAX_MENSAGENS_HISTORICO:])
+    # O contexto da tela cola no turno, não no system: ele muda a cada
+    # mensagem, e o system precisa ficar idêntico para o cache valer.
+    if preambulo:
+        mensagens.append({"role": "system", "content": preambulo})
     mensagens.append({"role": "user", "content": nova_msg_user})
 
     yield Evento("start", {"thread_id": thread_id})

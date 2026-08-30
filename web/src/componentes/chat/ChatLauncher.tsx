@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Conversa } from './Conversa';
 import { ListaThreads } from './ListaThreads';
 import * as api from '../../servicos/api';
+import type { ContextoDaTela } from '../../dominio/contextoDaTela';
 import type { ChatThreadDetalhe, ChatThreadResumo, GrupoSugestoes } from '../../tipos/chat';
 
 // Botão flutuante (FAB) + painel lateral que convive com a página.
@@ -16,6 +17,8 @@ interface Props {
   tituloDrawer?: string;
   sugestoes: GrupoSugestoes[];
   capacidades: string[];
+  /** Repassado à conversa: sugestões que acompanham a tela aberta. */
+  derivarSugestoes?: (ctx: ContextoDaTela) => GrupoSugestoes[];
 }
 
 export function ChatLauncher({
@@ -23,6 +26,7 @@ export function ChatLauncher({
   tituloDrawer = 'Assistente',
   sugestoes,
   capacidades,
+  derivarSugestoes,
 }: Props) {
   const [aberto, setAberto] = useState(false);
   const [listaAberta, setListaAberta] = useState(false);
@@ -177,6 +181,7 @@ export function ChatLauncher({
                 onTituloAtualizado={renomear}
                 sugestoes={sugestoes}
                 capacidades={capacidades}
+                derivarSugestoes={derivarSugestoes}
               />
             )}
           </>

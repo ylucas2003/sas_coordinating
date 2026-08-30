@@ -262,7 +262,7 @@ def detectar_bimodalidade(contagens: list[int], *, min_vale_ratio: float = 0.7) 
 def taxas_por_corte(
     valores: list[float],
     *,
-    corte: float,
+    corte: float | None,
     excelencia: float = 7.0,
 ) -> tuple[float | None, float | None, float | None]:
     """Devolve (pct_aprovados, pct_zona_critica, pct_excelencia).
@@ -272,17 +272,27 @@ def taxas_por_corte(
     - pct_excelencia     : nota ≥ excelencia
 
     Todos como percentual 0–100. None se a amostra estiver vazia.
+
+    `corte=None` quer dizer que a régua em uso **não cobra nada** nesse recorte
+    — acontece quando o critério não menciona a matéria e não exige média. Aí
+    "aprovados" e "zona crítica" não existem, e devolvê-los como 0 ou 100 seria
+    inventar veredito: o `corte 0,0` que saía daqui pintava 100% de aprovação
+    numa matéria que a régua simplesmente ignora. "Excelência" continua valendo,
+    porque 7,0 é faixa nossa e não depende de régua.
     """
     n = len(valores)
     if n == 0:
         return None, None, None
+    excelentes = sum(1 for v in valores if v >= excelencia)
+    pct_exc = round(100 * excelentes / n, 2)
+    if corte is None:
+        return None, None, pct_exc
     aprovados = sum(1 for v in valores if v >= corte)
     criticos = sum(1 for v in valores if corte - 1 <= v < corte)
-    excelentes = sum(1 for v in valores if v >= excelencia)
     return (
         round(100 * aprovados / n, 2),
         round(100 * criticos / n, 2),
-        round(100 * excelentes / n, 2),
+        pct_exc,
     )
 
 

@@ -23,9 +23,13 @@ const CANAL_LABEL: Record<CanalAuditoria, string> = {
   simulado: 'Simulados',
   ciclo: 'Ciclos',
   canvas: 'Canvas',
+  criterio: 'Réguas de corte',
 };
 
 const ACAO_LABEL: Record<string, string> = {
+  criterio_criado: 'criou uma régua de corte',
+  criterio_versionado: 'editou uma régua (nova versão)',
+  criterio_desativado: 'tirou uma régua do seletor',
   login_ok: 'entrou',
   login_falhou: 'falhou ao entrar',
   primeiro_acesso_bloqueado: 'tentou primeiro acesso (bloqueado)',

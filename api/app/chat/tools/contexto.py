@@ -10,9 +10,12 @@ unidade.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from supabase import Client
+
+from .. import navegacao
 
 _PESO_SEVERIDADE = {"critico": 0, "atencao": 1, "informativo": 2}
 
@@ -262,6 +265,172 @@ _SCHEMA_LISTAR_TURMAS = {
 }
 
 
+# ─── questoes_do_simulado ─────────────────────────────────────────────────
+
+def questoes_do_simulado(cliente: Client, *, simulado_id: str, limite: int = 10) -> dict:
+    """As questões que a turma mais errou num simulado, com o gabarito.
+
+    Fecha a assimetria mais estranha do inventário de tools: o ALUNO conseguia
+    perguntar quais questões errou (`minhas_questoes_erradas`), e o coordenador
+    — que é quem precisa da visão agregada, para saber o que revisar em aula —
+    não tinha nenhuma tool de questão (docs/10 §1.6.3).
+
+    Só existe para simulado sincronizado como Quiz do Canvas: sem `quiz_id` não
+    há questão nenhuma no banco (`questao` é filha de simulado, migration 0010).
+    """
+    sim_resp = (
+        cliente.table("simulado")
+        .select("id, nome, quiz_id")
+        .eq("id", simulado_id)
+        .limit(1)
+        .execute()
+    )
+    if not sim_resp.data:
+        return {"erro": f"simulado {simulado_id} não encontrado"}
+    sim = sim_resp.data[0]
+    if not sim.get("quiz_id"):
+        return {
+            "erro": (
+                f"'{sim.get('nome')}' não é um quiz sincronizado do Canvas — "
+                "não há detalhe por questão para ele."
+            )
+        }
+
+    questoes = (
+        cliente.table("questao")
+        .select("id, posicao, texto, assunto")
+        .eq("simulado_id", simulado_id)
+        .execute()
+    ).data or []
+    if not questoes:
+        return {"erro": "o quiz existe, mas as questões ainda não foram sincronizadas."}
+
+    por_id = {q["id"]: q for q in questoes}
+    respostas = (
+        cliente.table("questao_resposta_aluno")
+        .select("questao_id, correta")
+        .in_("questao_id", list(por_id))
+        .execute()
+    ).data or []
+
+    acertos: dict[str, int] = {}
+    total: dict[str, int] = {}
+    for r in respostas:
+        qid = r.get("questao_id")
+        if qid not in por_id:
+            continue
+        total[qid] = total.get(qid, 0) + 1
+        if r.get("correta"):
+            acertos[qid] = acertos.get(qid, 0) + 1
+
+    linhas = []
+    for qid, q in por_id.items():
+        n = total.get(qid, 0)
+        if n == 0:
+            continue
+        certos = acertos.get(qid, 0)
+        linhas.append({
+            "posicao": q.get("posicao"),
+            "assunto": q.get("assunto"),
+            "enunciadoResumo": _resumir_enunciado(q.get("texto")),
+            "nRespostas": n,
+            "acertos": certos,
+            "pctAcerto": round(100 * certos / n, 1),
+        })
+
+    if not linhas:
+        return {"erro": "as questões existem, mas nenhuma resposta de aluno foi sincronizada."}
+
+    # Da pior para a melhor: a pergunta é sempre "o que revisar?".
+    linhas.sort(key=lambda linha: linha["pctAcerto"])
+    return {
+        "simulado": {"id": sim["id"], "nome": sim.get("nome")},
+        "totalQuestoes": len(linhas),
+        "maisErradas": linhas[:limite],
+    }
+
+
+def _resumir_enunciado(html: str | None, limite: int = 180) -> str:
+    """Enunciado sem HTML e truncado.
+
+    `questao.texto` é o HTML completo do Quiz Statistics, com LaTeX e imagens
+    embutidos (migration 0010). Mandar isso inteiro para o modelo, vezes dez
+    questões, é a maior fonte de token do payload — e ninguém lê a marcação.
+    """
+    if not html:
+        return ""
+    limpo = re.sub(r"<[^>]+>", " ", html)
+    limpo = re.sub(r"\s+", " ", limpo).strip()
+    return limpo if len(limpo) <= limite else f"{limpo[:limite]}…"
+
+
+_SCHEMA_QUESTOES_SIMULADO = {
+    "name": "questoes_do_simulado",
+    "description": (
+        "As questões que a turma mais errou num simulado, com percentual de acerto, "
+        "assunto e resumo do enunciado — ordenadas da pior para a melhor. Use para "
+        "'o que revisar depois do P22?'. Só funciona em simulado que veio como quiz "
+        "do Canvas. Descubra o simulado_id com listar_simulados."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "simulado_id": {"type": "string", "description": "UUID do simulado."},
+            "limite": {"type": "integer", "default": 10, "description": "Quantas questões devolver."},
+        },
+        "required": ["simulado_id"],
+    },
+}
+
+
+# ─── navegar_para ─────────────────────────────────────────────────────────
+
+def navegar_para(cliente: Client, *, tipo: str, id: str) -> dict:
+    """Devolve um link navegável para uma ficha do produto.
+
+    É a metade "chat → página" da consciência de contexto (docs/31 §2.4): a
+    resposta "os três em risco são A, B e C" passa a ter cada nome clicável.
+
+    Sai como ARTEFATO, e não como link no texto. O `Markdown.tsx` do front
+    recusa links de propósito — o texto vem do LLM, e abrir a gramática para
+    `[texto](url)` ampliaria a superfície de injeção. Aqui a rota é montada no
+    servidor a partir de (tipo, id) e o rótulo vem do banco: o modelo escolhe
+    PARA ONDE, nunca o endereço nem o nome.
+    """
+    rota = navegacao.montar_rota(tipo, id)
+    if rota is None:
+        return {"erro": f"tipo '{tipo}' não é navegável. Use: aluno, ciclo ou simulado."}
+
+    nome = navegacao.nome_no_banco(cliente, tipo, id)
+    if nome is None:
+        return {"erro": f"{tipo} {id} não existe — nada para onde navegar."}
+
+    return {
+        "tipo": "navegacao",
+        "titulo": nome,
+        "payload": {"rota": rota, "rotulo": nome, "entidade": tipo},
+    }
+
+
+_SCHEMA_NAVEGAR_PARA = {
+    "name": "navegar_para",
+    "description": (
+        "Cria um link que leva o usuário a uma ficha do produto (aluno, ciclo ou "
+        "simulado). Use quando citar uma entidade específica que a pessoa provavelmente "
+        "vai querer abrir — o painel do chat não bloqueia a navegação, então ela pode "
+        "abrir a ficha sem fechar a conversa. Uma chamada por entidade."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "tipo": {"type": "string", "enum": ["aluno", "ciclo", "simulado"]},
+            "id": {"type": "string", "description": "UUID da entidade."},
+        },
+        "required": ["tipo", "id"],
+    },
+}
+
+
 # ─── Registry ─────────────────────────────────────────────────────────────
 
 TOOLS: list[tuple[dict, callable]] = [
@@ -270,4 +439,6 @@ TOOLS: list[tuple[dict, callable]] = [
     (_SCHEMA_LISTAR_ALUNOS, listar_alunos),
     (_SCHEMA_LISTAR_SEDES, listar_sedes),
     (_SCHEMA_LISTAR_TURMAS, listar_turmas),
+    (_SCHEMA_QUESTOES_SIMULADO, questoes_do_simulado),
+    (_SCHEMA_NAVEGAR_PARA, navegar_para),
 ]

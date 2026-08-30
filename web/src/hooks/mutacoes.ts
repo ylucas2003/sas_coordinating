@@ -152,3 +152,34 @@ export function useRemoverFotoDeAluno() {
     onSuccess: () => invalidarTudo(queryClient),
   });
 }
+
+
+// ─── Réguas de corte (docs/31 §P4) ───────────────────────────────────────
+// Invalidam tudo: a régua muda quem está cortado, a cor de cada célula, o KPI
+// e a linha de corte de todo gráfico. Enumerar o que depende dela seria
+// enumerar a coordenação inteira.
+
+export function useCriarCriterio() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (corpo: api.CorpoCriterio) => api.criarCriterio(corpo),
+    onSuccess: () => invalidarTudo(queryClient),
+  });
+}
+
+export function useEditarCriterio() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ slug, corpo }: { slug: string; corpo: Omit<api.CorpoCriterio, 'slug'> }) =>
+      api.editarCriterio(slug, corpo),
+    onSuccess: () => invalidarTudo(queryClient),
+  });
+}
+
+export function useDesativarCriterio() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (slug: string) => api.desativarCriterio(slug),
+    onSuccess: () => invalidarTudo(queryClient),
+  });
+}

@@ -1236,6 +1236,24 @@
 .mini-badge__delta.tone-vermelho { color: var(--color-red); }
 
 
+/* A régua da ficha do ciclo: fica no cabeçalho porque governa a tela inteira
+   (todo corte, todo pctAprovados), não um gráfico só. */
+.ciclo-ficha__regua {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.ciclo-ficha__regua-rotulo {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
 .ciclo-materia__graficos {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1701,4 +1719,103 @@
   font-size: 15px;
   color: var(--color-text-tertiary);
   margin-top: 6px;
+}
+
+/* ─── Gráficos em camadas (docs/31 §P5) ──────────────────────────────────
+   O seletor de profundidade fica no cabeçalho do gráfico, não flutuando
+   sobre ele: em 360px qualquer coisa por cima do SVG cobre dado. */
+
+.camadas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.camadas__topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.camadas__titulo-bloco {
+  min-width: 0;
+  flex: 1 1 14rem;
+}
+
+.camadas__titulo {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.camadas__legenda {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.camadas__degraus {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--color-surface-2, var(--color-bg));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+}
+
+.camadas__degrau {
+  /* 32px + o padding do trilho fecha o alvo de toque de 36px do docs/20. */
+  min-height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.camadas__degrau:hover { color: var(--color-text-primary); }
+
+.camadas__degrau:focus-visible {
+  outline: 2px solid var(--color-navy-light);
+  outline-offset: 1px;
+}
+
+.camadas__degrau.is-ativo {
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  box-shadow: 0 1px 2px rgba(20, 30, 80, 0.08);
+}
+
+.camadas__painel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* A frase da camada leigo é o conteúdo principal ali, não uma legenda:
+   tamanho de texto de leitura, e não de rodapé. */
+.camadas__frase {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+/* Gráfico largo não pode empurrar a página: rola dentro do próprio bloco. */
+.camadas__grafico {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 560px) {
+  .camadas__topo { flex-direction: column; }
+  .camadas__degraus { align-self: stretch; justify-content: space-between; }
+  .camadas__degrau { flex: 1; padding: 0 8px; }
 }

@@ -667,3 +667,43 @@
 .chat-capacidades__lista li {
   margin-bottom: 2px;
 }
+
+/* Link de navegação vindo do chat (docs/31 §2.4). É `button` porque navega
+   pelo roteador — um `<a href>` recarregaria o app e fecharia a conversa. */
+.chat-artefato--link {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.chat-artefato__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* 36px é o alvo mínimo de toque do docs/20 §1.2. */
+  min-height: 36px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-navy);
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.chat-artefato__link:hover {
+  border-color: var(--color-navy-light);
+  background: var(--color-bg);
+}
+
+.chat-artefato__link:focus-visible {
+  outline: 2px solid var(--color-navy-light);
+  outline-offset: 2px;
+}
+
+.chat-artefato__link-icone {
+  color: var(--color-text-tertiary);
+}

@@ -5,6 +5,7 @@
 // invalida é o hook que chama (ver src/hooks/).
 
 import { del, get, patch, post, postArquivo, put, qs, streamSSE } from './http';
+import type { ContextoDaTela } from '../dominio/contextoDaTela';
 import type { EventoSSE, OpcoesUpload } from './http';
 import type {
   Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria,
@@ -173,8 +174,61 @@ export const obterCiclo = (id: string) => get<Ciclo | null>(`/ciclos/${enc(id)}`
 export const classificacaoCiclo = (id: string, criterio: string, fase?: 1 | 2) =>
   get<ClassificacaoCiclo>(`/ciclos/${enc(id)}/classificacao${qs({ criterio, fase })}`);
 export const criteriosDisponiveis = () => get<CriterioClassificacao[]>('/ciclos/criterios/disponiveis');
-export const estatisticasCiclo = (id: string, { comInsights = true } = {}) =>
-  get<unknown>(`/ciclos/${enc(id)}/estatisticas${comInsights ? '' : '?com_insights=false'}`);
+
+// ─── Réguas de corte criadas pela coordenação (docs/31 §P4) ──────────────
+
+export interface PredicadoEntrada {
+  materia: string | null;
+  operador: string;
+  valor_nota?: number | null;
+  valor_acertos?: number | null;
+  valor_de?: number | null;
+  eliminatorio?: boolean;
+  entra_na_media?: boolean;
+  peso?: number;
+  fonte?: string | null;
+}
+
+export interface CorpoCriterio {
+  slug: string;
+  nome: string;
+  descricao?: string | null;
+  combinador: 'todos' | 'algum';
+  fase?: 1 | 2 | null;
+  desempate?: string[];
+  predicados: PredicadoEntrada[];
+}
+
+export interface PreviaCriterio {
+  total: number;
+  cortados: number;
+  exemplos: Array<{ nome: string; motivo: string | null }>;
+}
+
+/** Avalia a régua contra um ciclo SEM gravar — é o rascunho, não a régua. */
+export const previaCriterio = (corpo: CorpoCriterio, cicloId: string, fase?: 1 | 2) =>
+  post<PreviaCriterio>(`/criterios/previa${qs({ ciclo_id: cicloId, fase })}`, corpo);
+
+export const criarCriterio = (corpo: CorpoCriterio) =>
+  post<{ slug: string; versao: number; nome: string }>('/criterios', corpo);
+
+/** Editar cria a versão seguinte; a anterior fica inativa, não some. */
+export const editarCriterio = (slug: string, corpo: Omit<CorpoCriterio, 'slug'>) =>
+  patch<{ slug: string; versao: number; nome: string }>(`/criterios/${enc(slug)}`, corpo);
+
+export const desativarCriterio = (slug: string) =>
+  del<{ slug: string; ativo: boolean }>(`/criterios/${enc(slug)}`);
+/**
+ * `criterio` decide os cortes do payload inteiro — a linha vertical de cada
+ * histograma e o pctAprovados de cada bloco. Omitir usa a régua da casa.
+ */
+export const estatisticasCiclo = (
+  id: string,
+  { comInsights = true, criterio }: { comInsights?: boolean; criterio?: string } = {},
+) =>
+  get<unknown>(
+    `/ciclos/${enc(id)}/estatisticas${qs({ com_insights: comInsights ? undefined : 'false', criterio })}`,
+  );
 export const enviarCicloAoCanvas = (id: string) =>
   post<{ canvas_estado: string; erro?: string }>(`/ciclos/${enc(id)}/enviar-canvas`, {});
 export const criarCiclo = (corpo: { ordem: number; vestibular: string; ano?: number; sincronizar_canvas: boolean }) =>
@@ -208,11 +262,22 @@ export const atualizarChatThread = (id: string, remendo: unknown) =>
 export const apagarChatThread = (id: string) => del<unknown>(`/chat/threads/${enc(id)}`);
 
 /** Envia a mensagem e streama a resposta do agente. Resolve no fim do stream. */
+/**
+ * `contexto` diz em que tela o usuário estava ao mandar a mensagem — é o que
+ * dá referente a "e esse aluno?". Vai por turno, e não uma vez por thread,
+ * porque o painel convive com a navegação: dá para trocar de tela três vezes
+ * dentro da mesma conversa.
+ */
 export const enviarChatMensagem = (
   threadId: string,
   conteudo: string,
   onEvento: (evento: EventoSSE) => void,
-) => streamSSE(`/chat/threads/${enc(threadId)}/mensagens`, { conteudo }, onEvento);
+  contexto?: ContextoDaTela | null,
+) => streamSSE(
+  `/chat/threads/${enc(threadId)}/mensagens`,
+  contexto ? { conteudo, contexto } : { conteudo },
+  onEvento,
+);
 
 // ─── Auditoria ───────────────────────────────────────────────────────────
 
