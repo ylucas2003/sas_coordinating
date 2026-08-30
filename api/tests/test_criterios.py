@@ -5,22 +5,40 @@ algum quebrar, ou a regra foi mal lida, ou o edital mudou: os dois merecem
 olhar o docs/18 §1.5 antes de "consertar" o teste.
 """
 
+import pytest
+
+from app.stats.classificacao import _classificar_zona_por_materia
 from app.stats.criterios import (
     IME_FASE_1,
     IME_FASE_2,
     ITA_FASE_1,
     ITA_FASE_2,
     TIO_LEO,
+    TODAS,
     Acertos,
     Criterio,
     NotaDaMateria,
     Predicado,
     avaliar,
     corte_da_materia,
+    corte_da_media,
+    e_eliminatoria,
+    endurecer,
     media_do_criterio,
     por_slug,
     tom_da_nota,
 )
+from app.stats.metricas import corte_aplicavel
+from app.stats.utils import taxas_por_corte
+
+
+def _zona(notas_por_materia, *, media: float = 6.0, criterio: Criterio | None = None) -> str:
+    """A zona do aluno, com as notas já em 0–10 e a régua da casa por padrão."""
+    return _classificar_zona_por_materia(
+        notas_por_materia_codigo={k: v.nota for k, v in notas_por_materia.items()},
+        media_recente=media,
+        criterio=criterio or TIO_LEO,
+    )
 
 
 def n(nota: float, acertos: float | None = None, total: float | None = None) -> NotaDaMateria:
@@ -300,3 +318,115 @@ class TestCriterioPersonalizado:
             por_slug("nao-existe")
         except KeyError as e:
             assert "tio-leo" in str(e)
+
+
+# ─── Uma régua só: os consumidores que antes tinham a própria cópia ───────
+#
+# A Sprint 2 tirou a regra de corte do Painel; ela sobreviveu em quatro outros
+# lugares — `zona`, as métricas de simulado, as estatísticas de ciclo e a tool
+# `materias_problematicas` — cada um com o seu 4,0 ou 5,0 escrito à mão
+# (docs/31 §1.1). Os testes abaixo existem para que essas cópias não voltem:
+# mexer no corte de UMA régua tem que mover os quatro de uma vez.
+
+
+class TestReguaUnica:
+    def test_endurecer_sobe_todos_os_minimos(self):
+        duro = endurecer(TIO_LEO, 1.0)
+        assert corte_da_materia(duro, "matematica") == 5.0
+        assert corte_da_media(duro) == 6.0
+
+    def test_endurecer_converte_acertos_para_nota_antes_de_somar(self):
+        """'5 de 12 + 1,0' não existe em acertos; 4,17 + 1,0 existe em nota."""
+        duro = endurecer(ITA_FASE_1, 1.0)
+        assert corte_da_materia(duro, "matematica") == pytest.approx(5 / 12 * 10 + 1.0)
+
+    def test_zona_sai_do_mesmo_avaliador_que_o_painel(self):
+        """Cortado pela régua ⇒ risco. Aprovado com folga ⇒ top."""
+        # Tio Leo corta com E: falha matéria E falha média.
+        cortado = {"matematica": n(3.0), "fisica": n(3.5), "quimica": n(3.2)}
+        assert avaliar(TIO_LEO, cortado).aprovado is False
+        assert _zona(cortado) == "risco"
+
+        folgado = {"matematica": n(8.0), "fisica": n(8.5), "quimica": n(9.0)}
+        assert _zona(folgado) == "top"
+
+        # Passa na régua — o "E" do Tio Leo perdoa a Matemática porque a média
+        # está boa —, mas 4,5 não tem a margem de 1,0 sobre o corte de 4,0.
+        # Aprovado sem folga é exatamente a faixa cinzenta.
+        justo = {"matematica": n(4.5), "fisica": n(7.0), "quimica": n(7.5)}
+        assert avaliar(TIO_LEO, justo).aprovado is True
+        assert _zona(justo) == "cinzenta"
+
+    def test_folga_e_pergunta_de_E_mesmo_numa_regua_de_E(self):
+        """UMA matéria sem margem já tira do topo, ainda que a régua perdoe.
+
+        Se a régua endurecida fosse avaliada com o combinador original do Tio
+        Leo ("todos"), um aluno com 4,5 em Matemática e 9,0 no resto seria
+        "top": a falha isolada não fecha o E. Folga não funciona assim.
+        """
+        quase = {"matematica": n(4.5), "fisica": n(9.0), "quimica": n(9.5)}
+        assert avaliar(TIO_LEO, quase).aprovado is True
+        assert avaliar(endurecer(TIO_LEO, 1.0), quase).aprovado is True   # o E perdoa
+        assert _zona(quase) == "cinzenta"                                  # a zona não
+
+    def test_zona_sem_nota_por_materia_usa_o_corte_da_media_da_regua(self):
+        assert _zona({}, media=8.0) == "top"       # ≥ 5,0 + 1,0
+        assert _zona({}, media=5.5) == "cinzenta"  # ≥ 5,0, sem folga
+        assert _zona({}, media=3.0) == "risco"     # < 5,0
+
+    def test_corte_do_simulado_vem_da_regua_e_nao_do_par_4_e_5(self):
+        """O 5,0 do Inglês ITA F1 era fóssil: nem a casa nem o edital dizem 5,0.
+
+        A régua da casa põe o Inglês em 4,0 (e o marca eliminatório); o ITA
+        pede 5 de 12 (§4.6.2.1), que é 4,17.
+        """
+        ingles_ita_f1 = {
+            "materia": {"codigo": "ingles"},
+            "tipo": "fase_1",
+            "ciclo": {"vestibular_alvo": "ITA"},
+        }
+        assert corte_aplicavel(ingles_ita_f1) == 4.0
+        assert corte_aplicavel(ingles_ita_f1, ITA_FASE_1) == pytest.approx(5 / 12 * 10)
+
+    def test_corte_do_simulado_cai_na_media_quando_a_regua_nao_cobra_a_materia(self):
+        so_exatas = Criterio(
+            slug="so-exatas", nome="Só exatas", combinador="algum",
+            predicados=(Predicado("matematica", 7.0), Predicado(None, 5.0)),
+        )
+        sim = {"materia": {"codigo": "portugues"}, "tipo": "fase_2", "ciclo": {}}
+        assert corte_aplicavel(sim, so_exatas) == 5.0
+
+    def test_eliminatoria_e_propriedade_da_regua_nao_do_vestibular(self):
+        """Era `is_ita and codigo == 'ingles'` no módulo de estatísticas."""
+        assert e_eliminatoria(TIO_LEO, "ingles") is True
+        assert e_eliminatoria(TIO_LEO, "matematica") is False
+        assert e_eliminatoria(ITA_FASE_2, "redacao") is True
+
+    def test_mexer_no_corte_da_regua_move_zona_e_corte_do_simulado_juntos(self):
+        """A prova de que não sobrou cópia: uma régua, dois consumidores."""
+        dura = Criterio(
+            slug="dura", nome="Dura", combinador="algum",
+            predicados=(Predicado(TODAS, 7.0), Predicado(None, 7.0)),
+        )
+        notas = {"matematica": n(5.0), "fisica": n(5.0)}
+        assert _zona(notas, criterio=dura) == "risco"          # 5,0 < 7,0
+        assert _zona(notas, criterio=TIO_LEO) == "cinzenta"    # ≥ 4,0, sem folga na média
+        sim = {"materia": {"codigo": "matematica"}, "tipo": "fase_2", "ciclo": {}}
+        assert corte_aplicavel(sim, dura) == 7.0
+        assert corte_aplicavel(sim, TIO_LEO) == 4.0
+
+    def test_regua_que_nao_cobra_a_materia_nao_inventa_corte(self):
+        """Sem opinião é `None`, nunca 0,0.
+
+        Um corte 0,0 desenha a linha no chão do gráfico e faz `pctAprovados`
+        dar 100% — o produto afirmando que a turma inteira passou numa matéria
+        que a régua sequer menciona. Foi assim que "Meta 7 nas exatas" reportou
+        100% de aprovação em Inglês contra dados reais.
+        """
+        so_exatas = Criterio(
+            slug="so-exatas", nome="Só exatas", combinador="algum",
+            predicados=(Predicado("matematica", 7.0),),   # sem predicado de média
+        )
+        sim_ingles = {"materia": {"codigo": "ingles"}, "tipo": "fase_2", "ciclo": {}}
+        assert corte_aplicavel(sim_ingles, so_exatas) is None
+        assert taxas_por_corte([5.0, 6.0, 8.0], corte=None) == (None, None, pytest.approx(33.33))

@@ -521,19 +521,20 @@
       de fato ficou pronto, e o que o produto passou a saber fazer no fim. Os três últimos são propostas nascidas
       do brainstorming de 29/08 — a jornada do aluno, o assunto entrando no simulado, e o polimento da coordenação.
       Em <b>30/08</b> a área do aluno saiu do papel: o front inteiro está escrito, e o que falta virou uma lista
-      curta de rotas em <code>docs/30-estado-da-implementacao.md</code>.</p>
+      curta de rotas em <code>docs/30-estado-da-implementacao.md</code>. No mesmo dia a <b>Sprint 5 foi reescopada</b>
+      contra o código: duas das cinco partes propostas já estavam feitas e nenhum documento sabia.</p>
     <p class="assinatura">
       <span>Estado em 30/08/2026</span>
-      <span>migrations 0001 → 0036</span>
-      <span>223 testes na API · 191 no front</span>
+      <span>em produção: migrations 0001 → 0036</span>
+      <span>279 testes na API · 233 no front (Sprint 5 fora de produção)</span>
       <span>portalsas.online</span>
     </p>
   </header>
 
   <div class="placar">
-    <div><b>51</b><span>partes no ar</span></div>
-    <div><b>10</b><span>escritas, fora de produção</span></div>
-    <div><b>34</b><span>nos próximos 6 sprints</span></div>
+    <div><b>52</b><span>partes no ar</span></div>
+    <div><b>15</b><span>escritas, fora de produção</span></div>
+    <div><b>28</b><span>nos próximos 5 sprints</span></div>
     <div><b>19</b><span>ciclos mapeados</span></div>
   </div>
 
@@ -1339,7 +1340,7 @@
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT 4</span>
         <span class="selo selo--espera">proposta</span>
-        <span class="ciclo__quando">6 partes</span>
+        <span class="ciclo__quando">5 partes · a P5 foi para a Sprint 5</span>
       </div>
       <h2>Dado e leitura</h2>
       <p class="ciclo__resumo">Recolhe o que o Bloco B e o Bloco C do documento 10 deixaram pendente, mais as duas
@@ -1351,7 +1352,7 @@
         <li><span class="cod">P2</span><span class="oque"><b>Precedência entre ingest de planilha e sync do Canvas</b><em>B.4 — hoje quem escreve por último vence.</em></span><span class="selo selo--espera">—</span></li>
         <li><span class="cod">P3</span><span class="oque"><b>Split ano / vestibular / ciclo no Painel</b><em>C.2.</em></span><span class="selo selo--espera">—</span></li>
         <li><span class="cod">P4</span><span class="oque"><b>Range de período em Ciclos</b><em>C.3.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P5</span><span class="oque"><b>Corte na Fase 1 pela zona do aluno</b><em>Unificar <code>thresholds.py</code> com <code>criterios.py</code> — vindo da Onda 3 da Sprint 2.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P5</span><span class="oque"><b>Corte na Fase 1 pela zona do aluno</b><em>Unificar <code>thresholds.py</code> com <code>criterios.py</code>. <b>Puxada para a Sprint 5 em 30/08</b>: os gráficos em camadas dependem dela.</em></span><span class="selo selo--espera">movida</span></li>
         <li><span class="cod">P6</span><span class="oque"><b>Envio em lote ao Canvas</b><em>“Enviar as N pendências do ciclo” — hoje cada objeto tem seu botão. Também da Onda 3.</em></span><span class="selo selo--espera">—</span></li>
       </ul>
 
@@ -1368,34 +1369,56 @@
     </article>
 
     <!-- ============================== 14 · Sprint 5 ============================== -->
-    <article class="ciclo" data-estado="proposta">
+    <article class="ciclo" data-estado="curso">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT 5</span>
-        <span class="selo selo--espera">proposta</span>
-        <span class="ciclo__quando">5 partes</span>
+        <span class="selo selo--curso">escrita, fora de produção</span>
+        <span class="ciclo__quando">5 partes · 30/08</span>
       </div>
-      <h2>Assistente e gráficos em camadas</h2>
-      <p class="ciclo__resumo">O Bloco D do documento 10 — transformar o chat de modal que bloqueia em copiloto que
-        acompanha — mais duas coisas que já nasceram prontas por baixo e só esperam tela.</p>
-      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 §2.8</li><li>docs/18 §1.10</li></ul>
+      <h2>Assistente com contexto, régua do coordenador e gráficos</h2>
+      <p class="ciclo__resumo">O Bloco D do documento 10 — o chat vira copiloto que acompanha —, a régua de corte
+        virando uma só, e o mesmo gráfico legível em três profundidades. <b>Reescopado em 30/08</b>: um levantamento
+        no código mostrou que duas das cinco partes propostas já estavam feitas, sem registro em documento nenhum.</p>
+      <ul class="fontes"><li>docs/31-plano-sprint-5.md</li><li>docs/10 §2.8</li><li>docs/18 §1.10</li><li>migration 0037</li></ul>
+
+      <p class="nota"><b>Escrita em 30/08, e o que ela achou pelo caminho.</b> As cinco partes estão
+        implementadas e testadas — 279 testes na API, 233 no front, migrations <code>0037</code> e <code>0038</code>
+        com <code>up</code>/<code>down</code>/<code>up</code> limpos. A régua &ldquo;Meta 7 nas exatas&rdquo; foi criada
+        pela API contra os 319 alunos do Ciclo 1 · IME, versionada e aplicada. Três defeitos apareceram na
+        implementação e viraram teste: uma régua que não cobra Inglês devolvia <b>corte 0,0 e 100% de aprovados</b>
+        numa matéria que ela sequer menciona; a zona &ldquo;top&rdquo; herdava o <code>E</code> do Tio Leo e
+        perdoava a matéria sem folga; e apagar uma régua embutida respondia &ldquo;não existe&rdquo; em vez de
+        &ldquo;essa não se remove&rdquo;. Depois disso, uma <b>revisão adversarial de 13 agentes</b> achou mais
+        <b>23 defeitos</b> no próprio diff — entre eles uma frase que dizia &ldquo;subiu&rdquo; para um aluno que caiu
+        (a API ordena por data descendente, e só o gráfico reordenava) e um preâmbulo de chat que deixava um aluno
+        ler o nome de outro. Todos consertados. <b>Falta o deploy</b> e conferir os gráficos a 360px.</p>
+
+      <p class="nota nota--alerta"><b>O que o levantamento achou.</b> O <b>painel não-modal</b> — a P1 proposta, descrita
+        como &ldquo;o item mais barato do documento 10&rdquo; — <b>já estava no ar</b> desde a migração React: o
+        <code>.chat-overlay</code> foi apagado e o painel passou a empurrar o conteúdo acima de 900px. A <b>abertura do
+        chat</b> também: sugestões agrupadas por intenção, separadas por perfil, com lista de capacidades. E das seis
+        lacunas de tool, <b>cinco estavam fechadas</b> — são 26 tools, não 21. Em compensação a <b>UI de critérios</b> é
+        maior do que &ldquo;falta só a tela&rdquo;: as tabelas da <code>0023</code> existem em produção e
+        <b>nenhuma linha de código as lê</b>.</p>
 
       <ul class="partes">
-        <li><span class="cod">P1</span><span class="oque"><b>Painel não-modal</b><em>D.1 — o mais barato do documento 10. Hoje o chat aberto bloqueia a navegação.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P2</span><span class="oque"><b>Consciência de rota</b><em>D.4 — o assistente saber em que página a pessoa está.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P3</span><span class="oque"><b>Apresentação da abertura e lacunas de tools</b><em>D.2 + D.3 — o que é navegável na plataforma e o chat ainda não alcança.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P4</span><span class="oque"><b>UI de critérios do coordenador</b><em>O formato nasceu pronto na Sprint 2 — tabelas, versionamento e avaliador. Falta só a tela.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P5</span><span class="oque"><b>Gráficos em camadas</b><em>Leigo → insight → estatística: o mesmo gráfico legível em três profundidades.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P1</span><span class="oque"><b>A régua vira uma só</b><em>Unificar <code>thresholds.py</code> com <code>criterios.py</code>. Veio da Sprint 4: os gráficos ainda desenham corte literal (<code>4</code>, <code>5</code>) e o corte tem de vir da régua escolhida.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Consciência de rota</b><em>D.4 — o assistente saber em que página a pessoa está, e conseguir mandá-la a outra.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>As três lacunas de tool que sobraram</b><em>Questões na visão da coordenação, comparar alunos/simulados, e navegar. As outras cinco já foram.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>O coordenador cria a própria régua</b><em>Leitor DB→<code>Criterio</code>, CRUD versionado e a tela — dentro do Painel, ao lado do seletor, com prévia ao vivo.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P5</span><span class="oque"><b>Gráficos em camadas</b><em>Leigo → insight → estatística, com o controle em cada gráfico. Duas das três camadas já existem no backend.</em></span><span class="selo selo--espera">—</span></li>
       </ul>
 
       <div class="ganho">
         <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
         <ul>
-          <li><b>Um assistente que não bloqueia a tela.</b> Dá para conversar e navegar ao mesmo tempo.</li>
-          <li><b>Um assistente que sabe onde você está</b> — perguntar “e esse aluno?” passa a ter referente.</li>
-          <li><b>Uma abertura que mostra o que ele sabe fazer</b>, em vez de um campo em branco.</li>
-          <li><b>O coordenador criando a própria régua</b> — “nota 7 em Matemática, Física e Química e acima de 4 em
-            Português” — sem pedir código a ninguém.</li>
+          <li><b>Um assistente que sabe onde você está</b> — perguntar &ldquo;e esse aluno?&rdquo; passa a ter referente,
+            e os nomes que ele responde levam às fichas.</li>
+          <li><b>O coordenador criando a própria régua</b> &mdash; &ldquo;nota 7 em Matemática, Física e Química e acima de 4 em
+            Português&rdquo; &mdash; sem pedir código a ninguém, e vendo quantos seriam cortados antes de salvar.</li>
           <li><b>Gráficos que se leem em três níveis</b>, conforme quem está olhando.</li>
+          <li><b>Uma linha de corte que quer dizer a mesma coisa em toda a tela</b> — hoje a tabela obedece à régua
+            escolhida e o gráfico ao lado dela desenha um <code>4</code> escrito no código.</li>
         </ul>
       </div>
     </article>

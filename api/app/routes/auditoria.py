@@ -37,7 +37,7 @@ _LIMITE_MAXIMO = 500
 
 @router.get("")
 async def listar_eventos(
-    canal: str | None = Query(None, description="acesso | nota | simulado | ciclo | canvas"),
+    canal: str | None = Query(None, description="acesso | nota | simulado | ciclo | canvas | criterio"),
     ator_id: str | None = Query(None),
     recurso: str | None = Query(None, description="prefixo, ex.: nota/<aluno_id>"),
     desde: str | None = Query(None, description="ISO 8601"),

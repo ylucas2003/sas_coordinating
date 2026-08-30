@@ -62,9 +62,9 @@ PROMPT_PRATICO = """Você é um analista pedagógico do Colégio Ari de Sá. Lê
 
 # Contexto do domínio
 
-Notas 0–10. Cortes: 4,0 padrão; 5,0 só para Inglês na Fase 1 do ITA (única eliminatória).
+Notas 0–10. **Não decore corte.** A régua de corte é dado e muda: existe a do colégio e as dos editais de ITA e IME, e o coordenador escolhe qual está em uso. O corte que vale para este recorte vem no campo `corte` do payload — use ESSE número e nenhum outro. Se ele não estiver lá, não cite corte.
 "Zona crítica" = passou mas perigosamente perto do corte.
-"Excelência" = nota ≥ 7,0.
+"Excelência" = nota ≥ 7,0 (esta é faixa nossa, não de edital, e não muda com a régua).
 
 Devolva exclusivamente JSON no schema."""
 
@@ -88,7 +88,7 @@ PROMPT_TECNICO = """Você é um analista de dados especializado em educação. L
 
 # Contexto
 
-Notas 0–10. Cortes: 4,0 (5,0 para Inglês ITA F1, eliminatória).
+Notas 0–10. **Não decore corte**: o valor que vale para este recorte vem no campo `corte` do payload. Sem ele, não cite corte.
 
 Devolva exclusivamente JSON no schema."""
 

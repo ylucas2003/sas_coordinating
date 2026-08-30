@@ -28,9 +28,9 @@ que decorrem disso:
 
 | Módulo | O que faz |
 |---|---|
-| `routes/` | 13 routers aqui, mais `chat/` e `canvas_sync/` (15 `include_router` no total). `main.py` registra `arquivos` só com Storage local e `email_eventos` só com `SES_WEBHOOK_TOKEN` preenchido |
-| `stats/` | Métricas por simulado em 3 recortes (geral/turma/sede), classificação de aluno, alertas, thresholds, insights via LLM. **`criterios.py` é a única definição de "quem passou"** — réguas do colégio, ITA e IME como dado, avaliador puro; o front não reimplementa |
-| `chat/` | Loop de agente com tools. `perfis.py` parametriza por usuário: coordenador tem 26 tools staff; aluno tem tools restritas com `aluno_id` injetado do JWT |
+| `routes/` | 18 routers aqui, mais `chat/`, `canvas_sync/` e `gravacoes_aula/` (22 `include_router` no total). `main.py` registra `arquivos` só com Storage local e `email_eventos` só com `SES_WEBHOOK_TOKEN` preenchido |
+| `stats/` | Métricas por simulado em 3 recortes (geral/turma/sede), classificação de aluno, alertas, insights via LLM. **`criterios.py` é a única definição de "quem passou"** — as cinco réguas como dado, avaliador **puro** (sem I/O, testável sem container); `criterios_repo.py` é a metade que toca o banco, para as réguas que a coordenação cria. `thresholds.py` ficou só com **calibração** (janela, percentis, limiares de alerta): se o número tem artigo de edital é regra e mora em `criterios.py`; se fomos nós que escolhemos olhando dados, é calibração |
+| `chat/` | Loop de agente com tools. `perfis.py` parametriza por usuário: coordenador tem **30 tools** staff; aluno tem 6 restritas com `aluno_id` injetado do JWT. `navegacao.py` carrega o contexto da tela nos dois sentidos — o preâmbulo do turno (página → chat) e a rota do `navegar_para` (chat → página) |
 | `canvas_sync/` | Sincronização com o Canvas LMS — fonte de verdade das notas. `mapeador.py` compõe **e** parseia os nomes de assignment; as duas gramáticas precisam casar |
 | `ingest/` | Pipeline de planilha (CSV/XLSX), idempotente por construção |
 | `lembretes/` | Motor de e-mail via SES. Disparo é materializado na criação da regra e revalidado antes do envio |

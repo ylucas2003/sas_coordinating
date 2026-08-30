@@ -355,6 +355,73 @@ def corte_da_materia(criterio: Criterio, materia: str) -> float | None:
     return generico
 
 
+def corte_da_media(criterio: Criterio) -> float | None:
+    """O mínimo que este critério exige da média geral, em 0–10.
+
+    `None` quando o critério não cobra média — o que é o caso de qualquer
+    régua feita só de mínimos por matéria.
+    """
+    for predicado in criterio.predicados:
+        if predicado.materia is MEDIA_GERAL:
+            return (
+                predicado.valor.como_nota
+                if isinstance(predicado.valor, Acertos)
+                else float(predicado.valor)
+            )
+    return None
+
+
+def e_eliminatoria(criterio: Criterio, materia: str) -> bool:
+    """A régua elimina sozinho quem falha nesta matéria?
+
+    É o que distingue "ficou abaixo do corte" de "está fora": o inglês do ITA
+    na 1ª fase (§4.6.2.1) e a redação INAPTA do IME (Art. 65) reprovam sem
+    consultar o combinador. Quem desenha o gráfico precisa saber, porque a
+    faixa abaixo do corte muda de significado.
+    """
+    return any(
+        p.eliminatorio and p.materia in (materia, TODAS) for p in criterio.predicados
+    )
+
+
+def endurecer(criterio: Criterio, margem: float) -> Criterio:
+    """O mesmo critério com todos os mínimos `margem` pontos acima.
+
+    Serve a uma pergunta só, e é a que define a zona "top": *este aluno
+    passaria mesmo se a régua fosse um ponto mais dura?* Fazer isso
+    endurecendo a régua e reusando `avaliar` — em vez de escrever uma segunda
+    comparação `nota >= corte + margem` — é o que impede a folga de virar a
+    quarta cópia da regra de corte (docs/18 §1.1).
+
+    Mínimos em acertos viram nota antes de somar: "5 de 12 + 1,0" não existe
+    em acertos, mas 4,17 + 1,0 existe em nota.
+    """
+    endurecidos = tuple(
+        Predicado(
+            materia=p.materia,
+            valor=(
+                p.valor.como_nota if isinstance(p.valor, Acertos) else float(p.valor)
+            )
+            + margem,
+            operador=p.operador,
+            eliminatorio=p.eliminatorio,
+            entra_na_media=p.entra_na_media,
+            peso=p.peso,
+            fonte=p.fonte,
+        )
+        for p in criterio.predicados
+    )
+    return Criterio(
+        slug=f"{criterio.slug}+{margem:g}",
+        nome=f"{criterio.nome} + {margem:g}",
+        combinador=criterio.combinador,
+        predicados=endurecidos,
+        desempate=criterio.desempate,
+        fase=criterio.fase,
+        descricao=f"{criterio.nome} com todos os mínimos {margem:g} ponto(s) acima.",
+    )
+
+
 # ─── Os três critérios embutidos ──────────────────────────────────────────
 #
 # Escritos como literais, e não carregados de lugar nenhum, porque é aqui que
@@ -502,6 +569,17 @@ CRITERIOS: dict[str, Criterio] = {
     c.slug: c
     for c in (TIO_LEO, ITA_FASE_1, ITA_FASE_2, IME_FASE_1, IME_FASE_2)
 }
+
+
+#: A régua institucional — a que responde quando ninguém escolheu.
+#:
+#: `classificacao_aluno.zona`, as métricas de simulado e as estatísticas de
+#: ciclo são calculadas em lote, sem leitor na frente para escolher critério.
+#: Antes disso existir, cada um desses três lugares carregava a própria cópia
+#: do corte em `thresholds.py` — e foi por aí que 5,0 e 4,0 divergiram
+#: (docs/18 §1.1). É a do colégio, e não a de um edital, porque essas leituras
+#: são pedagógicas internas, não simulação de vestibular.
+CRITERIO_DA_CASA = "tio-leo"
 
 
 def por_slug(slug: str) -> Criterio:

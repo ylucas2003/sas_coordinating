@@ -20,23 +20,31 @@ from typing import Any
 from supabase import Client
 
 from ...stats import classificacao as _classif
-from ...stats.thresholds import NOTA_CORTE_FASE_2
+from ...stats import criterios
 from ...stats.utils import como_float, nota_real
 
 
 # ─── alunos_em_risco ──────────────────────────────────────────────────────
 
 def alunos_em_risco(cliente: Client, *, limite: int = 30) -> dict:
-    """Lista alunos com zona='risco' segundo stats engine (alguma matéria abaixo do corte recente)."""
+    """Lista alunos com `zona='risco'` — o veredito do avaliador de criterios.py.
+
+    A zona deixou de ser "alguma matéria abaixo de 4,0 OU média baixa": ela sai
+    de `avaliar(CRITERIO_DA_CASA, …)`, e a régua do colégio corta com E, não
+    com OU. Um aluno com 2,0 em Matemática e 8,0 no resto NÃO está em risco por
+    essa régua (docs/31 §P1).
+    """
     return _alunos_por_zona(cliente, zona="risco", limite=limite, ordenacao="asc_media")
 
 
 _SCHEMA_RISCO = {
     "name": "alunos_em_risco",
     "description": (
-        "Alunos atualmente em zona de risco — pelo critério oficial do SAS: alguma matéria "
-        "abaixo do corte (4,0) nos últimos simulados, OU média geral abaixo do corte. "
-        "Critério codificado em stats/classificacao.py, não invente um alternativo."
+        "Alunos atualmente em zona de risco. A zona é o veredito do avaliador de "
+        "stats/criterios.py sob a régua da casa ('Tio Leo'), que corta quem falha na "
+        "matéria E na média, mais as matérias eliminatórias — não é 'alguma matéria "
+        "abaixo de um número'. Não invente critério alternativo nem cite corte fixo: "
+        "para o corte de cada matéria, use materias_problematicas, que devolve o valor."
     ),
     "parameters": {
         "type": "object",
@@ -162,6 +170,7 @@ def materias_problematicas(cliente: Client, *, ciclo_id: str) -> dict:
             continue
         por_mat_aluno[(mid, linha["aluno_id"])].append(nota)
 
+    regua = criterios.por_slug(criterios.CRITERIO_DA_CASA)
     saida = []
     for mid in sim_por_mat:
         valores_por_aluno = []
@@ -171,10 +180,18 @@ def materias_problematicas(cliente: Client, *, ciclo_id: str) -> dict:
             valores_por_aluno.append(sum(notas) / len(notas))
         if not valores_por_aluno:
             continue
-        abaixo_corte = sum(1 for v in valores_por_aluno if v < NOTA_CORTE_FASE_2)
         m_info = materia_info.get(mid, {})
+        codigo = m_info.get("codigo") or ""
+        # Cada matéria tem o SEU corte na régua — o do Inglês não é o da
+        # Matemática. Somar tudo contra um 4,0 único era o que fazia esta tool
+        # discordar do Painel sobre quantos estão abaixo (docs/31 §1.1).
+        corte = criterios.corte_da_materia(regua, codigo)
+        if corte is None:
+            corte = criterios.corte_da_media(regua) or 0.0
+        abaixo_corte = sum(1 for v in valores_por_aluno if v < corte)
         saida.append({
-            "materia": {"codigo": m_info.get("codigo"), "nome": m_info.get("nome")},
+            "materia": {"codigo": codigo or None, "nome": m_info.get("nome")},
+            "corte": corte,
             "nAlunos": len(valores_por_aluno),
             "abaixoCorte": abaixo_corte,
             "pctAbaixoCorte": round(100 * abaixo_corte / len(valores_por_aluno), 1),
@@ -182,13 +199,14 @@ def materias_problematicas(cliente: Client, *, ciclo_id: str) -> dict:
             "mediana": round(st.median(valores_por_aluno), 2),
         })
     saida.sort(key=lambda r: -r["pctAbaixoCorte"])
-    return {"cicloId": ciclo_id, "corte": NOTA_CORTE_FASE_2, "materias": saida}
+    return {"cicloId": ciclo_id, "criterio": regua.nome, "materias": saida}
 
 
 _SCHEMA_MATERIAS_PROB = {
     "name": "materias_problematicas",
     "description": (
-        "Para cada matéria do ciclo (Fase 2), calcula a % de alunos abaixo do corte 4,0. "
+        "Para cada matéria do ciclo (Fase 2), calcula a % de alunos abaixo do corte "
+        "que a régua da casa exige NAQUELA matéria (o campo `corte` de cada linha diz qual foi). "
         "Retorna ordenado da pior pra melhor. Útil pra 'em qual matéria devo focar?'"
     ),
     "parameters": {

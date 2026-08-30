@@ -23,7 +23,7 @@ export interface ToolCall {
 }
 
 export interface ArtefatoChat {
-  tipo: 'histograma' | 'linha_temporal' | 'csv' | string;
+  tipo: 'histograma' | 'linha_temporal' | 'csv' | 'navegacao' | string;
   titulo?: string;
   payload?: unknown;
 }

@@ -42,7 +42,12 @@ export interface SerieEvolucao {
 interface Props {
   series: SerieEvolucao[];
   ciclosEixo: Array<{ ordem: number; label: string }>;
-  corte?: number;
+  /**
+   * Linha de corte. Ausente = nenhuma linha — sem régua carregada não há
+   * corte honesto a desenhar. O default era `4`, que virava a régua de fato
+   * em qualquer chamada que esquecesse de passar o valor (docs/31 §P1).
+   */
+  corte?: number | null;
   corteRotulo?: string;
   altura?: number;
 }
@@ -67,7 +72,7 @@ interface EstadoTooltip {
 }
 
 export function LinhaEvolucao({
-  series, ciclosEixo, corte = 4, corteRotulo = 'corte 4', altura = 320,
+  series, ciclosEixo, corte, corteRotulo, altura = 320,
 }: Props) {
   const navegar = useNavigate();
   const refWrapper = useRef<HTMLDivElement>(null);
@@ -125,7 +130,7 @@ export function LinhaEvolucao({
     setTooltip({ ponto, cor, x: ev.clientX - rect.left, y: ev.clientY - rect.top });
   }
 
-  const yCorte = yDe(corte);
+  const yCorte = corte != null ? yDe(corte) : null;
 
   return (
     <div className="linha-evol" ref={refWrapper}>
@@ -157,16 +162,20 @@ export function LinhaEvolucao({
           })}
         </g>
 
-        <line
-          x1={margem.left} y1={yCorte} x2={margem.left + plotW} y2={yCorte}
-          stroke="var(--color-red, #c44)" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.7}
-        />
-        <text
-          x={margem.left + plotW - 6} y={yCorte - 4}
-          textAnchor="end" fontSize={10} fill="var(--color-red, #c44)" opacity={0.85}
-        >
-          {corteRotulo}
-        </text>
+        {yCorte != null && (
+          <>
+            <line
+              x1={margem.left} y1={yCorte} x2={margem.left + plotW} y2={yCorte}
+              stroke="var(--color-red, #c44)" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.7}
+            />
+            <text
+              x={margem.left + plotW - 6} y={yCorte - 4}
+              textAnchor="end" fontSize={10} fill="var(--color-red, #c44)" opacity={0.85}
+            >
+              {corteRotulo}
+            </text>
+          </>
+        )}
 
         {ciclosEixo.map((c) => (
           <text

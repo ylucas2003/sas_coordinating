@@ -4,7 +4,7 @@ Para cada aluno ativo calcula:
   - media_recente / desvio_recente : sobre as últimas N notas
   - coef_tendencia / tendencia     : regressão linear das mesmas N notas
   - perfil                         : âncora / mistério / regular
-  - zona                           : top / cinzenta / risco (vs. nota de corte)
+  - zona                           : top / cinzenta / risco (pelo critério da casa)
 
 Persiste em `classificacao_aluno (aluno_id PK)`.
 """
@@ -15,9 +15,11 @@ import logging
 import statistics as st
 from collections import defaultdict
 from collections.abc import Iterable
+from dataclasses import replace
 
 from supabase import Client
 
+from . import criterios
 from . import thresholds as th
 from .utils import como_float, nota_real, percentil, regressao_linear, t_critico
 
@@ -28,9 +30,9 @@ def recalcular_tudo(cliente: Client) -> int:
     """Recalcula classificação de todos os alunos ativos.
 
     Notas trabalhadas aqui já estão em escala 0–10 (normalizadas em
-    `_notas_recentes_por_aluno`). A zona usa regra do ITA/IME: basta UMA
-    matéria recente em Fase 2 abaixo do corte (4,0) para o aluno ser
-    considerado em risco.
+    `_notas_recentes_por_aluno`). A zona sai do avaliador de `criterios.py`
+    sob a régua da casa (`CRITERIO_DA_CASA`) — o mesmo avaliador que o Painel
+    usa, para as duas telas não discordarem sobre o mesmo aluno.
 
     Retorna a quantidade de alunos efetivamente classificados (com >= 2 notas).
     """
@@ -137,12 +139,14 @@ def _classificar_e_salvar(
         metrica_turma=metricas_turma.get(turma_id),
     )
 
+    criterio = criterios.por_slug(criterios.CRITERIO_DA_CASA)
     zona = _classificar_zona_por_materia(
         notas_por_materia_codigo=_resumir_notas_por_materia(
             notas_fase2_por_aluno_materia.get(aluno_id, {}),
             codigo_materia_por_id,
         ),
         media_recente=media_recente,
+        criterio=criterio,
     )
 
     cliente.table("classificacao_aluno").upsert(
@@ -151,6 +155,11 @@ def _classificar_e_salvar(
             "perfil": perfil,
             "tendencia": tendencia,
             "zona": zona,
+            # Qual régua produziu esta zona. Sem isto, `zona = 'risco'` é
+            # veredito sem juiz: dá para ler a coluna e não saber contra o
+            # quê o aluno foi comparado (migration 0037).
+            "criterio_slug": criterio.slug,
+            "criterio_versao": 1,
             "media_recente": round(media_recente, 2),
             "desvio_recente": round(desvio_recente, 2),
             "coef_tendencia": round(slope, 3),
@@ -204,41 +213,55 @@ def _classificar_zona_por_materia(
     *,
     notas_por_materia_codigo: dict[str, float],   # {codigo: nota_media_recente em 0-10}
     media_recente: float,
+    criterio: criterios.Criterio,
 ) -> str:
-    """Top / cinzenta / risco usando regra ITA/IME por matéria.
+    """Top / cinzenta / risco — pelo MESMO avaliador que o Painel usa.
 
-    Regra real: aluno reprovado se ALGUMA matéria core (Mat/Fís/Quím/Port)
-    ficar abaixo de 4,0 nos simulados de Fase 2.
+    Antes daqui havia uma segunda implementação da regra de corte: matérias
+    core fixas em `thresholds.MATERIAS_PARA_CORTE`, mínimo fixo em 4,0 e
+    margem fixa em 1,0. Ela ignorava tudo que o critério diz — eliminatório,
+    fora-da-média, peso, mínimo em acertos — e por isso o Painel podia mostrar
+    um aluno cortado enquanto a tela de Alunos o mostrava em zona "cinzenta"
+    (docs/31 §1.1).
 
-      - risco:    alguma matéria core < 4,0  (ou faltam dados pra decidir)
-      - top:      todas as matérias core ≥ 4,0 + margem (5,0 por padrão)
-      - cinzenta: todas ≥ 4,0 mas alguma entre 4 e 5
+    As três zonas viram três perguntas ao mesmo avaliador:
+
+      risco    → o critério corta este aluno
+      top      → passaria mesmo se a régua fosse `MARGEM_CONFORTAVEL` mais dura
+      cinzenta → passa na régua, não passa na régua endurecida
+
+    "Passaria com a régua mais dura" é `endurecer()`, e não uma comparação
+    própria, justamente para a folga não virar a quarta cópia da regra.
     """
     if not notas_por_materia_codigo:
-        # Sem dados de Fase 2 → cai num default neutro baseado na média geral.
-        if media_recente >= th.NOTA_CORTE_FASE_2 + th.MARGEM_TOP_SOBRE_CORTE:
-            return "top"
-        if media_recente >= th.NOTA_CORTE_FASE_2:
+        # Sem nota de Fase 2 por matéria, só resta a média — e o critério
+        # também diz o que exige dela. Critério sem exigência de média não
+        # tem como opinar: o aluno fica na faixa do meio, não em risco.
+        minimo = criterios.corte_da_media(criterio)
+        if minimo is None:
             return "cinzenta"
+        if media_recente >= minimo + criterios.MARGEM_CONFORTAVEL:
+            return "top"
+        return "cinzenta" if media_recente >= minimo else "risco"
+
+    notas = {
+        codigo: criterios.NotaDaMateria(nota=valor)
+        for codigo, valor in notas_por_materia_codigo.items()
+    }
+    if not criterios.avaliar(criterio, notas).aprovado:
         return "risco"
 
-    minimo_observado = None
-    for codigo in th.MATERIAS_PARA_CORTE:
-        nota = notas_por_materia_codigo.get(codigo)
-        if nota is None:
-            continue  # matéria sem dado nessa janela — não penaliza nem premia
-        if minimo_observado is None or nota < minimo_observado:
-            minimo_observado = nota
-
-    if minimo_observado is None:
-        # Nenhuma matéria core observada — fallback pra média.
-        return "cinzenta" if media_recente >= th.NOTA_CORTE_FASE_2 else "risco"
-
-    if minimo_observado < th.NOTA_CORTE_FASE_2:
-        return "risco"
-    if minimo_observado >= th.NOTA_CORTE_FASE_2 + th.MARGEM_TOP_SOBRE_CORTE:
-        return "top"
-    return "cinzenta"
+    # Folga é pergunta de "E" mesmo numa régua de "E": estar confortável quer
+    # dizer confortável em TUDO. Avaliar a régua endurecida com o combinador
+    # original do Tio Leo ("todos", que só corta se TODOS os requisitos
+    # falharem) perdoaria a matéria sem folga e chamaria de "top" um aluno com
+    # 4,5 em Matemática. Por isso o combinador vira "algum" aqui: qualquer
+    # requisito sem margem já tira do topo.
+    duro = replace(
+        criterios.endurecer(criterio, criterios.MARGEM_CONFORTAVEL),
+        combinador="algum",
+    )
+    return "top" if criterios.avaliar(duro, notas).aprovado else "cinzenta"
 
 
 def _resumir_notas_por_materia(

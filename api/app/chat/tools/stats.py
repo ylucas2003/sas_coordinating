@@ -11,7 +11,7 @@ from typing import Any
 
 from supabase import Client
 
-from ...stats import ciclo_estatisticas
+from ...stats import ciclo_estatisticas, criterios, criterios_repo
 from ...stats.utils import como_float, nota_real
 
 
@@ -22,12 +22,29 @@ def estatisticas_ciclo(
     *,
     ciclo_id: str,
     incluir_por_materia: bool = True,
+    criterio: str | None = None,
 ) -> dict:
-    """Resumo estatístico de um ciclo (conjunta + por matéria, comparação com anterior)."""
-    payload = ciclo_estatisticas.calcular(cliente, ciclo_id=ciclo_id)
+    """Resumo estatístico de um ciclo (conjunta + por matéria, comparação com anterior).
+
+    `criterio` decide TODO corte do payload, e existe porque o coordenador
+    escolhe a régua na tela. Sem ele, a tool respondia sempre pela régua da
+    casa enquanto o preâmbulo de contexto anunciava "régua de corte 'ita-f1'" —
+    e o assistente dizia 70,98% de aprovados em Física ao lado de um gráfico
+    marcando 60,14% (docs/31 §P3).
+    """
+    try:
+        regua = criterios_repo.resolver(cliente, criterio or criterios.CRITERIO_DA_CASA)
+    except KeyError as exc:
+        return {"erro": str(exc)}
+
+    payload = ciclo_estatisticas.calcular(cliente, ciclo_id=ciclo_id, criterio=regua)
     if payload is None:
         return {"erro": f"ciclo {ciclo_id} não encontrado"}
-    return _compactar_para_llm(payload, incluir_por_materia=incluir_por_materia)
+    compacto = _compactar_para_llm(payload, incluir_por_materia=incluir_por_materia)
+    # O rótulo é obrigatório: um `corte` sem dizer de que régua ele saiu é o
+    # que faz o modelo misturar dois números certos numa resposta errada.
+    compacto["criterio"] = regua.nome
+    return compacto
 
 
 def _compactar_para_llm(payload: dict, *, incluir_por_materia: bool) -> dict:
@@ -77,7 +94,8 @@ def _stats_min(bloco: dict | None) -> dict:
 def _materia_min(m: dict) -> dict:
     return {
         "materia": m.get("materia"),
-        "eliminatoriaF1": m.get("eliminatoriaF1", False),
+        "eliminatoria": m.get("eliminatoria", False),
+        "corte": m.get("corte"),
         "fase1": _stats_min(m.get("fase1")),
         "fase2": _stats_min(m.get("fase2")),
         "deltaF1F2": m.get("deltaF1F2"),
@@ -90,7 +108,10 @@ _SCHEMA_EST_CICLO = {
         "Resumo estatístico de um ciclo: média, mediana, desvio, taxa de aprovados, "
         "histograma da análise conjunta (F1+F2 agregados por aluno), e quando disponível "
         "a comparação com o ciclo anterior. Por padrão inclui também o recorte por matéria "
-        "(F1 e F2 separados, com corte aplicado)."
+        "(F1 e F2 separados, com corte aplicado). Todo corte e toda taxa saem da RÉGUA: "
+        "se o contexto disser qual régua está na tela, passe o slug dela em `criterio`, "
+        "senão os números não vão bater com o que a pessoa está vendo. O campo `criterio` "
+        "da resposta diz qual régua respondeu — cite-a ao dar percentuais."
     ),
     "parameters": {
         "type": "object",
@@ -100,6 +121,13 @@ _SCHEMA_EST_CICLO = {
                 "type": "boolean",
                 "default": True,
                 "description": "Se false, retorna só conjunta (mais compacto).",
+            },
+            "criterio": {
+                "type": "string",
+                "description": (
+                    "Slug da régua: tio-leo | ita-f1 | ita-f2 | ime-f1 | ime-f2, ou uma "
+                    "criada pela coordenação. Omitir usa a régua da casa (tio-leo)."
+                ),
             },
         },
         "required": ["ciclo_id"],

@@ -40,7 +40,15 @@ router = APIRouter(
 _CAMPOS_SIMULADO = (
     "id, nome, rotulo_curto, tipo, data_aplicacao, ciclo_id, materia_id, "
     "nota_maxima, anulado, origem, canvas_estado, canvas_erro, evento_agenda_id, "
-    "external_id"
+    "external_id, "
+    # O código da matéria não é lido por `_linha_para_simulado` — ele existe
+    # para `corte_aplicavel`, no PATCH. Sem o embed, a régua não sabe de que
+    # matéria se trata e cai na exigência de MÉDIA (5,0 no Tio Leo), gravando
+    # `metrica_simulado.pct_aprovados` contra um corte que nenhum outro
+    # simulado usa — até o reconcile da madrugada regravar com 4,0 e o número
+    # "se consertar sozinho". `notas.py` e `metricas._SELECT_SIMULADO_META`
+    # sempre trouxeram este join; esta rota era a única sem ele.
+    "materia:materia_id(codigo)"
 )
 
 

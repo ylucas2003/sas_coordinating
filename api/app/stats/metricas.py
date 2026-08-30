@@ -20,7 +20,7 @@ from typing import Any
 
 from supabase import Client
 
-from .thresholds import NOTA_CORTE_FASE_2
+from . import criterios
 from .utils import (
     como_float,
     detectar_bimodalidade,
@@ -33,10 +33,9 @@ from .utils import (
     taxas_por_corte,
 )
 
-# Inglês ITA Fase 1 é eliminatória com corte 5,0 (escala 0–10) — todos os
-# demais recortes usam o corte padrão de Fase 2 (4,0 por matéria), aplicado
-# também na Fase 1 por consistência visual.
-CORTE_INGLES_ITA_F1 = 5.0
+# O corte de cada simulado sai da régua, não daqui — ver `corte_aplicavel`.
+# `NOTA_EXCELENCIA` fica: 7,0 não é corte de edital nenhum, é a faixa que a
+# coordenação chama de "excelência" e calibra olhando dados.
 NOTA_EXCELENCIA = 7.0
 
 log = logging.getLogger("sas.stats.metricas")
@@ -106,20 +105,30 @@ def _recalcular_lote(cliente: Client, simulados: list[dict]) -> int:
     return len(simulados)
 
 
-def corte_aplicavel(simulado: dict) -> float:
+def corte_aplicavel(simulado: dict, criterio: criterios.Criterio | None = None) -> float | None:
     """Decide o corte (escala 0–10) que define "aprovado" pra esse simulado.
 
-    Regra: corte padrão 4,0 (Fase 2 por matéria, aplicado também em Fase 1
-    por consistência visual). Exceção única: Inglês na Fase 1 do ITA —
-    eliminatória com corte 5,0.
+    Sai da régua, não de constante. Antes daqui havia um `if` com dois números
+    escritos à mão — 4,0 em geral e 5,0 para Inglês na Fase 1 do ITA. O 5,0 era
+    fóssil da regra pré-Sprint 2: a régua da casa põe o Inglês em 4,0 e o marca
+    como eliminatório, e o edital do ITA pede 5 de 12 (§4.6.2.1), que é 4,17.
+    Nenhum dos dois é 5,0 (docs/31 §1.1).
+
+    `criterio` ausente = a régua da casa. Estas métricas são recalculadas em
+    lote no ingest e no sync, sem leitor na frente para escolher.
+
+    Matéria que a régua não cobra cai na exigência da média — e, se ela também
+    não existir, o corte é `None`: a régua não opina, então não há linha a
+    desenhar nem taxa de aprovação a calcular. Devolver 0,0 aqui pintava 100%
+    de aprovados numa matéria que o critério ignora.
     """
+    regua = criterio or criterios.por_slug(criterios.CRITERIO_DA_CASA)
     materia = (simulado.get("materia") or {}).get("codigo") if simulado.get("materia") else None
-    ciclo = simulado.get("ciclo") or {}
-    vest = ciclo.get("vestibular_alvo")
-    tipo = simulado.get("tipo")
-    if vest == "ITA" and tipo == "fase_1" and materia == "ingles":
-        return CORTE_INGLES_ITA_F1
-    return NOTA_CORTE_FASE_2
+    if materia:
+        corte = criterios.corte_da_materia(regua, materia)
+        if corte is not None:
+            return corte
+    return criterios.corte_da_media(regua)
 
 
 def recalcular_simulado(
@@ -127,7 +136,7 @@ def recalcular_simulado(
     *,
     simulado_id: str,
     nota_maxima: float,
-    corte: float = NOTA_CORTE_FASE_2,
+    corte: float | None,
 ) -> None:
     """Recalcula as 3 visões de métrica de um simulado.
 
@@ -135,6 +144,10 @@ def recalcular_simulado(
     escala 0–10, não na escala do simulado original. Razão: a coluna
     `Points Possible` do Canvas representa o número de questões, e a "nota"
     sempre é interpretada como (acertos / total) * 10.
+
+    `corte` é obrigatório e vem de `corte_aplicavel`. Era um default de 4,0 —
+    uma quinta cópia da regra de corte, escondida numa assinatura, esperando
+    o primeiro chamador que esquecesse de passar o valor certo.
     """
     notas_presentes, n_ausentes = _carregar_notas(cliente, simulado_id, nota_maxima=nota_maxima)
 
@@ -240,7 +253,7 @@ def _salvar(
     recorte_id: str | None,
     valores: list[float],
     n_ausentes: int,
-    corte: float,
+    corte: float | None,
 ) -> None:
     """Upserta uma linha em `metrica_simulado`. Os valores estão sempre
     em escala 0–10 (normalizados em `_carregar_notas`)."""

@@ -2,21 +2,44 @@
 // evolucaoAluno.test.ts.
 
 import type { PontoEvolucao, SerieEvolucao } from '../componentes/ui/LinhaEvolucao';
+import { corteDaMateria, eliminaSozinho, rotuloDoCorte } from './criterios';
 import type { FiltroSimulados } from './simulados';
-import type { Simulado } from '../tipos/dominio';
+import type { CriterioClassificacao, Simulado } from '../tipos/dominio';
 
 /**
- * Corte adaptativo. Inglês na Fase 1 do ITA é eliminatório com corte 5; nas
- * demais matérias o corte de avaliação é 4. Quando o filtro recorta
- * exatamente esse caso, mostramos o corte correspondente.
+ * Qual linha de corte desenhar, dado o recorte do filtro e a régua em uso.
+ *
+ * Aqui havia a terceira cópia da regra de corte — `if (inglês && ITA && F1)
+ * return 5; return 4` —, sobrevivente da limpeza da Sprint 2 porque ela olhou
+ * o Painel e não os gráficos. Os dois números estavam errados: a régua da casa
+ * põe o inglês em 4,0 e o ITA pede 5 de 12 (§4.6.2.1), que é 4,17.
+ *
+ * Esta função não decide mais o corte: ela **escolhe qual** dos cortes que o
+ * servidor já resolveu se aplica ao recorte aberto. Com uma matéria só
+ * selecionada, o corte é o dela; com várias ou nenhuma, não há linha única
+ * honesta a desenhar e cai no corte da média.
  */
-export function decidirCorte(f: FiltroSimulados): { valor: number; rotulo: string } {
-  const soIngles = f.materias.size === 1 && f.materias.has('ingles');
-  const soITA = f.vestibulares.size === 1 && f.vestibulares.has('ITA');
-  const soF1 = f.fases.size === 1 && f.fases.has('fase_1');
+export function decidirCorte(
+  f: FiltroSimulados,
+  criterio?: CriterioClassificacao | null,
+): { valor: number; rotulo: string } | null {
+  if (!criterio) return null;
 
-  if (soIngles && soITA && soF1) return { valor: 5, rotulo: 'corte 5 (eliminatório)' };
-  return { valor: 4, rotulo: 'corte 4' };
+  // Três casos, e o do meio é o que estava errado:
+  //   nenhuma matéria → as séries são a MÉDIA do aluno por ciclo, e o corte é
+  //                     o que a régua exige da média;
+  //   uma matéria     → o corte daquela matéria;
+  //   várias          → cada série é uma matéria com notas individuais, não
+  //                     uma média. Desenhar a exigência de média sobre elas
+  //                     põe a linha em 5,0 quando a régua aprova com 4,0.
+  //                     O corte comum é o genérico ("qualquer disciplina").
+  const materia = f.materias.size === 1 ? [...f.materias][0] : null;
+  const valor = f.materias.size === 0
+    ? criterio.corteMedia ?? criterio.corteGenerico ?? null
+    : corteDaMateria(criterio, materia);
+  if (valor == null) return null;
+
+  return { valor, rotulo: rotuloDoCorte(valor, eliminaSozinho(criterio, materia)) };
 }
 
 /**
@@ -59,6 +82,7 @@ export function montarSeries(
       });
     }
 
+    for (const serie of porMateria.values()) serie.pontos.sort(cronologica);
     return [...porMateria.values()].sort((a, b) => a.nome.localeCompare(b.nome));
   }
 
@@ -111,7 +135,23 @@ export function montarSeries(
     abandonoProvavel: false,
   }));
 
+  pontos.sort(cronologica);
   return [{ nome: 'Média do aluno por ciclo', pontos }];
+}
+
+/**
+ * Do mais antigo para o mais recente.
+ *
+ * `GET /simulados` devolve `.order("data_aplicacao", desc=True)` — mais NOVO
+ * primeiro — e nada entre a API e aqui reordena. O gráfico escapava porque
+ * `LinhaEvolucao` ordena por `cicloOrdem` antes de desenhar; quem lia o array
+ * cru era a frase da camada leigo, que dizia "subiu de 4,0 para 8,0" acima de
+ * uma linha que descia. Ordenar na origem conserta os dois de uma vez.
+ */
+function cronologica(a: PontoEvolucao, b: PontoEvolucao): number {
+  const ordem = (a.cicloOrdem ?? 0) - (b.cicloOrdem ?? 0);
+  if (ordem !== 0) return ordem;
+  return (a.dataAplicacao ?? '').localeCompare(b.dataAplicacao ?? '');
 }
 
 /** Eixo X do gráfico: os ciclos presentes no recorte, em ordem. */

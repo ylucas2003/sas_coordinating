@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { Artefato } from './Artefato';
+import { useContextoDaTela } from '../layout/migalhas';
 import { Markdown } from './Markdown';
 import { Mensagem } from './Mensagem';
 import { ToolTrace } from './ToolTrace';
 import { ESTADO_INICIAL, reduzirEvento } from '../../dominio/chatStream';
 import type { EstadoStream } from '../../dominio/chatStream';
 import * as api from '../../servicos/api';
+import type { ContextoDaTela } from '../../dominio/contextoDaTela';
 import type { ChatThreadDetalhe, GrupoSugestoes, MensagemChat } from '../../tipos/chat';
 
 interface Props {
@@ -14,6 +16,8 @@ interface Props {
   onTituloAtualizado: (titulo: string) => void;
   sugestoes: GrupoSugestoes[];
   capacidades: string[];
+  /** Quando presente, as sugestões passam a depender da tela aberta. */
+  derivarSugestoes?: (ctx: ContextoDaTela) => GrupoSugestoes[];
 }
 
 /**
@@ -23,7 +27,10 @@ interface Props {
  * do SSE passam pelo reducer e o React desenha. Quando o `end` chega, o texto
  * cru dá lugar ao markdown final e aos artefatos.
  */
-export function Conversa({ thread, onTituloAtualizado, sugestoes, capacidades }: Props) {
+export function Conversa({
+  thread, onTituloAtualizado, sugestoes, capacidades, derivarSugestoes,
+}: Props) {
+  const contexto = useContextoDaTela();
   // `?? []` porque uma thread sem `mensagens` (payload inesperado da API) não
   // pode derrubar o componente — o chat abre vazio, e não quebrado.
   const [historico, setHistorico] = useState<MensagemChat[]>(thread.mensagens ?? []);
@@ -66,9 +73,11 @@ export function Conversa({ thread, onTituloAtualizado, sugestoes, capacidades }:
     setStream(ESTADO_INICIAL);
 
     try {
+      // O contexto é lido AGORA, e não na montagem: o painel não bloqueia a
+      // navegação, então a tela pode ter mudado desde que a conversa abriu.
       await api.enviarChatMensagem(thread.id, texto, (evento) => {
         setStream((atual) => reduzirEvento(atual ?? ESTADO_INICIAL, evento));
-      });
+      }, contexto);
     } catch (e) {
       setErroEnvio((e as Error).message || String(e));
     } finally {
@@ -77,7 +86,12 @@ export function Conversa({ thread, onTituloAtualizado, sugestoes, capacidades }:
     }
   }
 
-  const mostrarSugestoes = historico.length === 0 && sugestoes.length > 0 && !stream;
+  // As sugestões seguem a tela: abrir o chat na ficha do Ciclo 6 tem que
+  // oferecer perguntas sobre o Ciclo 6 (docs/31 §2.5). Quem passa a lista fixa
+  // (o Tio Léo do aluno) continua vendo a dele — `derivar` só existe no
+  // launcher da coordenação.
+  const grupos = derivarSugestoes ? derivarSugestoes(contexto) : sugestoes;
+  const mostrarSugestoes = historico.length === 0 && grupos.length > 0 && !stream;
 
   return (
     <section className="chat-conversa">
@@ -89,7 +103,7 @@ export function Conversa({ thread, onTituloAtualizado, sugestoes, capacidades }:
         )}
 
         {mostrarSugestoes && (
-          <Sugestoes grupos={sugestoes} capacidades={capacidades} onEscolher={enviar} />
+          <Sugestoes grupos={grupos} capacidades={capacidades} onEscolher={enviar} />
         )}
       </div>
 

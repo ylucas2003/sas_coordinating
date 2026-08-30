@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 from ..auth import get_current_user
 from ..config import get_settings
 from ..supabase_client import get_supabase
-from . import agente, perfis
+from . import agente, navegacao, perfis
 
 log = logging.getLogger("sas.chat.rotas")
 
@@ -164,6 +164,9 @@ class PatchThread(BaseModel):
 
 class NovaMensagem(BaseModel):
     conteudo: str
+    #: Em que tela o usuário estava ao mandar isto (docs/31 §P2). Opcional:
+    #: cliente antigo, ou tela sem nada a declarar, seguem funcionando.
+    contexto: navegacao.ContextoDaTela | None = None
 
 
 # ─── GET /chat/threads ────────────────────────────────────────────────────
@@ -362,17 +365,30 @@ async def enviar_mensagem(
     # Perfil define prompt/tools/modelo: aluno conversa com o mentor (tools
     # restritas ao próprio aluno_id); coordenador com o assistente staff.
     tipo = user.get("tipo")
+    preambulo: str | None = None
     if tipo == "aluno":
         perfil = perfis.perfil_aluno(user["aluno_id"], user.get("nome") or "")
+        # O contexto de tela NÃO vale para o aluno, e o `preambulo` fica None.
+        #
+        # Todo o isolamento do mentor está em `perfil_aluno`, que amarra as
+        # tools ao `aluno_id` do JWT. O preâmbulo passaria por fora desse
+        # portão: ele resolve nomes no banco com o cliente de serviço, então um
+        # aluno que POSTasse `contexto.entidade = {tipo: "aluno", id: <outro>}`
+        # leria o nome de um colega dentro do próprio system message — dado de
+        # menor de idade (CLAUDE.md §6). Além disso as telas do aluno nem estão
+        # em `derivarContexto`, que só conhece as rotas da coordenação.
     elif tipo == "coordenador":
         perfil = perfis.perfil_coordenador()
+        # Montado AQUI, com o cliente do request: ele lê o banco para nomear as
+        # entidades, e o nome que o browser mandou é descartado.
+        preambulo = navegacao.preambulo(cliente, body.contexto)
     else:
         # Nunca por omissão: o perfil de coordenação carrega as tools que leem
         # QUALQUER aluno, e era para cá que caía um token de download.
         raise HTTPException(status_code=403, detail="Token não autoriza uso do chat")
 
     return StreamingResponse(
-        _stream_mensagem(cliente, thread_id, usuario, texto, perfil),
+        _stream_mensagem(cliente, thread_id, usuario, texto, perfil, preambulo),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -390,6 +406,7 @@ async def _stream_mensagem(
     usuario: str,
     texto_user: str,
     perfil,
+    preambulo: str | None = None,
 ) -> AsyncIterator[bytes]:
     """Roda o agente e persiste tudo ao final.
 
@@ -433,6 +450,7 @@ async def _stream_mensagem(
         historico=historico,
         nova_msg_user=texto_user,
         perfil=perfil,
+        preambulo=preambulo,
     ):
         # Emite o evento bruto pro front.
         yield evt.formatar_sse().encode("utf-8")
@@ -617,7 +635,7 @@ def _proxima_ordem(cliente, thread_id: str) -> int:
 
 
 def _talvez_salvar_artefato(cliente, mensagem_id: str, nome_tool: str, resultado: dict) -> None:
-    """Persiste artefato se a tool gerou um (gerar_grafico ou exportar_csv)."""
+    """Persiste artefato se a tool gerou um (gráfico, CSV ou link de navegação)."""
     if not isinstance(resultado, dict):
         return
     if "erro" in resultado:
@@ -627,6 +645,15 @@ def _talvez_salvar_artefato(cliente, mensagem_id: str, nome_tool: str, resultado
         cliente.table("chat_artefato").insert({
             "mensagem_id": mensagem_id,
             "tipo": tipo,
+            "titulo": resultado.get("titulo"),
+            "payload": resultado.get("payload"),
+        }).execute()
+    elif nome_tool == "navegar_para" and tipo == "navegacao":
+        # Persistido como os outros artefatos: reabrir a conversa amanhã tem
+        # que devolver os mesmos links clicáveis, não um texto órfão.
+        cliente.table("chat_artefato").insert({
+            "mensagem_id": mensagem_id,
+            "tipo": "navegacao",
             "titulo": resultado.get("titulo"),
             "payload": resultado.get("payload"),
         }).execute()

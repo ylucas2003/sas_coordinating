@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 
+import { derivarContexto } from '../../dominio/contextoDaTela';
+import type { ContextoDaTela, RecorteDaTela } from '../../dominio/contextoDaTela';
+
 /**
  * Migalhas da topbar.
  *
@@ -20,11 +23,20 @@ export interface Migalha {
 const ContextoTitulo = createContext<{
   titulo: string | null;
   setTitulo: (t: string | null) => void;
-}>({ titulo: null, setTitulo: () => undefined });
+  recorte: RecorteDaTela | null;
+  setRecorte: (r: RecorteDaTela | null) => void;
+}>({
+  titulo: null, setTitulo: () => undefined,
+  recorte: null, setRecorte: () => undefined,
+});
 
 export function ProvedorMigalhas({ children }: { children: ReactNode }) {
   const [titulo, setTitulo] = useState<string | null>(null);
-  const valor = useMemo(() => ({ titulo, setTitulo }), [titulo]);
+  const [recorte, setRecorte] = useState<RecorteDaTela | null>(null);
+  const valor = useMemo(
+    () => ({ titulo, setTitulo, recorte, setRecorte }),
+    [titulo, recorte],
+  );
   return <ContextoTitulo.Provider value={valor}>{children}</ContextoTitulo.Provider>;
 }
 
@@ -38,6 +50,38 @@ export function useTituloDaTela(texto: string | null | undefined) {
     setTitulo(texto ?? null);
     return () => setTitulo(null);
   }, [texto, setTitulo]);
+}
+
+/**
+ * Declara o recorte que a tela está mostrando — ciclo, fase, régua, filtros.
+ *
+ * Existe pelo mesmo motivo do `useTituloDaTela`: é informação que só a tela
+ * tem. A diferença é o consumidor — o título vai para a migalha, o recorte vai
+ * para o assistente, que sem ele não sabe do que "e a Física?" está falando
+ * (docs/31 §P2). O Painel guarda esses filtros em `useState` e eles não
+ * aparecem na URL, então não há como deduzi-los da rota.
+ *
+ * Passe um objeto MEMOIZADO: ele entra na dependência do efeito.
+ */
+export function useRecorteDaTela(recorte: RecorteDaTela | null | undefined) {
+  const { setRecorte } = useContext(ContextoTitulo);
+  useEffect(() => {
+    setRecorte(recorte ?? null);
+    return () => setRecorte(null);
+  }, [recorte, setRecorte]);
+}
+
+/**
+ * O contexto completo da navegação, para quem precisa saber onde o usuário
+ * está — hoje, só o chat.
+ */
+export function useContextoDaTela(): ContextoDaTela {
+  const { pathname } = useLocation();
+  const { titulo, recorte } = useContext(ContextoTitulo);
+  return useMemo(
+    () => derivarContexto(pathname, titulo, recorte),
+    [pathname, titulo, recorte],
+  );
 }
 
 const PROVAS = { texto: 'Provas', para: '/provas' };

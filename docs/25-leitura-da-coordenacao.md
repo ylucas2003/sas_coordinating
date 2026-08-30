@@ -237,19 +237,25 @@ plataforma" — está certo, e o gargalo não é a lista de tools.
 
 ### 4.2 Os três gargalos reais
 
-1. **O chat é modal e bloqueia a tela.** É a D.1 do [docs/10](10-problemas-e-visao.md),
-   descrita lá como *o item mais barato do documento* — apagar um overlay.
-   Enquanto ele bloquear, "conversar sobre a tela" é impossível por
-   construção.
-2. **Ele não sabe onde a pessoa está.** D.4. Perguntar "e esse aluno?" não tem
-   referente. Uma tool de contexto de rota resolve.
+> *Sobraram dois — o primeiro já estava resolvido quando este documento foi escrito (30/08).*
+
+1. ~~**O chat é modal e bloqueia a tela.**~~ ✅ **Já estava resolvido quando
+   este documento foi escrito**, e ninguém tinha registrado: o `.chat-overlay`
+   saiu na migração React (`c1e0a5f`) e o painel passou a empurrar o conteúdo
+   acima de 900px. Ver [10 §1.6.4](10-problemas-e-visao.md#164-o-chat-bloqueia-a-navegação-enquanto-está-aberto).
+2. ~~**Ele não sabe onde a pessoa está.**~~ ✅ **Feito na Sprint 5 · P2**
+   (escrito, fora de produção): o contexto da tela viaja com cada mensagem e
+   vira preâmbulo do turno, e o `navegar_para` faz o caminho de volta.
 3. **Cada tool responde uma pergunta; nada compõe.** "Cruzamento de dados" no
    sentido do áudio é o modelo encadear tools — e para isso ele precisa de
    tools que devolvam *dado*, não texto pronto. Vale auditar quais das 26 já
    devolvem estrutura encadeável e quais devolvem prosa.
 
-As três já estão na **Sprint 5** ([19 §3](19-roadmap.md), P1/P2/P3). O áudio
-não pede sprint nova — pede que ela suba de prioridade.
+Sobra o terceiro. Os outros dois foram fechados: o primeiro já estava, e o
+segundo saiu na **Sprint 5 · P2** ([31-plano-sprint-5.md](31-plano-sprint-5.md)).
+O áudio não pediu sprint nova — pediu que ela subisse de prioridade, e ela subiu.
+A auditoria do gargalo 3 (quais das 30 tools devolvem *dado* e quais devolvem
+prosa) segue por fazer.
 
 ### 4.3 Sobre MCP
 
@@ -303,9 +309,9 @@ Quase nada aqui é sprint nova. É prioridade:
 |---|---|---|
 | Nomes grandes de filtro | Sprint 4 · P3 (C.2) | proposta |
 | Range de período | Sprint 4 · P4 (C.3) | proposta |
-| Chat que bloqueia a tela | Sprint 5 · P1 (D.1) | proposta — *"o mais barato do documento 10"* |
-| Chat sem saber a rota | Sprint 5 · P2 (D.4) | proposta |
-| Chat com lacunas de tool | Sprint 5 · P3 (D.2 + D.3) | proposta |
+| Chat que bloqueia a tela | D.1 | ✅ **já estava feito** (migração React) |
+| Chat sem saber a rota | Sprint 5 · P2 (D.4) | ✅ escrita, fora de produção |
+| Chat com lacunas de tool | Sprint 5 · P3 (D.3) | ✅ escrita, fora de produção — 30 tools |
 | **Colapso da faixa de filtros** | — | **novo** |
 | **Busca padronizada** | — | **novo** |
 | **`/banco` fora da `BarraFiltros`** | — | **novo (dívida de C.1)** |

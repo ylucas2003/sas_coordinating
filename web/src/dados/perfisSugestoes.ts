@@ -1,3 +1,4 @@
+import type { ContextoDaTela } from '../dominio/contextoDaTela';
 import type { GrupoSugestoes } from '../tipos/chat';
 
 // Abertura da conversa por perfil de usuário.
@@ -10,7 +11,7 @@ import type { GrupoSugestoes } from '../tipos/chat';
 // Duas coisas por perfil:
 //
 //   SUGESTOES  — exemplos clicáveis, agrupados por INTENÇÃO. Agrupar importa
-//                porque 26 tools não cabem em quatro frases soltas: o que o
+//                porque 30 tools não cabem em quatro frases soltas: o que o
 //                usuário precisa perceber não é a lista, é que existem
 //                categorias de coisa que dá pra pedir.
 //   CAPACIDADES — a resposta honesta pra "o que você sabe fazer?", em
@@ -57,9 +58,12 @@ export const CAPACIDADES_COORDENADOR: string[] = [
   'Listar alunos por zona, perfil, tendência, turma ou sede',
   'Estatísticas de ciclo, trajetória de aluno e histograma de simulado',
   'Apontar alunos em risco, destaques e matérias problemáticas',
-  'Comparar ciclos e achar alunos com desempenho parecido',
+  'Mostrar as questões que a turma mais errou num simulado',
+  'Comparar ciclos, alunos ou simulados lado a lado',
+  'Achar alunos com desempenho parecido',
   'Montar relatórios de aluno e de ciclo',
   'Gerar gráficos e exportar CSV',
+  'Levar você até a ficha de um aluno, ciclo ou simulado',
 ];
 
 export const SUGESTOES_ALUNO: GrupoSugestoes[] = [
@@ -84,6 +88,81 @@ export const SUGESTOES_ALUNO: GrupoSugestoes[] = [
     ],
   },
 ];
+
+/**
+ * A abertura do coordenador, ajustada à tela em que ele está.
+ *
+ * Regra que fecha a porta para promessa vazia, e vale tanto para as sugestões
+ * fixas acima quanto para as geradas aqui: **toda frase tem que ter tool por
+ * trás.** Uma sugestão que o agente não consegue cumprir é pior que sugestão
+ * nenhuma — ensina a não confiar no que ele oferece.
+ *
+ * Fora das telas cobertas, devolve a lista fixa. Contexto ruim é o mesmo que
+ * contexto nenhum, e não vale inventar grupo para preencher espaço.
+ */
+export function sugestoesDoCoordenador(ctx: ContextoDaTela | null): GrupoSugestoes[] {
+  const nome = ctx?.entidade?.nome;
+
+  if (ctx?.entidade?.tipo === 'aluno' && nome) {
+    return [
+      {
+        grupo: `Sobre ${nome}`,
+        exemplos: [
+          `Como está o ${nome}?`,
+          `Monte o relatório do ${nome}`,
+          `Quem tem desempenho parecido com o ${nome}?`,
+          `A tendência do ${nome} é de alta ou de queda?`,
+        ],
+      },
+      ...SUGESTOES_COORDENADOR.filter((g) => g.grupo !== 'Encontrar'),
+    ];
+  }
+
+  if (ctx?.entidade?.tipo === 'ciclo' && nome) {
+    return [
+      {
+        grupo: `Sobre ${nome}`,
+        exemplos: [
+          `Como foi o ${nome}?`,
+          `Em quais matérias focar depois do ${nome}?`,
+          `Compare o ${nome} com o ciclo anterior`,
+          `Quem está em risco no ${nome}?`,
+        ],
+      },
+      ...SUGESTOES_COORDENADOR.filter((g) => g.grupo === 'Gerar'),
+    ];
+  }
+
+  if (ctx?.entidade?.tipo === 'simulado' && nome) {
+    return [
+      {
+        grupo: `Sobre ${nome}`,
+        exemplos: [
+          `Como foi o ${nome}?`,
+          `Mostre o histograma do ${nome}`,
+          `Quem ficou abaixo do corte no ${nome}?`,
+        ],
+      },
+      ...SUGESTOES_COORDENADOR.filter((g) => g.grupo === 'Gerar'),
+    ];
+  }
+
+  if (ctx?.tela === 'painel' && ctx.recorte?.cicloId) {
+    return [
+      {
+        grupo: 'Sobre o que está na tela',
+        exemplos: [
+          'Quem está em risco neste recorte?',
+          'Em quais matérias devo focar agora?',
+          'Tem algum alerta pendente?',
+        ],
+      },
+      ...SUGESTOES_COORDENADOR.filter((g) => g.grupo !== 'Diagnosticar'),
+    ];
+  }
+
+  return SUGESTOES_COORDENADOR;
+}
 
 export const CAPACIDADES_ALUNO: string[] = [
   'Mostrar suas notas e como você foi em cada simulado',

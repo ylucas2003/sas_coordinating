@@ -26,8 +26,10 @@
 
 ## 1 · Em produção hoje (`portalsas.online`)
 
-Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0036**.
-Testes: **223** no backend, **191** no front. Banco de questões: **2.693**.
+Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0036**
+(a `0037` e a `0038` existem, aplicadas só no banco local — ver a Sprint 5 em
+[§3](#3--próximos-ciclos--proposta)).
+Testes: **279** no backend, **233** no front. Banco de questões: **2.693**.
 
 ### Sprint 1 · Bloco A — o simulado nasce no SAS *(17–20/08)*
 
@@ -262,7 +264,7 @@ O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já te
 
 **Pré-voo:** a decisão do WhatsApp ([§4](#4--decisões-em-aberto)). Sem ela, P1 se desenha errado.
 
-### Sprint 4 · Dado e leitura — *6 partes*
+### Sprint 4 · Dado e leitura — *5 partes*
 
 | Parte | O quê | Origem |
 |---|---|---|
@@ -270,18 +272,38 @@ O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já te
 | P2 | B.4 Precedência entre ingest de planilha e sync do Canvas | docs/10 |
 | P3 | C.2 Split ano / vestibular / ciclo no Painel | docs/10 |
 | P4 | C.3 Range de período em Ciclos | docs/10 |
-| P5 | Corte na Fase 1 via `classificacao_aluno.zona` — unificar `thresholds.py` com `criterios.py` (A5) | Sprint 2, Onda 3 |
 | P6 | Envio em lote ao Canvas — "enviar N pendências do ciclo" (C5) | Sprint 2, Onda 3 |
 
-### Sprint 5 · Assistente e gráficos em camadas — *5 partes*
+> A antiga **P5** (unificar `thresholds.py` com `criterios.py`) **saiu daqui**:
+> foi puxada para a Sprint 5 em 30/08, porque os gráficos em camadas dependem
+> dela para não desenhar três leituras do mesmo corte errado. A numeração das
+> outras não mudou, para não invalidar referência de fora.
 
-| Parte | O quê | Origem |
-|---|---|---|
-| P1 | D.1 Painel não-modal | docs/10 |
-| P2 | D.4 Consciência de rota (chat ↔ página) | docs/10 |
-| P3 | D.2 + D.3 Apresentação da abertura; lacunas de tools | docs/10 |
-| P4 | **UI de critérios do coordenador** — o formato da Sprint 2 já nasceu pronto; falta a tela (A7) | [18 §1.10](18-plano-sprint-2.md#110-futuro-critérios-criados-pelo-coordenador) |
-| P5 | Gráficos em camadas: leigo → insight → estatística | visão de produto |
+### Sprint 5 · Assistente com contexto, régua do coordenador e gráficos — *5 partes*
+
+⚠️ **Reescopada em 30/08** depois de um levantamento no código: duas das cinco
+partes propostas já estavam feitas, no todo ou em parte, sem registro em
+documento nenhum. Plano completo em
+[31-plano-sprint-5.md](31-plano-sprint-5.md).
+
+> **Estado: ESCRITA, fora de produção** *(30/08)*. As cinco partes estão
+> implementadas e testadas localmente — 279 testes na API, 233 no front,
+> migrations `0037` e `0038` com `up`/`down`/`up` limpos, e o fluxo da P4
+> exercitado contra os 319 alunos do Ciclo 1 · IME. Uma revisão adversarial de
+> 13 agentes achou **23 defeitos**, todos consertados antes do PR — inclusive
+> uma frase que dizia "subiu" para um aluno que caiu, e um preâmbulo de chat
+> que deixava um aluno ler o nome de outro. **Falta o deploy** e a verificação
+> visual a 360/390px. Com isto, a §1.5 deste documento — "não há mais nada
+> escrito fora de produção" — deixa de valer até o próximo deploy.
+
+| Parte | O quê | No levantamento de 30/08 (antes de escrever) | Hoje |
+|---|---|---|---|
+| — | ~~D.1 Painel não-modal~~ | ✅ **já estava feito** na migração React (`c1e0a5f`) | saiu do sprint |
+| **P1** | Régua única: unificar `thresholds.py` com `criterios.py` (+ `0037`) | era Sprint 4 · P5, puxada para cá | ✅ escrita |
+| **P2** | D.4 Consciência de rota (chat ↔ página, + `0038`) | ⏳ intocado | ✅ escrita |
+| **P3** | D.3 As três lacunas de tool que sobraram | 🟡 5 das 6 já fechadas por `chat/tools/contexto.py`; D.2 (abertura) ✅ | ✅ escrita — 30 tools |
+| **P4** | O coordenador cria a própria régua (A7) | ⚠️ faltava a tela **e** o leitor DB→`Criterio` **e** o CRUD versionado | ✅ escrita |
+| **P5** | Gráficos em camadas: leigo → insight → estatística | ⏳ intocado | ✅ escrita |
 
 ### Sprint 6 · O assunto entra no simulado — *4 partes*
 

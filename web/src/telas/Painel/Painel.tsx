@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Kpi } from '../../componentes/ui/Kpi';
+import { EdicaoCriterio } from '../../componentes/dialogos/EdicaoCriterio';
+import { SeletorCriterio } from '../../componentes/ui/SeletorCriterio';
 import { BarraFiltros, Pills, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
 import { FichaNota } from '../../componentes/dialogos/FichaNota';
 import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
@@ -13,6 +15,7 @@ import {
   useSedes, useSimulados, useTurmas,
 } from '../../hooks/consultas';
 import { useEditarNota } from '../../hooks/mutacoes';
+import { useRecorteDaTela } from '../../componentes/layout/migalhas';
 import { fmtNota } from '../../util/formato';
 import type { AlunoClassificado, CriterioClassificacao } from '../../tipos/dominio';
 
@@ -44,6 +47,7 @@ export function Painel() {
   const [recolhidos, setRecolhidos] = useState<ReadonlySet<number>>(new Set());
   const [emEdicao, setEmEdicao] = useState<{ alunoId: string; simuladoId: string } | null>(null);
   const [erroSalvar, setErroSalvar] = useState('');
+  const [criandoRegua, setCriandoRegua] = useState(false);
 
   const editarNota = useEditarNota();
 
@@ -62,6 +66,16 @@ export function Painel() {
     for (const a of classificacaoResp?.alunos ?? []) porAluno[a.alunoId] = a;
     return porAluno;
   }, [classificacaoResp]);
+
+  // O que o assistente precisa saber para "e a Física?" ter referente. É o
+  // Painel que declara porque estes filtros vivem em `useState` e não na URL.
+  useRecorteDaTela(useMemo(() => ({
+    cicloId: cicloAtivo?.id,
+    fase: fase === '1' ? (1 as const) : (2 as const),
+    criterio,
+    sedeIds: [...sedeIds],
+    turmaIds: [...turmaIds],
+  }), [cicloAtivo?.id, fase, criterio, sedeIds, turmaIds]));
 
   const alunosFiltrados = useMemo(() => {
     const q = normMateria(busca.trim());
@@ -192,7 +206,12 @@ export function Painel() {
               onEscolher={setFase}
             />
           )}
-          <SeletorCriterio criterios={criterios} valor={criterio} onEscolher={setCriterio} />
+          <SeletorCriterio
+            criterios={criterios}
+            valor={criterio}
+            onEscolher={setCriterio}
+            onCriar={() => setCriandoRegua(true)}
+          />
         </div>
       </div>
 
@@ -242,6 +261,20 @@ export function Painel() {
           simuladoId={emEdicao.simuladoId}
           notasPorSim={notasPorSim}
           onFechar={salvarNota}
+        />
+      )}
+
+      {criandoRegua && (
+        <EdicaoCriterio
+          cicloId={cicloAtivo?.id ?? null}
+          fase={fase === '1' ? 1 : 2}
+          onFechar={() => setCriandoRegua(false)}
+          onSalvo={(slug) => {
+            setCriandoRegua(false);
+            // Já entra em uso: quem acabou de descrever a régua quer vê-la
+            // aplicada, não procurá-la no seletor.
+            setCriterio(slug);
+          }}
         />
       )}
     </div>
@@ -326,29 +359,6 @@ function Segmento<V extends string>({
         </button>
       ))}
     </div>
-  );
-}
-
-/** Qual régua de corte está em uso — a do colégio ou a de um edital. */
-function SeletorCriterio({
-  criterios, valor, onEscolher,
-}: {
-  criterios: CriterioClassificacao[];
-  valor: string;
-  onEscolher: (slug: string) => void;
-}) {
-  if (!criterios.length) return null;
-  return (
-    <select
-      className="painel-criterio"
-      aria-label="Critério de classificação"
-      value={valor}
-      onChange={(ev) => onEscolher(ev.target.value)}
-    >
-      {criterios.map((c) => (
-        <option key={c.slug} value={c.slug}>{c.nome}</option>
-      ))}
-    </select>
   );
 }
 
