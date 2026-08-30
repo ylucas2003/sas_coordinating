@@ -1,0 +1,968 @@
+/* ─── O casco da área do aluno ───────────────────────────────────────────
+   Sub-marca própria, não o casco institucional da coordenação (docs/24 §7.1):
+   um aluno de 17 anos não volta todo dia a um sistema do colégio.
+
+   Celular: barra inferior de 4 itens.
+   Desktop (≥900px): rail de 240px · coluna de 640px · lateral de 320px.
+
+   ⚠️ Prefixo `alu-` em tudo. A coordenação não lê nada daqui, e nada daqui lê
+   `--color-*` — os dois sistemas convivem sem se tocar.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.alu-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background-color: var(--alu-fundo);
+  background-image:
+    linear-gradient(to right, var(--alu-grade) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--alu-grade) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--alu-texto);
+  font-family: var(--font-family);
+}
+
+/* ── Topo do celular ──────────────────────────────────────────────────────
+   TRÊS coisas, e é a lista literal do desenho: sequência, XP e avatar
+   (docs/24 §7). O selo à esquerda é a âncora de marca — no desktop ele é o
+   topo do rail e esta barra não existe.
+
+   ⚠️ Aqui NÃO entram saudação nem subtítulo. Eles estavam empurrando os
+   indicadores para cima da tarja e quebrando linha a 360px, e o nome do aluno
+   já aparece no `<h1>` da própria tela. Barra de topo de app de jogo mostra
+   estado, não texto. */
+
+.alu-topo {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  padding-top: max(9px, env(safe-area-inset-top));
+  background: color-mix(in srgb, var(--alu-fundo) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--alu-borda);
+}
+
+/* A marca do Colégio Ari de Sá.
+   
+   Desenhada por MÁSCARA, e não como <img>: o arquivo que temos é a versão
+   BRANCA, que sumiria no tema dia. Usar o alfa dele como máscara e pintar por
+   baixo dá a cor exata da marca em cada tema — navy no claro, branca no
+   escuro — com um asset só e sem filtro de cor aproximado.
+
+   ⚠️ O navy aqui é literal, e não `--alu-acao`: no tema noite a ação vira
+   OURO, e um logotipo institucional dourado não é a marca do colégio. Cor de
+   marca não é papel de interface — é a única cor deste arquivo que não vem dos
+   seis papéis, e é de propósito.
+
+   O asset é nosso e é servido da nossa origem: nada de CDN (regra 6 do
+   CLAUDE.md, dados de menores de idade). */
+.alu-marca {
+  --marca-cor: #1b3f8b;
+  width: 62px;
+  height: 31px;
+  flex-shrink: 0;
+  background-color: var(--marca-cor);
+  -webkit-mask: url(../assets/ari-logo-branca.png) left center / contain no-repeat;
+  mask: url(../assets/ari-logo-branca.png) left center / contain no-repeat;
+}
+
+.alu-marca--grande {
+  width: 84px;
+  height: 42px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='dia']) .alu-marca {
+    --marca-cor: #ffffff;
+  }
+}
+
+:root[data-tema='noite'] .alu-marca {
+  --marca-cor: #ffffff;
+}
+
+:root[data-tema='dia'] .alu-marca {
+  --marca-cor: #1b3f8b;
+}
+
+/* Os dois indicadores viajam juntos e encostados à direita, com o avatar
+   depois. `margin-left: auto` num só lugar mantém a marca colada à esquerda. */
+.alu-topo__indicadores {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.alu-topo__indicador {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  position: relative;
+  white-space: nowrap;
+}
+
+.alu-topo__indicador--sequencia {
+  color: var(--alu-sequencia);
+}
+
+.alu-topo__indicador--xp {
+  color: var(--alu-valor-texto);
+}
+
+.alu-topo__conta {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+/* O círculo do avatar. Antes vinha do `aluno.css` da área velha, que saiu
+   junto com ela — sem isto a inicial aparecia como letra solta. */
+.alu-avatar {
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--alu-superficie-2);
+  border: 1.5px solid var(--alu-borda);
+  color: var(--alu-texto);
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.alu-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Corpo ────────────────────────────────────────────────────────────── */
+
+.alu-corpo {
+  flex: 1;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-content: center;
+  align-items: start;
+  gap: 24px;
+  padding: 16px;
+  /* A barra inferior é fixa: sem a reserva, o último bloco fica embaixo dela. */
+  padding-bottom: calc(var(--alu-barra-inferior) + 28px + env(safe-area-inset-bottom));
+}
+
+.alu-centro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+  max-width: var(--alu-coluna);
+  margin: 0 auto;
+}
+
+.alu-rail,
+.alu-lateral {
+  display: none;
+}
+
+/* ── Barra inferior ───────────────────────────────────────────────────── */
+
+.alu-barra {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: color-mix(in srgb, var(--alu-fundo) 94%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--alu-borda);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.alu-barra__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: var(--alu-barra-inferior);
+  padding: 8px 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--alu-texto-2);
+  text-decoration: none;
+  /* O sublinhado do item ativo cresce daqui: a borda existe sempre, e só a cor
+     muda — assim o texto não salta 2px ao trocar de aba. */
+  border-top: 2px solid transparent;
+  margin-top: -1px;
+}
+
+.alu-barra__item:hover {
+  text-decoration: none;
+  color: var(--alu-texto);
+}
+
+/* ⚠️ Sublinhado de 2px na cor DADO, nunca pílula preenchida. A pílula rouba a
+   cor de ação para uma coisa que não é ação. */
+.alu-barra__item.is-ativo {
+  color: var(--alu-dado);
+  border-top-color: var(--alu-dado);
+}
+
+/* ── Desktop: três colunas ────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  .alu-topo {
+    display: none;
+  }
+
+  .alu-barra {
+    display: none;
+  }
+
+  .alu-corpo {
+    grid-template-columns: var(--alu-rail) minmax(0, var(--alu-coluna)) var(--alu-lateral);
+    gap: 28px;
+    padding: 24px;
+    padding-bottom: 24px;
+    max-width: calc(var(--alu-rail) + var(--alu-coluna) + var(--alu-lateral) + 56px + 48px);
+    margin: 0 auto;
+  }
+
+  .alu-rail,
+  .alu-lateral {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: sticky;
+    top: 24px;
+    /* `align-self: start` já vem do `align-items` do grid; o max-height é o que
+       deixa a coluna rolar sozinha quando tem mais widget que tela. */
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .alu-rail__topo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 6px 10px 16px;
+  }
+
+  .alu-rail__marca-sub {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--alu-texto-2);
+    line-height: 1.25;
+  }
+
+  .alu-rail__nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .alu-rail__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: var(--alu-toque);
+    padding: 11px 14px;
+    border-radius: var(--alu-raio-pequeno);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--alu-texto-2);
+    text-decoration: none;
+  }
+
+  .alu-rail__item:hover {
+    text-decoration: none;
+    background: var(--alu-superficie);
+    color: var(--alu-texto);
+  }
+
+  /* No rail o item ativo PODE ser preenchido: aqui ele não compete com botão
+     nenhum, e o preenchimento é o que dá âncora numa coluna de 240px. */
+  .alu-rail__item.is-ativo {
+    background: var(--alu-dado);
+    color: #ffffff;
+  }
+
+  .alu-rail__rodape {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 10px 4px;
+    border-top: 1px solid var(--alu-borda);
+  }
+
+  .alu-rail__nome {
+    font-size: 14px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ── Blocos ───────────────────────────────────────────────────────────── */
+
+.alu-bloco {
+  position: relative;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alu-bloco--nu {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.alu-bloco__topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.alu-bloco__acao {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-titulo-tela {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--alu-magnitude);
+  margin: 4px 0 2px;
+}
+
+.alu-vazio {
+  color: var(--alu-texto-2);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.alu-carregando {
+  color: var(--alu-texto-2);
+  font-size: 14px;
+  padding: 28px 0;
+  text-align: center;
+}
+
+/* ── A tarja de fonte (só em desenvolvimento) ─────────────────────────── */
+
+.alu-tarja {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 2;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 4px;
+  pointer-events: none;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.72;
+}
+
+/* Duas marcas porque são dois problemas: 'mock' não tem nem dado; 'sem rota'
+   tem o dado no servidor e falta a rota. Ver TarjaFonte.tsx. */
+.alu-tarja--mock {
+  background: var(--alu-alerta);
+  color: #ffffff;
+}
+
+.alu-tarja--sem-rota {
+  background: transparent;
+  color: var(--alu-texto-2);
+  border: 1px solid var(--alu-borda);
+}
+
+/* Variante de ponto: mesma marca, sem a palavra. Existe porque na barra de
+   topo a tarja escrita cobria justamente o número que ela qualificava. Encolhe
+   a tinta, não a honestidade — o `title` continua explicando. */
+.alu-tarja--ponto {
+  top: -3px;
+  right: -6px;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border-radius: 50%;
+  opacity: 1;
+}
+
+/* ── A corrente da sequência ──────────────────────────────────────────── */
+
+.alu-corrente {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.alu-elo {
+  width: var(--elo, 26px);
+  height: var(--elo, 26px);
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.alu-elo__rotulo {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.alu-elo--presente {
+  background: var(--alu-sequencia);
+  color: #ffffff;
+}
+
+/* VAZIO É VAZADO: a falta é contorno, nunca vermelho preenchido. */
+.alu-elo--falta {
+  background: transparent;
+  border: 1.5px solid var(--alu-borda);
+  color: var(--alu-texto-2);
+}
+
+/* O próximo é anelado na cor SEQUENCIA — ele é a continuação da corrente. */
+.alu-elo--proximo {
+  background: transparent;
+  border: 1.5px dashed var(--alu-sequencia);
+  color: var(--alu-sequencia);
+}
+
+.alu-sequencia__leitura {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--alu-texto);
+}
+
+.alu-sequencia__recorde {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--alu-texto-2);
+}
+
+/* ── Contagem regressiva ──────────────────────────────────────────────── */
+
+.alu-contagem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* O aperto (0 a 1) escala o numeral e acende a borda. Uma variável, e não
+     quatro estados escritos à mão — docs/24 §7.1, regra 3. */
+  --tamanho-numero: calc(34px + 22px * var(--aperto, 0));
+}
+
+.alu-contagem__chamada {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.alu-contagem__numero {
+  font-size: var(--tamanho-numero);
+  /* Quieto de longe, SEQUENCIA de perto: a urgência aparece na cor só quando é
+     real. `color-mix` faz a transição sem dois estados codificados. */
+  color: color-mix(
+    in srgb,
+    var(--alu-sequencia) calc(var(--aperto, 0) * 100%),
+    var(--alu-magnitude)
+  );
+}
+
+.alu-contagem__unidade {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+}
+
+.alu-contagem__contexto {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--alu-texto-2);
+}
+
+.alu-contagem__barra {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--alu-superficie-2);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.alu-contagem__barra-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--alu-dado);
+}
+
+.alu-contagem__data {
+  margin: 0;
+  font-size: 12px;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-contagem--compacta .alu-contagem__numero {
+  font-size: calc(26px + 14px * var(--aperto, 0));
+}
+
+/* ── Barras contra o corte ────────────────────────────────────────────── */
+
+.alu-corte {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alu-corte__valor,
+.alu-corte__materia {
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-corte__valor {
+  font-size: 13px;
+  font-weight: 800;
+  fill: var(--alu-magnitude);
+}
+
+/* A letra da matéria é o eixo X do gráfico: sem ela as barras são cinco
+   retângulos sem assunto. Fica em 11px e não em 10 porque a 360px, com cinco
+   colunas, 10px em maiúscula espaçada some. */
+.alu-corte__materia {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  fill: var(--alu-texto-2);
+}
+
+.alu-corte__etiquetas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.alu-corte__etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.alu-corte__etiqueta-texto {
+  font-size: 12px;
+  color: var(--alu-texto-2);
+}
+
+.alu-corte__etiqueta-texto strong {
+  color: var(--alu-alerta);
+  font-weight: 700;
+}
+
+/* ── A folha ──────────────────────────────────────────────────────────── */
+
+.alu-folha-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(5, 10, 24, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.alu-folha {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  background: var(--alu-fundo);
+  border-top: 1px solid var(--alu-borda);
+  border-radius: 24px 24px 0 0;
+  max-height: 92dvh;
+  outline: none;
+}
+
+.alu-folha--espiada {
+  height: 34dvh;
+}
+
+.alu-folha--meio {
+  height: 62dvh;
+}
+
+.alu-folha--cheio {
+  height: 92dvh;
+}
+
+.alu-folha__alca {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--alu-borda);
+  margin: 8px auto 2px;
+  flex-shrink: 0;
+}
+
+.alu-folha__topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid var(--alu-borda);
+  flex-shrink: 0;
+}
+
+.alu-folha__marca {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--alu-superficie);
+  border: 1px solid var(--alu-borda);
+}
+
+.alu-folha__titulos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.alu-folha__titulo {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.alu-folha__subtitulo {
+  font-size: 11px;
+  color: var(--alu-texto-2);
+  line-height: 1.3;
+}
+
+.alu-folha__acoes {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.alu-folha__botao-icone {
+  width: var(--alu-toque);
+  height: var(--alu-toque);
+  display: grid;
+  place-items: center;
+  border-radius: var(--alu-raio-pequeno);
+  color: var(--alu-texto-2);
+}
+
+.alu-folha__botao-icone:hover {
+  background: var(--alu-superficie);
+  color: var(--alu-texto);
+}
+
+.alu-folha__corpo {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.alu-folha__rodape {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--alu-borda);
+  background: var(--alu-fundo);
+}
+
+/* No desktop a folha vira painel lateral e deixa de ser modal: a página
+   continua utilizável, que é o pedido do docs/10 (docs/27 §8). */
+@media (min-width: 900px) {
+  .alu-folha-fundo {
+    background: none;
+    pointer-events: none;
+    align-items: stretch;
+    justify-content: flex-end;
+  }
+
+  .alu-folha {
+    pointer-events: auto;
+    width: 400px;
+    max-width: 400px;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border-left: 1px solid var(--alu-borda);
+    border-top: none;
+    box-shadow: -12px 0 32px rgba(5, 10, 24, 0.12);
+  }
+
+  .alu-folha__alca {
+    display: none;
+  }
+}
+
+/* ── O botão flutuante do Tio Léo ─────────────────────────────────────── */
+
+.alu-fab {
+  position: fixed;
+  right: 16px;
+  /* Acima da barra inferior e respeitando a safe area. */
+  bottom: calc(var(--alu-barra-inferior) + 14px + env(safe-area-inset-bottom));
+  z-index: 40;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--alu-acao);
+  color: var(--alu-acao-texto);
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-acao-base);
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+
+.alu-fab:active {
+  transform: translateY(var(--alu-tecla));
+  box-shadow: 0 0 0 0 var(--alu-acao-base);
+}
+
+@media (min-width: 900px) {
+  .alu-fab {
+    bottom: 24px;
+    right: 24px;
+  }
+}
+
+/* ── Conta: a folha de perfil ─────────────────────────────────────────── */
+
+.alu-conta__linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--alu-toque);
+  padding: 10px 12px;
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid var(--alu-borda);
+  background: var(--alu-superficie);
+  color: var(--alu-texto);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  width: 100%;
+}
+
+.alu-conta__linha:hover {
+  border-color: var(--alu-dado);
+}
+
+.alu-conta__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.alu-conta__rotulo {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--alu-texto-2);
+}
+
+/* 16px é o limiar abaixo do qual o Safari do iOS dá zoom ao focar, e não
+   desfaz sozinho. `base.css` já cobre o app inteiro; a repetição aqui é para o
+   valor sobreviver a qualquer regra de tamanho que a área do aluno acrescente. */
+.alu-campo {
+  font-size: 16px;
+  font-family: inherit;
+  min-height: var(--alu-toque);
+  padding: 10px 12px;
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid var(--alu-borda);
+  background: var(--alu-fundo);
+  color: var(--alu-texto);
+  width: 100%;
+}
+
+.alu-campo:focus {
+  border-color: var(--alu-dado);
+  outline: none;
+}
+
+.alu-erro {
+  font-size: 13px;
+  color: var(--alu-alerta);
+  font-weight: 600;
+  margin: 0;
+}
+
+.alu-ok {
+  font-size: 13px;
+  color: var(--alu-dado);
+  font-weight: 600;
+  margin: 0;
+}
+
+/* ── Widgets da coluna lateral ────────────────────────────────────────── */
+
+.alu-widget {
+  position: relative;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alu-widget__linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alu-widget__numero {
+  font-size: 34px;
+  line-height: 0.95;
+}
+
+.alu-widget__rotulo {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.alu-widget__rotulo--sequencia {
+  color: var(--alu-sequencia);
+}
+
+.alu-widget__rotulo--xp {
+  color: var(--alu-valor-texto);
+}
+
+.alu-widget__sub {
+  font-size: 12px;
+  color: var(--alu-texto-2);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── O seletor de tema ────────────────────────────────────────────────────
+   Dois segmentos numa trilha, e não dois botões soltos: com botões soltos o
+   aluno não vê que a escolha é exclusiva. Aqui a trilha é o fundo e o segmento
+   ativo é o que sobe. */
+
+.alu-tema {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid var(--alu-borda);
+  background: var(--alu-superficie-2);
+}
+
+.alu-tema__opcao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+  background: transparent;
+}
+
+.alu-tema__opcao.is-ativa {
+  background: var(--alu-fundo);
+  color: var(--alu-dado);
+  box-shadow: inset 0 0 0 1px var(--alu-borda);
+}
+
+/* O `<fieldset>` traz margem, padding e borda do agente de usuário; aqui ele é
+   só agrupamento semântico, então tudo isso sai. */
+.alu-tema-campo {
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.alu-tema-campo > legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.alu-tema__opcao {
+  cursor: pointer;
+}
+
+/* O foco do teclado vive no input escondido, então quem mostra o anel é o
+   segmento — senão navegar por Tab não mostraria nada. */
+.alu-tema__opcao:has(input:focus-visible) {
+  outline: 3px solid var(--alu-dado);
+  outline-offset: 2px;
+}

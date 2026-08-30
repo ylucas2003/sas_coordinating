@@ -20,7 +20,23 @@ import '../styles/aluno-ficha.css';
 import '../styles/filtros.css';
 import '../styles/chat.css';
 import '../styles/edicao.css';
-import '../styles/aluno.css';
+// Área do aluno: tokens primeiro (os `--alu-*` dos dois temas), depois o casco,
+// as peças compartilhadas, e uma folha por tela.
+//
+// O antigo `aluno.css` foi removido junto com `PainelAluno`, `SimuladosAluno` e
+// `ShellAluno`: ele redefinia `.alu-shell` com `height: 100dvh; overflow:
+// hidden`, e como era importado ANTES daqui, o casco novo herdava altura fixa e
+// deixava de rolar. Colisão de prefixo entre duas gerações da mesma área.
+import '../styles/aluno-tokens.css';
+import '../styles/aluno-casco.css';
+import '../styles/aluno-questao.css';
+import '../styles/aluno-hoje.css';
+import '../styles/aluno-estudar.css';
+import '../styles/aluno-treino.css';
+import '../styles/aluno-provas.css';
+import '../styles/aluno-jornada.css';
+import '../styles/aluno-tioleo.css';
+import '../styles/aluno-login.css';
 import '../styles/banco.css';
 import '../styles/login.css';
 import '../styles/foto-perfil.css';

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Frontend do SAS \u2014 coordena\u00e7\u00e3o ITM e \u00e1rea do aluno.",
+  "description": "Frontend do SAS — coordenação ITM e área do aluno.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "lint": "biome check src vite.config.ts",
     "lint:fix": "biome check --write src vite.config.ts",
-    "lint:a11y": "biome lint --only=a11y src"
+    "lint:a11y": "biome lint --only=a11y src",
+    "inventario": "GERAR_INVENTARIO=1 vitest run src/dados/aluno/inventario.test.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",

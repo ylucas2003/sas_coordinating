@@ -1,0 +1,349 @@
+/* ─── Tokens da área do aluno ────────────────────────────────────────────
+   Um sistema, seis papéis, dois temas (docs/24 §7.2).
+
+   REGRA MESTRA: cor é papel, nunca decoração. Uma cor serve ao seu papel e a
+   nada mais. Não existe verde aqui, e não existe semáforo verde-e-vermelho —
+   foi o que mais puxava a idade da tela para baixo.
+
+     ACAO       o que se aperta
+     VALOR      XP, conquista, e a linha de corte
+     DADO       barras acima do corte, progresso, nav ativa
+     SEQUENCIA  a chama e a corrente de simulados
+     ALERTA     só a etiqueta de distância e o valor abaixo do corte
+     MAGNITUDE  todo numeral grande
+
+   DUAS TROCAS entre os temas são intencionais, e a regra que as explica é uma
+   só: *a ação é sempre a cor de maior contraste com o fundo*. Ouro sobre branco
+   não dá botão; navy sobre quase-preto some. A magnitude acompanha. Todo o
+   resto é constante entre os temas.
+
+   Os hexadecimais aparecem UMA vez cada, na paleta crua; os três blocos de tema
+   abaixo só remapeiam. É o que impede as cópias de divergirem — foi assim que
+   as primeiras gerações do desenho acabaram com sequência e barra de meta
+   inconsistentes entre os temas.
+
+   ⚠️ Escopo: só `--alu-*`. A coordenação lê `--color-*` (tokens.css) e não é
+   alcançada por nada daqui, inclusive pelo seletor de tema.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── A paleta crua: cada valor, uma vez ─────────────────────────────── */
+
+  /* Dia */
+  --dia-fundo: #ffffff;
+  --dia-superficie: #f4f7fc;
+  --dia-superficie-2: #eaf0fa;
+  --dia-borda: #dce6f7;
+  --dia-acao: #1b3f8b;
+  --dia-acao-base: #12275a;
+  --dia-acao-texto: #ffffff;
+  --dia-valor: #f2c94c;
+  --dia-valor-texto: #b07d12;
+  --dia-dado: #2e6be6;
+  --dia-dado-claro: #7fb6ff;
+  --dia-sequencia: #ff6b4a;
+  --dia-alerta: #e0452f;
+  --dia-magnitude: #0f1b33;
+  --dia-texto: #16233d;
+  --dia-texto-2: #5c6883;
+  --dia-grade: rgba(27, 63, 139, 0.045);
+
+  /* Noite */
+  --noite-fundo: #050a18;
+  --noite-superficie: #0c1530;
+  --noite-superficie-2: #101c3d;
+  --noite-borda: #1b2b57;
+  --noite-acao: #ffce3a;
+  --noite-acao-base: #c79a16;
+  --noite-acao-texto: #050a18;
+  --noite-valor: #ffce3a;
+  --noite-valor-texto: #ffce3a;
+  --noite-dado: #2f6bff;
+  --noite-dado-claro: #7fb6ff;
+  --noite-sequencia: #ff6b4a;
+  --noite-alerta: #ff6b4a;
+  --noite-magnitude: #ffffff;
+  --noite-texto: #e6edfb;
+  --noite-texto-2: #6e85b8;
+  --noite-grade: rgba(127, 182, 255, 0.05);
+
+  /* ── O mapeamento padrão é o dia ────────────────────────────────────── */
+  --alu-fundo: var(--dia-fundo);
+  --alu-superficie: var(--dia-superficie);
+  --alu-superficie-2: var(--dia-superficie-2);
+  --alu-borda: var(--dia-borda);
+  --alu-acao: var(--dia-acao);
+  --alu-acao-base: var(--dia-acao-base);
+  --alu-acao-texto: var(--dia-acao-texto);
+  --alu-valor: var(--dia-valor);
+  --alu-valor-texto: var(--dia-valor-texto);
+  --alu-dado: var(--dia-dado);
+  --alu-dado-claro: var(--dia-dado-claro);
+  --alu-sequencia: var(--dia-sequencia);
+  --alu-alerta: var(--dia-alerta);
+  --alu-magnitude: var(--dia-magnitude);
+  --alu-texto: var(--dia-texto);
+  --alu-texto-2: var(--dia-texto-2);
+  --alu-grade: var(--dia-grade);
+
+  /* No dia a superfície leva 2px de borda; na noite, 1px. Mesma peça, dois
+     temas — quem troca é o token, não o componente. */
+  --alu-borda-largura: 2px;
+
+  /* ── Forma e ritmo, iguais nos dois temas ───────────────────────────── */
+  --alu-raio: 18px;
+  --alu-raio-pequeno: 12px;
+  --alu-raio-pilula: 999px;
+  /* A tecla de 4px: o botão desce exatamente esta distância ao ser apertado. */
+  --alu-tecla: 4px;
+  /* Alvo de toque mínimo. Nada tocável fica abaixo disso (docs/20 §1.3). */
+  --alu-toque: 44px;
+  --alu-coluna: 640px;
+  --alu-rail: 240px;
+  --alu-lateral: 320px;
+  --alu-barra-inferior: 64px;
+}
+
+/* A preferência do sistema é o PISO, não uma terceira opção.
+ 
+   São dois temas e só dois (docs/24 §7.2). Depois que o JS carrega, `data-tema`
+   está sempre estampado na raiz (`pecas/tema.ts` o aplica no escopo do módulo),
+   e são os dois blocos abaixo que mandam. Esta media query cobre só o intervalo
+   antes disso — sem ela, quem tem o aparelho no escuro veria um flash branco a
+   cada abertura. O `:not([data-tema='dia'])` mantém a regra correta caso a
+   escolha já esteja no HTML. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='dia']) {
+    --alu-fundo: var(--noite-fundo);
+    --alu-superficie: var(--noite-superficie);
+    --alu-superficie-2: var(--noite-superficie-2);
+    --alu-borda: var(--noite-borda);
+    --alu-acao: var(--noite-acao);
+    --alu-acao-base: var(--noite-acao-base);
+    --alu-acao-texto: var(--noite-acao-texto);
+    --alu-valor: var(--noite-valor);
+    --alu-valor-texto: var(--noite-valor-texto);
+    --alu-dado: var(--noite-dado);
+    --alu-dado-claro: var(--noite-dado-claro);
+    --alu-sequencia: var(--noite-sequencia);
+    --alu-alerta: var(--noite-alerta);
+    --alu-magnitude: var(--noite-magnitude);
+    --alu-texto: var(--noite-texto);
+    --alu-texto-2: var(--noite-texto-2);
+    --alu-grade: var(--noite-grade);
+    --alu-borda-largura: 1px;
+  }
+}
+
+/* A escolha explícita vence os dois sentidos. Vem depois da media query de
+   propósito: mesma especificidade, e a ordem no arquivo decide. */
+:root[data-tema='noite'] {
+  --alu-fundo: var(--noite-fundo);
+  --alu-superficie: var(--noite-superficie);
+  --alu-superficie-2: var(--noite-superficie-2);
+  --alu-borda: var(--noite-borda);
+  --alu-acao: var(--noite-acao);
+  --alu-acao-base: var(--noite-acao-base);
+  --alu-acao-texto: var(--noite-acao-texto);
+  --alu-valor: var(--noite-valor);
+  --alu-valor-texto: var(--noite-valor-texto);
+  --alu-dado: var(--noite-dado);
+  --alu-dado-claro: var(--noite-dado-claro);
+  --alu-sequencia: var(--noite-sequencia);
+  --alu-alerta: var(--noite-alerta);
+  --alu-magnitude: var(--noite-magnitude);
+  --alu-texto: var(--noite-texto);
+  --alu-texto-2: var(--noite-texto-2);
+  --alu-grade: var(--noite-grade);
+  --alu-borda-largura: 1px;
+}
+
+:root[data-tema='dia'] {
+  --alu-fundo: var(--dia-fundo);
+  --alu-superficie: var(--dia-superficie);
+  --alu-superficie-2: var(--dia-superficie-2);
+  --alu-borda: var(--dia-borda);
+  --alu-acao: var(--dia-acao);
+  --alu-acao-base: var(--dia-acao-base);
+  --alu-acao-texto: var(--dia-acao-texto);
+  --alu-valor: var(--dia-valor);
+  --alu-valor-texto: var(--dia-valor-texto);
+  --alu-dado: var(--dia-dado);
+  --alu-dado-claro: var(--dia-dado-claro);
+  --alu-sequencia: var(--dia-sequencia);
+  --alu-alerta: var(--dia-alerta);
+  --alu-magnitude: var(--dia-magnitude);
+  --alu-texto: var(--dia-texto);
+  --alu-texto-2: var(--dia-texto-2);
+  --alu-grade: var(--dia-grade);
+  --alu-borda-largura: 2px;
+}
+
+/* ─── Primitivas ─────────────────────────────────────────────────────────
+   As peças que aparecem em toda tela. Ficam nos tokens, e não no CSS de cada
+   tela, porque uma cópia divergente da tecla ou da superfície é exatamente o
+   que faz a tela parecer template.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* A grade quadrada quase imperceptível do fundo. Mesmo motivo do cobogó da
+   fachada do login, em outra escala — não são duas decisões (brief §Design). */
+.alu-grade {
+  background-color: var(--alu-fundo);
+  background-image:
+    linear-gradient(to right, var(--alu-grade) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--alu-grade) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Superfície: borda, nunca sombra flutuante. */
+.alu-superficie {
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio);
+}
+
+/* Rótulo de olho: maiúscula pequena espaçada, 10px. */
+.alu-olho {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--alu-dado);
+  line-height: 1.4;
+}
+
+.alu-olho--quieto {
+  color: var(--alu-texto-2);
+}
+
+/* MAGNITUDE — todo numeral grande. O 800 com tracking negativo é a
+   aproximação da grotesca condensada que o desenho pedia; ver fontes.css. */
+.alu-magnitude {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-magnitude);
+  line-height: 0.95;
+}
+
+/* ── A TECLA ──────────────────────────────────────────────────────────────
+   4px de borda inferior sólida que comprime ao apertar. É a regra que sozinha
+   faz mais diferença que todas as outras (docs/24 §7.1).
+
+   SÓ botão e bloco tocável ganham isso. Todo o resto é chapado — a tecla em
+   tudo deixa de significar "aperte aqui". Sem blur, nunca. */
+.alu-tecla {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--alu-toque);
+  padding: 12px 22px;
+  border: none;
+  border-radius: var(--alu-raio-pequeno);
+  background: var(--alu-acao);
+  color: var(--alu-acao-texto);
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-acao-base);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  /* `margin-bottom` reserva o espaço da sombra: sem ele o elemento seguinte
+     sobe 4px quando a tecla é apertada. */
+  margin-bottom: var(--alu-tecla);
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+
+.alu-tecla:active:not(:disabled) {
+  transform: translateY(var(--alu-tecla));
+  box-shadow: 0 0 0 0 var(--alu-acao-base);
+}
+
+.alu-tecla:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Tecla secundária: vazada, mesma mecânica, sem peso de cor. */
+.alu-tecla--fantasma {
+  background: transparent;
+  color: var(--alu-acao);
+  border: 2px solid var(--alu-borda);
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-borda);
+}
+
+/* Tecla de valor: só onde o que se aperta É a recompensa (o "VER" da liga). */
+.alu-tecla--valor {
+  background: var(--alu-valor);
+  color: #0f1b33;
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--dia-valor-texto);
+}
+
+.alu-tecla--pequena {
+  min-height: 36px;
+  padding: 8px 14px;
+  font-size: 12px;
+  --alu-tecla: 3px;
+}
+
+.alu-tecla--larga {
+  width: 100%;
+}
+
+/* ── VAZIO É VAZADO ───────────────────────────────────────────────────────
+   Qualquer coisa não conquistada, travada ou abaixo do corte é contorno sem
+   preenchimento. Na noite lê como segmento queimado de letreiro; no dia, como
+   não-preenchido. Mesma ideia, mesmo componente — e é o que mata o semáforo.
+
+   ⚠️ Nunca pinte de vermelho o que está abaixo do corte. Só a ETIQUETA de
+   distância é ALERTA. */
+.alu-vazado {
+  background: transparent;
+  border: 1.5px solid var(--alu-borda);
+}
+
+.alu-etiqueta-alerta {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--alu-raio-pilula);
+  background: var(--alu-alerta);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* ── Foco de teclado ──────────────────────────────────────────────────── */
+.alu-shell :focus-visible {
+  outline: 3px solid var(--alu-dado);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── prefers-reduced-motion ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .alu-shell *,
+  .alu-shell *::before,
+  .alu-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Só para leitor de tela. O ícone sozinho não tem nome acessível, e um
+   `aria-label` no link perderia o texto quando o CSS não carrega. */
+.alu-so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

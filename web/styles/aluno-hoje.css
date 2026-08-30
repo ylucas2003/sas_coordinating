@@ -1,0 +1,360 @@
+/* ─── HOJE ───────────────────────────────────────────────────────────────
+   "O que eu faço agora." O herói é a MISSÃO, e a nota desceu para a tira do
+   rodapé — a Casa deixou de ser boletim (docs/24 §7.1).
+
+   Três decisões deste arquivo que não se leem no HTML:
+
+   1. A hierarquia é de TAMANHO, não de cor. O herói ganha a tela porque o
+      numeral dele é 3x o resto, não porque foi pintado de algo. Cor aqui é
+      papel (docs/24 §7.2), e papel não se gasta com destaque.
+   2. Nada leva sombra flutuante. A única sombra do arquivo é a TECLA — 4px
+      sólidos, sem blur — e ela só aparece em coisa que se aperta.
+   3. Toda medida de tipo grande é `clamp()` com `vw` no meio: a 360px o
+      numeral encolhe sozinho em vez de estourar a linha.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.alu-hoje {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* O global manda sublinhar link no hover; nas peças tocáveis desta tela o
+   sublinhado briga com a forma de botão. */
+.alu-hoje a:hover {
+  text-decoration: none;
+}
+
+/* ── A saudação ───────────────────────────────────────────────────────────
+   Visível só no desktop, onde não existe a barra de topo do casco. No celular
+   ela continua no DOM — apenas recortada — para o leitor de tela não perder o
+   h1 da página. É a mesma técnica de `.alu-so-leitor`, aplicada por largura. */
+@media (max-width: 899px) {
+  .alu-hoje__saudacao {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/* ── 1 · O herói ──────────────────────────────────────────────────────── */
+
+.alu-hoje__hero {
+  gap: 8px;
+  padding: 20px;
+}
+
+.alu-hoje__hero-linha {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+}
+
+.alu-hoje__quantidade {
+  font-size: clamp(46px, 15vw, 64px);
+}
+
+.alu-hoje__hero-unidade {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--alu-texto-2);
+}
+
+/* `overflow-wrap: anywhere` porque nome de tópico do edital é imprevisível —
+   "Eletromagnetismo" a 40px não cabe numa linha de 288px. */
+.alu-hoje__assunto {
+  font-size: clamp(28px, 8.5vw, 40px);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* O convite do estado vazio ocupa o lugar do assunto, mas é FRASE e não nome
+   próprio: menor, para caber em duas linhas em vez de quatro. */
+.alu-hoje__convite {
+  font-size: clamp(24px, 7vw, 30px);
+  margin: 0;
+  line-height: 1.1;
+}
+
+.alu-hoje__razao {
+  margin: 2px 0 6px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--alu-texto-2);
+}
+
+.alu-hoje__rodape-quieto {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+}
+
+/* ── 4 · A leitura da zona ───────────────────────────────────────────────
+   `position: relative` é obrigatório: a tarja de fonte se ancora no ancestral
+   posicionado mais próximo, e sem ela a tarja de `zonaEDistancia` cairia em
+   cima da de `cortePorMateria` no topo do bloco. São duas fontes, dois cantos. */
+
+.alu-hoje__zona {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--alu-borda);
+}
+
+.alu-hoje__zona-topo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+}
+
+/* VAZADO, nunca ALERTA. Zona não alcançada é contorno — o mesmo tratamento da
+   barra abaixo do corte e da conquista travada. Pintar "risco" de vermelho
+   recriaria o semáforo que o desenho inteiro existe para matar. */
+.alu-hoje__zona-chip {
+  padding: 4px 11px;
+  border-radius: var(--alu-raio-pilula);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--alu-texto);
+}
+
+.alu-hoje__zona-distancia {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-magnitude);
+}
+
+.alu-hoje__zona-frase {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--alu-texto-2);
+}
+
+.alu-hoje__zona-frase strong {
+  color: var(--alu-texto);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 5 · Os bullets do ciclo ──────────────────────────────────────────── */
+
+.alu-hoje__insights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alu-hoje__insight {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Quadrado e não bolinha: é o mesmo motivo da grade do fundo e do cobogó do
+   login — o ritmo quadrado é a assinatura da área do aluno. */
+.alu-hoje__marca {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--alu-dado);
+  margin-top: 9px;
+  flex-shrink: 0;
+}
+
+/* ── 6 · A tira da última nota ────────────────────────────────────────────
+   Bloco tocável, e por isso ganha a tecla — mas na versão QUIETA, com a sombra
+   na cor da borda em vez da cor de ação. Duas teclas em ACAO na mesma tela
+   fariam a tira competir com o "COMEÇAR" do herói, e o herói tem de ganhar. */
+
+.alu-hoje__tira {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--alu-toque);
+  padding: 14px 16px;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio);
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-borda);
+  /* Reserva o espaço da sombra: sem isto o bloco seguinte sobe 4px ao apertar. */
+  margin-bottom: var(--alu-tecla);
+  color: var(--alu-texto);
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+
+.alu-hoje__tira:active {
+  transform: translateY(var(--alu-tecla));
+  box-shadow: 0 0 0 0 var(--alu-borda);
+}
+
+.alu-hoje__tira:hover {
+  border-color: var(--alu-dado);
+}
+
+.alu-hoje__tira--esqueleto {
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.alu-hoje__tira-nota {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.alu-hoje__tira-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.alu-hoje__tira-rotulo {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alu-hoje__tira-leitura {
+  font-size: 12px;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+/* Delta abaixo do próprio padrão fica QUIETO. ALERTA é só para distância até o
+   corte e valor abaixo dele — ficar 0,2 abaixo do próprio padrão não é isso. */
+.alu-hoje__tira-delta {
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+  flex-shrink: 0;
+}
+
+.alu-hoje__tira-delta--acima {
+  color: var(--alu-dado);
+}
+
+/* ── Esqueleto de carregamento ────────────────────────────────────────────
+   Esqueleto com a FORMA do conteúdo, nunca um spinner: o spinner diz "espere",
+   o esqueleto diz "vem isto aqui" e a tela não salta quando o dado chega.
+
+   O pulso é neutralizado sozinho por `prefers-reduced-motion` — a regra de
+   aluno-tokens.css zera duração e iteração dentro de `.alu-shell`. */
+
+.alu-hoje__esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alu-hoje__osso {
+  display: block;
+  height: 14px;
+  border-radius: var(--alu-raio-pilula);
+  background: var(--alu-superficie-2);
+  animation: alu-hoje-pulso 1.5s ease-in-out infinite;
+}
+
+.alu-hoje__osso--numero {
+  height: 52px;
+  width: 46%;
+  border-radius: var(--alu-raio-pequeno);
+}
+
+.alu-hoje__osso--nota {
+  height: 34px;
+  width: 64px;
+  border-radius: var(--alu-raio-pequeno);
+  flex-shrink: 0;
+}
+
+.alu-hoje__osso--linha {
+  width: 88%;
+}
+
+.alu-hoje__osso--curta {
+  width: 54%;
+}
+
+.alu-hoje__osso--elos {
+  height: 34px;
+  width: 100%;
+  border-radius: 7px;
+}
+
+.alu-hoje__osso--grafico {
+  height: 150px;
+  width: 100%;
+  border-radius: var(--alu-raio-pequeno);
+}
+
+.alu-hoje__osso--tecla {
+  height: var(--alu-toque);
+  width: 100%;
+  border-radius: var(--alu-raio-pequeno);
+}
+
+@keyframes alu-hoje-pulso {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+/* ── Desktop ──────────────────────────────────────────────────────────────
+   A coluna central mantém o mesmo ritmo do celular; só o herói cresce, porque
+   é o único elemento cuja função é ser visto de longe. */
+
+@media (min-width: 900px) {
+  .alu-hoje__hero {
+    padding: 26px;
+  }
+
+  .alu-hoje__quantidade {
+    font-size: 72px;
+  }
+
+  .alu-hoje__assunto {
+    font-size: 44px;
+  }
+
+  /* No desktop o "COMEÇAR" não precisa da largura inteira de 640px — um botão
+     dessa largura deixa de parecer botão. */
+  .alu-hoje__hero .alu-tecla--larga {
+    width: auto;
+    align-self: flex-start;
+    padding-left: 34px;
+    padding-right: 34px;
+  }
+}

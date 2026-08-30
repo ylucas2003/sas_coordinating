@@ -72,6 +72,13 @@ export const streakMe = () => get<{ count: number; label: string }>('/me/streak'
 export const listarSimuladosMe = () => get<unknown[]>('/me/simulados');
 export const obterSimuladoMe = (id: string) => get<unknown>(`/me/simulado/${enc(id)}`);
 export const questoesSimuladoMe = (id: string) => get<unknown>(`/me/simulado/${enc(id)}/questoes`);
+/**
+ * URL assinada, de curta duração, para o PDF da prova como foi aplicada. Rota
+ * pronta desde sempre e sem tela até a área do aluno nova (docs/29 §A.5) — a
+ * URL não se guarda em cache porque expira.
+ */
+export const arquivoSimuladoMe = (id: string) =>
+  get<{ url: string; nomeArquivo: string }>(`/me/simulado/${enc(id)}/arquivo`);
 export const evolucaoMe = () => get<{ ciclos: unknown[]; materias: unknown }>('/me/evolucao');
 export const insightMe = () =>
   get<{

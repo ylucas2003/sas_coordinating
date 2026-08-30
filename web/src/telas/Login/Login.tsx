@@ -5,6 +5,7 @@ import * as api from '../../servicos/api';
 import { ErroApi } from '../../servicos/http';
 import * as sessao from '../../servicos/sessao';
 import { PainelDireito } from './PainelDireito';
+import { PortaDoAluno } from '../Aluno/PortaDoAluno';
 import { MODOS } from './modos';
 import type { Modo } from './modos';
 
@@ -64,6 +65,23 @@ export function Login() {
   }) {
     sessao.iniciar(dados);
     navegar('/', { replace: true });
+  }
+
+  // ⚠️ A PORTA DO ALUNO SUBSTITUI O LOGIN INTEIRO, não só a coluna da direita.
+  // São ~900 alunos contra uma dúzia de coordenadores: o padrão é a porta, e a
+  // travessia para o outro lado é um link discreto no rodapé dela. O `.lp`
+  // institucional abaixo continua servindo a coordenação sem uma linha
+  // alterada — inclusive o `FormularioLogin`, que a porta não reusa porque
+  // veste `.lp-*` e o desenho do aluno é outro (docs/24 §7.1).
+  if (modo === 'aluno' && formulario === 'login') {
+    return (
+      <PortaDoAluno
+        onEntrar={entrar}
+        ssoCanvas={ssoCanvas}
+        avisoCanvas={avisoCanvas}
+        onIrParaCoordenacao={() => trocarModo('coordenador')}
+      />
+    );
   }
 
   return (

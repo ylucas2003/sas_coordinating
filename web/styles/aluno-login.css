@@ -1,0 +1,389 @@
+/* ─── A porta do aluno ───────────────────────────────────────────────────
+   A tela de login inteira do aluno — ilustração, marca, manchete e
+   formulário. O `.lp` institucional de `login.css` segue servindo a
+   coordenação e não é tocado por nada daqui.
+
+   Celular: a cena em cima, o painel embaixo.
+   Desktop: cena à esquerda (58%), painel à direita (42%).
+
+   A ilustração tem paleta PRÓPRIA, e é a única do produto que tem: os seis
+   papéis de cor governam interface, e um amanhecer não é interface. O que ela
+   toma emprestado do sistema é exatamente uma coisa — `--alu-valor` na linha de
+   corte, que é o ponto do desenho.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Dia: amanhecer claro, o céu abrindo. */
+  --porta-ceu-alto: #12275a;
+  --porta-ceu-baixo: #3a6ab8;
+  --porta-alvorada: #f6c98a;
+  --porta-estrela: rgba(255, 255, 255, 0.5);
+  --porta-grade: rgba(255, 255, 255, 0.07);
+  --porta-morro-3: #2c5596;
+  --porta-morro-2: #21437a;
+  --porta-morro-1: #17325d;
+  --porta-chao-alto: #14294d;
+  --porta-chao-baixo: #0d1c37;
+  --porta-pista: #1b3562;
+  --porta-pista-fio: rgba(127, 182, 255, 0.5);
+  --porta-pista-eixo: rgba(255, 255, 255, 0.75);
+  --porta-rastro: rgba(191, 219, 255, 0.85);
+  --porta-planador: #ffffff;
+  /* O painel do formulário é escuro nos DOIS temas: ele encosta na cena, e um
+     painel branco ao lado do amanhecer partiria a tela em duas telas. */
+  --porta-painel: #0a1428;
+  --porta-painel-borda: rgba(127, 182, 255, 0.16);
+  --porta-campo: rgba(255, 255, 255, 0.04);
+  --porta-texto: #ffffff;
+  --porta-texto-2: rgba(255, 255, 255, 0.62);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='dia']) {
+    --porta-ceu-alto: #050a18;
+    --porta-ceu-baixo: #10265c;
+    --porta-alvorada: #d99a4e;
+    --porta-estrela: rgba(255, 255, 255, 0.72);
+    --porta-grade: rgba(127, 182, 255, 0.06);
+    --porta-morro-3: #16305f;
+    --porta-morro-2: #0f2246;
+    --porta-morro-1: #0a1730;
+    --porta-chao-alto: #070f22;
+    --porta-chao-baixo: #030713;
+    --porta-pista: #0c1a36;
+    --porta-pista-fio: rgba(127, 182, 255, 0.4);
+    --porta-pista-eixo: rgba(255, 255, 255, 0.62);
+    --porta-rastro: rgba(160, 200, 255, 0.8);
+    --porta-planador: #eef4ff;
+    --porta-painel: #050a18;
+    --porta-painel-borda: rgba(127, 182, 255, 0.14);
+  }
+}
+
+:root[data-tema='noite'] {
+  --porta-ceu-alto: #050a18;
+  --porta-ceu-baixo: #10265c;
+  --porta-alvorada: #d99a4e;
+  --porta-estrela: rgba(255, 255, 255, 0.72);
+  --porta-grade: rgba(127, 182, 255, 0.06);
+  --porta-morro-3: #16305f;
+  --porta-morro-2: #0f2246;
+  --porta-morro-1: #0a1730;
+  --porta-chao-alto: #070f22;
+  --porta-chao-baixo: #030713;
+  --porta-pista: #0c1a36;
+  --porta-pista-fio: rgba(127, 182, 255, 0.4);
+  --porta-pista-eixo: rgba(255, 255, 255, 0.62);
+  --porta-rastro: rgba(160, 200, 255, 0.8);
+  --porta-planador: #eef4ff;
+  --porta-painel: #050a18;
+  --porta-painel-borda: rgba(127, 182, 255, 0.14);
+}
+
+:root[data-tema='dia'] {
+  --porta-ceu-alto: #12275a;
+  --porta-ceu-baixo: #3a6ab8;
+  --porta-alvorada: #f6c98a;
+  --porta-estrela: rgba(255, 255, 255, 0.5);
+  --porta-grade: rgba(255, 255, 255, 0.07);
+  --porta-morro-3: #2c5596;
+  --porta-morro-2: #21437a;
+  --porta-morro-1: #17325d;
+  --porta-chao-alto: #14294d;
+  --porta-chao-baixo: #0d1c37;
+  --porta-pista: #1b3562;
+  --porta-pista-fio: rgba(127, 182, 255, 0.5);
+  --porta-pista-eixo: rgba(255, 255, 255, 0.75);
+  --porta-rastro: rgba(191, 219, 255, 0.85);
+  --porta-planador: #ffffff;
+  --porta-painel: #0a1428;
+  --porta-painel-borda: rgba(127, 182, 255, 0.16);
+}
+
+/* ── Estrutura ────────────────────────────────────────────────────────── */
+
+.porta {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: minmax(280px, 46dvh) 1fr;
+  background: var(--porta-painel);
+  color: var(--porta-texto);
+  font-family: var(--font-family);
+}
+
+.porta__cena-caixa {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px;
+  padding-top: max(18px, env(safe-area-inset-top));
+}
+
+.porta__cena {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.porta__marca {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* A cena é escura nos dois temas, então aqui a marca é sempre branca — e por
+   isso ela ignora a troca por tema de `.alu-marca`. */
+.porta .alu-marca {
+  --marca-cor: #ffffff;
+}
+
+.porta__marca-sub {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--porta-texto-2);
+  line-height: 1.3;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.porta__manchete {
+  position: relative;
+  margin: 0;
+  font-size: clamp(34px, 10.5vw, 52px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  color: #ffffff;
+  /* Sombra de texto, e não véu sobre a cena: o véu apagava o ponto de fuga da
+     pista, que é justamente onde o olho entra no desenho. */
+  text-shadow: 0 2px 18px rgba(3, 7, 19, 0.65);
+}
+
+/* ── O painel ─────────────────────────────────────────────────────────── */
+
+.porta__painel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 26px 20px;
+  padding-bottom: max(26px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--porta-painel-borda);
+}
+
+.porta__painel-interno {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.porta__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.porta__cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.porta__titulo {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.porta__ajuda {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--porta-texto-2);
+}
+
+.porta__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.porta__rotulo {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--porta-texto-2);
+}
+
+.porta__campo-caixa {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--porta-painel-borda);
+  border-radius: var(--alu-raio-pequeno);
+  background: var(--porta-campo);
+  padding-right: 6px;
+}
+
+.porta__campo-caixa:focus-within {
+  border-color: var(--alu-dado);
+}
+
+.porta__input {
+  flex: 1;
+  min-width: 0;
+  /* 16px é o limiar abaixo do qual o Safari do iOS dá zoom ao focar, e não
+     desfaz sozinho (docs/20 §1.3). */
+  font-size: 16px;
+  font-family: inherit;
+  min-height: var(--alu-toque);
+  padding: 12px 14px;
+  border: none;
+  background: none;
+  color: var(--porta-texto);
+}
+
+.porta__input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.porta__input:focus {
+  outline: none;
+}
+
+.porta__olho {
+  width: var(--alu-toque);
+  height: var(--alu-toque);
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--porta-texto-2);
+  flex-shrink: 0;
+}
+
+.porta__olho:hover {
+  color: var(--alu-dado);
+}
+
+/* A tecla no fundo escuro: ouro, porque no escuro a ação é sempre a cor de
+   maior contraste com o fundo (docs/24 §7.2). É a mesma regra que faz a ação
+   virar ouro no tema noite — aqui o painel é escuro nos dois temas. */
+.porta .alu-tecla {
+  background: var(--alu-valor);
+  color: #0f1b33;
+  box-shadow: 0 var(--alu-tecla) 0 0 #b07d12;
+  margin-top: 2px;
+}
+
+.porta .alu-tecla--fantasma {
+  background: transparent;
+  color: var(--alu-dado-claro);
+  border: 1.5px solid var(--porta-painel-borda);
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--porta-painel-borda);
+  text-decoration: none;
+}
+
+.porta .alu-tecla--fantasma:hover {
+  text-decoration: none;
+  border-color: var(--alu-dado);
+}
+
+.porta__erro {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: #ffd9d0;
+  background: rgba(224, 69, 47, 0.16);
+  border: 1px solid rgba(224, 69, 47, 0.45);
+  border-radius: var(--alu-raio-pequeno);
+  padding: 10px 12px;
+}
+
+.porta__links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 2px 0 0;
+  color: var(--porta-texto-2);
+  font-size: 13px;
+}
+
+.porta__link {
+  min-height: var(--alu-toque);
+  padding: 0 2px;
+  color: var(--alu-dado-claro);
+  font-size: 13px;
+  font-weight: 600;
+  background: none;
+  border: none;
+}
+
+.porta__link:hover {
+  text-decoration: underline;
+}
+
+.porta__coordenacao {
+  align-self: center;
+  min-height: var(--alu-toque);
+  padding: 0 8px;
+  font-size: 12.5px;
+  color: var(--porta-texto-2);
+  border-top: 1px solid var(--porta-painel-borda);
+  width: 100%;
+  padding-top: 14px;
+  margin-top: 2px;
+}
+
+.porta__coordenacao:hover {
+  color: var(--porta-texto);
+}
+
+.porta :focus-visible {
+  outline: 3px solid var(--alu-dado);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Desktop: cena à esquerda, painel à direita ───────────────────────── */
+
+@media (min-width: 900px) {
+  .porta {
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 58fr) minmax(380px, 42fr);
+  }
+
+  .porta__cena-caixa {
+    padding: 34px 40px 44px;
+  }
+
+  .porta__painel {
+    border-top: none;
+    border-left: 1px solid var(--porta-painel-borda);
+    padding: 40px;
+  }
+
+  .porta__manchete {
+    font-size: clamp(44px, 4.6vw, 66px);
+  }
+}
+
+/* Aparelho baixo e deitado: a cena vira faixa e o painel fica com o resto,
+   senão o formulário nasce fora da tela. */
+@media (max-height: 620px) and (max-width: 899px) {
+  .porta {
+    grid-template-rows: minmax(180px, 34dvh) 1fr;
+  }
+}
