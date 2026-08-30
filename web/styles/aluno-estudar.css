@@ -1,0 +1,702 @@
+/* ─── ESTUDAR ────────────────────────────────────────────────────────────
+   As quatro telas da aba: /estudar, /estudar/assuntos, /estudar/listas e
+   /estudar/listas/:id, mais a folha de filtros.
+
+   Só forma e ritmo. Cor, tecla, superfície, vazado e etiqueta de alerta vêm de
+   aluno-tokens.css, e o cartão de questão vem de aluno-questao.css — nenhum
+   token é redefinido aqui, e nenhuma cor nova nasce aqui. Os seis papéis são
+   ACAO, VALOR, DADO, SEQUENCIA, ALERTA e MAGNITUDE, e não existe verde.
+
+   ⚠️ Nunca sombra flutuante numa superfície: é o que faz a tela parecer
+   template (docs/24 §7.2). Separação é borda.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* `.alu-tecla` em `<Link>` é o padrão do casco; sem isto o `a:hover` do
+   base.css sublinha o rótulo do botão. */
+a.alu-tecla:hover,
+a.alu-est-voltar:hover,
+a.alu-est-elo-quieto:hover {
+  text-decoration: none;
+}
+
+/* ── O elo de voltar das telas filhas ─────────────────────────────────── */
+
+.alu-est-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  min-height: var(--alu-toque);
+  padding: 4px 2px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--alu-texto-2);
+}
+
+.alu-est-voltar:hover {
+  color: var(--alu-dado);
+}
+
+/* ── As duas metades ──────────────────────────────────────────────────── */
+
+.alu-est-metade {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.alu-est-divisor {
+  border: none;
+  border-top: 1px solid var(--alu-borda);
+  margin: 10px 0 4px;
+  width: 100%;
+}
+
+/* A TIRA DE COBERTURA. Vazada e de 1px de propósito: é aviso, não alarme —
+   pintá-la de ALERTA a poria competindo com a etiqueta de distância, que é a
+   única coisa vermelha do sistema (docs/24 §7.1, regra 2). */
+.alu-est-cobertura {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+}
+
+/* ── Os três cartões de origem ────────────────────────────────────────── */
+
+.alu-est-origem__linha {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.alu-est-origem__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  /* `flex: 1 1 170px` deixa o botão descer sozinho abaixo de ~330px em vez de
+     espremer o nome do assunto até quebrar letra a letra. */
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
+.alu-est-origem__titulo {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--alu-magnitude);
+  overflow-wrap: anywhere;
+}
+
+.alu-est-origem__conta {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--alu-dado);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A razão é a linha quieta: ela explica a escolha sem disputar o olho com o
+   botão (regra 6 — silencie o que não é o jogo). */
+.alu-est-origem__razao {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+}
+
+/* O recomendado é o mais destacado dos três: borda na cor DADO, e só ele leva
+   a tecla cheia de ACAO. Os outros dois usam a fantasma. */
+.alu-est-origem--principal {
+  border-color: var(--alu-dado);
+}
+
+.alu-est-origem--principal .alu-est-origem__titulo {
+  font-size: 22px;
+}
+
+.alu-est-elo-quieto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  min-height: var(--alu-toque);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+}
+
+.alu-est-elo-quieto:hover {
+  color: var(--alu-dado);
+}
+
+/* ── Busca e filtro ───────────────────────────────────────────────────── */
+
+.alu-est-busca {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.alu-est-busca__campo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--alu-texto-2);
+}
+
+.alu-est-busca__campo > svg {
+  position: absolute;
+  left: 12px;
+  pointer-events: none;
+}
+
+/* O 38px de recuo é o ícone; o `font-size` de 16px vem de `.alu-campo` e é o
+   que impede o Safari do iOS de dar zoom ao focar. */
+.alu-est-busca__campo .alu-campo {
+  padding-left: 38px;
+}
+
+/* Cancelar nativo do `type="search"`: o do WebKit é um X cinza que some no
+   tema noite. */
+.alu-est-busca__campo .alu-campo::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.alu-est-filtrar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  min-height: var(--alu-toque);
+  padding: 10px 14px;
+  border: 1px solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  background: var(--alu-superficie);
+  color: var(--alu-texto);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.alu-est-filtrar.is-ativo {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+.alu-est-filtrar__contagem {
+  display: inline-grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: var(--alu-raio-pilula);
+  background: var(--alu-dado);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Pílulas do recorte ativo ─────────────────────────────────────────── */
+
+.alu-est-pilulas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.alu-est-pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* O piso de 44px vale aqui como em todo o resto: a pílula APAGA um filtro, e
+     errar o toque devolve uma lista de 2.693 questões no lugar do recorte. O
+     custo é uma linha de 10px a mais antes da lista — barato perto disso. */
+  min-height: var(--alu-toque);
+  /* O nome do tópico chega a 45 caracteres ("Tabela Periódica e Propriedades
+     dos Elementos"): a pílula quebra em duas linhas em vez de empurrar a
+     página para os lados a 360px. */
+  max-width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  border-radius: var(--alu-raio-pilula);
+  border: 1px solid var(--alu-dado);
+  background: transparent;
+  color: var(--alu-dado);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.alu-est-pilula--limpar {
+  border-color: var(--alu-borda);
+  color: var(--alu-texto-2);
+}
+
+.alu-est-recorte {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── A lista do acervo ────────────────────────────────────────────────── */
+
+.alu-est-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* Esqueleto com a FORMA do conteúdo, nunca um spinner: o spinner não diz o que
+   vem, e a tela salta quando o conteúdo chega. */
+.alu-est-esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.alu-est-esqueleto__cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio);
+}
+
+.alu-est-esqueleto__linha,
+.alu-est-esqueleto__bloco {
+  display: block;
+  border-radius: 6px;
+  background: var(--alu-superficie-2);
+}
+
+.alu-est-esqueleto__linha {
+  height: 12px;
+  width: 70%;
+}
+
+.alu-est-esqueleto__linha--olho {
+  width: 40%;
+  height: 9px;
+}
+
+.alu-est-esqueleto__bloco {
+  height: 108px;
+  width: 100%;
+}
+
+/* ── A folha de filtros ───────────────────────────────────────────────── */
+
+.alu-filtros__grupo {
+  /* `min-width: 0` é obrigatório em `fieldset`: o padrão é `min-content` e ele
+     ignora o contêiner, então uma pílula longa empurraria a folha inteira. */
+  min-width: 0;
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alu-filtros__legenda {
+  padding: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--alu-dado);
+}
+
+.alu-filtros__opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.alu-filtros__pilula {
+  min-height: var(--alu-toque);
+  padding: 9px 14px;
+  border-radius: var(--alu-raio-pilula);
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-texto);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Preenchida na cor DADO quando marcada: é ESTADO do recorte, não ação — quem
+   é ação nesta folha é só o "VER N QUESTÕES" do rodapé. */
+.alu-filtros__pilula.is-ativa {
+  background: var(--alu-dado);
+  border-color: var(--alu-dado);
+  color: #ffffff;
+}
+
+.alu-filtros__pilula:disabled {
+  opacity: 0.45;
+}
+
+/* A linha que explica por que o grupo ASSUNTO está travado. Ela não é opcional:
+   sem matéria a rota devolve 400, e '1.1' significa coisa diferente nas três
+   matérias (docs/28 §6). */
+.alu-filtros__aviso {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+}
+
+.alu-filtros__limpar {
+  min-height: var(--alu-toque);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+  background: none;
+  border: none;
+}
+
+.alu-filtros__limpar:hover {
+  color: var(--alu-dado);
+}
+
+.alu-filtros__erro {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+/* ── "O que mais cai" ─────────────────────────────────────────────────── */
+
+.alu-assunto__explicacao {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--alu-texto-2);
+}
+
+.alu-assunto-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.alu-assunto {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid var(--alu-borda);
+}
+
+.alu-assunto:first-child {
+  border-top: none;
+  padding-top: 4px;
+}
+
+.alu-assunto__cabeca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.alu-assunto__nome {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 150px;
+  min-width: 0;
+}
+
+.alu-assunto__nome strong {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* Três colunas em telefone largo, duas a 360px: os números não podem ficar
+   apertados a ponto de a tendência quebrar entre os dois valores. */
+.alu-assunto__numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.alu-assunto__numero {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.alu-assunto__numero dd {
+  margin: 0;
+}
+
+.alu-assunto__valor {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* OS DOIS NÚMEROS DA TENDÊNCIA, sempre visíveis (docs/24 §4.2, passo 4): uma
+   seta sozinha esconde a escala, e "▼" sobre 6% e sobre 0,4% são a mesma seta
+   com conselhos opostos. */
+.alu-assunto__tendencia {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+}
+
+.alu-assunto__agora {
+  color: var(--alu-magnitude);
+}
+
+.alu-assunto__delta {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+  white-space: nowrap;
+}
+
+.alu-assunto__n {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Minhas listas ────────────────────────────────────────────────────── */
+
+.alu-listas__nova {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.alu-listas__nova .alu-campo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.alu-listas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.alu-listas__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio);
+  min-width: 0;
+}
+
+/* O item não leva a tecla de 4px: ele carrega botões próprios por dentro
+   (renomear, apagar), e uma tecla em volta de outras teclas confunde qual
+   delas está sendo apertada. A tecla fica só nos botões (regra 1). */
+.alu-listas__elo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--alu-toque);
+  justify-content: center;
+  padding: 4px 2px;
+  color: var(--alu-texto);
+}
+
+.alu-listas__elo:hover .alu-listas__titulo {
+  color: var(--alu-dado);
+}
+
+.alu-listas__titulo {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.alu-listas__meta {
+  font-size: 12px;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-listas__acoes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.alu-listas__acao {
+  display: grid;
+  place-items: center;
+  min-width: var(--alu-toque);
+  min-height: var(--alu-toque);
+  padding: 0 8px;
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--alu-texto-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.alu-listas__acao:hover {
+  border-color: var(--alu-borda);
+  color: var(--alu-texto);
+}
+
+/* A confirmação é a ÚNICA coisa em ALERTA desta tela — e é etiqueta, não
+   preenchimento de dado. */
+.alu-listas__acao--confirmar {
+  border-color: var(--alu-alerta);
+  color: var(--alu-alerta);
+}
+
+.alu-listas__renomear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
+}
+
+.alu-listas__renomear .alu-campo {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+
+/* ── Uma lista aberta ─────────────────────────────────────────────────── */
+
+/* O título da lista é texto do aluno: 120 caracteres sem espaço nenhum é
+   entrada válida, e sem isto ele estouraria a viewport a 360px. A regra é
+   local, e não em `.alu-titulo-tela`, para não mexer nas outras telas. */
+.alu-lista__titulo-tela {
+  overflow-wrap: anywhere;
+}
+
+.alu-lista__meta {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-lista-questoes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.alu-lista-questao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.alu-lista-questao__ordem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.alu-lista-questao__ordem .alu-olho {
+  margin-right: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-lista-questao__mover {
+  display: grid;
+  place-items: center;
+  width: var(--alu-toque);
+  height: var(--alu-toque);
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-texto-2);
+}
+
+.alu-lista-questao__mover:hover:not(:disabled) {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+.alu-lista-questao__mover:disabled {
+  opacity: 0.35;
+}
+
+/* ── Desktop ──────────────────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  .alu-est-metade {
+    gap: 14px;
+  }
+
+  .alu-est-origem--principal .alu-est-origem__titulo {
+    font-size: 26px;
+  }
+}

@@ -1,0 +1,794 @@
+/* ─── Tio Léo — o mentor do aluno ────────────────────────────────────────
+   Folha no celular, painel lateral de 400px no desktop. A mecânica das duas
+   está em `Folha.tsx` e em aluno-casco.css; o que este arquivo faz é vestir a
+   CONVERSA — que é a mesma da coordenação (`componentes/chat/`) — com a
+   linguagem do aluno.
+
+   ⚠️ TODA regra que mexe em classe `.chat-*` está ANINHADA em `.alu-tioleo`.
+   Sem o escopo, o chat do coordenador mudaria de cara junto — e ele é o
+   painel não-modal do docs/10, que este sprint não toca (docs/27 §8).
+   `main.tsx` carrega este arquivo depois de `chat.css`, então a ordem já
+   ajuda; o escopo é o que garante.
+
+   ⚠️ Nenhum token novo e nenhuma cor crua fora das duas exceções comentadas.
+   Os seis papéis são ACAO, VALOR, DADO, SEQUENCIA, ALERTA e MAGNITUDE, e não
+   existe verde aqui.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* ── Os tokens da coordenação, traduzidos para a paleta do aluno ──────── */
+
+/* `histograma` e `linha_temporal` são REAIS e são desenhados pelos componentes
+   da coordenação (`componentes/ui/`), que pintam com `--color-*`. E `--color-*`
+   NÃO TEM TEMA NOITE (tokens.css): dentro desta folha, à noite, o gráfico sairia
+   navy #1b3f8b e cinza #8a93a8 sobre um fundo quase preto — ilegível, sem erro
+   nenhum no console.
+
+   Traduzir os tokens no escopo da folha conserta os dois problemas de uma vez,
+   sem tocar em `componentes/ui/`, que serve a coordenação. É remapeamento, não
+   cor nova: cada `--color-*` aponta para o papel equivalente do aluno.
+
+   ⚠️ `--color-green` entra na lista de propósito. Não existe verde neste
+   sistema (docs/24 §7.2), e mapeá-lo garante que nenhum verde escape para cá
+   por uma regra da coordenação que ninguém lembrou de escopar. */
+.alu-tioleo {
+  --color-navy: var(--alu-dado);
+  --color-navy-deep: var(--alu-dado);
+  --color-green: var(--alu-dado);
+  --color-green-soft: var(--alu-superficie-2);
+  --color-red: var(--alu-alerta);
+  --color-red-soft: var(--alu-superficie-2);
+  --color-amber: var(--alu-valor);
+  --color-amber-soft: var(--alu-superficie-2);
+  --color-surface: var(--alu-superficie);
+  --color-surface-inset: var(--alu-superficie-2);
+  --color-border: var(--alu-borda);
+  --color-border-strong: var(--alu-borda);
+  --color-text-primary: var(--alu-texto);
+  --color-text-secondary: var(--alu-texto-2);
+  --color-text-tertiary: var(--alu-texto-2);
+}
+
+/* ── O cabeçalho da folha ─────────────────────────────────────────────── */
+
+/* A faísca é a marca do Tio Léo: círculo com o ícone na cor ACAO. O círculo
+   e a borda já vêm de `.alu-folha__marca`; aqui só entra a cor. */
+.alu-tioleo .alu-folha__marca {
+  color: var(--alu-acao);
+  background: var(--alu-superficie-2);
+  border-color: var(--alu-acao);
+}
+
+/* ── O corpo: quem rola é a lista da conversa, não a folha ────────────── */
+
+/* Dois contêineres roláveis empilhados dão o "scroll dentro do scroll" que
+   trava o polegar no celular. A folha para de rolar e a lista da conversa
+   assume — ela já sabe colar no fim a cada mensagem. */
+.alu-tioleo .alu-folha__corpo {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.alu-tioleo .chat-conversa {
+  min-height: 0;
+}
+
+.alu-tioleo .chat-conversa__lista {
+  padding: 14px 16px;
+  gap: 16px;
+}
+
+/* UM ARTEFATO GRANDE EMPURRA A FOLHA PARA "CHEIO" SOZINHO (docs/27 §8) — e o
+   `:has` faz isso sem estado: gráfico e imagem de questão são justamente o que
+   não cabe em 62dvh. No desktop a folha já tem a altura da tela. */
+@media (max-width: 899px) {
+  .alu-tioleo.alu-folha--meio:has(.alu-tioleo__artefato, .chat-artefato) {
+    height: 92dvh;
+  }
+}
+
+/* ── As mensagens: duas formas bem distintas ──────────────────────────── */
+
+/* Do aluno: balão à direita, preenchido na cor DADO.
+   ⚠️ O texto é branco, e não o near-black que o brief pedia: #0F1B33 sobre
+   DADO dá 3,6:1 e reprova em AA, enquanto o branco dá 4,8:1 no dia e 4,5:1 na
+   noite. Contraste AA é piso do projeto (docs/24 §7.2), então ele vence. */
+.alu-tioleo .chat-msg--user .chat-msg__corpo {
+  background: var(--alu-dado);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 11px 15px;
+  border-radius: var(--alu-raio) var(--alu-raio) 6px var(--alu-raio);
+}
+
+/* Do Tio Léo: SEM balão. Texto solto sobre o fundo da folha, largura total —
+   é o que dá peso à resposta e deixa o artefato respirar. */
+.alu-tioleo .chat-msg--assistant {
+  max-width: 100%;
+}
+
+.alu-tioleo .chat-msg--assistant .chat-msg__corpo {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  color: var(--alu-texto);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.alu-tioleo .chat-md-p + .chat-md-p {
+  margin-top: 10px;
+}
+
+/* Um link colado, um id, uma palavra sem espaço: a 360px qualquer um deles
+   empurraria o balão para fora da folha e a página inteira passaria a rolar na
+   horizontal. Quebrar dentro da palavra é o mal menor. */
+.alu-tioleo .chat-msg__corpo {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* Fórmula que o modelo escreveu no meio do texto: rola dentro do próprio
+   bloco em vez de empurrar a folha (docs/27 §8). Ver `.alu-tioleo__formula`
+   para o porquê de ela não ser renderizada de verdade. */
+.alu-tioleo .chat-msg__corpo code,
+.alu-tioleo .chat-msg__corpo pre {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Enquanto ele pensa ───────────────────────────────────────────────── */
+
+/* Três pontos na cor DADO enquanto nenhum texto chegou. O `:not(:has(...))` é
+   o que os apaga assim que a primeira palavra aparece, sem tocar na
+   `Conversa` — que é da coordenação e este sprint não edita.
+
+   Um pulso só no grupo, e não três fases independentes: `prefers-reduced-motion`
+   zera as animações dentro de `.alu-shell` (aluno-tokens.css), e o estado
+   parado precisa continuar legível. */
+.alu-tioleo .chat-msg--streaming:not(:has(.chat-msg__corpo))::after {
+  content: '•••';
+  display: block;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: 0.14em;
+  color: var(--alu-dado);
+  animation: alu-tioleo-pensando 1.2s ease-in-out infinite;
+}
+
+@keyframes alu-tioleo-pensando {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.alu-tioleo .chat-msg__corpo--stream::after {
+  color: var(--alu-dado);
+}
+
+/* ── O rastro da ferramenta ───────────────────────────────────────────── */
+
+/* "CONSULTEI SUAS NOTAS DO CICLO 4" — maiúscula pequena com o check. Não é
+   decoração: o aluno precisa saber que o número veio do sistema, e não da
+   cabeça do modelo.
+
+   Os argumentos crus (`simulado_id="…"`) somem: são ruído técnico para quem
+   tem 17 anos e ainda expõem identificador interno na conversa. */
+.alu-tioleo .chat-trace {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--alu-texto-2);
+}
+
+.alu-tioleo .chat-trace.is-rodando {
+  color: var(--alu-texto-2);
+}
+
+/* A regra do verde vale aqui também: `is-finalizada` é DADO, não verde. */
+.alu-tioleo .chat-trace.is-finalizada {
+  color: var(--alu-dado);
+  border-color: transparent;
+}
+
+.alu-tioleo .chat-trace__args,
+.alu-tioleo .chat-trace__resumo {
+  display: none;
+}
+
+/* ── Erro dentro da conversa ──────────────────────────────────────────── */
+
+/* VAZIO É VAZADO, e o mesmo vale para o erro: contorno com fio ALERTA em vez
+   de bloco vermelho preenchido. */
+.alu-tioleo .chat-msg__erro {
+  background: transparent;
+  border: 1.5px solid var(--alu-alerta);
+  border-radius: var(--alu-raio-pequeno);
+  color: var(--alu-alerta);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+/* O "artefato não renderizável" da coordenação vem em ouro sobre ouro-claro, e
+   ouro é ILEGÍVEL COMO LETRA (`--alu-valor-texto` existe por isso). Aqui ele
+   segue a mesma forma do erro acima: vazado, com fio ALERTA. */
+.alu-tioleo .chat-artefato--erro {
+  background: transparent;
+  border: 1.5px solid var(--alu-alerta);
+  color: var(--alu-alerta);
+}
+
+/* ── A abertura ───────────────────────────────────────────────────────── */
+
+/* Ela existe enquanto a `Conversa` ainda mostra as sugestões, e só então: o
+   `:has` amarra as duas sem duplicar, neste casco, o estado de "a conversa já
+   começou" que vive dentro de um componente que não podemos editar.
+   Se o browser não entender `:has`, a saudação simplesmente não aparece — o
+   lado seguro de falhar. */
+.alu-tioleo__abertura {
+  display: none;
+}
+
+.alu-tioleo:has(.chat-sugestoes) .alu-tioleo__abertura {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 26px 20px 2px;
+  flex-shrink: 0;
+}
+
+.alu-tioleo__faisca {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 2px solid var(--alu-acao);
+  color: var(--alu-acao);
+  margin-bottom: 4px;
+}
+
+.alu-tioleo__saudacao {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--alu-magnitude);
+}
+
+.alu-tioleo__pitch {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--alu-texto-2);
+  max-width: 30ch;
+}
+
+/* ── As sugestões, em pílula com borda de 1px ─────────────────────────── */
+
+.alu-tioleo .chat-sugestoes {
+  margin-top: 10px;
+  text-align: left;
+  align-self: stretch;
+}
+
+.alu-tioleo .chat-sugestoes__titulo {
+  display: none;
+}
+
+.alu-tioleo .chat-sugestoes__grupo-titulo {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--alu-texto-2);
+  margin-bottom: 7px;
+}
+
+.alu-tioleo .chat-sugestoes__lista {
+  justify-content: flex-start;
+}
+
+.alu-tioleo .chat-sugestao {
+  min-height: var(--alu-toque);
+  padding: 10px 15px;
+  border-radius: var(--alu-raio-pilula);
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-texto);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.alu-tioleo .chat-sugestao:hover {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+  background: var(--alu-superficie);
+}
+
+.alu-tioleo .chat-capacidades {
+  border-top: 1px solid var(--alu-borda);
+}
+
+.alu-tioleo .chat-capacidades__toggle {
+  min-height: var(--alu-toque);
+  color: var(--alu-texto-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.alu-tioleo .chat-capacidades__toggle:hover {
+  color: var(--alu-dado);
+}
+
+.alu-tioleo .chat-capacidades__lista {
+  color: var(--alu-texto-2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ── O campo de escrita ───────────────────────────────────────────────── */
+
+.alu-tioleo .chat-composer {
+  background: var(--alu-fundo);
+  border-top: 1px solid var(--alu-borda);
+  padding: 10px 12px;
+  /* A folha encosta na base da tela; sem isto o campo fica sob a barra de
+     gestos do iPhone. */
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  gap: 8px;
+}
+
+/* ⚠️ 16px, e não os 14px da coordenação: abaixo disso o Safari do iOS dá zoom
+   ao focar e não desfaz sozinho. É a mesma regra de `.alu-campo`. */
+.alu-tioleo .chat-composer__input {
+  font-size: 16px;
+  min-height: var(--alu-toque);
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid var(--alu-borda);
+  background: var(--alu-fundo);
+  color: var(--alu-texto);
+  /* Sem isto o textarea nasce com min-width de conteúdo e estoura a folha a
+     360px, empurrando o botão para fora. */
+  min-width: 0;
+}
+
+.alu-tioleo .chat-composer__input:focus {
+  border-color: var(--alu-dado);
+  box-shadow: none;
+}
+
+.alu-tioleo .chat-composer__enviar {
+  min-height: var(--alu-toque);
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--alu-raio-pequeno);
+  background: var(--alu-acao);
+  color: var(--alu-acao-texto);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-acao-base);
+  margin-bottom: var(--alu-tecla);
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+
+.alu-tioleo .chat-composer__enviar:active:not(:disabled) {
+  transform: translateY(var(--alu-tecla));
+  box-shadow: 0 0 0 0 var(--alu-acao-base);
+}
+
+.alu-tioleo .chat-composer__enviar:hover:not(:disabled) {
+  background: var(--alu-acao);
+}
+
+/* ── Carregando e erro de abertura ────────────────────────────────────── */
+
+/* Esqueleto com a forma do conteúdo, nunca um spinner. */
+.alu-tioleo__esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 16px;
+}
+
+.alu-tioleo__osso {
+  height: 14px;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--alu-superficie-2);
+}
+
+.alu-tioleo__osso--curto {
+  width: 42%;
+}
+
+.alu-tioleo__osso--medio {
+  width: 74%;
+}
+
+.alu-tioleo__erro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px 16px;
+}
+
+.alu-tioleo__erro-tecnico {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+  overflow-wrap: anywhere;
+}
+
+/* ── O histórico de conversas ─────────────────────────────────────────── */
+
+.alu-tioleo__historico {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.alu-tioleo__conversas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alu-tioleo .alu-conta__linha.is-ativa {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+.alu-tioleo__conversa-titulo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alu-tioleo__conversa-data {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Os artefatos ─────────────────────────────────────────────────────── */
+
+/* 16px de raio, 1px de borda e cabeçalho em maiúscula pequena (docs/27 §7).
+   Nunca sombra flutuante — a superfície se separa do fundo pela borda. */
+.alu-tioleo__artefato {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 14px;
+  border: 1px solid var(--alu-borda);
+  border-radius: 16px;
+  background: var(--alu-superficie);
+  max-width: 100%;
+}
+
+/* O mesmo casco para o artefato que vem da coordenação (histograma e linha
+   temporal, que já são reais): sem isto ele entra na folha com os tokens
+   `--color-*`, que são de outro sistema. */
+.alu-tioleo .chat-artefato {
+  border: 1px solid var(--alu-borda);
+  border-radius: 16px;
+  background: var(--alu-superficie);
+  padding: 14px;
+}
+
+.alu-tioleo .chat-artefato__titulo,
+.alu-tioleo .chat-artefato__rodape {
+  color: var(--alu-texto-2);
+}
+
+.alu-tioleo__artefato-topo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alu-tioleo__artefato-olho {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 44px de alvo mesmo com o ícone de 15px: o toque é o do dedo, não o do
+   desenho. A margem negativa devolve o espaço extra para o cabeçalho não
+   crescer junto. */
+.alu-tioleo__artefato-expandir {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: var(--alu-toque);
+  height: var(--alu-toque);
+  margin: -6px -8px -6px 0;
+  border-radius: 10px;
+  color: var(--alu-texto-2);
+}
+
+.alu-tioleo__artefato-expandir:hover {
+  background: var(--alu-superficie-2);
+  color: var(--alu-dado);
+}
+
+.alu-tioleo__artefato-titulo {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--alu-texto);
+}
+
+/* Conteúdo largo (gráfico, tabela, imagem de questão) rola dentro do cartão.
+   O corpo da página nunca rola na horizontal — a 360px isso é a diferença
+   entre o app usável e o app quebrado. */
+.alu-tioleo__artefato-corpo {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Dentro do artefato o cartão de questão perde a própria moldura: duas bordas
+   concêntricas com 1px de folga leem como erro de layout. */
+.alu-tioleo__artefato-corpo .alu-questao {
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.alu-tioleo .alu-tecla {
+  text-decoration: none;
+  align-self: flex-start;
+}
+
+/* `.alu-tecla--pequena` nasce com 36px, que serve à coluna lateral do desktop.
+   Dentro da folha tudo é dedo em celular, então o alvo volta para 44px — sem
+   mexer no token, que outras telas usam. */
+.alu-tioleo .alu-tecla--pequena {
+  min-height: var(--alu-toque);
+}
+
+.alu-tioleo__artefato--falha {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* ── Artefato expandido em tela cheia ─────────────────────────────────── */
+
+/* z-index acima da folha (60), porque ele cobre a folha, não a substitui. É
+   onde a questão e o gráfico ficam legíveis num aparelho de 390px. */
+.alu-tioleo__expandido {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  background: var(--alu-fundo);
+}
+
+.alu-tioleo__expandido-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--alu-borda);
+  flex-shrink: 0;
+}
+
+.alu-tioleo__expandido-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Extrato de XP ────────────────────────────────────────────────────── */
+
+.alu-tioleo__extrato {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alu-tioleo__extrato-linha {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 9px 11px;
+  border-radius: var(--alu-raio-pequeno);
+  background: var(--alu-superficie-2);
+}
+
+/* VAZIO É VAZADO: a linha que não pontuou vira contorno, e nunca some — é
+   onde o aluno entende o que faltou (docs/26 §3). */
+.alu-tioleo__extrato-linha.alu-vazado {
+  background: transparent;
+}
+
+/* `min-width: 0` porque item de grade nasce com `min-width: auto`: sem isto um
+   rótulo longo empurra a coluna do XP para fora do cartão a 360px. */
+.alu-tioleo__extrato-rotulo {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.alu-tioleo__extrato-xp {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-valor-texto);
+}
+
+/* O +0 não é ouro: ouro é VALOR, e nada foi ganho aqui. */
+.alu-tioleo__extrato-xp--zero {
+  color: var(--alu-texto-2);
+}
+
+.alu-tioleo__extrato-evidencia {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-tioleo__extrato-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--alu-borda);
+}
+
+.alu-tioleo__extrato-total .alu-magnitude {
+  font-size: 30px;
+}
+
+/* ── Lista de questões para treinar ───────────────────────────────────── */
+
+.alu-tioleo__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alu-tioleo__lista-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.alu-tioleo__lista-assunto {
+  overflow-wrap: anywhere;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.alu-tioleo__lista-sub {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--alu-texto-2);
+}
+
+.alu-tioleo__lista-linha .alu-tecla {
+  align-self: center;
+}
+
+/* A cobertura da taxonomia e o "mostrando 3 de N": as duas linhas existem para
+   o cartão não parecer a lista inteira nem cobrir matéria que ele não cobre. */
+.alu-tioleo__lista-aviso {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--alu-texto-2);
+}
+
+/* ── Prova ────────────────────────────────────────────────────────────── */
+
+.alu-tioleo__prova-nome {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--alu-magnitude);
+}
+
+.alu-tioleo__prova-data {
+  margin: 0;
+  font-size: 13px;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Fórmula ──────────────────────────────────────────────────────────── */
+
+/* Texto simples, e é decisão registrada: a escolha entre KaTeX empacotado e
+   MathML via Temml está em aberto (docs/27 §12) e nenhuma dependência entra
+   antes dela.
+
+   ⚠️ E há um motivo para não ter pressa (docs/27 §10): fórmula bonita e errada
+   AUMENTA a confiança do aluno numa resposta falsa. O modelo escreve LaTeX
+   impecavelmente diagramado e matematicamente falso, e um aluno de 17 anos não
+   tem repertório para desconfiar de uma derivação bem apresentada. Enquanto a
+   mitigação (mostrar a resolução oficial em vez de derivar do zero) não estiver
+   no prompt, o monoespaçado cru é o estado honesto: ele parece rascunho. */
+.alu-tioleo__formula {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--alu-raio-pequeno);
+  background: var(--alu-superficie-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  /* Rola sozinha na horizontal, dentro do próprio bloco, sem empurrar a folha. */
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.alu-tioleo__formula-aviso {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+}

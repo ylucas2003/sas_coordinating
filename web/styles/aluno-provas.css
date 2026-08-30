@@ -1,0 +1,673 @@
+/* ─── PROVAS · ficha do simulado · extrato de XP ─────────────────────────
+   As três rotas de "como eu fui" moram no mesmo arquivo porque compartilham o
+   herói, a régua e o esqueleto de carregamento: separar em três folhas faria a
+   primeira divergência de padding aparecer só numa delas.
+
+   Só tokens `--alu-*`, e nenhuma sombra flutuante — a superfície se separa do
+   fundo pela borda, e é isso que impede a tela de parecer template
+   (docs/24 §7.2).
+
+   A ÚNICA cor crua é o `#ffffff` da letra sobre a cor DADO, e ela é crua de
+   propósito: DADO é azul nos dois temas, então a letra em cima dele não pode
+   ser `--alu-acao-texto` (que vira quase-preto na noite) nem `--alu-texto`. É
+   a mesma escolha já feita em `aluno-casco.css` e `aluno-estudar.css` — o
+   token que faltaria teria de nascer lá, não aqui, sob pena de os três
+   divergirem.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.alu-provas {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* Item flex nasce com `min-width: auto` e cresce até caber o conteúdo
+     interno; sem isto a grade do mapa de calor empurra a coluna inteira para
+     além da viewport em vez de rolar dentro do próprio contêiner
+     (docs/20 §3.1). É a armadilha que já custou caro duas vezes. */
+  min-width: 0;
+}
+
+/* ── Voltar ───────────────────────────────────────────────────────────── */
+
+.alu-provas__voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  min-height: var(--alu-toque);
+  padding: 4px 8px 4px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+}
+
+.alu-provas__voltar:hover {
+  color: var(--alu-texto);
+  text-decoration: none;
+}
+
+/* ── O herói: último simulado (na aba) e a nota (na ficha) ────────────── */
+
+/* O herói respira menos que um bloco comum de propósito: nome, nota e delta
+   são uma frase só, e o espaço padrão os lê como três coisas separadas. */
+.alu-provas__hero {
+  gap: 10px;
+}
+
+.alu-provas__hero-nome {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.alu-provas__hero-nota {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* MAGNITUDE: todo numeral grande. O `clamp` é o que segura os 64px a 360px sem
+   uma media query só para isso. */
+.alu-provas__nota {
+  font-size: clamp(52px, 17vw, 64px);
+}
+
+.alu-provas__escala {
+  font-size: 13px;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-provas__delta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 13px;
+  color: var(--alu-texto-2);
+}
+
+/* O delta contra o próprio padrão é PROGRESSO, e progresso é DADO. A queda
+   fica quieta: ALERTA é só a distância até o corte, e usar vermelho aqui
+   recriaria o semáforo que o sistema inteiro evita. */
+.alu-provas__delta-valor {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+}
+
+.alu-provas__delta-valor.is-subiu {
+  color: var(--alu-dado);
+}
+
+.alu-provas__leituras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 12px;
+  margin: 4px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--alu-borda);
+}
+
+.alu-provas__leitura {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.alu-provas__leitura-valor {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.alu-provas__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.alu-provas__acoes .alu-tecla {
+  flex: 1 1 auto;
+  /* Duas teclas lado a lado a 360px viram uma coluna sozinhas; o `min-width`
+     é o que decide quando isso acontece. */
+  min-width: 150px;
+  text-decoration: none;
+}
+
+.alu-provas__acoes .alu-tecla:hover {
+  text-decoration: none;
+}
+
+.alu-provas__pdf {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 150px;
+}
+
+.alu-provas__aviso {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+}
+
+/* O aviso que substitui o botão do PDF ocupa a linha inteira: espremido entre
+   duas teclas ele quebraria palavra a palavra. */
+.alu-provas__acoes .alu-provas__aviso {
+  flex: 1 1 100%;
+}
+
+/* ── Mapa de calor ────────────────────────────────────────────────────── */
+
+.alu-mapa {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* A coluna de matérias NÃO rola: num aparelho de 360px a grade sai da tela
+   pela direita, e um rótulo de linha que some junto deixa o mapa ilegível. */
+.alu-mapa__materias {
+  list-style: none;
+  margin: 0;
+  padding: var(--alu-mapa-topo) 0 0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.alu-mapa__materia {
+  height: var(--alu-mapa-linha);
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--alu-texto-2);
+}
+
+/* A grade rola dentro do próprio contêiner. O `body` nunca rola na horizontal
+   — é a regra que vale para toda tabela, imagem e bloco largo do produto. */
+.alu-mapa__rolagem {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  min-width: 0;
+  flex: 1;
+  scrollbar-width: thin;
+}
+
+.alu-mapa__ciclo,
+.alu-mapa__coluna,
+.alu-mapa__nota {
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-mapa__ciclo {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  fill: var(--alu-texto-2);
+  text-transform: uppercase;
+}
+
+.alu-mapa__coluna {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  fill: var(--alu-texto-2);
+}
+
+/* UMA cor de letra para toda célula, cheia ou vazada, nos dois temas — e é o
+   que a faixa estreita de intensidade (0,25–0,75, ver Provas.tsx) compra:
+   `--alu-texto` fica em 4,9:1 no pior caso do dia e em 5,1:1 no pior da noite.
+   Duas cores com limiar por intensidade tinham uma zona morta no tema dia em
+   que NENHUMA das duas passava AA. */
+.alu-mapa__nota {
+  font-size: 11px;
+  font-weight: 800;
+  fill: var(--alu-texto);
+}
+
+.alu-mapa__legenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 11px;
+  color: var(--alu-texto-2);
+}
+
+.alu-mapa__legenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.alu-mapa__amostra {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--alu-dado);
+  flex-shrink: 0;
+}
+
+.alu-mapa__amostra--abaixo {
+  background: transparent;
+  border: 1.5px solid var(--alu-alerta);
+}
+
+/* ── Lista de simulados ───────────────────────────────────────────────── */
+
+.alu-provas__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Bloco tocável: leva a tecla de 4px, porque a linha inteira abre a ficha. É
+   uma das poucas coisas fora de botão que pode ter a tecla — todo o resto da
+   tela é chapado (docs/24 §7.1, regra 1). */
+.alu-provas__linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--alu-toque);
+  padding: 11px 12px;
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid var(--alu-borda);
+  background: var(--alu-fundo);
+  color: var(--alu-texto);
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-borda);
+  margin-bottom: var(--alu-tecla);
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+
+.alu-provas__linha:hover {
+  text-decoration: none;
+  border-color: var(--alu-dado);
+}
+
+.alu-provas__linha:active {
+  transform: translateY(var(--alu-tecla));
+  box-shadow: 0 0 0 0 var(--alu-borda);
+}
+
+.alu-provas__linha-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.alu-provas__linha-nome {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alu-provas__linha-meta {
+  font-size: 11.5px;
+  color: var(--alu-texto-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alu-provas__linha-nota {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.alu-provas__linha-valor {
+  font-size: 22px;
+}
+
+/* ── Comparação com a turma ───────────────────────────────────────────── */
+
+.alu-provas__grupo-rotulo,
+.alu-provas__grupo-valor {
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-provas__grupo-rotulo {
+  font-size: 11.5px;
+  font-weight: 700;
+  fill: var(--alu-texto-2);
+}
+
+.alu-provas__grupo-valor {
+  font-size: 12px;
+  font-weight: 800;
+  fill: var(--alu-texto-2);
+}
+
+.alu-provas__grupo-valor.is-eu {
+  fill: var(--alu-magnitude);
+}
+
+/* ── Questão por questão ──────────────────────────────────────────────── */
+
+.alu-provas__placar {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.alu-provas__placar li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.alu-provas__placar-numero {
+  font-size: 26px;
+}
+
+.alu-provas__questoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alu-provas__questao {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.alu-provas__questao--correta {
+  background: var(--alu-dado);
+  color: #ffffff;
+}
+
+/* VAZIO É VAZADO: a errada é contorno com fio ALERTA, nunca um quadrado
+   vermelho preenchido.
+
+   ⚠️ Só o CONTORNO é ALERTA — o numeral fica na cor de texto, pela mesma razão
+   que a célula do mapa: coral sobre a superfície clara dá 3,87:1 e reprova AA
+   em texto de 11px, e o número da questão não é "etiqueta de distância", que é
+   o único papel do ALERTA como letra (docs/24 §7.2). O que separa a errada da
+   em-branco é o estilo da borda, não a cor do algarismo. */
+.alu-provas__questao--errada {
+  background: transparent;
+  border: 1.5px solid var(--alu-alerta);
+  color: var(--alu-texto);
+}
+
+.alu-provas__questao--em_branco {
+  background: transparent;
+  border: 1.5px dashed var(--alu-borda);
+  color: var(--alu-texto-2);
+}
+
+.alu-provas__legenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 11px;
+  color: var(--alu-texto-2);
+}
+
+.alu-provas__legenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.alu-provas__amostra {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.alu-provas__amostra--certa {
+  background: var(--alu-dado);
+}
+
+.alu-provas__amostra--errada {
+  border: 1.5px solid var(--alu-alerta);
+}
+
+.alu-provas__amostra--branco {
+  border: 1.5px dashed var(--alu-borda);
+}
+
+/* ── Esqueleto ────────────────────────────────────────────────────────── */
+
+/* Esqueleto com a FORMA do conteúdo, nunca um spinner: o aluno já sabe onde a
+   nota vai aparecer antes de ela chegar. O pulso é coberto pela regra de
+   `prefers-reduced-motion` dos tokens, que zera animação dentro de
+   `.alu-shell` — por isso não há uma segunda media query aqui. */
+.alu-provas__esqueleto {
+  border-radius: var(--alu-raio-pequeno);
+  background: var(--alu-superficie-2);
+  animation: alu-provas-pulso 1400ms ease-in-out infinite;
+}
+
+@keyframes alu-provas-pulso {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ── Extrato de XP ────────────────────────────────────────────────────── */
+
+/* O cabeçalho do extrato é uma unidade: simulado, total e leitura. */
+.alu-extrato__cabecalho {
+  gap: 8px;
+}
+
+.alu-extrato__simulado {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+  overflow-wrap: anywhere;
+}
+
+.alu-extrato__total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+/* O total é o maior numeral da tela: é o momento em que a nota vira
+   explicação, e é por isso que ele vem antes das linhas. */
+.alu-extrato__total-numero {
+  font-size: clamp(56px, 19vw, 72px);
+}
+
+.alu-extrato__unidade {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--alu-valor-texto);
+}
+
+.alu-extrato__resumo {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-extrato__linhas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alu-extrato__linha {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid var(--alu-borda);
+  background: var(--alu-fundo);
+}
+
+/* A linha que não pagou é VAZADA e fica na tela para sempre: é onde o aluno
+   entende o que faltou. Sem preenchimento e sem ouro — mas com o mesmo peso de
+   leitura das outras, porque ela vale tanto quanto (docs/26 §3). */
+.alu-extrato__linha--vazia {
+  background: transparent;
+  border-style: dashed;
+}
+
+.alu-extrato__linha-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.alu-extrato__rotulo {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.alu-extrato__linha--vazia .alu-extrato__rotulo {
+  color: var(--alu-texto-2);
+}
+
+/* A evidência é o que separa esta tela de um boletim: o número conferido,
+   sempre visível ao lado do rótulo. */
+.alu-extrato__evidencia {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* ⚠️ `--alu-valor-texto`, NUNCA `--alu-valor`: ouro puro reprova em contraste
+   como letra sobre fundo claro, e é exatamente por isso que o token existe. */
+.alu-extrato__xp {
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-valor-texto);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.alu-extrato__xp.is-zerado {
+  color: var(--alu-texto-2);
+}
+
+.alu-extrato__fecho {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+}
+
+.alu-extrato__fecho-rotulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+}
+
+.alu-extrato__fecho-valor {
+  font-size: 30px;
+  color: var(--alu-valor-texto);
+}
+
+.alu-extrato__liga {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-extrato__liga strong {
+  font-weight: 800;
+  color: var(--alu-valor-texto);
+}
+
+.alu-extrato .alu-tecla {
+  align-self: flex-start;
+  text-decoration: none;
+}
+
+.alu-extrato .alu-tecla:hover {
+  text-decoration: none;
+}
+
+/* ── Desktop ──────────────────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  .alu-provas__nota {
+    font-size: 72px;
+  }
+
+  .alu-extrato__total-numero {
+    font-size: 80px;
+  }
+
+  .alu-provas__questao {
+    width: 34px;
+    height: 34px;
+  }
+}

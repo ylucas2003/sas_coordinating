@@ -1,0 +1,623 @@
+/* ─── A sessão de treino, o resumo e a questão em tela cheia ─────────────
+   As três rotas que ficam FORA do casco (`App.tsx`): tela inteira, sem barra
+   de navegação inferior e sem o botão do Tio Léo. Uma fila de questões com
+   navegação por baixo convida a sair no meio (docs/28 §3, regra 2).
+
+   As três moram no mesmo arquivo porque são a mesma peça em três estados —
+   uma questão ocupando a tela — e o que muda é só o que fica na base: as
+   alternativas, o placar, ou a navegação da leitura.
+
+   O ESQUELETO DAS TRÊS É O MESMO: topo fixo, corpo que rola sozinho, base
+   fixa. `overflow: hidden` no contêiner e `overflow-y: auto` no corpo, e não
+   `position: fixed` na base — no iOS a barra fixa some e reaparece com o
+   teclado, e a questão que o aluno está lendo salta junto.
+
+   ⚠️ Só token `--alu-*` e as classes que já existem (`.alu-tecla`,
+   `.alu-superficie`, `.alu-vazado`, `.alu-questao__*`). Nenhuma cor nova, e
+   NUNCA sombra flutuante — é o que faz qualquer tela parecer template.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* ── O esqueleto comum às três ────────────────────────────────────────── */
+
+/* `.alu-shell` (aluno-casco.css) é `min-height: 100dvh` — o casco cresce com o
+   conteúdo e quem rola é a página. Estas três telas são o oposto: altura
+   travada na viewport, topo e base fixos, e só o corpo rolando. Daí `height` e
+   `overflow` explícitos aqui, sobrepondo o casco de propósito.
+   (Não há conflito de `.alu-shell` no repositório: a classe é definida uma vez
+   só, em aluno-casco.css.) */
+.alu-treino,
+.alu-treino-resumo,
+.alu-questao-cheia {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.alu-treino__topo,
+.alu-treino-resumo__topo,
+.alu-questao-cheia__topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--alu-borda);
+}
+
+.alu-treino__corpo,
+.alu-treino-resumo__corpo,
+.alu-questao-cheia__corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  width: 100%;
+  max-width: var(--alu-coluna);
+  margin: 0 auto;
+}
+
+/* O botão de ícone do topo. 44px de alvo, chapado: só a tecla de 4px marca o
+   que é ação primária, e um X que "afunda" competiria com o RESPONDER. */
+.alu-treino__icone {
+  width: var(--alu-toque);
+  height: var(--alu-toque);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--alu-raio-pequeno);
+  background: transparent;
+  border: none;
+  color: var(--alu-texto-2);
+  cursor: pointer;
+}
+
+.alu-treino__icone:hover {
+  background: var(--alu-superficie);
+  color: var(--alu-texto);
+}
+
+/* ── A barra de progresso da sessão ───────────────────────────────────── */
+
+/* ⚠️ Ela mede QUANTAS FORAM RESPONDIDAS, não quantas foram acertadas: a barra
+   anda mesmo no erro (docs/24 §7.1, regra 4). Quem acerta 41% e vê a barra
+   travar a cada erro conclui que não está indo a lugar nenhum. */
+.alu-treino__progresso {
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: var(--alu-raio-pilula);
+  background: var(--alu-superficie-2);
+  border: 1px solid var(--alu-borda);
+  overflow: hidden;
+}
+
+.alu-treino__progresso-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--alu-raio-pilula);
+  background: var(--alu-dado);
+  transition: width 240ms ease-out;
+}
+
+.alu-treino__contagem {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+  /* Largura reservada: sem ela a barra encolhe ao passar de 9/12 para 10/12. */
+  min-width: 46px;
+  text-align: right;
+}
+
+/* ── "Por que estas questões?" ────────────────────────────────────────── */
+
+/* Vazado, com 1px de borda e sem preenchimento: é explicação, não ação, e
+   preencher a superfície aqui roubaria peso das alternativas. */
+.alu-treino__porque {
+  position: relative;
+  border: 1px solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  padding: 0 12px 2px;
+  background: transparent;
+}
+
+.alu-treino__porque-titulo {
+  display: flex;
+  align-items: center;
+  min-height: var(--alu-toque);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--alu-dado);
+  cursor: pointer;
+  list-style: none;
+}
+
+/* O triângulo padrão do `<details>` some nos dois motores. */
+.alu-treino__porque-titulo::-webkit-details-marker {
+  display: none;
+}
+
+.alu-treino__porque-texto,
+.alu-treino__derivado {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--alu-texto-2);
+}
+
+/* A tarja é absoluta por padrão (canto do bloco). Aqui ela vira inline: são
+   várias linhas com fontes diferentes no mesmo bloco, e três tarjas
+   empilhadas no mesmo canto se esconderiam umas às outras. */
+.alu-treino__derivado {
+  position: relative;
+}
+
+.alu-treino__derivado .alu-tarja {
+  position: static;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+.alu-treino__ligar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: var(--alu-toque);
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--alu-dado);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.alu-treino__ligar:hover {
+  text-decoration: underline;
+}
+
+/* ── O enunciado dentro da sessão ─────────────────────────────────────── */
+
+.alu-treino__origem {
+  margin: 0;
+  color: var(--alu-texto-2);
+}
+
+.alu-treino__incerto {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--alu-alerta);
+}
+
+/* A imagem já vem com `max-width: 100%` de `.alu-questao__imagem` — sem isso o
+   PNG de largura variável estoura a viewport a 360px (docs/28 §6). O que muda
+   aqui é só o alinhamento: na fila ela ocupa a largura toda. */
+.alu-treino__imagem {
+  width: 100%;
+}
+
+/* ── As alternativas ──────────────────────────────────────────────────── */
+
+.alu-treino__alternativas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Bloco TOCÁVEL, e por isso leva a tecla de 4px — o resto da tela é chapado,
+   que é o que faz a tecla continuar significando "aperte aqui" (docs/24 §7.1,
+   regra 1). Sem blur, nunca. */
+.alu-alternativa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 11px 13px;
+  text-align: left;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  color: var(--alu-texto);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  cursor: pointer;
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-borda);
+  margin-bottom: var(--alu-tecla);
+  transition:
+    transform 80ms ease-out,
+    box-shadow 80ms ease-out,
+    border-color 120ms ease-out;
+}
+
+.alu-alternativa:active:not(:disabled) {
+  transform: translateY(var(--alu-tecla));
+  box-shadow: 0 0 0 0 var(--alu-borda);
+}
+
+/* Conferida, ela deixa de ser botão — e a tecla vai junto. O `margin-bottom`
+   fica: tirá-lo faria a lista inteira subir 4px por linha no momento em que o
+   aluno lê o resultado. */
+.alu-alternativa:disabled {
+  cursor: default;
+  box-shadow: none;
+}
+
+.alu-alternativa__letra {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1.5px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-texto-2);
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-alternativa__texto {
+  min-width: 0;
+  /* Alternativa de Matemática vem com fórmula colada; sem isto ela empurra a
+     linha e o corpo passa a rolar na horizontal. */
+  overflow-wrap: anywhere;
+}
+
+/* Escolhida, antes de conferir: borda DADO e a letra preenchida. */
+.alu-alternativa.is-escolhida {
+  border-color: var(--alu-dado);
+  box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-dado);
+}
+
+.alu-alternativa.is-escolhida .alu-alternativa__letra {
+  background: var(--alu-dado);
+  border-color: var(--alu-dado);
+  color: #ffffff;
+}
+
+/* A correta, depois de conferir: PREENCHIDA na cor DADO. */
+.alu-alternativa.is-correta {
+  background: var(--alu-dado);
+  border-color: var(--alu-dado);
+  color: #ffffff;
+}
+
+.alu-alternativa.is-correta .alu-alternativa__letra {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
+}
+
+/* A que enganou: VAZADA com fio ALERTA. Vazio é vazado — preencher de vermelho
+   recriaria o semáforo, que é o que mais puxava a idade da tela para baixo
+   (docs/24 §7.1, regra 2). */
+.alu-alternativa.is-enganou {
+  background: transparent;
+  border-color: var(--alu-alerta);
+}
+
+.alu-alternativa.is-enganou .alu-alternativa__letra {
+  border-color: var(--alu-alerta);
+  color: var(--alu-alerta);
+}
+
+/* ── A base da sessão ─────────────────────────────────────────────────── */
+
+.alu-treino__base {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--alu-borda);
+  background: var(--alu-fundo);
+  width: 100%;
+  max-width: var(--alu-coluna);
+  margin: 0 auto;
+}
+
+.alu-treino__veredito {
+  /* A tarja da fonte é absoluta e se ancora aqui. */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alu-treino__veredito-titulo {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--alu-magnitude);
+}
+
+.alu-treino__veredito.is-certa .alu-treino__veredito-titulo {
+  color: var(--alu-dado);
+}
+
+.alu-treino__aviso {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px 0;
+}
+
+/* ── Carregando: esqueleto com a forma do conteúdo, nunca um spinner ──── */
+
+.alu-treino__esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alu-treino__esqueleto-imagem,
+.alu-treino__esqueleto-linha {
+  display: block;
+  background: var(--alu-superficie-2);
+  border-radius: var(--alu-raio-pequeno);
+  animation: alu-treino-respira 1.4s ease-in-out infinite;
+}
+
+.alu-treino__esqueleto-imagem {
+  height: 180px;
+}
+
+.alu-treino__esqueleto-linha {
+  height: 56px;
+}
+
+/* `prefers-reduced-motion` já é honrado por `aluno-tokens.css`, que zera
+   `animation-duration` dentro de `.alu-shell`. */
+@keyframes alu-treino-respira {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* ─── O fim da sessão ────────────────────────────────────────────────────
+   ⚠️ SEM XP e SEM confete. Treino não paga (docs/28 §3, regra 5), e a
+   celebração de tela cheia é do marco verificado (docs/26 §6).
+   ─────────────────────────────────────────────────────────────────────── */
+
+.alu-treino-resumo__placar {
+  align-items: flex-start;
+}
+
+.alu-treino-resumo__conta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.alu-treino-resumo__acertos {
+  font-size: 56px;
+}
+
+.alu-treino-resumo__de {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-treino-resumo__leitura {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.alu-treino-resumo__assuntos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alu-treino-resumo__assunto {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+
+.alu-treino-resumo__assunto-nome {
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.alu-treino-resumo__assunto-conta {
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+}
+
+/* O trilho é VAZADO e só a parte acertada é preenchida. Nada aqui fica
+   vermelho: errar numa sessão de treino é a sessão funcionando. */
+.alu-treino-resumo__trilho {
+  grid-column: 1 / -1;
+  display: block;
+  height: 8px;
+  border-radius: var(--alu-raio-pilula);
+  background: transparent;
+  border: 1.5px solid var(--alu-borda);
+  overflow: hidden;
+}
+
+.alu-treino-resumo__trilho-fill {
+  display: block;
+  height: 100%;
+  background: var(--alu-dado);
+}
+
+.alu-treino-resumo__efeito {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.alu-treino-resumo__nota {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--alu-texto-2);
+}
+
+.alu-treino-resumo__acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+/* ─── A questão em tela cheia ─────────────────────────────────────────── */
+
+.alu-questao-cheia__posicao {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  color: var(--alu-texto-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alu-questao-cheia__acoes-erro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* A barra da leitura: é assim que se anda entre questões sem voltar à lista a
+   cada uma. Três colunas, e a do meio é a marca de resolvida. */
+.alu-questao-cheia__base {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 12px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--alu-borda);
+  background: var(--alu-fundo);
+  width: 100%;
+  max-width: var(--alu-coluna);
+  margin: 0 auto;
+}
+
+.alu-questao-cheia__vizinha {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: var(--alu-toque);
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--alu-dado);
+  text-decoration: none;
+}
+
+.alu-questao-cheia__vizinha:hover {
+  text-decoration: underline;
+}
+
+/* A ponta da prova. Fica no lugar em vez de sumir: sem ela a marca de
+   resolvida saltaria de lado ao chegar na primeira questão. */
+.alu-questao-cheia__vizinha.is-fim {
+  color: var(--alu-texto-2);
+  opacity: 0.35;
+}
+
+.alu-questao-cheia__marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--alu-toque);
+  padding: 8px 12px;
+  border-radius: var(--alu-raio-pilula);
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-texto-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.alu-questao-cheia__marca:hover:not(:disabled) {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+/* Preenchida na cor DADO quando ativa — é estado, não ação. */
+.alu-questao-cheia__marca.is-ativa {
+  background: var(--alu-dado);
+  border-color: var(--alu-dado);
+  color: #ffffff;
+}
+
+.alu-questao-cheia__marca:disabled {
+  opacity: 0.5;
+}
+
+.alu-questao-cheia__contagem-lista {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+}
+
+.alu-questao-cheia__nova-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--alu-borda);
+}
+
+/* ── Desktop ──────────────────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  .alu-treino__corpo,
+  .alu-treino-resumo__corpo,
+  .alu-questao-cheia__corpo {
+    padding: 24px 16px 32px;
+  }
+
+  .alu-treino-resumo__acoes {
+    flex-direction: row;
+    gap: 10px;
+  }
+}

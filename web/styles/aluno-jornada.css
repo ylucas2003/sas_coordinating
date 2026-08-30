@@ -1,0 +1,522 @@
+/* ─── Jornada e Liga ─────────────────────────────────────────────────────
+   Duas telas num arquivo só porque são a mesma peça de produto: a Jornada
+   mostra o cartão da Liga, e a Liga é alcançada por ele. Separá-las em dois
+   CSS faria o escudo e a linha de participante viverem em arquivos diferentes.
+
+   Prefixos: `.alu-jor-` para a Jornada, `.alu-liga-` para a Liga.
+
+   ⚠️ Nada aqui redefine token, e não existe verde: os seis papéis são ACAO,
+   VALOR, DADO, SEQUENCIA, ALERTA e MAGNITUDE (docs/24 §7.2). A zona de subida
+   da liga é DADO e a de descida é SEQUENCIA — o semáforo verde-e-vermelho é
+   justamente o que o sistema recusa.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* ── Estados de carregamento e erro ───────────────────────────────────── */
+
+.alu-jor-erro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* ── HERO "onde você está" ────────────────────────────────────────────── */
+
+.alu-jor-zona {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.alu-jor-zona__cabeca {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.alu-jor-zona__nome {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--alu-magnitude);
+  /* Todo texto desta tela que vem do servidor leva quebra forçada: nome de
+     zona, de liga, de ciclo e de conquista são imprevisíveis, e uma palavra
+     longa estoura a coluna a 360px. É a mesma regra de aluno-provas.css. */
+  overflow-wrap: anywhere;
+}
+
+/* A régua vem junto do rótulo, sempre. docs/24 §2: "risco" sem saber contra
+   qual corte é só a má notícia — o nome do critério é o que torna o veredito
+   verificável fora da plataforma. */
+.alu-jor-zona__regua {
+  font-size: 12.5px;
+  color: var(--alu-texto-2);
+  line-height: 1.4;
+}
+
+/* Texto dentro do SVG: `font-family` explícito porque um `<text>` dentro de
+   um `<svg>` não herda a pilha de fontes de forma confiável entre browsers. */
+.alu-jor-zona__faixa-rotulo,
+.alu-jor-zona__voce,
+.alu-jor-zona__corte,
+.alu-jor-zona__cota {
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-jor-zona__faixa-rotulo {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  fill: var(--alu-texto-2);
+}
+
+.alu-jor-zona__faixa-rotulo--aqui {
+  fill: var(--alu-texto);
+}
+
+.alu-jor-zona__voce {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  fill: var(--alu-magnitude);
+}
+
+/* A fronteira é VALOR, não ALERTA: ela é a régua, não a má notícia. */
+.alu-jor-zona__corte {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  fill: var(--alu-valor-texto);
+}
+
+/* Branco fixo porque o fundo da etiqueta troca em runtime: ALERTA quando a
+   distância é falta, DADO quando é folga (ver `corDaEtiqueta` em Jornada.tsx).
+   Passa em AA sobre os dois, e a cor de fundo é a única coisa que muda. */
+.alu-jor-zona__cota {
+  font-size: 11px;
+  font-weight: 800;
+  fill: #ffffff;
+}
+
+.alu-jor-zona__leitura {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--alu-texto-2);
+  overflow-wrap: anywhere;
+}
+
+.alu-jor-zona__leitura strong {
+  color: var(--alu-texto);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Trajetória ───────────────────────────────────────────────────────── */
+
+.alu-jor-trajetoria {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alu-jor-trajetoria__eixo,
+.alu-jor-trajetoria__corte,
+.alu-jor-trajetoria__marca {
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-jor-trajetoria__eixo {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: var(--alu-texto-2);
+}
+
+.alu-jor-trajetoria__corte {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  fill: var(--alu-valor-texto);
+}
+
+.alu-jor-trajetoria__marca {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  fill: var(--alu-valor-texto);
+}
+
+.alu-jor-legenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.alu-jor-legenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--alu-texto-2);
+}
+
+.alu-jor-legenda__fio {
+  width: 18px;
+  height: 0;
+  border-top: 2px solid var(--alu-dado);
+  flex-shrink: 0;
+}
+
+.alu-jor-legenda__fio--corte {
+  border-top-color: var(--alu-valor);
+}
+
+.alu-jor-legenda__fio--turma {
+  border-top-style: dashed;
+  border-top-color: var(--alu-texto-2);
+}
+
+/* ── A corrente por ciclo ─────────────────────────────────────────────── */
+
+.alu-jor-ciclos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alu-jor-ciclo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.alu-jor-ciclo__nome {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+  /* Largura fixa para as correntes alinharem entre si sem tabela — a 360px
+     um `min-width` maior empurraria a corrente para a linha de baixo. */
+  min-width: 58px;
+  overflow-wrap: anywhere;
+}
+
+/* ── Cartão da liga ───────────────────────────────────────────────────── */
+
+.alu-jor-liga {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.alu-jor-liga__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.alu-jor-liga__nome {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--alu-magnitude);
+  overflow-wrap: anywhere;
+}
+
+.alu-jor-liga__posicao {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--alu-texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-jor-liga__falta {
+  font-size: 12.5px;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Conquistas ───────────────────────────────────────────────────────── */
+
+.alu-jor-medalhas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.alu-jor-medalha {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px;
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid var(--alu-borda);
+  background: var(--alu-superficie-2);
+  min-width: 0;
+}
+
+/* VAZIO É VAZADO: a travada é contorno sem preenchimento, nunca cinza morto
+   nem opacidade — na noite ela lê como segmento queimado de letreiro. */
+.alu-jor-medalha--travada {
+  background: transparent;
+}
+
+.alu-jor-medalha__selo {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--alu-raio-pequeno);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: var(--alu-valor);
+  /* Near-black fixo sobre o ouro: o ouro é o mesmo nos dois temas, então a
+     letra sobre ele também precisa ser. */
+  color: #0f1b33;
+}
+
+.alu-jor-medalha--travada .alu-jor-medalha__selo {
+  background: transparent;
+  border: 1.5px solid var(--alu-borda);
+  color: var(--alu-texto-2);
+}
+
+.alu-jor-medalha__titulo {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--alu-texto);
+  overflow-wrap: anywhere;
+}
+
+/* O detalhe é `.alu-olho`, que é global e não pode ganhar quebra para o
+   produto inteiro; aqui ela é obrigatória porque a evidência da conquista
+   ("FÍSICA 7,4 · P5") vem do servidor e em duas colunas o espaço é curto. */
+.alu-jor-medalha .alu-olho {
+  overflow-wrap: anywhere;
+}
+
+.alu-jor-medalha--travada .alu-jor-medalha__titulo {
+  color: var(--alu-texto-2);
+}
+
+/* Progresso é DADO, e a barra existe só na travada: numa conquistada ela
+   estaria sempre cheia e viraria decoração. */
+.alu-jor-progresso {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--alu-superficie-2);
+  overflow: hidden;
+}
+
+.alu-jor-progresso__preenchimento {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--alu-dado);
+}
+
+/* ── "De quem já passou" ──────────────────────────────────────────────── */
+
+.alu-jor-depoimento {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.alu-jor-depoimento__chamada {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--alu-texto-2);
+  overflow-wrap: anywhere;
+}
+
+/* ─── LIGA ───────────────────────────────────────────────────────────────
+   A liga inteira depende de uma decisão de coordenação ainda aberta
+   ("gamificação pode ser competitiva?", docs/24 §9.1). O CSS existe; a
+   mecânica pode não subir.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.alu-liga-topo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.alu-liga-topo__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.alu-liga-topo__nome {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--alu-magnitude);
+  overflow-wrap: anywhere;
+}
+
+.alu-liga-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--alu-toque);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+}
+
+.alu-liga-voltar:hover {
+  color: var(--alu-texto);
+  text-decoration: none;
+}
+
+.alu-liga-tabela {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.alu-liga-linha {
+  display: grid;
+  /* `minmax(0, 1fr)` na coluna do meio: sem ele a coluna nasce com a largura
+     do conteúdo e a linha estoura a 360px. */
+  grid-template-columns: 30px 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--alu-toque);
+  padding: 8px 10px;
+  border-radius: var(--alu-raio-pequeno);
+}
+
+.alu-liga-linha__posicao {
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+  text-align: right;
+}
+
+.alu-liga-linha__marca {
+  display: grid;
+  place-items: center;
+}
+
+/* ⚠️ ANÔNIMA (docs/26 §5.1): esta coluna NUNCA recebe nome, apelido nem
+   inicial. Só a palavra "VOCÊ" na própria linha do aluno. */
+.alu-liga-linha__rotulo {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--alu-texto-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alu-liga-linha__xp {
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto);
+  white-space: nowrap;
+}
+
+.alu-liga-linha--eu {
+  background: var(--alu-superficie-2);
+  border: 1.5px solid var(--alu-dado);
+  padding: 7px 9px;
+}
+
+.alu-liga-linha--eu .alu-liga-linha__posicao,
+.alu-liga-linha--eu .alu-liga-linha__rotulo {
+  color: var(--alu-dado);
+}
+
+.alu-liga-linha--eu .alu-liga-linha__xp {
+  color: var(--alu-magnitude);
+}
+
+/* Os fios das zonas. DADO na subida, SEQUENCIA na descida — nunca verde e
+   vermelho: o semáforo não existe neste sistema. */
+.alu-liga-fio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.alu-liga-fio::after {
+  content: '';
+  flex: 1;
+  border-top: 2px solid currentColor;
+}
+
+.alu-liga-fio--sobe {
+  color: var(--alu-dado);
+}
+
+.alu-liga-fio--desce {
+  color: var(--alu-sequencia);
+}
+
+/* A quebra aparece quando a lista não alcança o fim do grupo: sem ela a zona
+   de descida seria invisível, e o rodapé falaria de algo que não se vê. */
+.alu-liga-quebra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 11px;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-liga-quebra::before,
+.alu-liga-quebra::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--alu-borda);
+}
+
+.alu-liga-rodape {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-liga-aviso {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--alu-texto-2);
+}

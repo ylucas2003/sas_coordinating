@@ -1,0 +1,269 @@
+/* ─── O cartão de questão do aluno ───────────────────────────────────────
+   Peça compartilhada por Estudar, pela questão em tela cheia e pela sessão de
+   treino — por isso mora em arquivo próprio, e não no CSS de uma tela.
+
+   ⚠️ A IMAGEM É O CONTEÚDO. O enunciado é um PNG de largura variável e sem
+   `max-width: 100%` estoura a viewport a 360px (docs/28 §6). É a única regra
+   deste arquivo que não se pode afrouxar.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.alu-questao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio);
+}
+
+.alu-questao__topo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.alu-questao__origem {
+  color: var(--alu-texto-2);
+  margin-right: auto;
+}
+
+.alu-questao__selo {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: var(--alu-raio-pilula);
+  border: 1px solid var(--alu-borda);
+  color: var(--alu-texto-2);
+}
+
+.alu-questao__abrir {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--alu-texto-2);
+}
+
+.alu-questao__abrir:hover {
+  background: var(--alu-superficie-2);
+  color: var(--alu-dado);
+  text-decoration: none;
+}
+
+.alu-questao__imagem {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--alu-raio-pequeno);
+  /* Fundo claro FIXO: o PNG da prova é preto sobre branco e some no tema
+     noite se herdar a superfície escura. É a única cor crua do arquivo, e é
+     por isso que ela existe. */
+  background: #ffffff;
+}
+
+.alu-questao__texto {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ── Tópicos ──────────────────────────────────────────────────────────── */
+
+.alu-questao__topicos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alu-questao__topico {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--alu-raio-pilula);
+  background: var(--alu-superficie-2);
+  color: var(--alu-texto-2);
+}
+
+.alu-questao__topico--incerto {
+  border: 1px dashed var(--alu-borda);
+  background: transparent;
+}
+
+.alu-questao__ponto-alerta {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--alu-alerta);
+  flex-shrink: 0;
+}
+
+.alu-questao__incerto-rotulo {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--alu-alerta);
+}
+
+/* ── Gabarito ─────────────────────────────────────────────────────────── */
+
+.alu-questao__gabarito {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.alu-questao__resposta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.alu-questao__letra {
+  font-size: 44px;
+  color: var(--alu-dado);
+  line-height: 1;
+}
+
+.alu-questao__sem-gabarito {
+  margin: 0;
+  font-size: 13px;
+  color: var(--alu-texto-2);
+  line-height: 1.6;
+}
+
+.alu-questao__aviso {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--alu-texto-2);
+  margin: 0;
+}
+
+/* ── Resolução, e A ORIGEM DELA (docs/29 §D.1) ────────────────────────── */
+
+.alu-questao__resolucao {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  min-height: var(--alu-toque);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--alu-dado);
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+}
+
+.alu-questao__resolucao:hover {
+  text-decoration: underline;
+}
+
+/* A etiqueta de origem NÃO é decorativa. Sem ela o aluno lê uma resolução de
+   IA achando que é do professor — e renderizar bem AUMENTA a confiança dele
+   numa resposta que pode estar errada (docs/27 §10). */
+.alu-questao__origem-resolucao {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--alu-raio-pilula);
+}
+
+.alu-questao__origem-resolucao--ari {
+  background: var(--alu-superficie-2);
+  color: var(--alu-texto-2);
+}
+
+/* Vazada com fio de alerta: não é erro, é procedência. O contorno diz "olhe
+   isto" sem pintar de vermelho o que é apenas menos confiável. */
+.alu-questao__origem-resolucao--ia {
+  background: transparent;
+  border: 1px solid var(--alu-alerta);
+  color: var(--alu-alerta);
+}
+
+.alu-questao__resolucao-escrita {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.alu-questao__resolucao-corpo {
+  border-left: 2px solid var(--alu-borda);
+  padding-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.alu-questao__resolucao-corpo p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ── Ações do rodapé ──────────────────────────────────────────────────── */
+
+.alu-questao__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--alu-borda);
+}
+
+.alu-questao__acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 7px 12px;
+  border-radius: var(--alu-raio-pilula);
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-texto-2);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.alu-questao__acao:hover:not(:disabled) {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+/* Preenchida na cor DADO quando ativa — é estado, não ação. */
+.alu-questao__acao.is-ativa {
+  background: var(--alu-dado);
+  border-color: var(--alu-dado);
+  color: #ffffff;
+}
+
+.alu-questao__acao:disabled {
+  opacity: 0.5;
+}
+
+.alu-questao__anotacao {
+  min-height: 88px;
+  resize: vertical;
+  line-height: 1.6;
+}
