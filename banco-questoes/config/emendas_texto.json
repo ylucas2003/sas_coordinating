@@ -1,0 +1,12 @@
+{
+  "_comentario": "Emendas de texto no enunciado, aplicadas DEPOIS da extração e conferidas uma a uma contra o `pdftotext` do PDF original. Existem porque a página tem a linha partida em dois blocos de texto sobrepostos: a leitura ordenada (`sort=True`) junta os dois repetindo o caractere da emenda — 'x2 + 18' + '8 e Q(x)' vira 'x2 + 188'. Ficam aqui, e não editados à mão nos JSONs, porque reextrair reescreve o enunciado e a correção manual se perde em silêncio (docs/23 §23.7). Cada `de` tem de existir no texto: se não existir, a extração mudou e a emenda precisa ser reconferida, não ignorada.",
+  "emendas": [
+    {"questao": "ime_2012_fase1_mat_q01", "de": "+ 188 e Q(x)", "para": "+ 18 e Q(x)"},
+    {"questao": "ime_2012_fase1_mat_q01", "de": "raízees", "para": "raízes"},
+    {"questao": "ime_2012_fase1_mat_q01", "de": "affirmar", "para": "afirmar"},
+    {"questao": "ime_2012_fase1_mat_q02", "de": "apresentaa", "para": "apresenta"},
+    {"questao": "ime_2012_fase1_mat_q02", "de": "– 33]", "para": "– 3]"},
+    {"questao": "ime_2012_fase1_mat_q03", "de": "(logg 3 x", "para": "(log3 x"},
+    {"questao": "ime_2012_fase1_mat_q03", "de": "soluçções", "para": "soluções"}
+  ]
+}

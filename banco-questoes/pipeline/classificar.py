@@ -43,14 +43,17 @@ import argparse
 import json
 from pathlib import Path
 
-
 PROJETO_ROOT = Path(__file__).resolve().parent.parent
 DIR_QUESTOES_JSON = PROJETO_ROOT / "questoes_json"
 
+# Os nomes com hífen são os que existem em `config/` desde que o material veio
+# para o SAS (docs/22 §1.1). O script ficou apontando para os nomes antigos
+# (`taxonomia.json`, `taxonomia_quimica.json`) e quebrava com FileNotFoundError
+# em qualquer prova — não era usado desde a importação.
 TAXONOMIA_POR_MATERIA = {
-    "Física":     "taxonomia.json",
-    "Química":    "taxonomia_quimica.json",
-    "Matemática": "taxonomia_matematica.json",
+    "Física":     "taxonomia-fisica.json",
+    "Química":    "taxonomia-quimica.json",
+    "Matemática": "taxonomia-matematica.json",
 }
 
 

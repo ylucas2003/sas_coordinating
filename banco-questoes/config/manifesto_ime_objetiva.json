@@ -1,0 +1,47 @@
+[
+  {
+    "ano": 2007,
+    "prova": "ime_historico/oficial_1996_2019/provas07_08/provaobj_2007-2008.pdf",
+    "gabarito": "ime_historico/oficial_1996_2019/provas07_08/gabaritodefinitivo_2007-2008.pdf"
+  },
+  {
+    "ano": 2008,
+    "prova": "ime_historico/oficial_1996_2019/provas08_09/Objetiva_CFG_2008.pdf",
+    "gabarito": "ime_historico/oficial_1996_2019/provas08_09/Gabarito_Objetiva_CFG_2008.pdf"
+  },
+  {
+    "ano": 2009,
+    "prova": "ime_historico/oficial_1996_2019/provas09_10/Objetiva_Final_Formato_A3_02-10.pdf",
+    "gabarito": "ime_historico/oficial_1996_2019/provas09_10/Gabarito_definitivo_objetiva_2009.pdf"
+  },
+  {
+    "ano": 2011,
+    "prova": "ime_historico/oficial_1996_2019/provas11_12/ProvaObjetiva_CA_CFG_2011_2012.pdf",
+    "gabarito": "ime_historico/oficial_1996_2019/provas11_12/Gabarito_Definitivo_Prova_Objetiva_CA_CFG_2011_2012.pdf"
+  },
+  {
+    "ano": 2012,
+    "prova": "ime_historico/oficial_1996_2019/provas12_13/Provas_Objetivas_CFG.pdf",
+    "gabarito": "ime_historico/oficial_1996_2019/provas12_13/Gabarito_CFG-Objetiva-Definitivo.pdf"
+  },
+  {
+    "ano": 2013,
+    "prova": "ime_historico/oficial_1996_2019/provas13_14/CFG-Objetiva-2013-2014.pdf",
+    "gabarito": "ime_historico/oficial_1996_2019/provas13_14/CFG-Objetiva-2013-2014-Gabarito.pdf"
+  },
+  {
+    "ano": 2014,
+    "prova": "ime_historico/oficial_1996_2019/provas14_15/CFG-Objetiva-2014-2015.pdf",
+    "gabarito": "ime_historico/oficial_1996_2019/provas14_15/CFG-Objetiva-2014-2015-Gabarito.pdf"
+  },
+  {
+    "ano": 2015,
+    "prova": "ime_historico/oficial_1996_2019/provas15_16/CFG-Objetiva-2015-2016.pdf",
+    "gabarito": "ime_historico/oficial_1996_2019/provas15_16/CFG-Objetiva-2015-2016-Gabarito.pdf"
+  },
+  {
+    "ano": 2016,
+    "prova": "ime_historico/oficial_1996_2019/provas16_17/CFG-Objetiva-2016-2017.pdf",
+    "gabarito": "ime_historico/oficial_1996_2019/provas16_17/CFG-Objetiva-2016-2017-Gabarito.pdf"
+  }
+]
