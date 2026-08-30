@@ -37,20 +37,28 @@ load_dotenv()  # antes dos imports do app — Settings lê o ambiente na constru
 from app.banco.importador import ErroImportacao, RelatorioImportacao, importar  # noqa: E402
 from app.supabase_client import criar_cliente_supabase  # noqa: E402
 
-# Conferidos em 22/08/2026 contra os arquivos (docs/22 §1.4). Não é meta: é
-# fotografia. Divergir não é erro por si — prova nova processada muda todos
-# estes números de uma vez —, mas divergir SEM ninguém ter mexido no pipeline
-# quer dizer que algo entrou torto, e é a única chance de perceber isso antes de
-# a tela mostrar um recorte incompleto.
+# Fotografia do acervo, não meta. Divergir não é erro por si — prova nova
+# processada muda todos estes números de uma vez —, mas divergir SEM ninguém ter
+# mexido no pipeline quer dizer que algo entrou torto, e é a única chance de
+# perceber isso antes de a tela mostrar um recorte incompleto.
+#
+# ⚠️ **Atualize junto com o acervo.** Ficaram nos 934 de 22/08 enquanto o banco
+# crescia para 2.693, então TODA importação terminava com "8 números fora do
+# esperado" — e um alarme que dispara sempre é um alarme que ninguém lê. Foi
+# assim durante os lotes de 23/08 a 29/08 (docs/23 §23.9).
+#
+# Conferidos em 29/08/2026, depois da fase 1 do IME 2007–2016 e da entrada de
+# 2009 e 2011, cujos gabaritos oficiais estavam noutra árvore do site do IME
+# (docs/23 §23 e §24).
 ESPERADO: dict[str, int] = {
-    "total": 934,
-    "Física": 323,
-    "Química": 288,
-    "Matemática": 323,
-    "sem_classificacao": 40,
-    "dissertativas": 420,
-    "sem_gabarito": 469,
-    "com_imagem": 871,
+    "total": 2773,
+    "Física": 957,
+    "Química": 848,
+    "Matemática": 968,
+    "sem_classificacao": 44,
+    "dissertativas": 1271,
+    "sem_gabarito": 1340,
+    "com_imagem": 2710,
     # 18 subáreas em Física + 26 em Química + 21 em Matemática.
     "topicos_importados": 65,
 }

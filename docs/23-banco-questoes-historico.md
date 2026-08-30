@@ -182,6 +182,11 @@ objetiva separada da discursiva em pelo menos alguns biênios, mas eu não
 levantei sistematicamente quais anos têm esse documento. É trabalho não
 começado, não uma lacuna medida.
 
+> ✅ **Medido e feito em 29/08 — ver [§23](#23--a-fase-1-do-ime-20072016-280-questões-que-estavam-no-repositório-o-tempo-todo-2908).**
+> São doze cadernos objetivos, um por biênio, dez com texto nativo e gabarito
+> oficial ao lado. Entraram **280 questões** (2007–2016). O parágrafo acima
+> ficou errado por falta de medição, não por faltar material.
+
 ## 4 · Classificação, gabarito sugerido e resolução — em andamento
 
 Depois da extração mecânica (§2, §3), cada questão passa por um agente que:
@@ -1688,3 +1693,409 @@ $x^y=y^x, y=ax$ que antes estava vazio.
 **Ainda não subiu pra produção** — só no Postgres local. Falta: revisão
 humana (principalmente da Física Q4 e Matemática Q9) e rodar o mesmo comando
 com o túnel SSH da VPS quando for a hora do deploy.
+
+## 23 · A fase 1 do IME, 2007–2016: 280 questões que estavam no repositório o tempo todo (29/08)
+
+O [§3.1](#31-o-que-ficou-de-fora-do-lote-b) registrou a prova objetiva do IME
+como "trabalho não começado, não uma lacuna medida" — tinha achado um
+`provaobj_2007-2008.pdf` solto e não levantou o resto. **Estava errado por
+falta de medição, não por não existir material.** Os cadernos objetivos estão
+em `pdfs_originais/ime_historico/oficial_1996_2019/`, um por biênio, cada um
+com o gabarito oficial ao lado. Doze arquivos; **dez com texto nativo**.
+
+| Biênio | Ano da prova | Caderno | Gabarito objetivo |
+|---|---|---|---|
+| provas07_08 | 2007 | nativo | ✅ |
+| provas08_09 | 2008 | nativo | ✅ |
+| provas09_10 | 2009 | nativo | ❌ não existe no acervo |
+| provas10_11 | 2010 | **escaneado** (32 caracteres) | — |
+| provas11_12 | 2011 | nativo, mas 34/40 marcadores | ❌ só o de línguas |
+| provas12_13 | 2012 | nativo | ✅ (o *Definitivo*, ver abaixo) |
+| provas13_14 | 2013 | nativo | ✅ |
+| provas14_15 | 2014 | nativo | ✅ |
+| provas15_16 | 2015 | nativo | ✅ |
+| provas16_17 | 2016 | nativo | ✅ |
+| provas17_18 | 2017 | **escaneado** (23 caracteres) | — |
+| provas18_19 | 2018 | nativo | ✅ — **já estava em produção** |
+
+**Entraram 7 anos × 40 questões = 280**, todas com gabarito oficial da banca.
+Estrutura idêntica em todos os anos: Matemática 1–15, Física 16–30, Química
+31–40 — a mesma que `ime_2018_fase1` já usava, com numeração absoluta
+(Física é `q16`–`q30`).
+
+### 23.1 O caderno de 2018 é o banco de provas deste trabalho
+
+`provas18_19` cobre a prova de 2018, que **já está em produção desde 22/08**
+pelo lote original. Isso deu o que nenhuma rodada anterior deste documento
+teve: um gabarito conhecido para conferir o extrator contra ele, em vez de
+conferir contra o próprio julgamento.
+
+Rodando o código novo em cima de `provas18_19` e comparando com os JSONs de
+`ime_2018_fase1*`: **matéria 40/40, gabarito 40/40, letras das alternativas
+40/40.** As únicas diferenças de texto são as correções que o §12.2 já tinha
+aplicado à produção depois da extração (`≥` no lugar do glifo cru) e o lixo de
+rodapé no fim da última alternativa, que a produção também tem.
+
+Efeito colateral: **a Matemática de 2018 (q01–q15) está em produção sem
+gabarito**, e o PDF oficial dá as 15 letras. Elas entram no reimport.
+
+### 23.2 O que precisou mudar no pipeline
+
+**1 · O recorte de imagem do IME, que estava quebrado desde o §21.4.**
+`_localizar_pagina_nativa` usava `page.search_for()`, busca literal, com as
+`VARIANTES_QUESTAO_IME`. Duas coisas que ela não faz:
+
+- o "ª" de "1ª QUESTÃO" sai do pymupdf como um "a" solto em linha própria
+  (`"1\na \nQuestão:"`), e nenhuma variante casava — foi o que deixou
+  `ime_1996_fase2_q05` sem os gráficos que o enunciado manda analisar;
+- substring não tem fronteira: procurar "1ª QUESTÃO" acha "21ª QUESTÃO", e no
+  caderno objetivo (1–40, várias por página) isso seria erro garantido.
+
+Entrou `_localizar_marcador_ime`, que procura por PALAVRA: número, ordinal
+opcional como palavra própria, e a palavra seguinte começando em "quest"
+(sem acento, sem caixa). Conferido contra o comportamento antigo em
+07-08, 12-13, 16-17, 17-18 e no caderno de 18-19: **mesmos números, mesma
+página, y0 no máximo 1,9pt acima** — a diferença é o sobrescrito, e o recorte
+já folga 5pt. Nos três PDFs de 1996, que davam zero, agora dá 10/10.
+`VARIANTES_QUESTAO_IME` saiu; `recortar_e_subir` passou a receber o
+localizador como função, porque ITA e IME agora acham marcador de jeitos
+diferentes.
+
+**2 · `processar_ime_objetiva`, nova.** `processar_ime_oficial` é da prova
+discursiva e teria estragado a objetiva em silêncio: descarta tudo acima de 15
+(**25 das 40 questões, sem erro nenhum**), grava `fase2`, marca
+`dissertativa=True` e não lê alternativa nem gabarito. A nova lê a faixa de
+cada matéria do próprio cabeçalho do caderno ("QUESTÕES DE 1 A 15" +
+"MATEMÁTICA") e compara com o padrão, avisando se algum ano divergir.
+
+**3 · Alternativa do IME em duas grafias.** A banca trocou por volta de 2010:
+`(A) 23` de 2011 em diante, `A)` no começo da linha em 2007–2009 — e em 2009 as
+cinco na mesma linha. Com só o primeiro padrão, 2007–2009 saíam com as 40
+questões e **zero alternativas**. A escolha é a ÚLTIMA janela de cinco marcas
+com as cinco letras — em qualquer ordem, porque em 2015 as alternativas vêm em
+duas colunas e a leitura sai A, C, E, B, D.
+
+**4 · "(CONTINUAÇÃO)".** Questão que não cabe na página reaparece na seguinte,
+e é lá que estão as alternativas. Descartar a repetição deixava 3 questões de
+2008 sem alternativa nenhuma; agora o corpo se acumula por número quando a
+segunda aparição é continuação.
+
+**5 · Segunda leitura ordenada, só para quem não fechou cinco.** Em 2012 as
+três primeiras questões saem truncadas na leitura normal (`"...pode-se af"`) —
+a linha está partida em dois blocos de texto sobrepostos. Relendo com
+`sort=True` elas saem inteiras, mas com o caractere da emenda repetido
+(`188`, `raízees`, `affirmar`). Fallback e não padrão: a leitura normal é a
+que foi conferida contra a produção. As emendas duplicadas das três foram
+corrigidas à mão, cada uma conferida contra o `pdftotext` do PDF original.
+
+**6 · `classificar.py` estava quebrado.** Apontava para `taxonomia.json` e
+`taxonomia_quimica.json`; os arquivos são `taxonomia-fisica.json` e
+`taxonomia-quimica.json` desde que o material veio para o SAS (docs/22 §1.1).
+Quebrava com `FileNotFoundError` em qualquer prova — não era usado desde a
+importação.
+
+### 23.3 O gabarito, que é onde errar não tem sintoma
+
+O documento de gabarito do IME **não tem formato**: quatro geometrias
+diferentes em doze anos (duas colunas intercaladas; coluna única; a página
+inteira rotacionada 90°, com a resposta ACIMA do número; e todos os números
+primeiro, todas as letras depois). Nenhuma leitura em ordem de texto atravessa
+as quatro — e um pareamento errado aqui não aparece na tela: o aluno resolve e
+confere com a letra trocada.
+
+[`gabarito_ime_objetiva.py`](../banco-questoes/pipeline/gabarito_ime_objetiva.py)
+lê por coordenada, por **duas estratégias independentes que precisam
+concordar** — "mesma linha, o número mais próximo à esquerda" e "o número mais
+próximo em distância". Sozinha, cada uma erra: a primeira não lê a página
+rotacionada de 2015, a segunda embaralha as colunas intercaladas de 2007, 2008
+e 2012. Onde as duas concordam e cobrem 1–40 sem furo, o gabarito entra; onde
+divergem, **o ano não entra** e o relatório diz qual questão divergiu.
+
+Conferido contra as 25 respostas de 2018 que já estavam no Postgres: **zero
+divergência**.
+
+> ⚠️ **O acordo entre as duas leituras não era rede de segurança suficiente.**
+> Elas erraram igual em duas questões de 2016, e o acordo escondeu o erro em vez
+> de denunciá-lo. O que faltava está no [§23.7](#237--o-erro-que-a-conferência-pegou-2016-q25-e-q27-2908).
+
+`ANULADA` vence a letra quando as duas caem no mesmo número — em 2015 e 2016 a
+palavra está carimbada por cima da resposta original, ou seja, é a correção
+publicada depois. **Seis questões anuladas** (2007 q1 e q27, 2008 q11, 2013 q2,
+2015 q34, 2016 q18) entram com `gabarito = None`: a banca disse que não há
+resposta única, e sugerir uma seria inventar — mesma regra que o §2.2 pede para
+o ITA.
+
+> ⚠️ **2012 tem três PDFs de gabarito, e eles discordam.** O preliminar dá
+> q4 = E, o *Definitivo* dá q4 = B. O manifesto aponta para o Definitivo. Usar
+> o outro teria posto uma resposta errada no banco sem nenhum aviso.
+
+### 23.4 Números
+
+| | |
+|---|---|
+| Questões novas | **280** (7 anos × 40) |
+| Com gabarito da banca | 274 (as outras 6 são as anuladas) |
+| Alternativas | 1.395 de 1.400 (ver a exceção abaixo) |
+| Com imagem recortada no S3 | 280 |
+| Classificadas por tópico do edital | 280 · 384 ligações |
+| Banco local | 2.413 → **2.693** |
+
+**A única questão sem alternativas é `ime_2014_fase1_q22`**, e é erro do PDF
+oficial: ele traz duas alternativas "(D)" e nenhuma "(C)". Não é falha de
+extração e não tem conserto mecânico — a imagem da questão está correta e o
+gabarito (A) veio do PDF oficial.
+
+A classificação foi feita nesta sessão, sem custo de API (decisão do usuário
+de 29/08), lendo enunciado e alternativas de cada uma das 280 contra a
+taxonomia do edital. Confiança registrada por questão: onde a extração perdeu
+notação matemática — 2013 é o pior ano nesse aspecto, com 189 glifos de fonte
+privada — a confiança ficou `media` ou `baixa` em vez de `alta`.
+
+### 23.5 O que ficou de fora, e por quê
+
+- ~~**2009 e 2011**~~ ✅ **entraram em 29/08** — o gabarito existia, em
+  `Resultados/` e não em `Provas_Anteriores/`. Ver [§24](#24--os-gabaritos-de-2009-e-2011-existiam--noutra-pasta-do-mesmo-site-2908).
+  O parágrafo abaixo fica como estava, porque descreve o que se sabia na hora:
+  os cadernos são nativos, mas "não existe gabarito da prova objetiva no acervo"
+  — verdade sobre o acervo, falso sobre o mundo.
+- **2010 e 2017**: cadernos escaneados (32 e 23 caracteres de texto). Caminho
+  de visão, como os lotes C/D.
+- **Português e Inglês**: fora do escopo do banco por definição (decisão do
+  usuário de 29/08). Vêm em caderno e gabarito separados de qualquer forma.
+
+### 23.6 O que falta
+
+1. **Reimport em produção.** Local está em 2.693 e produção em 2.383 — a
+   diferença são estas 280 e as 30 do IME 1996 do §22. Mesmo comando do §15.5.
+2. ~~**Conferência humana do gabarito.**~~ ✅ **Feita em 29/08** — as 280 letras
+   lidas à vista das sete páginas renderizadas. Achou dois erros reais; ver
+   [§23.7](#237--o-erro-que-a-conferência-pegou-2016-q25-e-q27-2908). O
+   resultado virou `config/_gabaritos_ime_objetiva.json`, e o extrator agora
+   **recusa o ano** que não bater com ele.
+3. **Amostra de conteúdo**, pela lição que este documento já registrou três
+   vezes: extração mecânica limpa não é sinal de conteúdo completo. É a única
+   pendência de qualidade que sobrou.
+
+### 23.7 · O erro que a conferência pegou: 2016 q25 e q27 (29/08)
+
+A pergunta foi "onde eu confiro esse gabarito?". Renderizando as sete páginas a
+170dpi e lendo as 280 letras contra o que o parser tinha gravado: **278 certas,
+duas erradas.** IME 2016 q25 (a banca diz **D**, o banco tinha C) e q27 (diz
+**A**, o banco tinha B).
+
+**O mecanismo.** O IME publica correção de gabarito **carimbando por cima do
+valor antigo, sem tirar o antigo do arquivo.** Em
+`CFG-Objetiva-2016-2017-Gabarito.pdf` a tabela é Calibri 11 e as duas correções
+são Arial 10, em blocos próprios, depois no fluxo de conteúdo:
+
+```
+ x0=482.0  y0=234.9  'C'   bloco 1   Calibri 11   ← a resposta substituída
+ x0=481.3  y0=235.5  'D'   bloco 5   Arial 10     ← a que vale, por cima
+```
+
+Quem abre o PDF vê **D**. Quem guardasse a primeira leitura gravava **C**.
+
+**Por que as duas leituras independentes não pegaram.** Elas discordam sobre
+*qual questão* uma resposta pertence — e é isso que o [§23.3](#233-o-gabarito-que-é-onde-errar-não-tem-sintoma)
+protege. Aqui as duas concordavam sobre a questão: o problema era *qual das duas
+letras da mesma questão*. Nesse ponto o código fazia "a primeira vence", **em
+silêncio**. Duas leituras que erram igual concordam, e concordância virou
+carimbo de aprovação para um erro.
+
+**O conserto tem três partes, e a terceira é a que importa:**
+
+1. Vence a resposta **desenhada por último** — é o que a pessoa enxerga. A regra
+   dispensa o caso especial de `ANULADA`, que também é carimbo posterior.
+2. Toda sobreposição é **reportada**, mesmo resolvida. Só da estratégia que foi
+   usada: a leitura por vizinho embaralha as colunas intercaladas de 2007, 2008
+   e 2012 e acusaria vinte carimbos inexistentes — e aviso que grita à toa
+   ensina a ignorar aviso.
+3. As 280 letras conferidas viraram
+   [`config/_gabaritos_ime_objetiva.json`](../banco-questoes/config/_gabaritos_ime_objetiva.json),
+   versionado, com o mesmo papel de `_gabaritos_oficiais_ita.json`. **O extrator
+   compara o que leu com ele e recusa o ano que divergir**, dizendo qual questão.
+   Testado adulterando o arquivo (2014 q7 D→A): o ano foi recusado com
+   `q7: conferido=A lido=D`, os outros seis passaram.
+
+A conferência de uma vez virou trava permanente. É a diferença entre "conferimos
+em agosto" e "não passa errado de novo".
+
+### 23.8 · Dois footguns que a reextração revelou
+
+Reextrair depois de classificar **apagou as 280 classificações em silêncio** —
+`escrever_questao` reescrevia o arquivo inteiro, e `classificacao` volta vazia
+na saída do extrator. O mesmo teria apagado as resoluções dos §16–§22 se alguém
+reextraísse o acervo histórico.
+
+Corrigido: `escrever_questao` agora **preserva o que veio depois da extração** —
+`classificacao`, `resolucao_md`, `resolucao_origem` e `status.revisado`. São
+trabalho de agente ou de gente; extração não é dona deles.
+
+Pelo mesmo motivo, as três emendas de texto de `ime_2012_fase1_mat` (§23.2
+item 5) saíram dos JSONs e entraram em
+[`config/emendas_texto.json`](../banco-questoes/config/emendas_texto.json),
+aplicadas como passo final da extração. Emenda cujo `de` sumiu do texto é
+**reportada, nunca aplicada às cegas**: quer dizer que a extração mudou e alguém
+precisa reconferir contra o PDF.
+
+Depois dos dois consertos, extrair duas vezes seguidas deixa tudo igual: 280
+JSONs, 280 classificados, emendas aplicadas, gabaritos corretos.
+
+### 23.9 · O alarme que gritava sempre (29/08)
+
+O importador tem uma autoconferência: compara o que entrou com a constante
+`ESPERADO` de
+[`scripts/importar_banco_questoes.py`](../api/scripts/importar_banco_questoes.py)
+e avisa quando diverge. É a rede que pega "algo entrou torto" antes de a tela
+mostrar um recorte incompleto.
+
+Ela ficou nos **934** de 22/08 enquanto o acervo ia para 2.378, 2.383, 2.413 e
+2.693. Resultado: **toda** importação, em toda esta série de lotes, terminava
+com `!! 8 número(s) fora do esperado` — inclusive o deploy de 29/08. Um alarme
+que dispara sempre não é alarme; é ruído que ensina a rolar a tela.
+
+É o mesmo defeito que o [§23.7](#237--o-erro-que-a-conferência-pegou-2016-q25-e-q27-2908)
+achou no aviso de sobreposição, e vale a mesma regra: **aviso que grita à toa é
+pior do que aviso nenhum**, porque dá a sensação de estar coberto.
+
+Atualizada para a fotografia de 29/08 (2.693 · 927 · 828 · 938 · 44 · 1.271 ·
+1.335 · 2.630 · 65), a importação volta a terminar com "Todos os números batem".
+A tabela de [docs/22 §1.4](22-plano-banco-questoes.md) ganhou o aviso de que
+descreve o acervo de 22/08, não o de hoje, e que a régua viva é a constante.
+
+## 24 · Os gabaritos de 2009 e 2011 existiam — noutra pasta do mesmo site (29/08)
+
+O [§23.5](#235-o-que-ficou-de-fora-e-por-quê) segurou 2009 e 2011 fora do banco
+porque "não existe gabarito da prova objetiva no acervo". A afirmação estava
+certa sobre o acervo e **errada sobre o mundo**: os gabaritos estão publicados
+pelo próprio IME, em outra árvore do site.
+
+```
+Provas_Anteriores/provas09_10/   ← as PROVAS (é onde eu procurei)
+Resultados/2009-2010/            ← os GABARITOS (é onde estavam)
+```
+
+Foi preciso uma varredura em seis frentes para achar: a listagem oficial de
+provas anteriores não linka para `Resultados/`, a Wayback não tem o site do IME
+antes de 2018, e sondar nome de arquivo dentro de `Provas_Anteriores/` nunca ia
+funcionar — a pasta certa era outra. **A lição não é sobre esforço: é que "não
+está no índice" não quer dizer "não existe".**
+
+### 24.1 O que entrou
+
+| | |
+|---|---|
+| IME **2009** | 40 questões · gabarito definitivo · 2 anuladas (q3, q5) |
+| IME **2011** | 40 questões · gabarito definitivo · 3 anuladas (q1, q15, q27) |
+| IME **2010** | gabarito guardado no acervo, mas a **prova é escaneada** — sem questões |
+| Banco local | 2.693 → **2.773** |
+
+Os três PDFs foram copiados para junto das provas, com a proveniência registrada
+em [`pdfs_originais/HISTORICO_ORIGENS.md`](../banco-questoes/pdfs_originais/HISTORICO_ORIGENS.md).
+
+> ⚠️ **Sempre o DEFINITIVO.** Há também um preliminar de 2009 e de 2011 na mesma
+> pasta, e eles diferem — exatamente nas cinco questões que a banca anulou
+> depois. O rodapé do de 2011 diz com todas as letras: "Este gabarito substitui a
+> versão preliminar divulgada em 07/10/2011". É a mesma armadilha do §23.3 em
+> 2012, agora em dois anos de uma vez.
+>
+> ⚠️ **O caderno de línguas também tem 40 questões.** Contar 40 não distingue os
+> dois arquivos. O que distingue é a data: em 2009 a objetiva foi em 26/10 e a de
+> línguas em 30/10; em 2011, 07/10 e 27/10. Pegar o errado daria 40 letras
+> plausíveis e completamente trocadas.
+
+### 24.2 Conferência cruzada, por três caminhos
+
+A pergunta que abriu isto foi "onde eu confiro esse gabarito?". A resposta acabou
+sendo três leituras independentes que precisam concordar:
+
+1. **O parser** (`gabarito_ime_objetiva.py`) sobre os PDFs oficiais.
+2. **Leitura à vista** das páginas renderizadas a 170dpi — o que travou o
+   fixture (`config/_gabaritos_ime_objetiva.json`), agora com 10 anos.
+3. **As resoluções comentadas do Farias Brito** ([`comentario.fariasbrito.com.br`](https://comentario.fariasbrito.com.br/vest/index.php?vid=28)),
+   fonte apontada pelo usuário: 80 imagens, uma por questão, cada uma terminando
+   em "Resposta correta: (X)". Lidas duas vezes por caminhos independentes —
+   as duas leituras deram **exatamente o mesmo resultado**.
+
+O cruzamento é o achado bonito: **o Farias Brito bate com a banca em toda questão
+que a banca não anulou** — 35/35 em 2009 e 37/37 em 2011. E, nas anuladas, o
+cursinho tinha visto o problema antes: em 2009 q3 escreveu "sugerimos a anulação
+da questão"; em 2011 q1, "(sem resposta)"; em 2011 q27, "solicitamos que o IME
+analise a citada questão, para que seja possível a anulação". Nas outras duas
+(2009 q5 e 2011 q15) deu uma letra que a banca depois invalidou.
+
+### 24.3 O que precisou mudar no pipeline
+
+**A prova de 2011 não extraía** — 34 dos 40 marcadores. Mesmo defeito de blocos
+de texto sobrepostos do §23.2 item 5, mas pior: aqui ele parte o próprio
+marcador. O pymupdf lê `"1a QUEST"` e `"TÃO"` como coisas separadas, e a leitura
+ordenada, que reúne, duplica o caractere da emenda (`"1a QUESTTÃO"`,
+`"vvalem a, b ee c"`). Nenhum dos dois casa com `PADRAO_QUESTAO_IME`.
+
+O `pdftotext` (poppler) lê a mesma página limpa. Entrou como
+**`_texto_poppler`, último recurso e não padrão**: só roda quando o pymupdf acha
+menos de 40 marcadores num caderno de 40, e devolve `None` se o binário não
+existir — não vira dependência do projeto. As posições continuam vindo do
+pymupdf.
+
+**Três questões de 2011 ficavam sem recorte** (q16, q31, q32): ali a palavra
+chega cortada como `"QUES"`, e `_localizar_marcador_ime` exigia `"quest"`.
+Passou a exigir `"ques"` — conferido contra os nove PDFs de referência, nada
+perdido, e 2011 vai de 37 para 40 recortes. Num banco em que a imagem é o que o
+aluno lê, questão sem recorte é questão sem enunciado.
+
+## 25 · O recorte de 2009 saía picado — folha A3 girada, impressa 2-up (29/08)
+
+Pergunta do usuário depois do import: *"o fluxo antigo de cortar a questão
+específica funcionaria, não?"*. Funcionaria — e o novo não estava funcionando.
+Medindo as 360 imagens no S3 (leitura do IHDR por `Range: bytes=0-32`, a mesma
+técnica do §12.1), **2009 tinha 24 dos 40 recortes com menos de 200px de altura**,
+mediana de 56px, mínimo de **3px**. Os outros oito anos, perfeitos.
+
+Duas coisas erradas, ambas só em `Objetiva_Final_Formato_A3_02-10.pdf`:
+
+**1 · A página tem `/Rotate 90`, e os dois espaços de coordenada divergem.**
+`get_text` devolve posição no espaço NÃO girado; `get_pixmap(clip=...)` espera o
+espaço exibido. O marcador chegava com `y=1121` numa página de 842 de altura —
+o recorte então pegava uma tira de nada. Conserto: `_localizar_marcador_ime`
+aplica `page.rotation_matrix`, que é identidade quando não há rotação, logo é
+no-op no resto do acervo.
+
+**2 · A folha A3 é paisagem e traz DUAS páginas A4 lado a lado** — imposição
+2-up. Recortar a largura inteira trazia o RASCUNHO da página vizinha grudado na
+questão. Conserto: o recorte se limita à metade da folha em que a questão está.
+
+> **O critério é a geometria da folha, não aglomerado de texto.** A primeira
+> tentativa detectava coluna agrupando as palavras por vão horizontal, e
+> funcionava — até 2014, onde um trecho de 56pt encostado na margem direita
+> virou "coluna" e cortou a questão ao meio. Folha em paisagem é duas páginas
+> retrato; o corte é no meio, e pronto.
+
+### 25.1 O guarda que faltava
+
+A auditoria que achou isto ([`auditar_imagens.py`](../banco-questoes/pipeline/auditar_imagens.py))
+só cobre o **modo página** (`extraido_por = 'pagina'`); recorte fino passava
+livre. E auditoria que alguém precisa lembrar de rodar é auditoria que não roda.
+
+`recortar_e_subir` agora confere a altura do PNG que acabou de gerar — ele já
+está na mão, custo zero — e reclama abaixo de **200px**. O menor recorte legítimo
+do acervo inteiro tem 263px; 57px é sintoma de geometria lida errado.
+
+Testado desligando a correção: o guarda lista as questões curtas. Com a correção,
+silêncio.
+
+### 25.2 Depois
+
+| ano | largura | altura mín / mediana / máx | curtos |
+|---|---|---|---|
+| 2007 | 1571 | 263 / 612 / 2349 | — |
+| 2008 | 1618 | 283 / 731 / 3258 | — |
+| **2009** | **1572** | **319 / 824 / 2348** | **—** (era 3 / 56 / 3233) |
+| 2011 | 1571 | 306 / 950 / 3241 | — |
+| 2012–2016 | 1571 | 291–533 / 786–1252 / 2348–2802 | — |
+
+Os oito anos que já estavam certos ficaram **byte a byte na mesma medida** — a
+correção só toca folha em paisagem. Conferido a olho em três recortes de 2009:
+cabeçalho, enunciado, figura e as cinco alternativas, sem o RASCUNHO ao lado. Na
+q16 dá para fechar o circuito: fluxo de calor em série com $K_A=1$ e $K_B=0,2$ dá
+$T_2 = 500$ — a letra B do gabarito oficial.
