@@ -49,7 +49,7 @@ sas/
 │                 saiu na migração pro VPS; hoje quem agenda é o cron do
 │                 sistema — `infra/vps/crontab-sas` + `cron-sas.sh`. Vários
 │                 comentários no backend ainda dizem "EventBridge": é resíduo
-├── docs/         00→30, numerados; 14 e 15 são produção; **19 é o estado**
+├── docs/         00→31, numerados; 14 e 15 são produção; **19 é o estado**
 │                 (feito / pendente / próximo); 20 e 21 são o sprint mobile;
 │                 22 e 23 são o banco de questões (há DOIS "23": o histórico
 │                 do banco e o redesenho do casco); 24 e 25 são o
@@ -58,6 +58,9 @@ sas/
 │                 aluno; 29 é o que falta para o aluno usar; **30 é GERADO** de
 │                 `web/src/dados/aluno/registro.ts` e `npm test` quebra se ele
 │                 envelhecer — é o estado da área do aluno, fonte por fonte;
+│                 31 é a Sprint 5 (régua única, assistente com contexto,
+│                 gráficos em camadas) — e o §0 dele é o levantamento que
+│                 achou duas partes propostas já feitas sem registro;
 │                 sprints.html é a mesma coisa em página
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
@@ -76,7 +79,7 @@ docker compose up                        # front :8080 · API :8000 · postgrest
 docker compose run --rm migrate status   # ver migrations aplicadas/pendentes
 docker compose run --rm migrate up       # aplicar
 
-cd api && ./.venv/bin/python -m pytest tests/ -q   # 120 testes
+cd api && ./.venv/bin/python -m pytest tests/ -q   # 279 testes (+15 pulados)
 cd api && ./.venv/bin/ruff check .                 # lint
 cd web && npm test && npm run lint && npm run typecheck
 

@@ -477,29 +477,41 @@ diagnóstico.
 
 ### 1.6.1 A abertura não mostra o que o assistente sabe fazer
 
+> **Estado: 🟡 dois de três resolvidos (30/08/2026).** O diagnóstico abaixo é de antes da migração React. Os defeitos 1 e
+> 3 foram corrigidos em [`web/src/dados/perfisSugestoes.ts`](../web/src/dados/perfisSugestoes.ts):
+> os exemplos são agrupados por intenção (Encontrar · Diagnosticar · Comparar ·
+> Gerar), cada perfil tem os seus, e há uma lista recolhível de capacidades — a
+> "saída explícita de o que você sabe fazer" que a [§2.8](#28-bloco-d--assistente-como-copiloto)
+> pedia. O defeito 2 foi fechado pela [Sprint 5 · P2](31-plano-sprint-5.md#p2--consciência-de-rota).
+
 Hoje a tela inicial da conversa são **4 frases fixas em código**
-([conversa.js:10-15](../web/js/components/chat/conversa.js#L10-L15)) sob o título
+(`web/js/components/chat/conversa.js`, arquivo que não existe mais) sob o título
 *"Algumas perguntas pra começar:"*. Contra **21 ferramentas** disponíveis, isso
 expõe menos de um quinto da superfície — e o resto o coordenador só descobre por
 tentativa.
 
 Três defeitos concretos:
 
-1. **Lista plana e estática.** Quatro exemplos não organizam nada; não dizem que
+1. ✅ **Lista plana e estática.** Quatro exemplos não organizam nada; não dizem que
    existem categorias (buscar, comparar, diagnosticar, gerar artefato).
-2. **Não sabe onde o usuário está.** O launcher é montado uma vez e ignora a
-   rota. Se o coordenador abre o chat na ficha do Ciclo 6, as sugestões são as
-   mesmas de sempre — nada sobre o Ciclo 6.
-3. 🔴 **O aluno vê sugestões de coordenador.** `SUGESTOES_INICIAIS` é global e
-   o `conversaPanel` é o mesmo para os dois perfis —
-   [main.js:151-155](../web/js/main.js#L151-L155) só troca o rótulo do FAB de
-   "Assistente" para "Mentor". Ou seja, um aluno abre o Mentor e lê *"Quais
-   alunos estão em risco no momento?"*. As tools dele são outras (as 6 de
-   `tools_aluno.py`), o prompt é outro, só as sugestões não são.
+2. ✅ **Não sabe onde o usuário está.** Fechado pela Sprint 5: `sugestoesDoCoordenador`
+   ([`perfisSugestoes.ts`](../web/src/dados/perfisSugestoes.ts)) monta a abertura a
+   partir do contexto de tela, e abrir o chat na ficha do Ciclo 6 passa a oferecer
+   perguntas sobre o Ciclo 6.
+3. ✅ **O aluno via sugestões de coordenador.** `SUGESTOES_INICIAIS` era global e
+   o `conversaPanel` era o mesmo para os dois perfis — o `main.js` só trocava o
+   rótulo do FAB de "Assistente" para "Mentor". Ou seja, um aluno abria o Mentor
+   e lia *"Quais alunos estão em risco no momento?"*. As tools dele são outras
+   (as 6 de `tools_aluno.py`), o prompt é outro, e agora as sugestões também.
 
 ### 1.6.2 Inventário: o que o assistente tem hoje
 
-**Coordenador — 21 tools** (`api/app/chat/tools/`):
+> *Atualizado em 30/08/2026.*
+
+**Coordenador — 30 tools** (`api/app/chat/tools/`). Eram 21 quando este
+documento foi escrito: o módulo `contexto` nasceu depois e fechou cinco das
+seis lacunas da [§1.6.3](#163-lacunas-o-que-é-navegável-na-plataforma-e-o-chat-não-alcança);
+a Sprint 5 fechou as três restantes ([31 §P3](31-plano-sprint-5.md)):
 
 | Módulo | Tools |
 |---|---|
@@ -507,8 +519,9 @@ Três defeitos concretos:
 | `stats` (4) | `estatisticas_ciclo` · `trajetoria_aluno` · `histograma_simulado` · `notas_simulado` |
 | `heuristicas` (4) | `alunos_em_risco` · `alunos_destaque` · `tendencia_aluno` · `materias_problematicas` |
 | `relatorios` (3) | `relatorio_aluno` · `historico_aluno` · `relatorio_ciclo` |
-| `comparar` (2) | `comparar_ciclos` · `alunos_similares` |
+| `comparar` (4) | `comparar_ciclos` · `comparar_alunos` · `comparar_simulados` · `alunos_similares` |
 | `artefato` (2) | `gerar_grafico` · `exportar_csv` |
+| `contexto` (7) | `listar_alertas` · `insights_do_ciclo` · `listar_alunos` · `listar_sedes` · `listar_turmas` · `questoes_do_simulado` · `navegar_para` |
 
 **Aluno — 6 tools** (`tools_aluno.py`): `minhas_notas` ·
 `meu_desempenho_em_simulado` · `minha_evolucao` · `meu_streak` ·
@@ -521,23 +534,28 @@ produto tem que ser alcançável pela conversa. Cruzando as telas com as tools:
 
 | Superfície do produto | Onde vive | Tool? |
 |---|---|---|
-| **Alertas** | `routes/alertas.py` · `ui/alert-card.js` | ❌ nenhuma |
-| **Insights do ciclo (coordenação)** | `stats/insights.py` · `ui/insights-painel.js` | ❌ nenhuma |
-| **Sedes e turmas** | `routes/dimensoes.py` | ❌ nenhuma |
-| **Questões (visão coordenação)** | `canvas_sync/questoes.py` · migration 0015 | ❌ nenhuma |
+| **Alertas** | `routes/alertas.py` · `ui/AlertCard.tsx` | ✅ `listar_alertas` |
+| **Insights do ciclo (coordenação)** | `stats/insights.py` · `ui/InsightsPainel.tsx` | ✅ `insights_do_ciclo` |
+| **Sedes e turmas** | `routes/dimensoes.py` | ✅ `listar_sedes` · `listar_turmas` |
+| **Questões (visão coordenação)** | `canvas_sync/questoes.py` · migration 0015 | ✅ `questoes_do_simulado` |
 | **Arquivos de prova** | `routes/arquivos.py` · migration 0017 | ❌ nenhuma |
-| **Listar alunos por zona / perfil / turma / sede** | tela Alunos | 🟡 parcial — só os extremos (`alunos_em_risco`, `alunos_destaque`) |
-| **Comparar alunos · comparar simulados** | função "Comparar" ([04-screens](04-screens.md)) | 🟡 parcial — só `comparar_ciclos` |
+| **Listar alunos por zona / perfil / turma / sede** | tela Alunos | ✅ `listar_alunos` |
+| **Comparar alunos · comparar simulados** | função "Comparar" ([04-screens](04-screens.md)) | ✅ `comparar_alunos` · `comparar_simulados` |
 | **Heatmap matéria × simulado** | ficha do aluno | ❌ nenhuma |
-| **Navegar até uma tela** | toda a plataforma | ❌ o chat não consegue mandar o usuário pra lugar nenhum |
+| **Navegar até uma tela** | toda a plataforma | ✅ `navegar_para` — devolve artefato de link, não link no texto |
 | **Editar nota / anular simulado** | Painel, ficha do simulado | ❌ chat é read-only |
+
+> **Estado (30/08/2026).** Sobraram **duas** linhas ❌, e nenhuma delas é de
+> leitura: arquivos de prova e heatmap. Cinco foram fechadas por
+> [`chat/tools/contexto.py`](../api/app/chat/tools/contexto.py) — inclusive as
+> duas do parágrafo de alerta abaixo, que era o defeito mais grave da tabela —
+> e as três últimas pela [Sprint 5 · P3](31-plano-sprint-5.md#p3--as-lacunas-que-sobraram).
 
 Duas coisas saltam dessa tabela:
 
-⚠️ **Os alertas e os insights — o coração "proativo" do produto, segundo o
-README — são justamente o que o assistente não enxerga.** Ele consegue calcular
-quem está em risco na hora, mas não consegue ler o que o próprio sistema já
-sinalizou.
+~~⚠️ **Os alertas e os insights — o coração "proativo" do produto, segundo o
+README — são justamente o que o assistente não enxerga.**~~ ✅ Resolvido: ele já
+lê o que o próprio sistema sinalizou, além de calcular na hora.
 
 ⚠️ **A assimetria de questões está invertida.** O *aluno* consegue perguntar quais
 questões errou (`minhas_questoes_erradas`); o *coordenador* não tem nenhuma tool
@@ -549,12 +567,20 @@ depois do write-back — senão o chat passa a produzir a mesma edição fantasm
 
 ### 1.6.4 O chat bloqueia a navegação enquanto está aberto
 
-🔴 Hoje o "drawer" é **modal de fato**: `.chat-overlay.is-aberto` tem `inset: 0`
-com `pointer-events: auto` ([chat.css:48-62](../web/styles/chat.css#L48-L62)),
-cobrindo a página inteira, e o clique nele fecha o chat
-([launcher.js](../web/js/components/chat/launcher.js)). Resultado: **ou você
+> **Estado: ✅ resolvido na migração React (commit `c1e0a5f`), verificado em 30/08/2026.** O `.chat-overlay` **não existe mais**.
+> [`chat.css`](../web/styles/chat.css) põe `padding-right` no `#root` acima de
+> 900px — o painel **empurra** o conteúdo em vez de cobri-lo — e sobrepõe abaixo
+> disso, onde espremer seria pior que esconder. As duas perguntas em aberto da
+> [§2.8](#28-bloco-d--assistente-como-copiloto) ficaram respondidas junto:
+> "sobrepor ou empurrar?" ganhou as duas respostas, cada uma na largura certa;
+> e clique-fora nunca fecha, enquanto o Esc só fecha com o foco dentro do painel
+> ([`ChatLauncher.tsx`](../web/src/componentes/chat/ChatLauncher.tsx)).
+
+O diagnóstico original, mantido pelo registro: o "drawer" era **modal de fato**
+— `.chat-overlay.is-aberto` tinha `inset: 0` com `pointer-events: auto`,
+cobrindo a página inteira, e o clique nele fechava o chat. Resultado: **ou você
 conversa, ou você usa o sistema.** Perguntar "quais alunos estão em risco?" e ir
-olhar a ficha de um deles exige fechar a conversa.
+olhar a ficha de um deles exigia fechar a conversa.
 
 Isso é o oposto do que o assistente deveria ser: um copiloto que acompanha a
 navegação.
@@ -1144,32 +1170,36 @@ não cumprem. Vale decidir o interino: desabilitar, ou avisar na tela que a edi�
 Três mudanças que se sustentam: o painel deixa de bloquear a tela, passa a saber
 onde o usuário está, e ganha paridade com o que a plataforma oferece.
 
+> **Estado (30/08/2026).** As três estão feitas — ver as marcas ✅ abaixo. A
+> primeira saiu na migração React; a consciência de rota e as três últimas
+> tools são a [Sprint 5](31-plano-sprint-5.md), P2 e P3.
+
 ### Painel persistente, não modal
+
+✅ **Feito.**
 
 O pedido é "um modal que permite navegar no site". Vale nomear com precisão: o
 que resolve isso **não é um modal** — modal, por definição, bloqueia o fundo. O
 que se quer é um **painel não-modal persistente**, que convive com a página.
 
-A boa notícia é que a arquitetura já está pronta: o launcher é montado uma única
-vez em `document.body`, fora da árvore de telas, e sobrevive à troca de rota
-([main.js:147-155](../web/js/main.js#L147-L155)). O que impede a navegação é o
-overlay — remover `.chat-overlay` e o `pointer-events: auto` já libera o fundo.
+A boa notícia era que a arquitetura já estava pronta: o launcher é montado uma
+única vez, fora da árvore de telas, e sobrevive à troca de rota. O que impedia a
+navegação era o overlay — remover `.chat-overlay` e o `pointer-events: auto`
+liberou o fundo.
 
-O que abre junto com essa mudança:
+As perguntas que abriam junto, e como ficaram:
 
-❓ **Sobrepor ou empurrar?** O drawer tem 460px fixos à direita e cobre o
-conteúdo. A tabela do Painel é larga — sobrepor esconde as colunas da direita
-justamente enquanto se conversa sobre elas. Empurrar (reduzir a largura útil da
-página) custa reflow, mas mantém tudo visível. A classe `.chat-aberto` já é
-aplicada no `body`, então o gancho pra empurrar existe.
+✅ **Sobrepor ou empurrar?** — **as duas, por largura.** Acima de 900px o
+`#root` ganha `padding-right` e o conteúdo continua inteiro à vista; abaixo
+disso o painel sobrepõe, porque espremer uma tabela em 380px úteis é pior que
+escondê-la.
 
-❓ **Esc ainda fecha?** Fechar no Esc e no clique-fora são convenções *de modal*.
-Num painel persistente elas passam a atrapalhar — o usuário aperta Esc pra sair
-de um dropdown da página e perde a conversa. Provavelmente: clique-fora nunca
-fecha; Esc só fecha se o foco estiver dentro do painel.
+✅ **Esc ainda fecha?** — exatamente como o parágrafo previa: clique-fora
+**nunca** fecha, e o Esc só fecha quando o foco está dentro do painel. Do
+contrário, sair de um dropdown da página derrubaria a conversa.
 
 ❓ Painel redimensionável / ancorável (direita, esquerda, inferior)? Fora do
-primeiro corte, mas muda a estrutura CSS — melhor decidir antes.
+primeiro corte, e fora do segundo — segue aberto.
 
 ### Consciência de contexto
 
@@ -1201,20 +1231,24 @@ O problema de [§1.6.1](#161-a-abertura-não-mostra-o-que-o-assistente-sabe-faze
 
 Ordem sugerida pela distância entre "existe no produto" e "o chat não vê":
 
-1. **`listar_alertas` e `insights_do_ciclo`** — o proativo do produto, e hoje
-   invisível pro assistente.
-2. **`listar_alunos` com filtros** (zona, perfil, turma, sede) — replica a tela
-   Alunos, que é a mais usada.
-3. **`listar_sedes` / `listar_turmas`** — sem isso o chat não responde nada
+1. ✅ **`listar_alertas` e `insights_do_ciclo`** — o proativo do produto, e até
+   então invisível pro assistente.
+2. ✅ **`listar_alunos` com filtros** (zona, perfil, turma, sede) — replica a
+   tela Alunos, que é a mais usada.
+3. ✅ **`listar_sedes` / `listar_turmas`** — sem isso o chat não respondia nada
    recortado por sede, e sede é filtro de primeira classe na UI.
-4. **Questões na visão da coordenação** — fecha a assimetria com o aluno.
-5. **`comparar_alunos` / `comparar_simulados`** — "Comparar" é função declarada
-   em [04-screens](04-screens.md) e só existe pra ciclos.
-6. **`navegar_para`** — devolve rota; habilita o chat → página.
+4. ✅ **Questões na visão da coordenação** — `questoes_do_simulado`, as que a turma
+   mais errou, com percentual de acerto. Fecha a assimetria com o aluno.
+5. ✅ **`comparar_alunos` / `comparar_simulados`** — "Comparar" é função declarada
+   em [04-screens](04-screens.md) e existia só pra ciclos.
+6. ✅ **`navegar_para`** — devolve rota como ARTEFATO; habilita o chat → página
+   sem abrir o Markdown para links do LLM.
 
 ❓ Existe teto prático de quantas tools cabem num prompt antes da escolha degradar?
-Com 21 já é bastante; indo pra ~30 vale considerar agrupar por perfil de uso ou
-usar seleção em dois níveis. Decidir antes de simplesmente ir somando.
+Com 21 já era bastante; hoje são **30**. A
+[Sprint 5 · P3](31-plano-sprint-5.md#32-o-teto-de-tools--a-pergunta-de-10-28-volta)
+decidiu **medir antes de agrupar**: um teste de regressão que confere qual tool o
+modelo escolhe para ~15 perguntas conhecidas.
 
 ## 2.9 Frentes fora dos quatro blocos
 
@@ -1719,6 +1753,10 @@ paginação. Nada muda na API.
 
 ### D.1 — Painel não-modal  (o mais barato do documento)
 
+> ✅ **Feito** na migração React (`c1e0a5f`). As duas ❓ abaixo ficaram
+> respondidas: empurra acima de 900px e sobrepõe abaixo; clique-fora nunca
+> fecha e o Esc só fecha com foco dentro. A ⬜ 3 segue aberta.
+
 Remover `.chat-overlay` e o `pointer-events: auto`
 ([chat.css:48-62](../web/styles/chat.css#L48-L62)). A arquitetura já sustenta: o
 launcher é montado uma vez em `document.body`, fora da árvore de telas
@@ -1733,6 +1771,9 @@ Junto vem:
 
 ### D.2 — Apresentação da abertura
 
+> ✅ **Feito.** Itens 1–3 na migração React ([`perfisSugestoes.ts`](../web/src/dados/perfisSugestoes.ts));
+> o item 4 (sugestões derivadas da rota) na Sprint 5 · P2.
+
 1. 🔴 **Corrigir o vazamento de perfil primeiro:** `SUGESTOES_INICIAIS` é constante
    global ([conversa.js:10-15](../web/js/components/chat/conversa.js#L10-L15)) e o
    aluno lê *"Quais alunos estão em risco?"* no Mentor. Vira parâmetro do
@@ -1745,6 +1786,11 @@ Junto vem:
 
 ### D.3 — Fechar as lacunas de tools
 
+> ✅ **Feito.** Os itens 1–3 nasceram em `chat/tools/contexto.py`; os itens 4 e 5,
+> mais o `navegar_para`, na [Sprint 5 · P3](31-plano-sprint-5.md#p3--as-lacunas-que-sobraram).
+> São **30 tools**. O teto virou medida, não palpite: `test_chat_tools.py`
+> confere qual tool o modelo escolhe para 15 perguntas conhecidas.
+
 Ordem por distância entre "existe no produto" e "o chat não vê"
 ([§1.6.3](#163-lacunas-o-que-é-navegável-na-plataforma-e-o-chat-não-alcança)):
 
@@ -1753,13 +1799,19 @@ Ordem por distância entre "existe no produto" e "o chat não vê"
 | 1 | `listar_alertas`, `insights_do_ciclo` | o proativo do produto, hoje invisível pro assistente |
 | 2 | `listar_alunos` com filtros (zona, perfil, turma, sede) | replica a tela mais usada |
 | 3 | `listar_sedes`, `listar_turmas` | sem isso não responde nada recortado por sede |
-| 4 | questões na visão da coordenação | fecha a assimetria: o aluno tem, o coordenador não |
+| 4 | `questoes_do_simulado` | fecha a assimetria: o aluno tem, o coordenador não |
 | 5 | `comparar_alunos`, `comparar_simulados` | "Comparar" é função declarada e só existe pra ciclos |
+| 6 | `navegar_para` | devolve rota como artefato; habilita o chat → página |
 
-❓ Teto prático de tools antes da escolha degradar? Com 21 já é bastante; indo pra
-~30, considerar agrupamento por perfil ou seleção em dois níveis.
+❓ Teto prático de tools antes da escolha degradar? São **30**, e a Sprint 5
+decidiu **medir antes de agrupar**: `api/tests/test_chat_tools.py` roda 15
+perguntas conhecidas contra a OpenAI (opt-in) e confere a tool escolhida.
 
 ### D.4 — Consciência de rota (chat ↔ página)
+
+> ✅ **Feito** na [Sprint 5 · P2](31-plano-sprint-5.md#p2--consciência-de-rota).
+> O `navegar_para` do item 2 devolve ARTEFATO, não link no texto: o `Markdown.tsx`
+> recusa links de propósito, e a rota é montada no servidor a partir de (tipo, id).
 
 Só faz sentido depois de D.1 — sem navegação simultânea, contexto de rota não tem
 utilidade.

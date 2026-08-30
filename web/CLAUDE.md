@@ -53,8 +53,15 @@ Não "modernize" essa pasta.
 
 - **Regra de negócio vai para `src/dominio/`**, como função pura, com teste ao
   lado (`*.test.ts`). Esquema de colunas ITA/IME, médias, cross-filtering,
-  corte por matéria, reducer do streaming do chat — tudo isso é domínio, não
-  componente. É o que `npm test` cobre.
+  reducer do streaming do chat, a leitura em linguagem simples dos gráficos,
+  o contexto de tela que o chat manda — tudo isso é domínio, não componente.
+  É o que `npm test` cobre.
+- **A régua de corte NÃO é regra daqui.** `dominio/criterios.ts` só *consulta*
+  o que o servidor já resolveu (`cortes`, `corteGenerico`, `corteMedia`,
+  `eliminatorias` vêm prontos de `_descrever_criterio`). Reimplementar o
+  encadeamento em TypeScript foi exatamente o que a Sprint 2 proibiu, depois de
+  a mesma regra existir em três lugares e divergir — e ela tinha voltado nos
+  gráficos, com `corte={{ valor: 4 }}` escrito no TSX (docs/31 §P1).
 - **Nenhum `fetch` em componente.** Leitura por hook de `hooks/consultas.ts`,
   escrita por `hooks/mutacoes.ts`.
 - **Classes compartilhadas ficam globais** (`.card`, `.tone-*`, `.nota-badge`,
