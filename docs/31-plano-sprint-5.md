@@ -21,7 +21,29 @@
 
 ---
 
-> ## Estado: **ESCRITO E TESTADO LOCALMENTE — não deployado** *(30/08/2026)*
+> ## Estado: **EM PRODUÇÃO desde 30/08/2026**
+>
+> Deploy de `94452cb` (PR #26) com `./infra/vps/deploy.sh --migrar`: `0037` e
+> `0038` aplicadas, PostgREST reiniciado pelo próprio script (armadilha 1 do
+> `CLAUDE.md`), e os dez smoke checks passando em `portalsas.online`.
+>
+> **Três coisas ficaram para depois do deploy, e as três são do dia seguinte:**
+>
+> 1. ⚠️ **A `zona` gravada ainda é a antiga até o reconcile das 03:00.** A
+>    `0037` carimbou `criterio_slug = 'tio-leo'` em toda linha existente pelo
+>    DEFAULT — mas o `zona` daquelas linhas foi calculado pela regra VELHA. Ou
+>    seja, por algumas horas a coluna afirma uma procedência que ainda não é
+>    verdade, e o Painel (que classifica ao vivo) discorda da tela de Alunos
+>    (que lê o cache). `/canvas-sync/reconciliar` conserta; foi um descuido meu
+>    escrever o DEFAULT sem disparar o recálculo junto.
+> 2. **A lista de "risco" encolhe.** O Tio Leo corta com E, não com OU: quem tem
+>    2,0 em Matemática e 8,0 no resto sai da lista. É a regra confirmada pela
+>    coordenação em 22/08, mas é mudança visível — vale avisar antes.
+> 3. **Os consertos de layout do celular** (PR #27) não entraram neste deploy.
+>
+> ---
+>
+> ### Como estava antes do deploy
 >
 > As cinco partes estão implementadas. Migrations `0037` e `0038` aplicadas no
 > banco local com `up`/`down`/`up` limpos. **279 testes na API** (eram 223) e
@@ -35,11 +57,14 @@
 > `DELETE` dá 409. A troca de régua move o corte do payload de estatísticas
 > junto com a tabela.
 >
-> **O que faltou, e é o único item:** a verificação visual a 390px e a 360px
-> ([§5.5](#55-pronto-quando)). O Chrome do MCP não subiu — havia outra
-> instância segurando o perfil. O CSS novo tem os breakpoints escritos
-> (`.camadas__topo` empilha em 560px, `.criterio__requisito` cai para duas
-> colunas em 480px) mas ninguém olhou.
+> **A verificação visual a 390px e a 360px** ([§5.5](#55-pronto-quando)) ficou
+> para depois do deploy, porque o Chrome do MCP estava travado por outra
+> instância. Feita em seguida: achou três defeitos de CSS — um vão de ~250px
+> antes dos degraus (`flex: 1 1 14rem` esticando altura ao empilhar), o alvo de
+> toque em 32px onde o comentário prometia 36, e o `×` de remover requisito
+> ocupando uma linha inteira a 360px. Consertados no **PR #27**. Ela também
+> confirmou o que importava: as frases batem com os selos em todas as seis
+> matérias, e a prévia da régua responde contra dados reais.
 >
 > **Três defeitos que a implementação encontrou** — cada um virou teste:
 >

@@ -26,9 +26,7 @@
 
 ## 1 · Em produção hoje (`portalsas.online`)
 
-Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0036**
-(a `0037` e a `0038` existem, aplicadas só no banco local — ver a Sprint 5 em
-[§3](#3--próximos-ciclos--proposta)).
+Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0038**.
 Testes: **279** no backend, **233** no front. Banco de questões: **2.693**.
 
 ### Sprint 1 · Bloco A — o simulado nasce no SAS *(17–20/08)*
@@ -218,6 +216,36 @@ nenhum, a página é criada *fora de módulo* em vez de falhar — conserto é u
 `UPDATE` em `curso_monitorado_gravacao` quando o módulo padrão da matéria for
 escolhido.
 
+### Sprint 5 · A régua vira uma só, o assistente com contexto, gráficos em camadas *(30/08)*
+
+PR #26, deploy em 30/08 com as migrations `0037` e `0038`. Plano, e o
+levantamento que reescopou o sprint, em [31](31-plano-sprint-5.md).
+
+| Parte | O quê | Estado |
+|---|---|---|
+| P1 | A régua de corte vira uma só: `criterios.py` responde por regra, `thresholds.py` só por calibração. `zona`, métricas de simulado, estatísticas de ciclo e os gráficos passam pelo mesmo avaliador (`0037`) | ✅ |
+| P2 | Consciência de rota: o contexto da tela viaja por turno e vira preâmbulo; `navegar_para` devolve link como artefato (`0038`) | ✅ |
+| P3 | As três lacunas de tool que sobravam — `questoes_do_simulado`, `comparar_alunos`, `comparar_simulados` | ✅ **30 tools** |
+| P4 | O coordenador cria a própria régua pelo Painel, com prévia ao vivo; CRUD versionado sobre as tabelas da `0023` | ✅ |
+| P5 | Gráficos em camadas: leigo → insight → estatística, com o controle em cada gráfico | ✅ |
+
+**Dois números fósseis caíram junto.** O 5,0 do Inglês na F1 do ITA não era da
+casa (o Tio Leo põe 4,0 e marca eliminatório) nem do edital (5 de 12 = 4,17); e
+"a régua não opina sobre esta matéria" virava corte 0,0, com o produto
+afirmando 100% de aprovados numa matéria que o critério sequer menciona.
+
+⚠️ **A `zona` de todos os alunos passou a ser decidida pelo avaliador da régua,
+e o Tio Leo corta com E, não com OU.** Um aluno com 2,0 em Matemática e 8,0 no
+resto deixa de aparecer em "risco". É a regra que a coordenação confirmou em
+22/08 — mas a lista encolhe, e o Leo vai notar. O recálculo é o reconcile das
+03:00 (`/canvas-sync/reconciliar`); até ele rodar, o Painel classifica pela
+régua nova e a tela de Alunos ainda mostra a zona antiga.
+
+**A revisão adversarial faz parte do registro deste sprint:** 13 agentes leram o
+diff antes do PR e acharam 23 defeitos, todos consertados — inclusive uma frase
+que dizia "subiu" para um aluno que caiu e um preâmbulo de chat que deixava um
+aluno ler o nome de outro. Os cinco principais estão no [31 §Estado](31-plano-sprint-5.md).
+
 ### Blocos B, C, D do [docs/10](10-problemas-e-visao.md) — o que já caiu no caminho
 
 | Item | Estado | Onde |
@@ -286,15 +314,12 @@ partes propostas já estavam feitas, no todo ou em parte, sem registro em
 documento nenhum. Plano completo em
 [31-plano-sprint-5.md](31-plano-sprint-5.md).
 
-> **Estado: ESCRITA, fora de produção** *(30/08)*. As cinco partes estão
-> implementadas e testadas localmente — 279 testes na API, 233 no front,
-> migrations `0037` e `0038` com `up`/`down`/`up` limpos, e o fluxo da P4
-> exercitado contra os 319 alunos do Ciclo 1 · IME. Uma revisão adversarial de
-> 13 agentes achou **23 defeitos**, todos consertados antes do PR — inclusive
-> uma frase que dizia "subiu" para um aluno que caiu, e um preâmbulo de chat
-> que deixava um aluno ler o nome de outro. **Falta o deploy** e a verificação
-> visual a 360/390px. Com isto, a §1.5 deste documento — "não há mais nada
-> escrito fora de produção" — deixa de valer até o próximo deploy.
+> ## ✅ EM PRODUÇÃO desde 30/08 — **este bloco virou histórico**
+>
+> O que ficou pronto está na [§1](#sprint-5--a-régua-vira-uma-só-o-assistente-com-contexto-gráficos-em-camadas-3008).
+> O que sobra aqui embaixo é o **levantamento**: por que o escopo proposto não
+> era o escopo real. Vale ler antes de planejar o próximo sprint, porque o
+> método é reaproveitável — duas das cinco partes propostas já estavam feitas.
 
 | Parte | O quê | No levantamento de 30/08 (antes de escrever) | Hoje |
 |---|---|---|---|
