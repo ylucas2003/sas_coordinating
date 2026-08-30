@@ -603,9 +603,12 @@
 }
 
 @media (max-width: 480px) {
+  /* A disciplina toma a linha inteira; operador, nota e × dividem a de baixo.
+     Com duas colunas, os quatro campos não fechavam a segunda linha e o × caía
+     sozinho numa terceira, esticado por um `1fr` — um botão de remover do
+     tamanho da tela. */
   .criterio__requisito {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr 4.5rem auto;
   }
-  /* Numa coluna, a nota fica ao lado do operador e o × fecha a linha. */
   .criterio__requisito > select:first-child { grid-column: 1 / -1; }
 }

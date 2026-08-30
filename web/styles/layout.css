@@ -1766,8 +1766,9 @@
 }
 
 .camadas__degrau {
-  /* 32px + o padding do trilho fecha o alvo de toque de 36px do docs/20. */
-  min-height: 32px;
+  /* 36px é o alvo de toque do docs/20 §1.2, e ele tem de estar NO BOTÃO: o
+     padding do trilho pertence ao pai, então tocá-lo não aciona o degrau. */
+  min-height: 36px;
   padding: 0 12px;
   font: inherit;
   font-size: 12px;
@@ -1816,6 +1817,10 @@
 
 @media (max-width: 560px) {
   .camadas__topo { flex-direction: column; }
+  /* O `flex: 1 1 14rem` do bloco de título é para a direção LINHA, onde ele
+     divide a largura com o trilho de degraus. Empilhado, o mesmo `grow` passa
+     a esticar a ALTURA e abre um vão entre a legenda e os degraus. */
+  .camadas__titulo-bloco { flex: none; }
   .camadas__degraus { align-self: stretch; justify-content: space-between; }
   .camadas__degrau { flex: 1; padding: 0 8px; }
 }
