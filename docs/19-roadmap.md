@@ -4,18 +4,30 @@
 > contam *por que* e *como*; este diz só *onde estamos*. Quando divergirem,
 > corrija aqui primeiro — é o que se lê antes de qualquer sprint.
 >
-> Atualizado em **24/08/2026**, depois do deploy que juntou o redesenho do
+> Atualizado em **30/08/2026**. O deploy de 24/08 juntou o redesenho do
 > casco, a SPRINT FOTO e o acervo histórico do banco de questões — ver §9.8
 > de [23-banco-questoes-historico.md](23-banco-questoes-historico.md) pra
 > como isso quase saiu errado (checkout desatualizado, importador sem
-> acesso aos JSONs dentro do container).
+> acesso aos JSONs dentro do container). Em 29/08 entraram os Sprints 6 e 7
+> e o polimento avulso, vindos do brainstorming daquela manhã:
+> [24-jornada-do-aluno.md](24-jornada-do-aluno.md) (aluno) e
+> [25-leitura-da-coordenacao.md](25-leitura-da-coordenacao.md) (coordenação).
+> Em **30/08** a área do aluno saiu do papel: o front inteiro foi escrito.
+> ⚠️ **Para o estado dela, leia [30-estado-da-implementacao.md](30-estado-da-implementacao.md)**
+> — as tabelas de lá são GERADAS do código (`web/src/dados/aluno/registro.ts`)
+> e `npm test` falha se envelhecerem. Este documento resume; aquele não mente.
+> Ainda em **30/08**, a publicação automática de aulas saiu de "escrito, não
+> em produção" para a §1, depois de conferida no VPS (crontab instalado,
+> `AWS_*`/`YOUTUBE_*` preenchidos, migrations `0034`–`0036` aplicadas, 7 aulas
+> no canal). Com isso a antiga **§1.5 deixou de existir**: não há mais nada
+> escrito fora de produção.
 
 ---
 
 ## 1 · Em produção hoje (`portalsas.online`)
 
-Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0032**.
-Testes: **165** no backend, **142** no front.
+Tudo abaixo está no `main` e no ar. Migrations aplicadas: **0001 → 0036**.
+Testes: **223** no backend, **191** no front. Banco de questões: **2.693**.
 
 ### Sprint 1 · Bloco A — o simulado nasce no SAS *(17–20/08)*
 
@@ -71,6 +83,43 @@ novela do deploy em [23-banco-questoes-historico.md](23-banco-questoes-historico
 **O Postgres de produção passa a ter 2378 questões** (934 + 1444). Lotes C/D
 (257 PDFs escaneados) seguem fora — [23-banco-questoes-historico.md §6](23-banco-questoes-historico.md#6--coisas-descobertas-que-mudam-a-forma-de-abordar-cd-no-futuro).
 
+### Sprint Fase 1 do IME · 2007–2016 — o banco cresce 360 *(29/08)*
+
+A prova objetiva do IME estava no repositório desde 22/08 e nunca foi
+processada: [23 §3.1](23-banco-questoes-historico.md) a registrou como
+"trabalho não começado, não uma lacuna medida". São doze cadernos, um por
+biênio, **dez com texto nativo e gabarito oficial ao lado**. Plano, achados e
+o que mudou no pipeline em [23 §23](23-banco-questoes-historico.md).
+
+| Etapa | Estado |
+|---|---|
+| Recorte de imagem do IME (quebrado desde [23 §21.4](23-banco-questoes-historico.md)) | ✅ localiza por palavra; 1996 vai de 0 para 10/10, zero regressão nos biênios em produção |
+| `processar_ime_objetiva` — 40 questões, três matérias num PDF, alternativas | ✅ conferida contra `ime_2018_fase1`: **40/40** em matéria, gabarito e letras |
+| Gabarito do IME (quatro geometrias, uma delas rotacionada 90°) | ✅ duas leituras por coordenada que precisam concordar; zero divergência contra as 25 respostas já em produção |
+| Extração e classificação por tópico do edital | ✅ 280 questões, 384 ligações, sem custo de API |
+| **Conferência das 280 letras contra os PDFs renderizados** | ✅ achou 2 erros reais (2016 q25 e q27) — [23 §23.7](23-banco-questoes-historico.md) |
+| Gabarito conferido vira trava versionada | ✅ `config/_gabaritos_ime_objetiva.json`; o extrator recusa o ano que divergir |
+| Import em produção (1ª rodada) | ✅ 29/08 — 2.383 → **2.693**, 280/280 batendo com o gabarito conferido |
+| 2009 e 2011: gabarito oficial achado em `Resultados/` | ✅ [23 §24](23-banco-questoes-historico.md) — conferido por parser, leitura à vista e pelas resoluções do Farias Brito |
+| `_texto_poppler` — a prova de 2011 partia o próprio marcador | ✅ recurso opcional; sem o binário o ano é pulado, não quebra |
+| Import local (2ª rodada) | ✅ **2.773**, 360/360 batendo com o gabarito oficial |
+| Recorte de 2009 saía picado (folha A3 girada, 2-up) | ✅ [23 §25](23-banco-questoes-historico.md) — 24 recortes de <200px; agora 360/360 saudáveis, com guarda no extrator |
+
+**Nove anos entraram** (2007–2009, 2011–2016), todos com gabarito definitivo da
+banca. 2009 e 2011 quase ficaram de fora: o gabarito da objetiva não está em
+`Provas_Anteriores/`, e sim em `Resultados/`, outra árvore do mesmo site do IME —
+achado só depois de uma varredura em seis frentes ([23 §24](23-banco-questoes-historico.md)).
+Ficam de fora 2010 e 2017, cadernos escaneados. Onze questões anuladas pela banca
+entram sem letra.
+
+**Deploy em 29/08.** Produção foi de 2.383 para **2.693 questões** — as 280 da
+primeira rodada mais as 30 do IME 1996 do [§22](23-banco-questoes-historico.md),
+que estavam represadas. **As 80 de 2009 e 2011 ainda não subiram**: o local está
+em 2.773. Conferido por `psql` direto contra o gabarito versionado:
+**280/280**. A `ESPERADO` do importador, parada nos 934 desde 22/08, foi
+atualizada — toda importação desde 23/08 terminava com um alarme que ninguém
+podia levar a sério ([23 §23.9](23-banco-questoes-historico.md)).
+
 ### Sprint Redesenho do casco *(23/08)*
 
 Rail de ícones no lugar da topbar de 7 abas, migalhas, faixa de filtros
@@ -82,7 +131,16 @@ horizontal, Ciclos+Simulados fundidos em `/provas`. Plano em
 | P1 | Tokens — paleta do canvas, cinza azulado, âmbar separado em traço e texto | ✅ |
 | P2 | Casco — rail, topbar com migalhas, barra inferior no celular | ✅ |
 | P3 | Telas — `BarraFiltros`, `/provas`, abas de Administração | ✅ |
-| P4 | Polimento tela a tela, com o browser aberto | ⏳ **não feito** — foi pro ar sem essa checagem, ver §1.5 |
+| P4 | Polimento tela a tela, com o browser aberto | ⏳ **não feito** — foi pro ar sem essa checagem |
+
+> ⚠️ **Foi pro ar com um blocker conhecido não resolvido**: o sino da topbar
+> aponta para `/painel#alertas`, e esse id não existe em `Painel.tsx` —
+> confirmado ainda ausente em 24/08, na hora do deploy. Clicar no sino não dá
+> erro, só não rola pra lugar nenhum. Documentado aqui antes desse deploy
+> como "bloqueia o deploy" ([23-plano-redesenho-casco.md §8](23-plano-redesenho-casco.md#8--o-que-falta--p4)
+> · item 3) e foi pro ar assim mesmo — decisão de escopo do usuário
+> ("tudo que está na árvore hoje"), não descuido. Conserto pequeno: um
+> `id="alertas"` em algum bloco de `Painel.tsx`.
 
 ### Sprint Foto de perfil *(23–24/08)*
 
@@ -99,19 +157,7 @@ API. Documentado em `docs/sprints.html · SPRINT FOTO` (sem doc próprio em
 | P4 | Onde o rosto aparece — casco do aluno, topbar, `/alunos`, ficha, `/auditoria` | ✅ |
 | P5 | Consentimento (andaime técnico), troca, remoção auditada | ✅ |
 
-### Blocos B, C, D do [docs/10](10-problemas-e-visao.md) — o que já caiu no caminho
-
-| Item | Estado | Onde |
-|---|---|---|
-| B.2 Write-back de notas no Canvas | ✅ refeito na Sprint 2 (com escolha do coordenador) | [18 §2.4](18-plano-sprint-2.md#24-nota-sempre-o-canvas--alterações-do-sas) |
-| C.1 Componente único de filtro | ✅ | `BarraFiltros.tsx` — era `PainelFiltros.tsx` (lateral) até o redesenho de [23](23-plano-redesenho-casco.md) |
-| C.4 Ordenação por cabeçalho | ✅ | `TabelaOrdenavel.tsx` |
-
----
-
-## 1.5 · Escrito mas **não em produção**
-
-### Publicação automática de aulas no YouTube *(27/08)*
+### Sprint Aulas · publicação automática no YouTube *(27–29/08)*
 
 Substitui o processo manual em que um auxiliar de coordenação gravava a
 própria tela durante a aula e subia o vídeo depois. Roda em
@@ -124,7 +170,9 @@ própria tela durante a aula e subia o vídeo depois. Roda em
 | Baixar do BigBlueButton | ✅ aula real de 97 min, ~480 MB |
 | Compor com o template da marca | ✅ ffmpeg, câmera + tela sobre o PNG |
 | Guardar no S3 | ✅ bucket privado dedicado |
-| Publicar no YouTube como *não listado* | ✅ comprovado com vídeo de teste |
+| Publicar no YouTube como *não listado* | ✅ 7 aulas no canal |
+| Publicar a página da aula no Canvas, dentro do módulo da matéria | ✅ 7 páginas, `0035` e `0036` |
+| Acompanhamento em `/integracoes/aulas` | ✅ |
 
 **O achado que viabilizou tudo:** a documentação oficial e as ferramentas de
 terceiros (`bbb-dl`) dizem que o plano de BigBlueButton do colégio não permite
@@ -152,19 +200,29 @@ não diário.
   apagar vídeo**. Pedido de eliminação por um responsável exige um humano no
   YouTube Studio. É o padrão mais seguro, mas a coordenação precisa saber.
 
-**Pendente para ir a produção:** preencher `AWS_*`, `S3_BUCKET_GRAVACOES` e
-`YOUTUBE_*` no `infra/vps/.env`, e instalar o `crontab-sas` atualizado. A
-imagem da API passou a incluir `ffmpeg` (~250 MB) — o build de produção fica
-maior.
+**No ar desde 29/08, rodando sozinho.** As chaves `AWS_*`,
+`S3_BUCKET_GRAVACOES` e `YOUTUBE_*` estão no `infra/vps/.env` do VPS e o
+`crontab-sas` foi instalado com os dois jobs (`verificar` aos 20 de cada hora,
+`processar` aos 25). Migrations `0034`–`0036` aplicadas em produção. Estado do
+banco em 30/08: **4 cursos monitorados** (`581` Preparatório, `691` Matemática,
+`692` Física, `693` Química), **7 aulas publicadas** no YouTube — todas as 7
+com página criada no Canvas — e 7 em `aguardando_gravacao`, esperando o BBB
+disponibilizar o arquivo. A imagem da API passou a incluir `ffmpeg` (~250 MB) —
+o build de produção ficou maior.
 
-> ⚠️ **Foi pro ar com um blocker conhecido não resolvido**: o sino da topbar
-> aponta para `/painel#alertas`, e esse id não existe em `Painel.tsx` —
-> confirmado ainda ausente em 24/08, na hora do deploy. Clicar no sino não dá
-> erro, só não rola pra lugar nenhum. Documentado aqui antes desse deploy
-> como "bloqueia o deploy" ([23-plano-redesenho-casco.md §8](23-plano-redesenho-casco.md#8--o-que-falta--p4)
-> · item 3) e foi pro ar assim mesmo — decisão de escopo do usuário
-> ("tudo que está na árvore hoje"), não descuido. Conserto pequeno: um
-> `id="alertas"` em algum bloco de `Painel.tsx`.
+**Sobrou uma pontinha:** Matemática (`691`) é o único curso sem
+`canvas_modulo_id` de fallback. Quando o assunto da aula não casa com módulo
+nenhum, a página é criada *fora de módulo* em vez de falhar — conserto é um
+`UPDATE` em `curso_monitorado_gravacao` quando o módulo padrão da matéria for
+escolhido.
+
+### Blocos B, C, D do [docs/10](10-problemas-e-visao.md) — o que já caiu no caminho
+
+| Item | Estado | Onde |
+|---|---|---|
+| B.2 Write-back de notas no Canvas | ✅ refeito na Sprint 2 (com escolha do coordenador) | [18 §2.4](18-plano-sprint-2.md#24-nota-sempre-o-canvas--alterações-do-sas) |
+| C.1 Componente único de filtro | ✅ | `BarraFiltros.tsx` — era `PainelFiltros.tsx` (lateral) até o redesenho de [23](23-plano-redesenho-casco.md) |
+| C.4 Ordenação por cabeçalho | ✅ | `TabelaOrdenavel.tsx` |
 
 ---
 
@@ -225,9 +283,117 @@ O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já te
 | P4 | **UI de critérios do coordenador** — o formato da Sprint 2 já nasceu pronto; falta a tela (A7) | [18 §1.10](18-plano-sprint-2.md#110-futuro-critérios-criados-pelo-coordenador) |
 | P5 | Gráficos em camadas: leigo → insight → estatística | visão de produto |
 
-**Total à frente: 3 sprints, 15 partes.**
+### Sprint 6 · O assunto entra no simulado — *4 partes*
+
+Origem: brainstorming do Yan em 29/08 ([24](24-jornada-do-aluno.md)). É a
+**fundação** de tudo que o aluno passa a poder fazer depois — e a maior alavanca
+de esforço/retorno do projeto: classificar **1.031 questões** faz **237.081
+respostas já gravadas** passarem a dizer *em que assunto* cada aluno erra.
+
+| Parte | O quê | Tamanho | Depende de |
+|---|---|---|---|
+| P1 | **`questao_topico`** — ligação N:N das questões de simulado com `topico_taxonomia`, espelhando `questao_vestibular_topico`. A coluna `questao.assunto` da `0015` **não** serve (texto livre, um assunto só) e vira dívida a remover ([24 §3.2](24-jornada-do-aluno.md)) | M | — |
+| P2 | **Classificar as 1.031** — lote, fora de `api/`, com o `classificar.py` do banco apontado para o HTML do Quiz Statistics | G | P1 |
+| P3 | **Índice de importância** — incidência normalizada por ano × **meia-vida de 5 anos, fixa para todos** (decidido 29/08), com a **tendência exposta separada** do índice ([24 §4](24-jornada-do-aluno.md)) | M | — (só o que já está no Postgres) |
+| P4 | **Acerto por assunto** — o aluno e a coordenação passam a ver acerto por tópico do edital | M | P2 |
+
+**Pré-voo: nenhum.** As duas decisões que faltavam foram tomadas em 29/08 — a
+meia-vida (5 anos, fixa) e a cobertura (só Matemática, Física e Química; a tela
+diz quais matérias cobre). Português, Inglês e Redação ficam de fora, e o
+Inglês eliminatório segue acompanhado só pela nota — é o próximo candidato a
+ganhar taxonomia, num sprint futuro.
+
+> ✅ **É o próximo sprint** (decidido em 29/08). Furou a fila na frente do
+> Sprint 3 e do polimento avulso por ser caminho crítico de tudo que vem
+> depois — e porque a **P3 pode começar no mesmo dia**, sem esperar a
+> classificação: ela só depende do que já está no Postgres.
+
+### Sprint 7 · A jornada do aluno — *5 partes*
+
+O pedido central do áudio: *"como a gente cria uma jornada para o aluno sair de
+um D e ir para um A?"* Desenho em [24](24-jornada-do-aluno.md).
+
+| Parte | O quê | Tamanho | Depende de |
+|---|---|---|---|
+| P1 | **Prioridade pessoal** — `importância × (1 − meu acerto)`, e o gráfico de quadrantes que é a P5 da Sprint 5 aplicada | M | Sprint 6 · P3 + P4 |
+| P2 | **Onde estou / para onde vou** — zona atual, distância até o corte, meta do ciclo (`meta_aluno`), linha do tempo de zona | G | destravada: o aluno **vê** a zona, com a distância (29/08) |
+| P3 | **Um próximo passo por vez** — o elemento maior da tela, acima do desempenho | M | P1 |
+| P4 | **Tio Léo** — o nome, e 5 tools novas (importância, assuntos fracos, plano de revisão, questões do banco por tópico, minha zona) | M | P1. A colisão de nome com a régua foi **assumida de propósito** (29/08) |
+| P5 | **Consertar o streak** — hoje mede posição contra a turma, não progresso do aluno ([24 §1.1](24-jornada-do-aluno.md)) | P | — |
+
+**Fora de escopo, de propósito:** o RAG dos livros de método de estudo. Exige
+`pgvector`, decisão de direito de uso e infra que o projeto não tem — e as
+tools da P4 entregam a maior parte do valor conversacional sem nada disso
+([24 §5.2](24-jornada-do-aluno.md)).
+
+### O que falta para o aluno usar — *fora do front*
+
+Levantamento de 29/08 em [29-area-do-aluno-o-que-falta.md](29-area-do-aluno-o-que-falta.md).
+Nada aqui é tela; tudo é o que impede as telas desenhadas de funcionarem.
+
+| Bloco | O quê | Tamanho |
+|---|---|---|
+| **A** | Cinco rotas que faltam — `/me/agenda` (o e-mail já sabe do simulado, a tela não), `/me/erros`, `/me/zona`, e expor `trajetoria`/`heatmap`/`arquivo`, que existem e nenhuma tela desenha. **E tirar o filtro `presente = True`**, que esconde a falta e quebra a sequência | **M** |
+| **B** | As regras que ninguém escreveu: simulado anulado e nota corrigida, virada de ano letivo, quem entra no meio, quem sai, e o `vestibular_alvo_aluno` que nunca foi lido | **M** |
+| **C** | **Notificação** — não existe `web/public` nem manifest; o PWA nunca foi feito. Sem isso, sequência, liga e contagem regressiva perdem o gatilho | **G** |
+| **D** | Confiança: a **origem da resolução** (o acervo histórico tem resolução gerada por LLM e o aluno vai achar que é do professor) e um canal de suporte | **M** |
+| **E** | Onboarding do jogo e estados vazios de verdade | **M** |
+| **F** | Trava de 360px, Safari real, testes de DOM | **M** |
+| **G** | Backup do Postgres, caminho de eliminação da LGPD, teto de custo do chat | **M** |
+| **H** | **Portão:** backtest do XP contra os 5 ciclos de 2026 antes de fixar número | **P** |
+
+### Polimento da coordenação — *PR avulso, não é sprint*
+
+Do mesmo brainstorming, lado coordenação ([25](25-leitura-da-coordenacao.md)).
+Quase tudo que o áudio pediu **já estava planejado** (C.2, C.3, D.1, D.2–D.4);
+o que é novo é pequeno e não depende de nada:
+
+| O quê | Tamanho |
+|---|---|
+| Faixa de filtros colapsando quando passa de uma linha, com resumo do ativo, memorizado por tela | P |
+| Busca padronizada como grupo da `BarraFiltros` nas sete telas — hoje existe em três lugares diferentes e falta em quatro telas | P |
+| `/banco` adotar a `BarraFiltros` — nasceu com sidebar própria e reabriu a dívida que C.1 fechou | M |
+| Explicar na tela o que é "criar acesso de coordenação" — o modelo está certo, o produto é que não conta ([25 §3](25-leitura-da-coordenacao.md)) | P |
+| Cartão de decisão acima da tabela do Painel — "o que merece atenção hoje" | M |
+| Dossiê de ciclo como artefato (texto + gráfico + tabela), reusando o exportador do banco | M |
+
+**Total à frente: 6 sprints, 34 partes**, mais o polimento avulso de 6 itens.
 
 ---
+
+## 3.9 · A área do aluno · front escrito, backend pendente *(30/08)*
+
+**Escrito, fora de produção.** Treze rotas novas no front, dois temas, sub-marca
+própria. **Nenhuma rota da API mudou** — e essa é a característica do sprint.
+
+O estado real, fonte por fonte, está em
+[30-estado-da-implementacao.md](30-estado-da-implementacao.md), **gerado de
+`web/src/dados/aluno/registro.ts`**. Resumo:
+
+| | |
+|---|---|
+| **LIGADO** | 20 fontes — o endpoint existe e a tela consome |
+| **DADO EXISTE, ROTA NÃO** | 6 — o servidor já sabe a resposta, falta a rota |
+| **MOCK PURO** | 16 — não existe nem dado |
+
+Três rotas prontas e sem tela desde sempre ganharam uma ([29 §A.5](29-area-do-aluno-o-que-falta.md)):
+`/me/trajetoria`, `/me/heatmap` e `/me/simulado/{id}/arquivo`.
+
+⚠️ **`/me/streak` continua no ar medindo a coisa errada** e não foi ligada de
+propósito — "ciclos acima da média da turma" premia posição, não progresso
+([24 §1.1](24-jornada-do-aluno.md)). Sai quando `/me/jogo` entrar.
+
+**O que falta, em ordem de esforço:** as cinco rotas curtas da tabela 2 do
+docs/30 (`/me/agenda`, a falta em `/me/simulados`, `/me/erros`, `/me/jogo`,
+`/me/zona`) → o backtest do XP, que é portão → a migration de
+`alternativa_escolhida`/`acertou` → o Sprint 6 → notificação → Liga e
+Esquadrilha.
+
+**Buracos conhecidos** (lista inteira na última seção do docs/30): quatro telas
+não foram vistas rodando; o mapa de calor nasce 98,3% vazio porque o eixo real é
+simulado e não ciclo; o extrato ignora o `:id`; e em produção não existe marca
+de placeholder — a tarja MOCK só aparece em desenvolvimento.
+
 
 ## 4 · Decisões em aberto
 
@@ -236,6 +402,23 @@ O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já te
 | **WhatsApp é só lembrete, ou canal completo** (professor anexa o arquivo no WhatsApp e o sistema relaciona ao simulado)? | Sprint 3 inteira: P1 e P4 se desenham diferente | Yan + coordenação |
 | Frequência da cobrança de professores (diária? a cada 3 dias?) | Sprint 3 · P2 | coordenação |
 | Regra de "zero = provável ausência" (limiar) | Sprint 3 · P3 | coordenação |
+| **Busca é da tela ou global (`⌘K`)?** | Polimento | Yan + coordenação |
+| **Papéis dentro da coordenação** — hoje todo mundo pode tudo, inclusive criar acesso e ler auditoria | Polimento | coordenação |
+| **Servidor MCP do SAS para uso fora da plataforma?** Expõe dado de menor a cliente fora da nossa infra | — | Yan + LGPD |
+| **Parecer de LGPD sobre a Esquadrilha** — um menor compartilhando desempenho com outro, por escolha própria | Esquadrilha | Yan + LGPD |
+| **Temporada:** o que zera na virada do ano letivo (XP, liga, esquadrilha) | Sprint 7 | Yan + coordenação |
+| **Simulado anulado e nota corrigida:** estorna XP? A liga já fechada muda? | arquitetura do XP | Yan |
+
+### 4.1 · Fechadas em 29/08
+
+| Decisão | Resposta | Destravou |
+|---|---|---|
+| Qual é o próximo sprint | **Sprint 6 — o assunto entra no simulado** | a fila inteira |
+| O aluno vê a própria zona? | **Sim, e com a distância até a próxima** — o rótulo nunca aparece sem a distância e sem a régua que o produziu | Sprint 7 · P2 |
+| "Tio Léo" vs. a régua "Tio Leo" | **Assumir a colisão** — é a mesma pessoa. Convenção interna: *"a régua do Tio Leo"* para o critério, *"o Tio Léo"* para o bot | Sprint 7 · P4 |
+| Meia-vida do índice de importância | **5 anos, fixa para todos.** Parâmetro num lugar só, não constante espalhada | Sprint 6 · P3 |
+| Português, Inglês e Redação na análise por assunto | **Fora.** Cobre só Mat/Fís/Quím, e **a tela é obrigada a dizer quais matérias cobre** — um plano de revisão que ignora Inglês em silêncio é pior que nenhum | Sprint 6 · P2 |
+| O que a gamificação pode premiar | **Só o verificável** — sequência de simulados sem faltar, XP a partir da nota e da régua de corte, progresso contra si mesmo na tabela. Especificação em [26](26-mecanicas-do-jogo.md) | Sprint 7 |
 
 ---
 

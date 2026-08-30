@@ -518,20 +518,23 @@
     <p class="marca">SAS · Coordenação ITM · Colégio Ari de Sá</p>
     <h1>Sprints do SAS</h1>
     <p class="subtitulo">Todo ciclo de trabalho que existe na documentação: o plano de cada um, o que
-      de fato ficou pronto, e o que o produto passou a saber fazer no fim.</p>
+      de fato ficou pronto, e o que o produto passou a saber fazer no fim. Os três últimos são propostas nascidas
+      do brainstorming de 29/08 — a jornada do aluno, o assunto entrando no simulado, e o polimento da coordenação.
+      Em <b>30/08</b> a área do aluno saiu do papel: o front inteiro está escrito, e o que falta virou uma lista
+      curta de rotas em <code>docs/30-estado-da-implementacao.md</code>.</p>
     <p class="assinatura">
-      <span>Estado em 23/08/2026</span>
-      <span>migrations 0001 → 0029</span>
-      <span>120 testes na API · 134 no front</span>
+      <span>Estado em 30/08/2026</span>
+      <span>migrations 0001 → 0036</span>
+      <span>223 testes na API · 191 no front</span>
       <span>portalsas.online</span>
     </p>
   </header>
 
   <div class="placar">
-    <div><b>38</b><span>partes no ar ou implementadas</span></div>
-    <div><b>2</b><span>partes em curso</span></div>
-    <div><b>15</b><span>nos próximos 3 sprints</span></div>
-    <div><b>10</b><span>ciclos mapeados</span></div>
+    <div><b>51</b><span>partes no ar</span></div>
+    <div><b>10</b><span>escritas, fora de produção</span></div>
+    <div><b>34</b><span>nos próximos 6 sprints</span></div>
+    <div><b>19</b><span>ciclos mapeados</span></div>
   </div>
 
   <ul class="legenda">
@@ -543,7 +546,7 @@
 
   <div class="trilho">
 
-    <!-- ============================ 01 · React ============================ -->
+    <!-- ================================ 01 · React ================================ -->
     <article class="ciclo" data-estado="ar">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">CICLO 01</span>
@@ -591,7 +594,7 @@
       </div>
     </article>
 
-    <!-- ============================ 02 · Produção ========================== -->
+    <!-- ============================== 02 · Produção ============================== -->
     <article class="ciclo" data-estado="ar">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">CICLO 02</span>
@@ -641,7 +644,7 @@
       </div>
     </article>
 
-    <!-- ============================ 03 · Sprint 1 ========================== -->
+    <!-- ============================== 03 · Sprint 1 ============================== -->
     <article class="ciclo" data-estado="ar">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT 1</span>
@@ -713,7 +716,7 @@
       </div>
     </article>
 
-    <!-- ============================ 04 · Sprint 2 ========================== -->
+    <!-- ============================== 04 · Sprint 2 ============================== -->
     <article class="ciclo" data-estado="ar">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT 2</span>
@@ -789,7 +792,7 @@
         Developer Key, que hoje é poder demais para o único escopo que o SAS usa.</p>
     </article>
 
-    <!-- ============================ 05 · Mobile ============================ -->
+    <!-- =============================== 05 · Mobile =============================== -->
     <article class="ciclo" data-estado="curso">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT MOBILE</span>
@@ -878,7 +881,7 @@
         Sem ela a auditoria é uma foto, e a primeira tela nova reintroduz o problema sem ninguém perceber.</p>
     </article>
 
-    <!-- ============================ 06 · Banco ============================ -->
+    <!-- ================================ 06 · Banco ================================ -->
     <article class="ciclo" data-estado="ar">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT BANCO</span>
@@ -963,116 +966,69 @@
         de mil para duzentas e trinta e sete mil, e é sprint próprio.</p>
     </article>
 
-    <!-- ============================ 07 · Sprint 3 =========================== -->
-    <article class="ciclo" data-estado="proposta">
+    <!-- ========================== 07 · Acervo histórico ========================== -->
+    <article class="ciclo" data-estado="ar">
       <div class="ciclo__topo">
-        <span class="ciclo__ordem">SPRINT 3</span>
-        <span class="selo selo--espera">proposta</span>
-        <span class="ciclo__quando">4 partes · uma frente por sprint</span>
+        <span class="ciclo__ordem">SPRINT ACERVO</span>
+        <span class="selo selo--ok">no ar</span>
+        <span class="ciclo__quando">23–24/08/2026 · migration 0031</span>
       </div>
-      <h2>Fechar o Bloco A</h2>
-      <p class="ciclo__resumo">O que a coordenação mais pediu — cobrar professor sem ser na mão — e que já tem a infra
-        pronta: motor, agenda e e-mail existem desde a Sprint 1. Retoma as duas partes que ficaram para trás lá.</p>
-      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 §2.4</li></ul>
+      <h2>O acervo histórico: 934 questões viram 2.378</h2>
+      <p class="ciclo__resumo">ITA 2008–2018 e IME 1996–2019 entram no banco. Extração, classificação por tópico do
+        edital e resolução em três passadas — a segunda delas <b>relendo com a imagem</b> as 482 questões que citavam
+        figura, porque o texto sozinho mentia sobre elas.</p>
+      <ul class="fontes"><li>docs/23-banco-questoes-historico.md</li><li>migration 0031</li></ul>
 
       <ul class="partes">
-        <li><span class="cod">P1</span><span class="oque"><b>Requerimento de questões</b><em>Tabela e máquina de estados:
-          o professor entra na fila ao criar o simulado e sai ao entregar. Tamanho G.</em></span><span class="selo selo--trava">depende da decisão do WhatsApp</span></li>
-        <li><span class="cod">P2</span><span class="oque"><b>Cobrança por e-mail</b><em>O motor existente dispara para os
-          professores. Era a P4 da Sprint 1. Tamanho M.</em></span><span class="selo selo--espera">depende de P1</span></li>
-        <li><span class="cod">P3</span><span class="oque"><b>Ausência ≠ zero</b><em>Falta contando como zero deturpa toda
-          média — e o corte da Sprint 2 depende de média certa. É o único 🔴 confirmado do documento 10. Tamanho M.</em></span><span class="selo selo--espera">sem dependência</span></li>
-        <li><span class="cod">P4</span><span class="oque"><b>WhatsApp (Z-API)</b><em>Era a P5 da Sprint 1. Tamanho G.</em></span><span class="selo selo--trava">depende da decisão</span></li>
+        <li><span class="cod">1</span><span class="oque"><b>Extração, classificação e resolução</b><em>1.444 questões,
+          todas.</em></span><span class="selo selo--ok">no ar</span></li>
+        <li><span class="cod">2</span><span class="oque"><b>Correção com imagem</b><em>482 questões citando figura —
+          263 relidas via OpenAI, 204 via Claude. 15 seguem pendentes, sem recorte baixado.</em></span><span class="selo selo--ok">467 de 482</span></li>
+        <li><span class="cod">3</span><span class="oque"><b>Import em produção</b><em>934 + 1.444 =
+          <b>2.378 questões</b> no Postgres de produção.</em></span><span class="selo selo--ok">24/08</span></li>
       </ul>
 
-      <p class="nota nota--alerta"><b>Pré-voo:</b> a decisão do WhatsApp. Sem ela a P1 se desenha errado — “só lembrete”
-        e “canal completo, com o professor anexando o arquivo pelo WhatsApp” pedem modelos de dado diferentes.</p>
-
-      <div class="ganho">
-        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
-        <ul>
-          <li><b>A cobrança de professor rodando sozinha.</b> O coordenador distribui as questões e não toca em mais nada
-            até a entrega.</li>
-          <li><b>Uma tela de quem entregou e quem não</b>, em vez de a informação viver na cabeça dele.</li>
-          <li><b>Média que não conta falta como zero</b> — o que muda todo número exibido hoje, e é pré-requisito para a
-            régua de corte da Sprint 2 estar dizendo a verdade.</li>
-          <li><b>A mesma cobrança nos dois canais</b>, com o botão do WhatsApp pausando a cobrança sem marcar como entregue.</li>
-        </ul>
-      </div>
+      <p class="nota"><b>Ficou fora por decisão de escopo:</b> os lotes C e D — 257 PDFs pré-2008 (ITA) e pré-1996
+        (IME), majoritariamente escaneados. O que a passada aprendeu sobre eles está no §6 do documento 23.</p>
     </article>
 
-    <!-- ============================ 08 · Sprint 4 ========================== -->
-    <article class="ciclo" data-estado="proposta">
+    <!-- ================================ 08 · Casco ================================ -->
+    <article class="ciclo" data-estado="ar">
       <div class="ciclo__topo">
-        <span class="ciclo__ordem">SPRINT 4</span>
-        <span class="selo selo--espera">proposta</span>
-        <span class="ciclo__quando">6 partes</span>
+        <span class="ciclo__ordem">SPRINT CASCO</span>
+        <span class="selo selo--ok">3 de 4 no ar</span>
+        <span class="ciclo__quando">23/08/2026</span>
       </div>
-      <h2>Dado e leitura</h2>
-      <p class="ciclo__resumo">Recolhe o que o Bloco B e o Bloco C do documento 10 deixaram pendente, mais as duas
-        partes que a Onda 3 da Sprint 2 cortou por falta de tempo.</p>
-      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 Partes 5</li></ul>
+      <h2>Redesenho do casco</h2>
+      <p class="ciclo__resumo">A topbar de 7 abas vira rail de ícones à esquerda; aparecem migalhas; os filtros saem da
+        sidebar e viram <b>faixa horizontal acima da tabela</b> — porque uma segunda coluna de filtros comia largura
+        justamente das tabelas largas, que são a razão de o SAS existir. Ciclos e Simulados se fundem em
+        <code>/provas</code>.</p>
+      <ul class="fontes"><li>docs/23-plano-redesenho-casco.md</li></ul>
 
       <ul class="partes">
-        <li><span class="cod">P1</span><span class="oque"><b>Zero × ausência nas estatísticas</b><em>B.3 — o par do P3 da Sprint 3, do lado do motor estatístico.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P2</span><span class="oque"><b>Precedência entre ingest de planilha e sync do Canvas</b><em>B.4 — hoje quem escreve por último vence.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P3</span><span class="oque"><b>Split ano / vestibular / ciclo no Painel</b><em>C.2.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P4</span><span class="oque"><b>Range de período em Ciclos</b><em>C.3.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P5</span><span class="oque"><b>Corte na Fase 1 pela zona do aluno</b><em>Unificar <code>thresholds.py</code> com <code>criterios.py</code> — vindo da Onda 3 da Sprint 2.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P6</span><span class="oque"><b>Envio em lote ao Canvas</b><em>“Enviar as N pendências do ciclo” — hoje cada objeto tem seu botão. Também da Onda 3.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P1</span><span class="oque"><b>Tokens</b><em>Paleta do canvas, cinza azulado, âmbar
+          separado em traço e texto.</em></span><span class="selo selo--ok">no ar</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Casco</b><em>Rail, topbar com migalhas, barra inferior no
+          celular.</em></span><span class="selo selo--ok">no ar</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Telas</b><em><code>BarraFiltros</code>,
+          <code>/provas</code>, abas de Administração.</em></span><span class="selo selo--ok">no ar</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>Polimento tela a tela, com o browser aberto</b><em>Não
+          feito — foi para produção sem essa checagem.</em></span><span class="selo selo--espera">não começou</span></li>
       </ul>
 
-      <div class="ganho">
-        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
-        <ul>
-          <li><b>Um painel que não mistura anos e vestibulares</b> — hoje o recorte é implícito e o coordenador precisa
-            saber que precisa desconfiar.</li>
-          <li><b>Ciclos com recorte por período</b>, em vez de tudo ou nada.</li>
-          <li><b>Um clique para enviar as pendências do ciclo inteiro</b>, em vez de N cliques.</li>
-          <li><b>Números que não mudam de significado</b> conforme o dado tenha vindo da planilha ou do Canvas.</li>
-        </ul>
-      </div>
+      <p class="nota nota--alerta"><b>Foi ao ar com um blocker conhecido.</b> O sino da topbar aponta para
+        <code>/painel#alertas</code> e esse id não existe em <code>Painel.tsx</code>. Clicar não dá erro — só não rola
+        para lugar nenhum. Estava documentado como “bloqueia o deploy” e subiu assim mesmo, por decisão de escopo.
+        Conserto: um <code>id="alertas"</code> em algum bloco do Painel.</p>
     </article>
 
-    <!-- ============================ 09 · Sprint 5 ========================== -->
-    <article class="ciclo" data-estado="proposta">
-      <div class="ciclo__topo">
-        <span class="ciclo__ordem">SPRINT 5</span>
-        <span class="selo selo--espera">proposta</span>
-        <span class="ciclo__quando">5 partes</span>
-      </div>
-      <h2>Assistente e gráficos em camadas</h2>
-      <p class="ciclo__resumo">O Bloco D do documento 10 — transformar o chat de modal que bloqueia em copiloto que
-        acompanha — mais duas coisas que já nasceram prontas por baixo e só esperam tela.</p>
-      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 §2.8</li><li>docs/18 §1.10</li></ul>
-
-      <ul class="partes">
-        <li><span class="cod">P1</span><span class="oque"><b>Painel não-modal</b><em>D.1 — o mais barato do documento 10. Hoje o chat aberto bloqueia a navegação.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P2</span><span class="oque"><b>Consciência de rota</b><em>D.4 — o assistente saber em que página a pessoa está.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P3</span><span class="oque"><b>Apresentação da abertura e lacunas de tools</b><em>D.2 + D.3 — o que é navegável na plataforma e o chat ainda não alcança.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P4</span><span class="oque"><b>UI de critérios do coordenador</b><em>O formato nasceu pronto na Sprint 2 — tabelas, versionamento e avaliador. Falta só a tela.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P5</span><span class="oque"><b>Gráficos em camadas</b><em>Leigo → insight → estatística: o mesmo gráfico legível em três profundidades.</em></span><span class="selo selo--espera">—</span></li>
-      </ul>
-
-      <div class="ganho">
-        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
-        <ul>
-          <li><b>Um assistente que não bloqueia a tela.</b> Dá para conversar e navegar ao mesmo tempo.</li>
-          <li><b>Um assistente que sabe onde você está</b> — perguntar “e esse aluno?” passa a ter referente.</li>
-          <li><b>Uma abertura que mostra o que ele sabe fazer</b>, em vez de um campo em branco.</li>
-          <li><b>O coordenador criando a própria régua</b> — “nota 7 em Matemática, Física e Química e acima de 4 em
-            Português” — sem pedir código a ninguém.</li>
-          <li><b>Gráficos que se leem em três níveis</b>, conforme quem está olhando.</li>
-        </ul>
-      </div>
-    </article>
-
-    <!-- ============================ 10 · Foto ============================== -->
-    <article class="ciclo" data-estado="curso">
+    <!-- ================================ 09 · Foto ================================ -->
+    <article class="ciclo" data-estado="ar">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT FOTO</span>
-        <span class="selo selo--curso">5 de 5 implementadas · aguardando commit e deploy</span>
-        <span class="ciclo__quando">23/08/2026 · verificado contra o Postgres local, ponta a ponta</span>
+        <span class="selo selo--ok">5 de 5 no ar</span>
+        <span class="ciclo__quando">23–24/08/2026 · migration 0032 · no ar desde 24/08</span>
       </div>
       <h2>O rosto no cadastro</h2>
       <p class="ciclo__resumo">Pedir a foto ao aluno e ao coordenador no primeiro acesso, guardar no banco e usá-la
@@ -1160,10 +1116,10 @@
         </ul>
       </div>
 
-      <p class="nota"><b>Pode furar a fila.</b> Não depende da decisão do WhatsApp, do motor de lembretes nem do
-        recorte estatístico — como o sprint mobile, entra quando a prioridade mandar. O que ele <em>não</em> pode é
-        entrar sem a P5 resolvida: subir a P2 sozinha significa começar a receber foto de menor de idade antes de
-        existir resposta para quem apaga e quando.</p>
+      <p class="nota"><b>Furou a fila, como previsto.</b> Não dependia da decisão do WhatsApp, do motor de lembretes
+        nem do recorte estatístico — entrou quando a prioridade mandou. O que ele não podia era entrar sem a P5, e não
+        entrou: subir a P2 sozinha significaria receber foto de menor de idade antes de existir resposta para quem
+        apaga e quando.</p>
 
       <p class="nota"><b>P5 entrou como andaime técnico, não como a decisão em si.</b> O que existe: uma declaração
         obrigatória ("confirmo que posso enviar esta foto") registrada em <code>evento_auditoria</code> a cada envio,
@@ -1173,11 +1129,542 @@
         é obrigatório ou pode ser pulado (hoje: pode pular), e se a foto de um aluno aparece para outro aluno (hoje:
         não — só a coordenação vê foto de terceiro). As três entraram no apêndice de decisões em aberto.</p>
 
-      <p class="nota nota--alerta"><b>Verificado, não deployado.</b> As 5 partes rodam de ponta a ponta contra o
-        Postgres local — migration <code>0032</code> aplicada, upload → leitura → remoção conferidos por HTTP de
-        verdade nos dois perfis, com o evento certo em cada auditoria. 165 testes no backend e 142 no front, todos
-        verdes; nenhum arquivo tocado ficou com lint pendente. O que falta é o de sempre: revisão, commit,
-        <code>./infra/vps/deploy.sh --migrar</code>.</p>
+      <p class="nota"><b>Foi ao ar em 24/08</b>, no mesmo deploy que levou o redesenho do casco e o acervo histórico
+        do banco de questões. As 5 partes rodam de ponta a ponta: migration <code>0032</code> aplicada, upload →
+        leitura → remoção conferidos por HTTP de verdade nos dois perfis, com o evento certo em cada auditoria.</p>
+    </article>
+
+    <!-- ============================ 10 · IME objetiva ============================ -->
+    <article class="ciclo" data-estado="curso">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT IME F1</span>
+        <span class="selo selo--curso">escrito · não em produção</span>
+        <span class="ciclo__quando">29/08/2026 · importado no Postgres local</span>
+      </div>
+      <h2>A Fase 1 do IME, 2007–2016</h2>
+      <p class="ciclo__resumo">A prova objetiva do IME estava no repositório desde 22/08 e nunca tinha sido processada —
+        registrada no documento 23 como <em>“trabalho não começado, não uma lacuna medida”</em>. São doze cadernos, um
+        por biênio, dez deles com texto nativo e <b>gabarito oficial ao lado</b>. O banco vai de 2.413 para
+        <b>2.693 questões</b> no local.</p>
+      <ul class="fontes"><li>docs/23-banco-questoes-historico.md §23</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">1</span><span class="oque"><b>Recorte de imagem do IME</b><em>Quebrado desde o §21.4:
+          passa a localizar por palavra. 1996 vai de 0 para 10/10, com zero regressão nos biênios já em
+          produção.</em></span><span class="selo selo--ok">feito</span></li>
+        <li><span class="cod">2</span><span class="oque"><b><code>processar_ime_objetiva</code></b><em>40 questões, três
+          matérias num PDF só, com alternativas. Conferida contra <code>ime_2018_fase1</code>: <b>40/40</b> em matéria,
+          gabarito e letra.</em></span><span class="selo selo--ok">feito</span></li>
+        <li><span class="cod">3</span><span class="oque"><b>O gabarito do IME</b><em>Quatro geometrias diferentes, uma
+          delas rotacionada 90°. Duas leituras por coordenada que precisam concordar — zero divergência contra as 25
+          respostas já em produção.</em></span><span class="selo selo--ok">feito</span></li>
+        <li><span class="cod">4</span><span class="oque"><b>Extração e classificação</b><em>280 questões, 384 ligações
+          por tópico do edital, sem custo de API.</em></span><span class="selo selo--ok">feito</span></li>
+      </ul>
+
+      <p class="nota nota--alerta"><b>O que falta para ir a produção</b> é o reimport pelo túnel SSH, que leva junto as
+        30 do IME 1996 — e <b>a conferência humana do gabarito de uma prova inteira</b>. Esse é o item de maior risco do
+        ciclo: errar ali não tem sintoma na tela. Sete anos entraram (2007, 2008, 2012–2016); ficaram de fora 2009 e
+        2011 (o acervo não tem o gabarito da objetiva) e 2010 e 2017 (cadernos escaneados).</p>
+    </article>
+
+    <!-- ========================== 11 · Gravações de aula ========================== -->
+    <article class="ciclo" data-estado="ar">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT AULAS</span>
+        <span class="selo selo--ok">no ar</span>
+        <span class="ciclo__quando">27–29/08/2026 · migrations 0034, 0035, 0036 · no ar desde 29/08</span>
+      </div>
+      <h2>Publicação automática de aulas no YouTube</h2>
+      <p class="ciclo__resumo">Substitui o processo manual em que um auxiliar de coordenação gravava a própria tela
+        durante a aula e subia o vídeo depois. O pipeline detecta a aula nova no Canvas, baixa do BigBlueButton, compõe
+        com o template da marca, guarda no S3, publica no YouTube e pendura a página da aula no módulo certo do Canvas —
+        de hora em hora, pelo cron do VPS.</p>
+      <ul class="fontes"><li>docs/19-roadmap.md §1</li><li>api/app/gravacoes_aula/</li><li>web/src/telas/Integracoes/</li><li>migrations 0034 · 0035 · 0036</li></ul>
+
+      <ul class="etapas">
+        <li><span class="n">1</span><span class="feito">✓</span> Detectar aula nova com gravação no Canvas</li>
+        <li><span class="n">2</span><span class="feito">✓</span> Baixar do BigBlueButton — aula real de 97 min, ~480 MB</li>
+        <li><span class="n">3</span><span class="feito">✓</span> Compor com o template da marca (ffmpeg)</li>
+        <li><span class="n">4</span><span class="feito">✓</span> Guardar no S3, em bucket privado dedicado</li>
+        <li><span class="n">5</span><span class="feito">✓</span> Publicar no YouTube como <b>não listado</b></li>
+        <li><span class="n">6</span><span class="feito">✓</span> Pendurar a página da aula no módulo certo do Canvas</li>
+        <li><span class="n">7</span><span class="feito">✓</span> Acompanhamento na aba <code>/integracoes/aulas</code></li>
+      </ul>
+
+      <p class="nota"><b>O achado que viabilizou tudo.</b> A documentação oficial e as ferramentas de terceiros dizem
+        que o plano de BigBlueButton do colégio <em>não permite baixar vídeo</em>. É meia-verdade: a página de replay é
+        mesmo só um player HTML5, mas os arquivos brutos existem por trás dela —
+        <code>{replay}/video/webcams.mp4</code> e <code>{replay}/deskshare/deskshare.mp4</code>. A busca anterior
+        falhava por procurar <code>.webm</code>, a convenção antiga do BBB.</p>
+
+      <p class="nota"><b>Retenção de ~7 dias</b>, medida cruzando idade da aula com presença de gravação em três
+        matérias: aula com ≤7 dias tem gravação, com ≥8 não tem. É a janela em que o pipeline precisa rodar — daí o
+        cron de hora em hora e não diário.</p>
+
+      <p class="nota nota--alerta"><b>Três decisões de LGPD, porque há menores na câmera e no chat.</b> O vídeo sai
+        <b>não listado</b> — o aluno abre pelo link sem conta Google, e a aula não aparece em busca, no canal nem em
+        recomendação; <em>privado</em> não serviria, o link não funciona para quem não foi convidado individualmente
+        nem quando o vídeo é incorporado no Canvas. O bucket é dedicado e privado, com as quatro proteções de Block
+        Public Access ligadas — os que já existiam na conta são todos públicos. E o token do YouTube <b>não pode apagar
+        vídeo</b>: pedido de eliminação por um responsável exige um humano no YouTube Studio. É o padrão mais seguro,
+        mas a coordenação precisa saber disso.</p>
+
+      <p class="nota"><b>Está rodando sozinho desde 29/08.</b> As chaves <code>AWS_*</code>,
+        <code>S3_BUCKET_GRAVACOES</code> e <code>YOUTUBE_*</code> estão no <code>infra/vps/.env</code> do VPS e o
+        <code>crontab-sas</code> foi instalado com os dois jobs (<code>verificar</code> aos 20, <code>processar</code>
+        aos 25 de cada hora). Em produção: <b>4 cursos monitorados</b> (581 Preparatório, 691 Matemática, 692 Física,
+        693 Química), <b>7 aulas publicadas</b> no YouTube — as 7 com página criada no Canvas — e 7 aguardando a
+        gravação aparecer no BBB. A imagem da API passou a incluir <code>ffmpeg</code> (~250 MB) — o build de produção
+        ficou maior.</p>
+
+      <p class="nota"><b>O que ainda pode melhorar.</b> Matemática (curso 691) é o único sem
+        <code>canvas_modulo_id</code> de fallback: quando o assunto da aula não casar com módulo nenhum, a página é
+        criada mesmo assim, só que <em>fora de módulo</em>. Basta um <code>UPDATE</code> em
+        <code>curso_monitorado_gravacao</code> quando o módulo padrão da matéria for escolhido.</p>
+    </article>
+    <!-- ===================== 12 · A área do aluno construída ===================== -->
+    <article class="ciclo" data-estado="curso">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT ALUNO</span>
+        <span class="selo selo--curso">front escrito · back pendente</span>
+        <span class="ciclo__quando">30/08/2026 &middot; s&oacute; front, nenhuma rota nova</span>
+      </div>
+      <h2>A &aacute;rea do aluno, constru&iacute;da</h2>
+      <p class="ciclo__resumo">O desenho de 29/08 virou tela. Treze rotas novas, dois temas, e uma sub-marca pr&oacute;pria
+        &mdash; a &aacute;rea do aluno deixou de ser o casco institucional da coordena&ccedil;&atilde;o. <b>Nada de backend mudou</b>: as rotas
+        que existiam foram ligadas de verdade, e o que n&atilde;o existe ficou mockado atr&aacute;s de uma costura &uacute;nica e
+        declarada, para desmockar depois ser trocar uma linha em vez de ca&ccedil;ar dado falso pelo c&oacute;digo.</p>
+      <ul class="fontes"><li>docs/30-estado-da-implementacao.md &mdash; <b>gerado do c&oacute;digo</b></li><li>docs/24 &sect;7 &middot; docs/26 &middot; docs/27 &middot; docs/28</li><li>web/src/dados/aluno/registro.ts</li></ul>
+
+      <ul class="etapas">
+        <li><span class="n">1</span><span class="feito">&#10003;</span> Tokens dos dois temas &mdash; seis pap&eacute;is de cor, dia e noite</li>
+        <li><span class="n">2</span><span class="feito">&#10003;</span> Casco: barra inferior, rail e coluna lateral</li>
+        <li><span class="n">3</span><span class="feito">&#10003;</span> Hoje &middot; Estudar &middot; Provas &middot; Jornada &middot; Liga</li>
+        <li><span class="n">4</span><span class="feito">&#10003;</span> Sess&atilde;o de treino, quest&atilde;o em tela cheia e extrato de XP</li>
+        <li><span class="n">5</span><span class="feito">&#10003;</span> Tio L&eacute;o: folha no celular, painel no desktop</li>
+        <li><span class="n">6</span><span class="feito">&#10003;</span> A porta do aluno &mdash; o login pr&oacute;prio</li>
+      </ul>
+
+      <p class="nota"><b>TR&Ecirc;S estados de dado, n&atilde;o dois &mdash; e a distin&ccedil;&atilde;o &eacute; o produto deste sprint.</b>
+        <b>20 fontes LIGADAS</b> (o endpoint existe e a tela consome), <b>6 SEM ROTA</b> (o servidor j&aacute; sabe a
+        resposta, s&oacute; falta a rota) e <b>16 MOCK PURO</b> (n&atilde;o existe nem dado). Misturar os dois &uacute;ltimos esconderia a
+        lista de tarefas mais barata do projeto: desmockar um &ldquo;sem rota&rdquo; &eacute; escrever uma leitura curta sobre tabela
+        existente; desmockar um &ldquo;mock&rdquo; &eacute; inventar produto.</p>
+
+      <p class="nota"><b>O invent&aacute;rio &eacute; gerado, n&atilde;o escrito.</b> <code>docs/30</code> sai de
+        <code>web/src/dados/aluno/registro.ts</code>, e <code>npm test</code> falha se os dois divergirem. A tarja
+        <b>MOCK</b> / <b>SEM ROTA</b> que aparece no canto de cada bloco em desenvolvimento l&ecirc; o estado do mesmo
+        registro &mdash; ela n&atilde;o pode mentir sobre o invent&aacute;rio porque &eacute; a mesma linha. Dois testes guardam a costura:
+        nenhuma tela importa o arquivo de mocks, e toda fonte consumida tem entrada no registro.</p>
+
+      <p class="nota"><b>Tr&ecirc;s rotas prontas ganharam tela pela primeira vez</b> (docs/29 &sect;A.5):
+        <code>/me/trajetoria</code> na Jornada, <code>/me/heatmap</code> em Provas e
+        <code>/me/simulado/{id}/arquivo</code> no bot&atilde;o do PDF da prova. Estavam constru&iacute;das e testadas, e invis&iacute;veis.
+        E <code>resolucaoOrigem</code>, que o plano listava como faltando, <b>j&aacute; vinha no schema</b> &mdash; foi ligada, e
+        &eacute; ela que impede o aluno de ler uma resolu&ccedil;&atilde;o de IA achando que &eacute; do professor.</p>
+
+      <p class="nota nota--alerta"><b><code>/me/streak</code> existe e N&Atilde;O foi ligada, de prop&oacute;sito.</b> Ela devolve
+        &ldquo;ciclos consecutivos acima da m&eacute;dia da turma&rdquo; &mdash; m&eacute;trica relativa, que premia posi&ccedil;&atilde;o e n&atilde;o progresso
+        (docs/24 &sect;1.1). A mec&acirc;nica nova &eacute; <b>simulados consecutivos sem faltar</b>. Ligar a rota errada seria pior que
+        mockar, porque o n&uacute;mero pareceria certo. Quando <code>/me/jogo</code> entrar, a rota antiga sai junto.</p>
+
+      <p class="nota"><b>A coordena&ccedil;&atilde;o n&atilde;o foi tocada.</b> <code>telas/Banco/</code> continua servindo os dois cascos
+        e n&atilde;o mudou uma linha; o <code>ChatLauncher</code> n&atilde;o-modal do coordenador segue intacto, e a folha do aluno
+        carrega as conversas com c&oacute;digo pr&oacute;prio &mdash; 40 linhas duplicadas s&atilde;o mais baratas que uma regress&atilde;o no chat de
+        quem coordena. O login se divide numa condicional: modo aluno abre a porta nova, modo coordena&ccedil;&atilde;o abre o
+        <code>.lp</code> institucional de sempre. Verificado no browser: <code>.porta</code> some, <code>.lp</code> volta
+        inteiro.</p>
+
+      <p class="nota nota--alerta"><b>O que ficou por fazer, e est&aacute; escrito.</b> Quatro telas
+        &mdash; Estudar, treino, quest&atilde;o em tela cheia e a folha do Tio L&eacute;o &mdash; <b>n&atilde;o foram vistas rodando</b>: o browser
+        ficou preso durante a passagem, e o que existe sobre elas &eacute; leitura de CSS. O mapa de calor tem
+        <b>111 colunas e nasce 98,3% vazio</b>, porque o eixo real &eacute; simulado e n&atilde;o ciclo. O extrato ignora o
+        <code>:id</code> da rota. E <b>em produ&ccedil;&atilde;o n&atilde;o existe marca de placeholder</b>: a tarja s&oacute; aparece em
+        desenvolvimento, ent&atilde;o um n&uacute;mero mockado chega ao aluno com a mesma cara de um verificado. A lista inteira
+        est&aacute; em <code>docs/30</code>, se&ccedil;&atilde;o &ldquo;o que ficou incompleto&rdquo;.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passou a ter</span>
+        <ul>
+          <li><b>Uma tela que responde &ldquo;o que eu fa&ccedil;o agora&rdquo;</b> em vez de seis indicadores olhando para tr&aacute;s.</li>
+          <li><b>Dois temas de verdade</b>, com a escolha persistindo entre sess&otilde;es &mdash; e o projeto ganhou modo escuro
+            no momento mais barato que ia existir, porque tudo nasceu como token.</li>
+          <li><b>O acervo de 2.693 quest&otilde;es dentro do fluxo de estudo</b>, com busca vis&iacute;vel e filtro em folha.</li>
+          <li><b>Um invent&aacute;rio que n&atilde;o mente</b> sobre o que &eacute; real e o que &eacute; placeholder &mdash; e que quebra o teste
+            quando algu&eacute;m o deixa envelhecer.</li>
+        </ul>
+      </div>
+    </article>
+    <!-- ============================== 12 · Sprint 3 ============================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 3</span>
+        <span class="selo selo--espera">proposta</span>
+        <span class="ciclo__quando">4 partes · uma frente por sprint</span>
+      </div>
+      <h2>Fechar o Bloco A</h2>
+      <p class="ciclo__resumo">O que a coordenação mais pediu — cobrar professor sem ser na mão — e que já tem a infra
+        pronta: motor, agenda e e-mail existem desde a Sprint 1. Retoma as duas partes que ficaram para trás lá.</p>
+      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 §2.4</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">P1</span><span class="oque"><b>Requerimento de questões</b><em>Tabela e máquina de estados:
+          o professor entra na fila ao criar o simulado e sai ao entregar. Tamanho G.</em></span><span class="selo selo--trava">depende da decisão do WhatsApp</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Cobrança por e-mail</b><em>O motor existente dispara para os
+          professores. Era a P4 da Sprint 1. Tamanho M.</em></span><span class="selo selo--espera">depende de P1</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Ausência ≠ zero</b><em>Falta contando como zero deturpa toda
+          média — e o corte da Sprint 2 depende de média certa. É o único 🔴 confirmado do documento 10. Tamanho M.</em></span><span class="selo selo--espera">sem dependência</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>WhatsApp (Z-API)</b><em>Era a P5 da Sprint 1. Tamanho G.</em></span><span class="selo selo--trava">depende da decisão</span></li>
+      </ul>
+
+      <p class="nota nota--alerta"><b>Pré-voo:</b> a decisão do WhatsApp. Sem ela a P1 se desenha errado — “só lembrete”
+        e “canal completo, com o professor anexando o arquivo pelo WhatsApp” pedem modelos de dado diferentes.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>A cobrança de professor rodando sozinha.</b> O coordenador distribui as questões e não toca em mais nada
+            até a entrega.</li>
+          <li><b>Uma tela de quem entregou e quem não</b>, em vez de a informação viver na cabeça dele.</li>
+          <li><b>Média que não conta falta como zero</b> — o que muda todo número exibido hoje, e é pré-requisito para a
+            régua de corte da Sprint 2 estar dizendo a verdade.</li>
+          <li><b>A mesma cobrança nos dois canais</b>, com o botão do WhatsApp pausando a cobrança sem marcar como entregue.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ============================== 13 · Sprint 4 ============================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 4</span>
+        <span class="selo selo--espera">proposta</span>
+        <span class="ciclo__quando">6 partes</span>
+      </div>
+      <h2>Dado e leitura</h2>
+      <p class="ciclo__resumo">Recolhe o que o Bloco B e o Bloco C do documento 10 deixaram pendente, mais as duas
+        partes que a Onda 3 da Sprint 2 cortou por falta de tempo.</p>
+      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 Partes 5</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">P1</span><span class="oque"><b>Zero × ausência nas estatísticas</b><em>B.3 — o par do P3 da Sprint 3, do lado do motor estatístico.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Precedência entre ingest de planilha e sync do Canvas</b><em>B.4 — hoje quem escreve por último vence.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Split ano / vestibular / ciclo no Painel</b><em>C.2.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>Range de período em Ciclos</b><em>C.3.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P5</span><span class="oque"><b>Corte na Fase 1 pela zona do aluno</b><em>Unificar <code>thresholds.py</code> com <code>criterios.py</code> — vindo da Onda 3 da Sprint 2.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P6</span><span class="oque"><b>Envio em lote ao Canvas</b><em>“Enviar as N pendências do ciclo” — hoje cada objeto tem seu botão. Também da Onda 3.</em></span><span class="selo selo--espera">—</span></li>
+      </ul>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>Um painel que não mistura anos e vestibulares</b> — hoje o recorte é implícito e o coordenador precisa
+            saber que precisa desconfiar.</li>
+          <li><b>Ciclos com recorte por período</b>, em vez de tudo ou nada.</li>
+          <li><b>Um clique para enviar as pendências do ciclo inteiro</b>, em vez de N cliques.</li>
+          <li><b>Números que não mudam de significado</b> conforme o dado tenha vindo da planilha ou do Canvas.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ============================== 14 · Sprint 5 ============================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 5</span>
+        <span class="selo selo--espera">proposta</span>
+        <span class="ciclo__quando">5 partes</span>
+      </div>
+      <h2>Assistente e gráficos em camadas</h2>
+      <p class="ciclo__resumo">O Bloco D do documento 10 — transformar o chat de modal que bloqueia em copiloto que
+        acompanha — mais duas coisas que já nasceram prontas por baixo e só esperam tela.</p>
+      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 §2.8</li><li>docs/18 §1.10</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">P1</span><span class="oque"><b>Painel não-modal</b><em>D.1 — o mais barato do documento 10. Hoje o chat aberto bloqueia a navegação.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Consciência de rota</b><em>D.4 — o assistente saber em que página a pessoa está.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Apresentação da abertura e lacunas de tools</b><em>D.2 + D.3 — o que é navegável na plataforma e o chat ainda não alcança.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>UI de critérios do coordenador</b><em>O formato nasceu pronto na Sprint 2 — tabelas, versionamento e avaliador. Falta só a tela.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P5</span><span class="oque"><b>Gráficos em camadas</b><em>Leigo → insight → estatística: o mesmo gráfico legível em três profundidades.</em></span><span class="selo selo--espera">—</span></li>
+      </ul>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>Um assistente que não bloqueia a tela.</b> Dá para conversar e navegar ao mesmo tempo.</li>
+          <li><b>Um assistente que sabe onde você está</b> — perguntar “e esse aluno?” passa a ter referente.</li>
+          <li><b>Uma abertura que mostra o que ele sabe fazer</b>, em vez de um campo em branco.</li>
+          <li><b>O coordenador criando a própria régua</b> — “nota 7 em Matemática, Física e Química e acima de 4 em
+            Português” — sem pedir código a ninguém.</li>
+          <li><b>Gráficos que se leem em três níveis</b>, conforme quem está olhando.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ======================== 15 · Sprint 6 · o assunto ======================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 6</span>
+        <span class="selo selo--espera">próximo · decidido em 29/08</span>
+        <span class="ciclo__quando">4 partes · furou a fila na frente do Sprint 3</span>
+      </div>
+      <h2>O assunto entra no simulado</h2>
+      <p class="ciclo__resumo">A maior alavanca de esforço por retorno que o projeto tem, e ela está parada desde a
+        migration <code>0015</code>. <b>As 1.031 questões dos simulados do colégio têm <code>assunto</code> nulo</b> — o
+        gancho existe, o classificador nunca foi escrito. Classificá-las faz as <b>237.081 respostas de aluno já
+        gravadas</b> passarem a dizer <em>em que assunto</em> cada um erra. É mil para duzentas e trinta e sete mil.</p>
+      <ul class="fontes"><li>docs/24-jornada-do-aluno.md §3 e §4</li><li>migration 0015 · 0028</li><li>áudios de 29/08 · 11h52 · 11h54 · 11h59</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">P1</span><span class="oque"><b>A ligação, não a coluna</b><em>Uma tabela
+          <code>questao_topico</code> espelhando <code>questao_vestibular_topico</code>, com a mesma FK composta para
+          <code>topico_taxonomia</code>. A coluna <code>questao.assunto</code> da <code>0015</code> <b>não serve</b>:
+          é texto livre e guarda um assunto só, e questão mista é a regra, não a exceção. Ela vira dívida a
+          remover. Tamanho M.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Classificar as 1.031</b><em>Trabalho de lote, fora de
+          <code>api/</code>, com o <code>classificar.py</code> que o banco de questões já usa — muda só a entrada:
+          o HTML da questão vindo do Quiz Statistics em vez do JSON da prova. Tamanho G.</em></span><span class="selo selo--espera">depende de P1</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Índice de importância</b><em>Incidência normalizada
+          pela fatia da prova de cada ano, ponderada por <b>meia-vida de 5 anos, fixa para todos</b> (decidido 29/08), com a tendência exposta
+          separada do índice — “caía em 6% até 2015, cai em 2% desde 2020”. O índice diz quanto estudar; a
+          tendência diz por quê. Tamanho M.</em></span><span class="selo selo--espera">não depende de P1/P2</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>Acerto por assunto</b><em>O aluno e a coordenação
+          passam a ver acerto por tópico do edital — a leitura que os 237 mil registros já continham e ninguém
+          conseguia fazer. Tamanho M.</em></span><span class="selo selo--espera">depende de P2</span></li>
+      </ul>
+
+      <p class="nota nota--alerta"><b>A taxonomia do edital só cobre três matérias</b> — Física, Química e Matemática.
+        Os simulados têm também Português, Inglês e Redação, e <b>o Inglês da Fase 1 do ITA é o único eliminatório do
+        sistema</b> (corte 5,0). A análise por assunto nasce cega justamente na matéria que mais elimina.
+        <b>Decidido em 29/08: cobrir só as três</b>, e a tela é obrigada a dizer quais matérias cobre — a mesma regra
+        que a <code>0028</code> já aplica às questões sem classificação. Um plano de revisão que ignora Inglês em
+        silêncio é pior que nenhum, porque o aluno conclui que está coberto.</p>
+
+      <p class="nota"><b>Por que meia-vida e não uma janela de cinco anos.</b> A janela joga fora sinal e cria um
+        degrau: quando 2019 sai da janela, o número pula sem que nada tenha acontecido no mundo. A exponencial decai
+        liso e nenhum ano some. E a normalização por ano não é detalhe: provas têm tamanhos diferentes, e somar
+        contagens brutas dá peso a mais ao ano com prova maior <em>sem que ninguém veja isso acontecer</em>.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>“Onde eu erro” deixa de ser por matéria e passa a ser por assunto.</b> Hoje o aluno sabe que foi mal
+            em Física; passa a saber que foi mal em Termodinâmica e bem em Óptica.</li>
+          <li><b>Um número que diz o que a banca vem cobrando de verdade</b>, com o histórico visível atrás dele em
+            vez de escondido dentro dele.</li>
+          <li><b>A coordenação vendo o buraco da turma inteira por assunto</b> — que é o que vira aula de revisão.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ======================== 16 · Sprint 7 · a jornada ======================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 7</span>
+        <span class="selo selo--espera">proposta</span>
+        <span class="ciclo__quando">7 partes · depende do Sprint 6</span>
+      </div>
+      <h2>A jornada do aluno</h2>
+      <p class="ciclo__resumo">O pedido central do brainstorming: <em>“como a gente cria uma jornada para o aluno sair
+        de um D e ir para um A?”</em> A área do aluno hoje é um <b>retrato</b> — seis indicadores que olham todos para
+        trás. Falta direção: onde estou, para onde vou, o que faço amanhã de manhã.</p>
+      <ul class="fontes"><li>docs/24-jornada-do-aluno.md §2, §5, §6</li><li>migration 0023 — a régua já é dado</li></ul>
+
+      <p class="nota"><b>A escala não precisa ser inventada — o SAS já tem uma.</b>
+        <code>classificacao_aluno.zona</code> classifica cada aluno em <b>risco → cinzenta → top</b> contra a nota de
+        corte, sob uma das cinco réguas nomeadas da Sprint 2. “Sair de um D e ir para um A” é subir de zona sob a régua
+        do Tio Leo — uma escala que já é auditada, que significa algo fora da plataforma, e que coordenação e aluno
+        passariam a olhar juntos. Hoje o coordenador vê a zona e o aluno não sabe que ela existe.
+        <b>Decidido em 29/08: o aluno passa a ver</b> — com a distância até a próxima (“faltam 0,8 em Química”) e com
+        a régua que produziu o rótulo. Nunca a zona sozinha: “risco” sem o quanto falta e sem contra qual corte é só
+        a má notícia.</p>
+
+      <ul class="partes">
+        <li><span class="cod">P1</span><span class="oque"><b>Prioridade pessoal</b><em><code>importância × (1 − meu
+          acerto)</code>: cai muito <b>e</b> eu erro muito. Com o acerto puxado para a média da turma quando o aluno
+          tem poucas questões no tópico — senão um erro só vira 0% e o tópico salta para o topo. Desenhado como
+          quadrantes (importância × meu acerto), que é a P5 do Sprint 5 aplicada. Tamanho M.</em></span><span class="selo selo--espera">depende do Sprint 6</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>Onde estou, para onde vou</b><em>Zona atual, distância
+          numérica até a próxima (<code>falta 0,8 em Química para sair do risco</code>), meta do ciclo
+          (<code>meta_aluno</code>) e a linha do tempo da própria zona. Tamanho G.</em></span><span class="selo selo--espera">destravada em 29/08</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Um próximo passo por vez</b><em>Um, não dez — e como o
+          elemento maior da tela, acima do desempenho. Hoje o painel do aluno tem seis blocos de peso parecido e o
+          olho não sabe onde começar. Tamanho M.</em></span><span class="selo selo--espera">depende de P1</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>Tio Léo</b><em>O nome, e cinco tools que o mentor não
+          tem: importância dos assuntos, meus assuntos fracos, plano de revisão, questões do banco por tópico, minha
+          zona e distância. Renomear é uma linha em três arquivos; o pedido de verdade são as tools. Tamanho
+          M.</em></span><span class="selo selo--espera">colisão assumida</span></li>
+        <li><span class="cod">P5</span><span class="oque"><b>Consertar o streak</b><em>Streak hoje é “ciclos
+          consecutivos com média acima da média da turma” — <b>relativo</b>. Uma turma que melhora junto não acumula
+          streak nenhum, e quem estagna enquanto a turma cai ganha streak. Premia posição, não progresso. Vira
+          <b>simulados consecutivos sem faltar</b>, por <code>nota.presente</code>. Tamanho P.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P6</span><span class="oque"><b>XP, sequência e extrato</b><em>O XP sai do simulado:
+          presença, cada matéria acima do corte, régua completa, progresso contra o próprio padrão e faixa de ranking.
+          <b>É a régua de corte existente, pontuada</b> — o mesmo avaliador que classifica o aluno para o coordenador
+          paga o aluno. E o <b>extrato</b>, a tela que mostra item a item de onde vieram os pontos. Tamanho G.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P7</span><span class="oque"><b>Liga e Esquadrilha</b><em>A liga do ciclo é anônima e
+          automática — todo mundo está nela. A <b>esquadrilha</b> é opcional: 3 a 6 amigos por código de convite, e ela
+          <b>soma em vez de ranquear por dentro</b>. Sem último lugar, não há peso morto; e quem não é convidado para
+          nenhuma não perde nada, porque a liga continua sendo o chão. Tamanho G.</em></span><span class="selo selo--trava">depende do parecer de LGPD</span></li>
+      </ul>
+
+      <p class="nota"><b>“Tio Léo” já é o nome de outra coisa — e ficou assim de propósito.</b> É uma das cinco
+        réguas de corte da migration <code>0023</code>, e aparece no seletor do Painel ao lado de “ITA” e “IME”.
+        <b>Decidido em 29/08: assumir a colisão.</b> O bot é a pedagogia do Leo falando com o aluno, e a régua é a
+        mesma pessoa; o aluno nunca vê o seletor de critério, e nada muda em dado de produção. O custo fica todo do
+        lado de dentro — “Tio Leo” passa a ser ambíguo em conversa, em log e em busca de código. A convenção que
+        desfaz: <b>“a régua do Tio Leo”</b> para o critério, <b>“o Tio Léo”</b> para o bot. O acento não separa nada;
+        a palavra antes dele, sim.</p>
+
+      <p class="nota nota--alerta"><b>A diretriz que reescreveu a camada de jogo: só se premia o que se verifica.</b>
+        Marcar uma questão como resolvida é autodeclarado — nada impede marcar cinquenta sem abrir nenhuma. Nota,
+        presença e posição vêm do sistema acadêmico e <em>são</em> verificadas. Por isso a economia migrou do <b>dia</b>
+        para o <b>simulado</b>: caem a sequência de dias, o XP por questão do banco, a meta semanal e a chama que
+        acelera à noite. <b>O app deixa de ser hábito diário e vira hábito de ciclo</b> — treino livre sem pontuar, e a
+        prova é a corrida que vale. Especificação em docs/26-mecanicas-do-jogo.md.</p>
+
+      <p class="nota"><b>O presente que a diretriz trouxe.</b> Como o XP sai de notas que já estão no banco, ele é
+        calculável <em>para trás</em>: o aluno entra no primeiro dia e já tem XP, sequência e histórico de liga do ano
+        inteiro. E dá para <b>aferir a tabela contra os 5 ciclos reais de 2026 antes de subir</b> — praticamente nenhum
+        jogo consegue testar o próprio balanceamento contra dado real antes do primeiro jogador entrar.</p>
+
+      <p class="nota"><b>O RAG dos livros fica de fora, de propósito.</b> Carregar o bot com livros de método de estudo
+        exige armazenar os textos, resolver direito de uso de cada obra e um índice vetorial que <b>não existe no
+        projeto</b> — o Postgres não tem <code>pgvector</code> e não há nada de RAG em <code>api/</code>. As cinco
+        tools da P4 entregam a maior parte do valor conversacional sem infra nova. O RAG entra depois, medido contra o
+        que a resposta melhorou de fato.</p>
+
+      <p class="nota"><b>Três regras de gamificação, antes de acrescentar badge.</b> <b>(1)</b> Premiar processo, não
+        posição — “revisou os 5 assuntos que mais errou” em vez de “top 15%”; só o Sprint 6 torna o primeiro possível.
+        <b>(2)</b> Consertar o streak (P5). <b>(3)</b> Nada que rankeie um aluno com nome na frente de outro — é a
+        regra que o chat já obedece (“comparações só com agregados”) e vale para a tela inteira.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passará a ter</span>
+        <ul>
+          <li><b>Uma resposta para “o que eu estudo hoje”</b> que sai do dado dele, não de um palpite.</li>
+          <li><b>Uma escada visível.</b> O aluno passa a saber em que degrau está e o que falta para o próximo — em
+            nota, não em adjetivo.</li>
+          <li><b>Um mentor que sabe do banco de questões</b>, e não só das notas: pergunta “o que revisar de
+            Matemática?” e recebe tópico, motivo e questão real para treinar.</li>
+          <li><b>Um streak que mede o esforço dele</b> em vez da posição relativa à turma.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ==================== 17 · O que falta para o aluno ==================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">SPRINT 8</span>
+        <span class="selo selo--espera">proposta</span>
+        <span class="ciclo__quando">8 blocos &middot; nada aqui &eacute; tela</span>
+      </div>
+      <h2>O que falta para o aluno usar</h2>
+      <p class="ciclo__resumo">Os Sprints 6 e 7 dizem <em>o que construir</em>. Este &eacute; o levantamento do que ainda
+        <b>impede as telas desenhadas de funcionarem</b> &mdash; e quase nada aqui &eacute; interface. Cinco rotas que faltam,
+        cinco regras que ningu&eacute;m escreveu, e o buraco maior de todos: <b>o produto n&atilde;o tem como chamar o aluno de
+        volta</b>.</p>
+      <ul class="fontes"><li>docs/29-area-do-aluno-o-que-falta.md</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">A</span><span class="oque"><b>O dado existe e n&atilde;o chega ao aluno</b><em>Cinco casos, e em
+          todos o servidor j&aacute; sabe a resposta. <code>/me/agenda</code> &mdash; o simulado agendado <b>j&aacute; dispara e-mail
+          para o aluno na v&eacute;spera</b> desde a Sprint 1, mas nenhuma tela mostra: <b>o e-mail sabe, a tela n&atilde;o</b>.
+          <code>/me/erros</code> transversal. <code>/me/zona</code> com a dist&acirc;ncia e a r&eacute;gua. E <code>trajetoria</code>,
+          <code>heatmap</code> e o PDF da prova, que existem e ningu&eacute;m desenha. Tamanho M.</em></span><span class="selo selo--espera">&mdash;</span></li>
+        <li><span class="cod">B</span><span class="oque"><b>As regras que ningu&eacute;m escreveu</b><em>Simulado anulado e
+          nota corrigida &mdash; <b>estorna XP? a liga j&aacute; fechada muda?</b>; a virada de ano letivo; quem entra em agosto
+          com a liga madura; quem sai do col&eacute;gio; e o <code>vestibular_alvo_aluno</code>, que existe desde a
+          <code>0001</code> e nenhuma tela do aluno leu at&eacute; hoje. Tamanho M.</em></span><span class="selo selo--espera">&mdash;</span></li>
+        <li><span class="cod">C</span><span class="oque"><b>Notifica&ccedil;&atilde;o &mdash; o buraco maior</b><em>N&atilde;o existe
+          <code>web/public</code> e n&atilde;o existe manifest: o PWA nunca foi feito. Sem instal&aacute;vel e sem push, o aluno s&oacute;
+          descobre que saiu nota se lembrar de abrir &mdash; e sequ&ecirc;ncia, liga e contagem regressiva perdem o gatilho. O
+          motor de lembretes existe desde a Sprint 1 e &eacute; a ponte barata. Tamanho G.</em></span><span class="selo selo--espera">&mdash;</span></li>
+        <li><span class="cod">D</span><span class="oque"><b>Confian&ccedil;a</b><em>A <b>origem da resolu&ccedil;&atilde;o</b>:
+          <code>resolucao_url</code> cobre 2019 em diante e aponta para os sites do Ari; o acervo hist&oacute;rico usa
+          <code>resolucao_md</code>, <b>gerado por LLM no pipeline</b>. O aluno vai ler resolu&ccedil;&atilde;o de IA achando que &eacute; do
+          professor. E um canal de suporte, que hoje n&atilde;o existe. Tamanho M.</em></span><span class="selo selo--espera">&mdash;</span></li>
+        <li><span class="cod">E</span><span class="oque"><b>Primeira vez e casos vazios</b><em>O aluno entra e n&atilde;o sabe
+          o que &eacute; XP, sequ&ecirc;ncia, esquadrilha nem corte &mdash; o primeiro acesso pede senha e foto e mais nada. E o estado
+          zero de verdade: sem simulado, sem XP, sem sequ&ecirc;ncia. Tamanho M.</em></span><span class="selo selo--espera">&mdash;</span></li>
+        <li><span class="cod">F</span><span class="oque"><b>Qualidade pendente</b><em>A trava de 360px que a Sprint
+          Mobile deixou em aberto, o Safari real (o MCP n&atilde;o enxerga aparelho &mdash; falta o Xcode completo) e os testes
+          que toquem DOM. Tamanho M.</em></span><span class="selo selo--espera">&mdash;</span></li>
+        <li><span class="cod">G</span><span class="oque"><b>D&iacute;vidas que a camada nova torna urgentes</b><em>O backup do
+          Postgres deixa de ser adi&aacute;vel: anota&ccedil;&atilde;o, lista, XP, sequ&ecirc;ncia e esquadrilha <b>s&oacute; existem no nosso banco</b>,
+          e o argumento &ldquo;o Canvas &eacute; o arquivo&rdquo; morre aqui. Mais o caminho de elimina&ccedil;&atilde;o da LGPD e o teto de custo do
+          chat. Tamanho M.</em></span><span class="selo selo--espera">&mdash;</span></li>
+        <li><span class="cod">H</span><span class="oque"><b>O port&atilde;o</b><em>Rodar a tabela de XP contra os 5 ciclos
+          reais de 2026 <b>antes de fixar qualquer n&uacute;mero</b>: quantos ficam abaixo de 200 XP, se o topo se descola, se
+          as linhas de progresso pessoal mudam a liga. Tamanho P, e &eacute; bloqueante.</em></span><span class="selo selo--trava">port&atilde;o</span></li>
+      </ul>
+
+      <p class="nota nota--alerta"><b>XP &eacute; derivado, nunca gravado como saldo</b> &mdash; e essa &eacute; uma decis&atilde;o de
+        arquitetura que fica cara de mudar depois. Nota &eacute; corrigida e simulado &eacute; anulado; se o XP for sempre
+        recalculado a partir de <code>nota</code>, a corre&ccedil;&atilde;o se propaga sozinha e o problema n&atilde;o existe. A &uacute;nica
+        exce&ccedil;&atilde;o &eacute; o extrato de uma liga j&aacute; encerrada, que precisa ser congelado &mdash; sen&atilde;o o p&oacute;dio muda depois de
+        anunciado.</p>
+
+      <div class="ganho">
+        <span class="rotulo">No fim deste sprint, quem usa passar&aacute; a ter</span>
+        <ul>
+          <li><b>O simulado aparecendo na tela do aluno no dia em que o coordenador agenda</b>, e n&atilde;o s&oacute; quando sai
+            nota.</li>
+          <li><b>A falta vis&iacute;vel.</b> Hoje o endpoint filtra <code>presente = true</code> e o simulado que o aluno
+            perdeu simplesmente some &mdash; o que torna imposs&iacute;vel desenhar uma sequ&ecirc;ncia de presen&ccedil;a.</li>
+          <li><b>Um motivo para voltar</b> que n&atilde;o dependa de o aluno lembrar sozinho.</li>
+          <li><b>Saber de quem &eacute; a resolu&ccedil;&atilde;o</b> que ele est&aacute; lendo.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ============================== 18 · Polimento ============================== -->
+    <article class="ciclo" data-estado="proposta">
+      <div class="ciclo__topo">
+        <span class="ciclo__ordem">AVULSO</span>
+        <span class="selo selo--espera">proposta · não é sprint</span>
+        <span class="ciclo__quando">6 itens · PR avulso, qualquer hora</span>
+      </div>
+      <h2>Polimento da coordenação</h2>
+      <p class="ciclo__resumo">O outro lado do mesmo brainstorming. <b>Quase tudo que foi pedido já estava
+        planejado</b> — nomes grandes de filtro é a C.2 (Sprint 4 · P3), range de período é a C.3, chat que bloqueia a
+        tela é a D.1, descrita no documento 10 como <em>o item mais barato dele</em>. O que é novo é pequeno e não
+        depende de nada.</p>
+      <ul class="fontes"><li>docs/25-leitura-da-coordenacao.md</li><li>docs/10 §C.1–C.3 · §D.1–D.4</li></ul>
+
+      <ul class="partes">
+        <li><span class="cod">1</span><span class="oque"><b>A faixa de filtros colapsa</b><em>Aberta por padrão,
+          colapsando <b>quando passa de uma linha</b>, com o resumo do que está ativo no lugar
+          (<code>Ciclo 4 · ITA · 2026 · 2 turmas</code>) e o estado memorizado por tela. ⚠️ Colapsar tudo por padrão
+          seria voltar à sidebar que o redesenho do casco tirou. Tamanho P.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">2</span><span class="oque"><b>A busca ganha um lugar só</b><em>Hoje ela existe em três
+          telas, em três lugares diferentes — nos controles do cabeçalho no Painel, como grupo da faixa na
+          Administração, no topo da sidebar no Banco — e falta em quatro. Tamanho P.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">3</span><span class="oque"><b>O <code>/banco</code> adota a <code>BarraFiltros</code></b><em>C.1
+          está ✅ para seis telas, mas o Banco nasceu depois com sidebar própria. São dois sistemas de filtro de novo —
+          exatamente o problema que a C.1 existiu para resolver. Tamanho M.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">4</span><span class="oque"><b>Explicar o acesso de coordenação</b><em>O modelo está
+          certo; o produto é que não conta. Um parágrafo antes do botão de criar, uma recusa que ensine o que fazer, e
+          a senha inicial saindo por e-mail em vez de por conversa. Tamanho P.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">5</span><span class="oque"><b>Cartão de decisão no Painel</b><em>Uma faixa
+          <i>acima</i> da tabela dizendo o que merece atenção hoje. A tabela fica — é a tela de varrer 900 pessoas, e
+          cartão não compara 900 linhas. Tamanho M.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">6</span><span class="oque"><b>Dossiê de ciclo como artefato</b><em>Texto, gráfico e
+          tabela num documento que se salva e se leva para a reunião. Metade já existe: os relatórios são tools, o
+          gráfico e o CSV já viram artefato na conversa, e o exportador de PDF/Word do banco é o mesmo motor. Tamanho
+          M.</em></span><span class="selo selo--espera">—</span></li>
+      </ul>
+
+      <p class="nota"><b>A conclusão sobre planilhas saiu quase invertida do palpite inicial.</b> A régua que sobrou é
+        <b>tabela é para comparar, cartão é para decidir</b> — e a maioria das telas de coordenação é de comparação.
+        Painel, Alunos, Simulados, Administração e Auditoria <em>ficam tabela</em>; só Ciclos vira cartão (são ~4 por
+        ano, e cada um é uma decisão). O que falta não é trocar tabela por cartão: é <b>o cartão de decisão que hoje
+        não existe em lugar nenhum</b> — a promessa do CLAUDE.md de “sinalizar o que merece atenção em vez de esperar
+        que o coordenador saiba o que procurar”.</p>
+
+      <p class="nota nota--alerta"><b>Sobre MCP.</b> Trocar as 26 tools da OpenAI por um servidor MCP interno não traz
+        nada — seria reescrever fundação estável e testada. MCP como <em>porta de entrada</em>, o coordenador usando o
+        SAS de dentro do próprio Claude, é outra coisa e é interessante. Mas expõe dado de menor de idade a um cliente
+        fora da nossa infra: é decisão de LGPD antes de ser protótipo.</p>
     </article>
 
   </div>
@@ -1218,6 +1705,73 @@
         <li><b>A foto de um aluno aparece para outro aluno?</b> Hoje nenhuma tela do casco do aluno mostra colega;
           se alguma passar a mostrar, a resposta muda o que a rota devolve.
           <span class="quem">Coordenação · trava Foto · P4</span></li>
+
+        <li><b>O aluno escolhe a meta do ciclo, ou o sistema propõe?</b>
+          <span class="quem">Coordenação · trava Sprint 7 · P2</span></li>
+        <li><b>Gamificação pode ser competitiva?</b> Ranking com nome de colega está proibido hoje pela regra do chat
+          (“comparações só com agregados”). Vale manter na tela?
+          <span class="quem">Coordenação · trava Sprint 7</span></li>
+        <li><b>RAG de livros de método de estudo: quais obras, e com que direito de uso?</b>
+          <span class="quem">Yan + jurídico · trava o sprint do RAG</span></li>
+        <li><b>A busca é da tela, ou é global (⌘K)?</b> São produtos diferentes — e hoje ela existe em três lugares
+          diferentes e falta em quatro telas.
+          <span class="quem">Yan + coordenação · trava Polimento · 2</span></li>
+        <li><b>A faixa de filtros colapsa por padrão, ou só quando estoura a linha?</b>
+          <span class="quem">Yan · trava Polimento · 1</span></li>
+        <li><b>Ciclos vira cartão?</b> É a única troca de formato que o levantamento recomenda de fato — são ~4 por
+          ano, e cada um é uma decisão, não uma linha de comparação. As outras telas ficam tabela.
+          <span class="quem">Yan · trava Polimento · 5</span></li>
+        <li><b>Coordenação recebe e-mail transacional?</b> Sem isso, a senha inicial sorteada continua saindo por
+          canal informal.
+          <span class="quem">Coordenação · trava Polimento · 4</span></li>
+        <li><b>Existem papéis dentro da coordenação, ou todo mundo pode tudo?</b> Hoje todo mundo pode tudo,
+          inclusive criar acesso e ler a auditoria.
+          <span class="quem">Coordenação · trava Polimento · 4</span></li>
+        <li><b>Servidor MCP do SAS para uso fora da plataforma?</b> Expõe dado de menor de idade a um cliente fora da
+          nossa infra — é decisão de LGPD antes de ser protótipo.
+          <span class="quem">Yan + LGPD · trava Polimento · 6</span></li>
+
+        <li><b>Parecer de LGPD sobre a Esquadrilha.</b> Um menor compartilhando o próprio desempenho com outro menor,
+          por escolha dele. A liga anônima protege por design; a esquadrilha troca proteção por consentimento.
+          <span class="quem">Yan + LGPD · trava Sprint 7 · P7</span></li>
+        <li><b>Temporada: o que zera na virada do ano letivo?</b> XP, liga e esquadrilha em janeiro. Um aluno que faz
+          dois anos de ITM tem duas temporadas ou uma?
+          <span class="quem">Yan + coordenação · trava Sprint 7</span></li>
+        <li><b>Simulado anulado e nota corrigida: estorna XP?</b> E a liga que já fechou, muda o pódio depois de
+          anunciado?
+          <span class="quem">Yan · trava a arquitetura do XP</span></li>
+        <li><b>Notificação: e-mail agora, ou espera o push?</b> Sem PWA e sem push, o produto de hábito não tem como
+          chamar ninguém. O motor de e-mail existe desde a Sprint 1.
+          <span class="quem">Yan · trava Sprint 8 · C</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h3>Fechadas em 29/08</h3>
+      <ul>
+        <li><b>Qual é o próximo sprint?</b> → <b>Sprint 6, o assunto.</b> Furou a fila na frente do Sprint 3 e do
+          polimento por ser caminho crítico de tudo que vem depois — e porque a P3, o índice de importância, pode
+          começar no mesmo dia sem esperar a classificação.
+          <span class="quem">Yan</span></li>
+        <li><b>O aluno vê a própria zona?</b> → <b>Sim, e com a distância até a próxima.</b> “Zona de risco · faltam
+          0,8 em Química para sair”: é a distância que torna o rótulo acionável em vez de sentença. Onde houver zona,
+          tem que haver a distância <em>e</em> a régua que a produziu — um aluno lendo “risco” sem saber contra qual
+          corte recebe só a má notícia.
+          <span class="quem">Yan · destrava Sprint 7 · P2</span></li>
+        <li><b>“Tio Léo” com a régua já se chamando “Tio Leo”?</b> → <b>Assumir a colisão, de propósito.</b> É a mesma
+          pessoa: o bot é a pedagogia do Leo falando com o aluno. Nada muda em dado de produção; o custo fica do lado
+          de dentro, e a convenção que o desfaz é <em>“a régua do Tio Leo”</em> para o critério, <em>“o Tio Léo”</em>
+          para o bot.
+          <span class="quem">Yan · destrava Sprint 7 · P4</span></li>
+        <li><b>Português, Inglês e Redação na análise por assunto?</b> → <b>Fora do Sprint 6.</b> Cobre só
+          Matemática, Física e Química — e <b>a tela é obrigada a dizer quais matérias cobre</b>. Um plano de revisão
+          que ignora Inglês em silêncio é pior que nenhum, porque o aluno conclui que está coberto. O Inglês é o
+          próximo candidato a ganhar taxonomia: é o único com corte eliminatório.
+          <span class="quem">Yan · destrava Sprint 6 · P2</span></li>
+        <li><b>Meia-vida do índice de importância?</b> → <b>Cinco anos, fixa para todos.</b> Todo mundo vê o mesmo
+          número: a coordenação discute uma régua só, e o Tio Léo sempre sabe qual ranking o aluno está olhando. Um
+          controle na tela ensinaria o conceito ao custo de dois alunos verem ordens diferentes do mesmo assunto.
+          <span class="quem">Yan · destrava Sprint 6 · P3</span></li>
       </ul>
     </section>
 
@@ -1232,6 +1786,11 @@
           109 erros são isso. Tamanho M, mecânico.</li>
         <li><b>O logout da área do aluno aponta para <code>/login.html</code></b>, rota que não existe mais desde a
           migração React. É <code>/login</code>.</li>
+        <li><b>A coluna <code>questao.assunto</code> da migration <code>0015</code> nunca foi escrita por nada.</b>
+          É texto livre e guarda um assunto só; a classificação por tópico precisa de tabela de ligação, porque
+          questão mista é a regra. Sai quando o Sprint 6 · P1 entrar.</li>
+        <li><b>O <code>/banco</code> não usa a <code>BarraFiltros</code>.</b> C.1 fechou a dívida de “dois sistemas de
+          filtro” para seis telas; o Banco nasceu depois, com sidebar própria, e reabriu. Tamanho M.</li>
         <li><b>Sem testes que toquem DOM.</b> Os 7 arquivos de teste do front são todos de lógica pura; o harness de
           browser da migração React viveu num scratchpad e nunca entrou no repositório. É a mesma lacuna que a trava
           do sprint mobile fecharia.</li>
@@ -1241,7 +1800,7 @@
   </div>
 
   <p class="rodape">
-    Compilado de docs/10 §2.10 · 11 · 12 · 13 · 14 · 15 · 16 · 17 · 18 · 19 · 20 · 21 · 22.<br>
+    Compilado de docs/10 §2.10 · 11 → 29.<br>
     O documento de estado é o <b>docs/19-roadmap.md</b> — quando esta página divergir dele, ele vence.<br>
     Quando o roadmap divergir do código, o código vence.
   </p>

@@ -49,9 +49,16 @@ sas/
 │                 saiu na migração pro VPS; hoje quem agenda é o cron do
 │                 sistema — `infra/vps/crontab-sas` + `cron-sas.sh`. Vários
 │                 comentários no backend ainda dizem "EventBridge": é resíduo
-├── docs/         00→22, numerados; 14 e 15 são produção; **19 é o estado**
+├── docs/         00→30, numerados; 14 e 15 são produção; **19 é o estado**
 │                 (feito / pendente / próximo); 20 e 21 são o sprint mobile;
-│                 22 é o banco de questões
+│                 22 e 23 são o banco de questões (há DOIS "23": o histórico
+│                 do banco e o redesenho do casco); 24 e 25 são o
+│                 brainstorming de 29/08 — jornada do aluno e coordenação;
+│                 26, 27 e 28 são as mecânicas do jogo, o Tio Léo e o banco do
+│                 aluno; 29 é o que falta para o aluno usar; **30 é GERADO** de
+│                 `web/src/dados/aluno/registro.ts` e `npm test` quebra se ele
+│                 envelhecer — é o estado da área do aluno, fonte por fonte;
+│                 sprints.html é a mesma coisa em página
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no
