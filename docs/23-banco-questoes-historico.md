@@ -2099,3 +2099,128 @@ correção só toca folha em paisagem. Conferido a olho em três recortes de 200
 cabeçalho, enunciado, figura e as cinco alternativas, sem o RASCUNHO ao lado. Na
 q16 dá para fechar o circuito: fluxo de calor em série com $K_A=1$ e $K_B=0,2$ dá
 $T_2 = 500$ — a letra B do gabarito oficial.
+
+## 26 · "Isso não devia estar no banco?" — a revisão que mudou de alvo (30/08)
+
+Pergunta do usuário sobre o PR #28: *"tem muita coisa que é arquivo que na vdd
+deveria estar no banco e ser puxado de lá"*. São três arquivos novos em
+`banco-questoes/config/`: o gabarito conferido (425 linhas), as emendas de texto
+(12) e o manifesto de PDFs (47).
+
+**A crítica está certa como reflexo e errada neste alvo.** Os três ficam. Mas a
+revisão achou duas coisas que valem mais do que a pergunta original — uma delas
+mentindo para o aluno em produção agora.
+
+> ⚠️ **Registro do erro de percurso, porque é o padrão que este documento existe
+> para pegar.** A primeira resposta concordou rápido demais e propôs marcar
+> `questao_vestibular.revisado = true` nas 360, "porque é a coluna que existe
+> para conferência humana". Está errado: `revisado` é da questão inteira —
+> enunciado, alternativas, classificação. A conferência de 29/08 olhou só a
+> letra. Marcar tiraria 360 questões da fila do professor tendo tido uma fração
+> examinada: mentira gravada no banco, pior que a lacuna que ela fecharia.
+
+### 26.1 Por que a régua não cabe no banco
+
+Três fatos medidos, não argumentados:
+
+| | |
+|---|---|
+| letras em `_gabaritos_ime_objetiva.json` | **400** (10 anos × 40) |
+| dessas, que existem em `questao_vestibular.gabarito` | **349** |
+| anuladas pela banca (`gabarito NULL`) | 11 |
+| **IME 2010 fase 1 no banco** | **não existe** — só 30 linhas de 2010 fase 2 |
+
+Uma régua que cobre 87% do que precisa checar, e só *depois* do import que ela
+deveria travar, não é régua. As 40 letras conferidas de 2010 não têm linha onde
+morar — e 2010 é justamente um dos anos que ainda espera o caminho de visão.
+
+**E ler a régua da coluna seria circular.** A linha de `ime_2016_fase1_q25` hoje:
+
+```
+gabarito='D'  gabarito_origem='banca'  extraido_por='pipeline'  revisado=f
+```
+
+É o **mesmo estado** que ela tinha quando estava errada com `'C'`. Nada na linha
+registra que foi olho humano que consertou. Tirar a régua dali é comparar o
+parser com ele mesmo da semana passada — e o [§23.7](#237--o-erro-que-a-conferência-pegou-2016-q25-e-q27-2908)
+é a prova documentada de que a independência é o que pegou o erro.
+
+### 26.2 O que o §13 quer dizer, já que o slogan engana
+
+O [§13 de docs/22](22-plano-banco-questoes.md) diz "o Postgres guarda, o
+repositório guarda código", e lido solto isso condena qualquer JSON estruturado
+no repositório. Mas o commit que escreveu o §13 (`1cb7bfd`, 22/08) adicionou **no
+mesmo diff** as três taxonomias em `config/` — 990 linhas de JSON — e
+[`api/app/banco/taxonomia.py`](../api/app/banco/taxonomia.py) abre dizendo:
+
+> *"Taxonomias dos editais: JSON de `banco-questoes/config/` → linhas de
+> `topico_taxonomia`."*
+
+O arquivo é a **fonte**; a tabela é a **projeção**. Quem escreveu o princípio já
+tinha posto `config/` do lado do repositório, com a própria mão, no mesmo commit.
+
+O §13 falava dos **934 JSONs de saída** — 4,2 MB, 992 arquivos num PR, projeção
+descartável do que o banco já tinha. A regra real é mais estreita e mais afiada
+que o slogan:
+
+> **O que a API serve por requisição mora no Postgres, e nada estruturado vira
+> blob de `jsonb`.** A pergunta que separa os casos é *quem lê, e quando*: se a
+> resposta é "a API, servindo o aluno", vai para o banco; se é "uma ferramenta
+> local, antes de a linha existir", é fixture e mora com o código que ela
+> verifica.
+
+Nenhum dos três arquivos é servido por requisição, nenhum é `jsonb`, e o
+consumidor dos três é um pipeline que **não tem acesso a banco** — zero
+ocorrências de `postgrest`/`psycopg`/`supabase` em `banco-questoes/pipeline/`,
+por decisão.
+
+### 26.3 O que cada um é, em uma frase
+
+- **`_gabaritos_ime_objetiva.json`** — a única cópia das 400 letras que o parser
+  não escreveu; cobre 51 que o banco não tem onde guardar, e é lida antes de o
+  banco entrar no fluxo. Precedente direto: `_gabaritos_oficiais_ita.json`, que
+  nem check é — é a **fonte** da letra do ITA (`processar_ita_oficial(ano, materia, gabaritos)`).
+- **`emendas_texto.json`** — guarda a **pré-imagem corrompida** (`"+ 188 e Q(x)"`,
+  `"raízees"`), que o banco por construção nunca viu, porque `enunciado_md` só
+  guarda o resultado. E o banco está *rio abaixo*: `importador.py` manda
+  `enunciado_md` em todo upsert com `on_conflict="id"`, então correção feita
+  dentro do Postgres é apagada em silêncio na importação seguinte.
+- **`manifesto_ime_objetiva.json`** — invocação de ferramenta, apontando para uma
+  árvore que o `.gitignore` exclui inteira e que a VPS nunca viu. `fonte_pdf`
+  guarda só o basename (0 de 145 valores distintos têm `/`), e o PDF de gabarito
+  não está em coluna nenhuma: o banco não conseguiria reproduzir este arquivo nem
+  para os anos já importados.
+
+### 26.4 O que a revisão achou no lugar — e é pior
+
+**1 · O banco não sabe dizer "anulada", e o aluno lê uma mentira.**
+[`CartaoQuestao.tsx:329`](../web/src/telas/Banco/CartaoQuestao.tsx#L329) mostra
+**"Sem gabarito importado"** para objetiva sem letra. São 70 no acervo — e para
+**11 delas isso é falso**: a banca anulou, não há gabarito para importar. O aluno
+lê que o sistema falhou e vai procurar uma resposta que não existe.
+
+As 11, todas do IME fase 1: 2007 q1 e q27 · 2008 q11 · 2009 q3 e q5 · 2011 q1,
+q15 e q27 · 2013 q2 · 2015 q34 · 2016 q18.
+
+Falta `questao_vestibular.anulada boolean NOT NULL DEFAULT false`. `simulado.anulado`
+existe desde a [0001](../api/migrations/0001_inicial.sql), cujo comentário lista
+"anulado" entre os booleanos que o projeto quer como coluna. Os CHECKs da 0031
+continuam valendo — anulada entra como `gabarito NULL / gabarito_origem NULL`,
+que já passa; **não** inventar `gabarito_origem='anulada'`.
+
+**2 · A trava está no lugar errado.** Ela mora no extrator, que é o único caminho
+que dá para pular: `--sem-gabarito` passa por cima, e exportar → editar →
+importar também. [`api/app/banco/importador.py`](../api/app/banco/importador.py)
+é o gargalo por onde **toda** escrita passa, e já lê `banco-questoes/config/`
+para as taxonomias. Mover a conferência para lá é a mudança de maior efeito e
+menor custo — e **não exige mover arquivo nenhum**.
+
+**3 · Quinze letras que já estão conferidas e não foram aplicadas.** Das 70
+objetivas sem letra, 15 são a **Matemática do IME 2018** (`ime_2018_fase1_mat`,
+q01–q15), que entrou no lote de 22/08 sem gabarito. O PDF oficial
+`CFG_Gabarito_Objetiva_2018_2019.pdf` tem as letras, e o [§23.1](#231-o-caderno-de-2018-é-o-banco-de-provas-deste-trabalho)
+já registrou o achado — mas ninguém aplicou:
+
+```
+q1–q15:  D D E B C C E E B D A A E B D
+```

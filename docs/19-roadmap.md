@@ -448,6 +448,9 @@ de placeholder — a tarja MOCK só aparece em desenvolvimento.
 
 | O quê | Por quê | Tamanho |
 |---|---|---|
+| 🔴 **`questao_vestibular.anulada` não existe — e o aluno lê uma mentira** | O cartão mostra "Sem gabarito importado" nas 70 objetivas sem letra. Em **11** isso é falso: a banca anulou, não há gabarito para importar. O aluno acha que o sistema falhou e vai caçar resposta que não existe. Migration + backfill das 11 + texto no cartão. [23 §26.4](23-banco-questoes-historico.md) | P |
+| **15 letras conferidas e não aplicadas** | `ime_2018_fase1_mat` q01–q15 entrou em 22/08 sem gabarito; o PDF oficial tem as letras e o [23 §23.1](23-banco-questoes-historico.md) registrou o achado. `D D E B C C E E B D A A E B D` | P |
+| **A trava do gabarito está no extrator, que dá para pular** | `--sem-gabarito` passa por cima, e exportar → editar → importar também. `importador.py` é o gargalo por onde toda escrita passa, e já lê `banco-questoes/config/`. Mover não exige mexer em arquivo nenhum. [23 §26.4](23-banco-questoes-historico.md) | M |
 | **Backup do Postgres** | [14 §7](14-plano-producao.md) dispensou backup contínuo porque "o Canvas é o arquivo". O banco de questões é o primeiro dado que ele **não** restaura — e as imagens só existem no S3. Duas cópias únicas | M |
 | Renomear `get_supabase()` → `get_postgrest()`, `supabase_client.py` e as 33 anotações `Client` → `ClienteDados` | o nome mente desde 13/08; e é o que destrava o mypy como gate (72 dos 109 erros são isso) | M, mecânico |
 | `ShellAluno` redireciona o logout para `/login.html` (rota não existe; é `/login`) | resquício da migração React | P |

@@ -800,6 +800,19 @@ descartável ([§1.1](#11-o-que-entra), [§7.5](#75-rastreabilidade-do-erro-até
 Isso inflava o repositório com 4,2 MB de dado e fazia um PR de 992 arquivos para
 ~30 de código. **Inverteu-se:** o Postgres guarda, o repositório guarda código.
 
+> ⚠️ **A frase acima é mais estreita do que parece — leia antes de aplicá-la.**
+> Ela fala da **saída** do pipeline: os 934 JSONs, projeção descartável do que o
+> banco já tem. Não condena JSON no repositório em geral — este mesmo commit
+> adicionou as três taxonomias em `config/`, 990 linhas, e
+> [`api/app/banco/taxonomia.py`](../api/app/banco/taxonomia.py) trata o arquivo
+> como **fonte** e `topico_taxonomia` como **projeção**.
+>
+> A regra que separa os casos é *quem lê, e quando*: **o que a API serve por
+> requisição mora no Postgres, e nada estruturado vira blob de `jsonb`**. O que
+> uma ferramenta local lê antes de a linha existir é fixture, e mora com o
+> código que ela verifica. A discussão inteira, com os números que a decidiram,
+> está em [docs/23 §26](23-banco-questoes-historico.md).
+
 ### O que mudou no schema
 
 Nada de `jsonb`. Dado com estrutura vira tabela, porque blob de JSON dentro de
