@@ -36,5 +36,18 @@ export default defineConfig({
     outDir: 'dist',
     // Os assets saem com hash no nome, que é o que permite o nginx cacheá-los
     // como `immutable` (ver web/nginx.conf).
+    rolldownOptions: {
+      output: {
+        advancedChunks: {
+          groups: [
+            // O KaTeX pesa ~79 kB gzip e NUNCA muda entre deploys nossos. No
+            // pacotão único ele era rebaixado junto com o app a cada subida, e
+            // o aluno rebaixava tudo de novo no 3G da escola. Em chunk próprio,
+            // o hash dele só muda quando a versão da biblioteca muda.
+            { name: 'katex', test: /[\\/]node_modules[\\/]katex[\\/]/ },
+          ],
+        },
+      },
+    },
   },
 });

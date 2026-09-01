@@ -385,15 +385,15 @@
   font-size: 13px;
 }
 
-.chat-md-p { margin: 0; }
-.chat-md-p + .chat-md-p { margin-top: 8px; }
-
-.chat-md-list {
-  margin: 6px 0;
-  padding-left: 22px;
+/* O balão do assistente empresta a paleta da coordenação ao `Markdown`
+   compartilhado (styles/markdown.css explica o acordo dos `--md-*`). O Tio Léo
+   escreve conta, e desde 01/09 a fórmula dele é renderizada como no banco. */
+.chat-msg__corpo .md {
+  --md-forte: var(--color-text-primary);
+  --md-rotulo: var(--color-navy);
+  --md-formula-fundo: var(--color-surface);
+  --md-formula-borda: var(--color-border-strong);
 }
-
-.chat-md-list li + li { margin-top: 3px; }
 
 /* ── Tool trace bubble ──────────────────────────────────────────────────── */
 

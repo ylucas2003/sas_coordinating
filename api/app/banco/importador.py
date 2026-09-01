@@ -209,7 +209,7 @@ def _linha_questao(
         # levou junto a tabela de galerias do Ari (resolucao.py). Só cobre
         # 2019 em diante — o acervo histórico (0031) usa resolucao_md abaixo.
         "resolucao_url": _resolucao_url,
-        "resolucao_md": dados.get("resolucao_md") or None,
+        "resolucao_md": _resolucao_saneada(dados.get("resolucao_md")),
         # Mesmo raciocínio do gabarito_origem: os 934 JSONs antigos não têm este
         # campo, mas TÊM resolucao_url (calculada acima) sempre que o Ari
         # comenta a prova — o default segue o dado que já existe, não None, pelo
@@ -238,6 +238,36 @@ def _linha_questao(
 def _sem_controles(texto: str) -> str:
     """Remove os controles C0 (menos \\n, \\r e \\t). Ver `_CONTROLES_C0`."""
     return _CONTROLES_C0.sub("", texto)
+
+
+# A barra do LaTeX comida por um escape de JSON. A resolução é escrita por LLM e
+# volta dentro de um campo de string JSON; quando o modelo escreve `\text{...}`
+# sem escapar a barra, o parser faz o que a especificação manda e `\t` vira uma
+# tabulação de verdade. Só estes quatro colidem com comando de LaTeX comum:
+#
+#     TAB → \text \theta \times \tfrac        FF  → \frac
+#     BS  → \begin \boldsymbol                 CR  → \right \rho
+#
+# Aconteceu com 20 das 1.500 resoluções e ninguém percebeu por meses, porque o
+# texto ia cru para a tela e ninguém lia LaTeX cru. Migration 0039 consertou o
+# que já estava no banco; isto impede a próxima importação de trazer de volta.
+_ESCAPES_DE_JSON_NO_LATEX = {"\t": "\\t", "\x08": "\\b", "\f": "\\f", "\r": "\\r"}
+
+
+def _resolucao_saneada(texto: str | None) -> str | None:
+    """Devolve a barra que o parser de JSON comeu, e só então tira o resto.
+
+    A ordem importa: `_sem_controles` APAGARIA o backspace e o formfeed, e
+    `<BS>oldsymbol` viraria `oldsymbol` — perda silenciosa, em vez do conserto.
+    """
+    if not texto:
+        return None
+    # Antes de tudo: CRLF é fim de linha, não `\right` picado. Sem normalizar,
+    # um JSON salvo no Windows ganharia um `\r` literal em cada quebra.
+    saneado = texto.replace("\r\n", "\n")
+    for controle, comando in _ESCAPES_DE_JSON_NO_LATEX.items():
+        saneado = saneado.replace(controle, comando)
+    return _sem_controles(saneado)
 
 
 def _mensagem_de_problemas(problemas: list[str]) -> str:

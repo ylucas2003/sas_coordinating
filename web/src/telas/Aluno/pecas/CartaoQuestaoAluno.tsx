@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ehDissertativa, temGabarito } from '../../../dominio/banco';
 import { useAtualizarEstudo } from '../../../dados/aluno';
 import type { QuestaoVestibular, TopicoDaQuestao } from '../../../dados/aluno';
+import { Markdown } from '../../../componentes/ui/Markdown';
 import { Icone } from './Icone';
 
 // O cartão de questão no casco do aluno.
@@ -90,9 +91,12 @@ export function CartaoQuestaoAluno({
           onError={() => setImagemFalhou(true)}
         />
       ) : (
-        // Sem render de Markdown: o projeto não tem um, e o enunciado ainda traz
-        // sujeira de OCR. Fórmula em LaTeX aparece crua — dívida conhecida.
-        <p className="alu-questao__texto">{questao.enunciadoMd}</p>
+        // A sujeira de OCR do enunciado continua sendo dívida conhecida; o
+        // que saiu daqui em 01/09 foi a fórmula crua, que agora o Markdown
+        // compartilhado renderiza.
+        <div className="alu-questao__texto">
+          <Markdown texto={questao.enunciadoMd} />
+        </div>
       )}
 
       <Topicos topicos={questao.topicos} />
@@ -305,7 +309,7 @@ function Resolucao({ questao }: { questao: QuestaoVestibular }) {
         </button>
         {aberta && (
           <div className="alu-questao__resolucao-corpo">
-            <p>{questao.resolucaoMd}</p>
+            <Markdown texto={questao.resolucaoMd} variante="resolucao" />
             {origem !== 'ari' && (
               <p className="alu-questao__aviso">
                 Esta resolução foi gerada automaticamente e não passou por um professor.

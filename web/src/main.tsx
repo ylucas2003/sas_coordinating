@@ -11,6 +11,11 @@ import { App } from './App';
 import '../styles/fontes.css';
 import '../styles/tokens.css';
 import '../styles/base.css';
+// KaTeX vem antes do nosso `markdown.css`, que ajusta corpo e margem do que ele
+// desenha. As fontes vêm no próprio pacote npm e o Vite as emite como asset do
+// nosso domínio — nenhuma requisição sai para CDN (CLAUDE.md, armadilha 6).
+import 'katex/dist/katex.min.css';
+import '../styles/markdown.css';
 import '../styles/casco.css';
 import '../styles/layout.css';
 import '../styles/simulados.css';

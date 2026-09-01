@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import { Markdown } from '../../componentes/ui/Markdown';
 import {
   RAZAO_DA_FILA,
   ordenarFilaDeTreino,
@@ -821,7 +822,7 @@ function Resolucao({ questao }: { questao: QuestaoVestibular }) {
         </button>
         {aberta && (
           <div className="alu-questao__resolucao-corpo">
-            <p>{questao.resolucaoMd}</p>
+            <Markdown texto={questao.resolucaoMd} variante="resolucao" />
             {!origem.daCasa && (
               <p className="alu-questao__aviso">
                 Esta resolução foi gerada automaticamente e não passou por um professor. Confira as

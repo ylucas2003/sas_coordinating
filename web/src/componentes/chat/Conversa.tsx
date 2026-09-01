@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Artefato } from './Artefato';
 import { useContextoDaTela } from '../layout/migalhas';
-import { Markdown } from './Markdown';
+import { Markdown } from '../ui/Markdown';
 import { Mensagem } from './Mensagem';
 import { ToolTrace } from './ToolTrace';
 import { ESTADO_INICIAL, reduzirEvento } from '../../dominio/chatStream';

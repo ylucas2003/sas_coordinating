@@ -122,6 +122,48 @@ em 2.773. Conferido por `psql` direto contra o gabarito versionado:
 atualizada — toda importação desde 23/08 terminava com um alarme que ninguém
 podia levar a sério ([23 §23.9](23-banco-questoes-historico.md)).
 
+### Sprint Resolução legível · fórmula deixa de sair em código *(01/09)*
+
+As 1.500 resoluções escritas do acervo iam para a tela como string: o cartão
+fazia `<p>{md}</p>` e o aluno lia `$q=N\dfrac{\Delta\Phi}{R}$`. Estava
+registrado como dívida em [22 §8, risco 5](22-plano-banco-questoes.md) — não era
+esquecimento, era decisão adiada.
+
+| Etapa | Estado |
+|---|---|
+| Medição antes de escrever: KaTeX contra as 13.881 fórmulas do acervo | ✅ 58 falhas em 33 questões — 0,4% |
+| `dominio/markdown.ts` — analisador leve, fórmula extraída ANTES do Markdown | ✅ 9 testes; sem `react-markdown` (~40 pacotes para uma gramática que o corpus não usa) |
+| `componentes/ui/Markdown.tsx` — KaTeX com macros de notação brasileira | ✅ `\sen`, `\tg`, `\arcsen`, `\Arg`, `\Ω`: sozinhas derrubam 24 das 58 falhas |
+| Aplicado nos três cartões, no enunciado sem imagem e no chat do Tio Léo | ✅ o `Markdown` do chat virou o compartilhado; 4 avisos de lint a menos |
+| **Bug de dados achado no caminho**: escape de JSON comeu a barra do LaTeX | ✅ migration `0039` — 20 questões, ITA 2008 F1 e IME 2013 F2 Mat |
+| Guarda no importador para não voltar na próxima importação | ✅ `_resolucao_saneada`, 10 testes; a ordem (repor a barra ANTES de limpar C0) é o que o teste trava |
+| Erro de LaTeX do próprio gerador, que só o renderizador revelou | ✅ migration `0040` — 16 fórmulas em 11 questões, todas trocas tipográficas |
+| **Painel de fórmula deixa de depender de quem digitou** | ✅ `\dfrac`, somatório, integral e matriz viram bloco; `\tfrac` não |
+| CSP de produção: KaTeX escreve 43 `style=""` por fórmula | ✅ `style-src-attr 'unsafe-inline'` — `<style>` e `<link>` seguem só de `'self'` |
+| KaTeX em chunk próprio, para não rebaixar junto com o app a cada deploy | ✅ +77 kB gzip isolados; o app seguiu em 197 kB |
+
+**As 13.882 fórmulas do acervo renderizam. Zero falhas, zero questões
+afetadas** — eram 58 em 33. A rede de segurança (`throwOnError: false`, fórmula
+inválida em vermelho legível em vez de cartão derrubado) continua lá, e agora
+não tem o que pegar.
+
+A última parte é a que muda mais a leitura e não estava no plano: **metade do
+acervo escrevia a conta em `$$` e ganhava painel destacado; a outra metade
+escrevia a MESMA conta entre `$` e ela sumia no meio da prosa.** Não é diferença
+de conteúdo, é de quem digitou — e o aluno pagava, porque o passo da conta
+ficava indistinguível da frase que o explica. A regra agora lê a intenção no
+comando: `\dfrac` pede tamanho de display e promove; `\tfrac` pede tamanho de
+linha e nunca promove; operador grande e matriz não cabem em linha nenhuma.
+Promove 844 de 12.690 fórmulas de linha (6,7%) e dá painel a 402 resoluções sem
+que ninguém reescreva nada.
+
+A corrupção merece registro porque o modo de falha se repete: `resolucao_md`
+volta do LLM dentro de string JSON, e `\text` sem barra escapada vira TAB
+porque **é isso que a especificação do JSON manda**. Ficou meses invisível
+justamente porque o texto ia cru para a tela — ninguém lê LaTeX cru, então
+ninguém distinguia uma barra a menos do resto da notação. Só apareceu ao
+renderizar.
+
 ### Sprint Redesenho do casco *(23/08)*
 
 Rail de ícones no lugar da topbar de 7 abas, migalhas, faixa de filtros

@@ -1,0 +1,145 @@
+/* Markdown com fórmula — `componentes/ui/Markdown.tsx`.
+ *
+ * Estrutura e ritmo moram aqui; COR, não. As duas áreas do produto têm paletas
+ * separadas e independentes (`--color-*` na coordenação, `--alu-*` na área do
+ * aluno, esta com tema noite), e um componente compartilhado não pode escolher
+ * entre elas. O acordo é este: tudo aqui herda `currentColor` ou lê um
+ * `--md-*` com valor de reserva, e cada área declara os `--md-*` no contêiner
+ * onde usa o componente. Ver o fim de `banco.css` e de `aluno-questao.css`.
+ */
+
+.md {
+  /* Reservas neutras: sem nenhuma declaração da área em volta, o bloco ainda
+     sai legível — só sem realce. */
+  --md-forte: currentColor;
+  --md-rotulo: currentColor;
+  --md-formula-fundo: transparent;
+  --md-formula-borda: transparent;
+
+  /* `flow-root` para a margem do primeiro parágrafo não vazar para fora do
+     bloco e brigar com o espaçamento de quem chama. */
+  display: flow-root;
+}
+
+.md__p {
+  margin: 0;
+}
+
+.md__p + .md__p,
+.md__p + .md__lista,
+.md__lista + .md__p {
+  margin-top: 0.7em;
+}
+
+.md__lista {
+  margin: 0.7em 0;
+  padding-left: 1.4em;
+}
+
+.md__lista li + li {
+  margin-top: 0.3em;
+}
+
+.md strong {
+  font-weight: 700;
+  color: var(--md-forte);
+}
+
+/* ── Fórmula ──────────────────────────────────────────────────────────────
+ *
+ * O KaTeX chega com 1.21em de corpo, medida pensada para texto de artigo. Numa
+ * caixa de 14px isso destaca a fórmula demais e desalinha a entrelinha do
+ * parágrafo; 1.06em deixa a conta um fio maior que a frase, que é o que o olho
+ * espera de notação dentro de prosa. */
+.md .katex {
+  font-size: 1.06em;
+}
+
+/* Fórmula na linha do texto.
+ *
+ * O `padding-block` não é enfeite: uma fração com `\dfrac` mede quase o dobro
+ * de uma letra, e sem folga própria o numerador dela ENCOSTA na linha de cima
+ * — foi o defeito visível na resolução de Química da ITA 2013, onde
+ * `K_h=\dfrac{[HA][OH^-]}{[A^-]}` cai no meio da prosa. A entrelinha larga de
+ * `.md--resolucao` resolve o caso comum; isto garante o caso alto. */
+.md__formula-linha {
+  display: inline-block;
+  vertical-align: baseline;
+  padding-block: 0.14em;
+}
+
+/* Fórmula de display: é o passo da conta, e merece ar dos dois lados.
+ *
+ * O `overflow-x` é obrigatório, não estético. Existe fórmula de 200 caracteres
+ * no acervo (equilíbrio de treliça, Nernst), e sem a rolagem própria ela
+ * estoura o cartão e leva a página inteira para o lado no celular. */
+.md__formula {
+  margin: 1.3em 0;
+  padding: 0.9em 1em;
+  background: var(--md-formula-fundo);
+  border: 1px solid var(--md-formula-borda);
+  border-radius: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Rolagem horizontal com toque, sem sequestrar a rolagem vertical da página. */
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.md__formula:first-child {
+  margin-top: 0;
+}
+
+.md__formula:last-child {
+  margin-bottom: 0;
+}
+
+.md__formula .katex-display {
+  /* A margem vertical é do contêiner, que é quem sabe do ritmo do bloco. */
+  margin: 0;
+}
+
+.md__formula .katex {
+  font-size: 1.15em;
+}
+
+/* ── Variante `resolucao` ─────────────────────────────────────────────────
+ *
+ * Resolução de matemática, física e química não é o texto de um cartão: é algo
+ * que se lê linha a linha refazendo a conta. Por isso corpo um pouco maior,
+ * entrelinha larga (a fórmula de linha ocupa altura) e um limite de medida —
+ * linha longa demais faz o olho perder o passo entre uma etapa e a seguinte. */
+/* A entrelinha aqui é deliberadamente larga — 2.05, não os 1.7 de texto de
+   cartão. O motivo é métrico, não estético: metade das resoluções mistura
+   fração de duas alturas com a prosa, e numa entrelinha normal cada linha que
+   tem fórmula fica mais alta que as vizinhas. O texto sai serrilhado, com o
+   olho perdendo o passo justamente onde a conta acontece. Com folga suficiente
+   para a fórmula mais alta, TODA linha ocupa a mesma altura e o parágrafo volta
+   a ter ritmo. */
+.md--resolucao {
+  font-size: 15px;
+  line-height: 2.05;
+  max-width: 68ch;
+}
+
+.md--resolucao .md__p + .md__p,
+.md--resolucao .md__p + .md__lista,
+.md--resolucao .md__lista + .md__p {
+  margin-top: 1.15em;
+}
+
+/* O bloco de fórmula é o passo da conta e tem de se destacar do parágrafo —
+   é o que separa "li a explicação" de "vi o resultado". Margem maior que a de
+   parágrafo, para ele não parecer só mais uma linha. */
+.md--resolucao .md__formula {
+  margin: 1.45em 0;
+}
+
+/* `**a)**`, `**b)**`, `**Ressalva de confiança:**` — 366 resoluções abrem
+   parágrafo com negrito, e quase sempre é rótulo de etapa, não ênfase no meio
+   da frase. Tratado como rótulo, ele vira o índice visual da resolução: o
+   aluno acha o item "c)" sem reler os dois de cima. */
+.md--resolucao .md__p > strong:first-child {
+  color: var(--md-rotulo);
+  letter-spacing: 0.01em;
+}
