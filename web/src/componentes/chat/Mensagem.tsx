@@ -1,5 +1,5 @@
 import { Artefato } from './Artefato';
-import { Markdown } from './Markdown';
+import { Markdown } from '../ui/Markdown';
 import { ToolTrace } from './ToolTrace';
 import type { MensagemChat } from '../../tipos/chat';
 

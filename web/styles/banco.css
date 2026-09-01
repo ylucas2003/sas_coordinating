@@ -426,13 +426,16 @@
 
 /* Fallback de quando `usaImagemNoRender` é falso. `anywhere` porque o OCR
    deixa fórmulas coladas sem espaço, e uma sequência longa sem quebra rola a
-   página inteira de lado (docs/22 §8, risco 5). */
+   página inteira de lado (docs/22 §8, risco 5).
+
+   O `white-space: pre-wrap` saiu em 01/09: quem cuida de quebra de linha agora
+   é o `Markdown` (parágrafo em linha em branco, `<br>` em quebra simples), e
+   manter os dois dobrava todo espaçamento. */
 .banco-questao__texto {
   min-width: 0;
   font-size: 15px;
   line-height: 1.7;
   color: var(--color-text-primary);
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
@@ -571,26 +574,26 @@
   gap: 10px;
 }
 
+/* A resolução deixou de ser um `<p>` de texto cru e virou documento: fio à
+   esquerda em vez de caixa preenchida, para a fórmula de display poder ter
+   fundo próprio sem empilhar cinza sobre cinza. Corpo e ritmo vêm de
+   `.md--resolucao` (styles/markdown.css); aqui fica só a moldura e a paleta. */
 .banco-questao__resolucao-corpo {
-  padding: 12px 14px;
-  background: var(--color-surface-inset);
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  line-height: 1.7;
-  white-space: pre-wrap;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--color-border-strong);
+  color: var(--color-text-body);
   overflow-wrap: anywhere;
 }
 
-.banco-questao__resolucao-corpo p {
-  margin: 0 0 10px;
-}
-
-.banco-questao__resolucao-corpo p:last-child {
-  margin-bottom: 0;
+.banco-questao__resolucao-corpo .md {
+  --md-forte: var(--color-text-primary);
+  --md-rotulo: var(--color-navy);
+  --md-formula-fundo: var(--color-surface-inset);
+  --md-formula-borda: var(--color-border);
 }
 
 .banco-questao__resolucao-aviso {
-  margin-top: 10px !important;
+  margin: 12px 0 0;
   padding-top: 10px;
   border-top: 1px solid var(--color-border);
   font-size: 12px;

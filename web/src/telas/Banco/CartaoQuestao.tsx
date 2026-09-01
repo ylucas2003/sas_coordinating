@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { BotaoInfo } from '../../componentes/ui/BotaoInfo';
+import { Markdown } from '../../componentes/ui/Markdown';
 import { ehDissertativa, rotuloQuestao, temGabarito } from '../../dominio/banco';
 import { useAtualizarEstudo } from '../../hooks/banco';
 import type { QuestaoVestibular, TopicoDaQuestao } from '../../tipos/banco';
@@ -147,9 +148,12 @@ export function CartaoQuestao({
             </a>
           </>
         ) : (
-          // Texto cru, sem render de Markdown: não há biblioteca de Markdown no
-          // projeto e o enunciado ainda traz sujeira de OCR (docs/22 §8, risco 5).
-          <p className="banco-questao__texto">{questao.enunciadoMd}</p>
+          // As 63 questões sem imagem de página caem aqui. O Markdown não
+          // limpa a sujeira de OCR que o enunciado ainda traz (docs/22 §8,
+          // risco 5) — só impede que a fórmula chegue crua junto com ela.
+          <div className="banco-questao__texto">
+            <Markdown texto={questao.enunciadoMd} />
+          </div>
         )}
 
         {!mostrarImagem && questao.alternativas && (
@@ -267,10 +271,10 @@ function LinkResolucao({ url }: { url: string }) {
  * gabarito, com o mesmo motivo: a resposta não pode aparecer antes de o aluno
  * decidir olhar.
  *
- * `resolucaoMd` ainda não passa por um renderizador de Markdown — o projeto
- * não tem um (web/CLAUDE.md), e o enunciado já convive com a mesma limitação
- * (docs/22 §8, risco 5). Fórmula em LaTeX aparece crua; é dívida conhecida,
- * não esquecimento.
+ * Desde 01/09 passa pelo `Markdown` compartilhado, com a fórmula renderizada
+ * pelo KaTeX. Antes o texto ia cru para dentro de um `<p>`, e uma resolução de
+ * física chegava ao coordenador como `$q=N\dfrac{\Delta\Phi}{R}$` — a dívida
+ * que `docs/22 §8, risco 5` registrava.
  */
 function ResolucaoSugerida({ md }: { md: string }) {
   const [aberta, setAberta] = useState(false);
@@ -286,7 +290,7 @@ function ResolucaoSugerida({ md }: { md: string }) {
       </button>
       {aberta && (
         <div className="banco-questao__resolucao-corpo">
-          <p>{md}</p>
+          <Markdown texto={md} variante="resolucao" />
           <p className="banco-questao__resolucao-aviso">
             Sugestão de resolução — não é a resolução oficial da banca.
           </p>

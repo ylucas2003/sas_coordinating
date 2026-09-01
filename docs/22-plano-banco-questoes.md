@@ -641,6 +641,15 @@ O projeto tem contexto por camada ([api/CLAUDE.md](../api/CLAUDE.md),
    número de página solto (`"E": "I e III, apenas. 7"`). Como o render usa a
    **imagem**, isso não aparece na tela — mas a busca textual vai bater nesse lixo,
    e um dia alguém vai exibir o texto. Registrar, não consertar agora.
+
+   > **A metade "LaTeX cru" deste risco foi paga em 01/09/2026.** Ela dizia
+   > respeito à outra ponta: `resolucao_md` e o enunciado sem imagem iam para a
+   > tela como string, e fórmula aparecia como `$q=N\dfrac{\Delta\Phi}{R}$`.
+   > Hoje passam por `web/src/componentes/ui/Markdown.tsx` (KaTeX + Markdown
+   > leve, com macros de notação brasileira). Das 13.881 fórmulas do acervo, 16
+   > ainda não renderizam, por erro de LaTeX do próprio gerador — e caem em
+   > vermelho legível, sem derrubar o cartão. **A sujeira de OCR do enunciado
+   > continua registrada e não consertada**; é o que sobra deste risco.
 6. **Sem cópia das imagens** ([§0.2](#02-conferir-que-o-bucket-responde)). Dívida
    aceita, escrita aqui para não virar surpresa.
 7. **A CSP e o exportador.** Ver [§5.3](#53-exportar). Já mordeu uma vez.

@@ -67,11 +67,12 @@
   background: #ffffff;
 }
 
+/* Sem `white-space: pre-wrap` desde 01/09 — a quebra de linha passou a ser
+   responsabilidade do `Markdown`, e as duas regras juntas dobravam o espaço. */
 .alu-questao__texto {
   margin: 0;
   font-size: 15px;
   line-height: 1.65;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
@@ -207,19 +208,24 @@
   width: 100%;
 }
 
+/* O fio à esquerda já era o desenho daqui; o que mudou em 01/09 foi o conteúdo
+   dentro dele, que virou Markdown com fórmula. Corpo e entrelinha agora vêm de
+   `.md--resolucao`, e a paleta do aluno (com tema noite) entra pelos `--md-*`
+   — ver o acordo em styles/markdown.css. */
 .alu-questao__resolucao-corpo {
   border-left: 2px solid var(--alu-borda);
   padding-left: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 14px;
-  line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
-.alu-questao__resolucao-corpo p {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.alu-questao__resolucao-corpo .md {
+  --md-forte: var(--alu-texto);
+  --md-rotulo: var(--alu-dado);
+  --md-formula-fundo: var(--alu-superficie-2);
+  --md-formula-borda: var(--alu-borda);
 }
 
 /* ── Ações do rodapé ──────────────────────────────────────────────────── */
