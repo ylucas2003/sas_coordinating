@@ -1,13 +1,16 @@
 """Compõe o vídeo final: template da marca + tela compartilhada + câmera.
 
-O BigBlueButton entrega os dois componentes separados (ver downloader.py);
-quem junta é o ffmpeg, sobrepondo cada um no seu lugar dentro do template
-`template_aula.png` (faixa lateral com logo do Ari, SAS ITA/IME e escudos
-ITA/IME; o resto do quadro é vazio de propósito, pra receber os vídeos).
+O BigBlueButton entrega os componentes separados (ver downloader.py); quem
+junta é o ffmpeg, sobrepondo cada um no seu lugar dentro do template — faixa
+lateral com logo do Ari, SAS Educação e escudos ITA/IME, o resto do quadro
+vazio de propósito, pra receber os vídeos.
 
-As coordenadas abaixo foram MEDIDAS na imagem original (1672x941, por
-análise de pixel dos retângulos vazios) e escaladas para 1920x1080 — o
-fator é praticamente igual nos dois eixos (~1.148), então não distorce.
+São DOIS templates, escolhidos pelo que a aula tem:
+
+  template_aula.png         tela compartilhada (área grande) + câmera (cantinho)
+  template_aula_camera.png  só câmera, numa área 4:3 centralizada no quadro
+
+Ambos saem de scripts/montar_template_gravacao.py.
 """
 
 from __future__ import annotations
@@ -33,6 +36,15 @@ LARGURA_SAIDA, ALTURA_SAIDA = 1920, 1080
 # preta; a câmera é 4:3 porque a webcam do BBB é 640x480.
 TELA_X, TELA_Y, TELA_W, TELA_H = 480, 135, 1440, 810
 CAM_X, CAM_Y, CAM_W, CAM_H = 44, 393, 392, 294
+
+# Aula sem tela compartilhada: template PRÓPRIO, com uma área só, CENTRALIZADA
+# no quadro (os logos vão pros cantos, que é o que sobra de moldura).
+# Reaproveitar o de duas áreas publicava o retângulo pequeno da coluna
+# desenhado e vazio durante a aula inteira, e a câmera (4:3 no BBB, 640x480)
+# entrava na área 16:9 com duas faixas escuras dos lados. Aqui é 4:3 e ela
+# preenche exato.
+TEMPLATE_SOLO = Path(__file__).parent / "template_aula_camera.png"
+SOLO_X, SOLO_Y, SOLO_W, SOLO_H = 420, 135, 1080, 810
 
 # Teto de núcleos do ffmpeg. A composição divide CPU com a API que serve o
 # site — melhor a aula demorar mais do que o site engasgar no horário de aula.
@@ -68,9 +80,12 @@ def _caminho_seguro(caminho: Path) -> str:
 def compor(
     *, webcam: Path, tela_compartilhada: Path | None, destino: Path
 ) -> Path:
-    """Gera o mp4 final. Sem tela compartilhada (aula que não usou), a câmera
-    ocupa a área grande em vez do cantinho — senão sobraria um quadro quase
-    todo vazio."""
+    """Gera o mp4 final.
+
+    Sem tela compartilhada (aula em que o professor não compartilhou nada, e o
+    BBB entrega só webcams.mp4), troca de TEMPLATE: o de uma área só, onde a
+    câmera ocupa o quadro inteiro em vez do cantinho. Senão o vídeo sairia com
+    o retângulo grande vazio a aula toda."""
     if tela_compartilhada is not None:
         filtro = (
             f"[0:v]scale={LARGURA_SAIDA}:{ALTURA_SAIDA},fps={FPS_SAIDA}[bg];"
@@ -90,11 +105,11 @@ def compor(
     else:
         filtro = (
             f"[0:v]scale={LARGURA_SAIDA}:{ALTURA_SAIDA},fps={FPS_SAIDA}[bg];"
-            f"[1:v]scale={TELA_W}:{TELA_H}:force_original_aspect_ratio=decrease:force_divisible_by=2,"
-            f"pad={TELA_W}:{TELA_H}:(ow-iw)/2:(oh-ih)/2:color=black@0,fps={FPS_SAIDA}[cam];"
-            f"[bg][cam]overlay={TELA_X}:{TELA_Y}:shortest=1[out]"
+            f"[1:v]scale={SOLO_W}:{SOLO_H}:force_original_aspect_ratio=decrease:force_divisible_by=2,"
+            f"pad={SOLO_W}:{SOLO_H}:(ow-iw)/2:(oh-ih)/2:color=black@0,fps={FPS_SAIDA}[cam];"
+            f"[bg][cam]overlay={SOLO_X}:{SOLO_Y}:shortest=1[out]"
         )
-        entradas = ["-i", _caminho_seguro(TEMPLATE), "-i", _caminho_seguro(webcam)]
+        entradas = ["-i", _caminho_seguro(TEMPLATE_SOLO), "-i", _caminho_seguro(webcam)]
         audio = "1:a"
 
     ffmpeg = shutil.which("ffmpeg")
