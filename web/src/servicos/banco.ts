@@ -9,8 +9,8 @@
 import { ErroApi, del, get, patch, post, put, qs } from './http';
 import type {
   EstatisticasBanco, EstudoQuestao, FiltrosBanco, Lista, ListaResumo, MateriaBanco,
-  PaginaQuestoes, QuestaoVestibular, RemendoEstudo, RemendoLista, TaxonomiaMateria,
-  VestibularBanco,
+  PaginaQuestoes, ProgressoDoAluno, QuestaoVestibular, RemendoEstudo, RemendoLista,
+  TaxonomiaMateria, VestibularBanco,
 } from '../tipos/banco';
 
 const enc = encodeURIComponent;
@@ -28,9 +28,25 @@ export const listarQuestoes = (filtros: FiltrosBanco = {}) =>
 
 export const obterQuestao = (id: string) => get<QuestaoVestibular>(`/banco/questoes/${enc(id)}`);
 
-/** Agrega sobre a tabela inteira; nunca pagina (docs/22 §2.2). */
-export const estatisticasBanco = (materia: MateriaBanco, vestibular?: VestibularBanco) =>
-  get<EstatisticasBanco>(`/banco/estatisticas${qs({ materia, vestibular })}`);
+/**
+ * Agrega sobre a tabela inteira; nunca pagina (docs/22 §2.2).
+ *
+ * `vestibular` e `fase` estreitam a RESPOSTA INTEIRA — `porAno`, `anos`,
+ * `questoesPorAno` e os totais —, e é por isso que são parâmetro em vez de
+ * peneira aqui no front: filtrar só o numerador faria "% da prova" de uma
+ * questão de 2ª fase ser dividido pela prova inteira, e o número sairia menor
+ * que a verdade sem nada na tela parecendo errado.
+ *
+ * ⚠️ Para as DUAS séries da ficha do assunto são DUAS chamadas, uma por
+ * vestibular: `porVestibular` é agregado e não tem quebra por ano. E as duas
+ * podem falhar de forma independente — série ausente por erro tem de ser
+ * declarada na tela, nunca desenhada como zero.
+ */
+export const estatisticasBanco = (
+  materia: MateriaBanco,
+  vestibular?: VestibularBanco,
+  fase?: number,
+) => get<EstatisticasBanco>(`/banco/estatisticas${qs({ materia, vestibular, fase })}`);
 
 // ─── Listas (o dono é a sessão) ──────────────────────────────────────────
 // Nenhuma rota daqui recebe id de dono: o backend o tira do JWT, e é assim que
@@ -72,3 +88,13 @@ export const listarEstudo = () => get<EstudoQuestao[]>('/banco/estudo');
 /** `PUT` porque cria a linha na primeira marcação e atualiza nas seguintes. */
 export const atualizarEstudo = (questaoId: string, remendo: RemendoEstudo) =>
   put<EstudoQuestao>(`/banco/estudo/${enc(questaoId)}`, remendo);
+
+/**
+ * Quanto do acervo o aluno marcou como feito, agregado no servidor.
+ *
+ * Existe em vez de cruzar `/banco/estudo` com `/banco/questoes` no navegador:
+ * aquilo obrigaria o celular a baixar as ~2.700 questões só para contar. E
+ * devolve sempre o par (feitas, total) — contagem sem denominador é bug de
+ * produto, não economia de payload.
+ */
+export const progressoDoBanco = () => get<ProgressoDoAluno>('/banco/progresso');

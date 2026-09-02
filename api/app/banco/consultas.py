@@ -35,6 +35,28 @@ POR_PAGINA_PADRAO = 20
 # limita NAVEGAÇÃO, e a página seguinte está a um clique (docs/22 §2.2).
 POR_PAGINA_MAXIMO = 100
 
+# As duas coleções do acervo, traduzidas para a coluna que de fato as separa.
+#
+# `extraido_por` (0031/0033) registra COMO a questão entrou, e por acidente feliz
+# isso coincide com a experiência de leitura, que é o que o aluno percebe:
+#
+#   'pipeline' → recorte fino da questão, PDF nativo. É o acervo recente
+#                (ITA 2019+, IME 2018+) e o cartão mostra só a questão.
+#   'pagina'   → a imagem é a PÁGINA INTEIRA do caderno, porque o recorte por
+#                heurística provou frágil no histórico (docs/23 §12.1). O cartão
+#                precisa avisar qual número procurar.
+#   'visao'    → página escaneada lida como imagem (piloto ITA 1973): também é
+#                página inteira, também é acervo antigo.
+#
+# ⚠️ 'visao' fica em `arquivo` por decisão de 02/09, e o motivo é a regra da
+# casa: uma questão que não pertencesse a coleção nenhuma sumiria da navegação
+# sem nada na tela dizendo que sumiu — o mesmo defeito que o
+# `TOPICO_SEM_CLASSIFICACAO` abaixo existe para evitar.
+MODOS_DA_COLECAO: dict[str, tuple[str, ...]] = {
+    "recentes": ("pipeline",),
+    "arquivo": ("pagina", "visao"),
+}
+
 # `topico` reservado para "questões que ninguém classificou". As 40 de Química
 # (docs/22 §1.4) aparecem na árvore de assuntos com a contagem; sem este valor
 # a contagem seria um número que o aluno vê e não consegue abrir — pior do que
@@ -74,6 +96,9 @@ class FiltrosQuestoes:
     ano: int | None = None
     fase: int | None = None
     topico: str | None = None
+    # 'recentes' ou 'arquivo' — vocabulário de produto, traduzido para
+    # `extraido_por` em `MODOS_DA_COLECAO`. Omitida, traz o acervo inteiro.
+    colecao: str | None = None
     busca: str | None = None
     pagina: int = 1
     por_pagina: int = POR_PAGINA_PADRAO
@@ -195,6 +220,10 @@ def listar_questoes(cliente: Client, filtros: FiltrosQuestoes) -> PaginaQuestoes
         consulta = consulta.eq("ano", filtros.ano)
     if filtros.fase is not None:
         consulta = consulta.eq("fase", filtros.fase)
+    if filtros.colecao:
+        # KeyError aqui é erro de programação, não de entrada: a rota só aceita
+        # os dois valores do Literal `ColecaoBanco`.
+        consulta = consulta.in_("extraido_por", list(MODOS_DA_COLECAO[filtros.colecao]))
     if ids_do_topico is not None:
         consulta = consulta.in_("id", ids_do_topico)
     if filtros.busca and filtros.busca.strip():

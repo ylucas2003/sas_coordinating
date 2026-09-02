@@ -79,7 +79,7 @@ docker compose up                        # front :8080 · API :8000 · postgrest
 docker compose run --rm migrate status   # ver migrations aplicadas/pendentes
 docker compose run --rm migrate up       # aplicar
 
-cd api && ./.venv/bin/python -m pytest tests/ -q   # 289 testes (+15 pulados)
+cd api && ./.venv/bin/python -m pytest tests/ -q   # 331 testes (+15 pulados)
 cd api && ./.venv/bin/ruff check .                 # lint
 cd web && npm test && npm run lint && npm run typecheck
 

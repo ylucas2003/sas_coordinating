@@ -32,8 +32,9 @@ def recorrencia(
     cliente: Client,
     materia: MateriaBanco,
     vestibular: VestibularBanco | None = None,
+    fase: int | None = None,
 ) -> EstatisticasBanco:
-    """Recorrência de cada tópico da matéria, opcionalmente só de um vestibular.
+    """Recorrência de cada tópico da matéria, no recorte pedido.
 
     Todos os tópicos do edital entram, inclusive os que nunca caíram: "esse
     assunto não apareceu em oito anos" é informação de estudo, e some se a
@@ -42,8 +43,16 @@ def recorrencia(
     Ordem: recorrência decrescente, desempate pela ordem do edital. O front
     pode reordenar (`TabelaOrdenavel`); o default é a leitura que dá nome ao
     endpoint.
+
+    ⚠️ `vestibular` e `fase` estreitam **a resposta inteira** — `porAno`,
+    `anos`, `questoesPorAno`, `totalQuestoes` e `semClassificacao` —, e não só
+    a contagem por tópico. É o que mantém numerador e denominador no mesmo
+    recorte: filtrar só o de cima faria "% da prova" de uma questão de 2ª fase
+    ser dividido pela prova inteira, e o número sairia menor que a verdade sem
+    nenhum erro na tela. Por isso os dois são parâmetro daqui, e não uma
+    peneira no front sobre uma resposta larga.
     """
-    questoes = _carregar_questoes(cliente, materia, vestibular)
+    questoes = _carregar_questoes(cliente, materia, vestibular, fase)
     ligacoes = _carregar_ligacoes(cliente, materia)
     topicos = _carregar_topicos(cliente, materia)
 
@@ -90,7 +99,19 @@ def recorrencia(
         materia=materia,
         topicos=recorrencias,
         # Crescente: esta lista é o eixo x da série temporal por ano.
+        #
+        # ⚠️ É também o DOMÍNIO da série, e o front tem de preenchê-la contra
+        # esta lista: `porAno` só traz os anos com ocorrência, e plotar as
+        # chaves do dicionário comprimiria o tempo, sumindo com o buraco — que
+        # é justamente a informação. E o domínio começa onde há acervo (o do
+        # ITA em 2008, o do IME em 1996 — migration 0031), nunca num ano
+        # cravado no código: ausência de prova não é zero.
         anos=sorted({int(questao["ano"]) for questao in questoes}),
+        # O denominador de "% da prova": as questões que a banca cobrou em
+        # cada ano deste recorte. Um `Counter` sobre as questões já lidas —
+        # não sai da soma dos tópicos, porque questão mista soma nos dois de
+        # propósito e a soma passa do total (docs/22 §1.5).
+        questoesPorAno=dict(sorted(Counter(int(q["ano"]) for q in questoes).items())),
         totalQuestoes=len(questoes),
         # As 40 sem classificação não podem sumir da tela: o aluno estudaria um
         # recorte incompleto sem saber que é incompleto (docs/22 §8, risco 3).
@@ -99,10 +120,19 @@ def recorrencia(
 
 
 def _carregar_questoes(
-    cliente: Client, materia: MateriaBanco, vestibular: VestibularBanco | None
+    cliente: Client,
+    materia: MateriaBanco,
+    vestibular: VestibularBanco | None,
+    fase: int | None = None,
 ) -> list[dict[str, Any]]:
     """Só as colunas que a agregação usa. Tabela inteira, sem teto — ver o
-    docstring do módulo e docs/22 §2.2."""
+    docstring do módulo e docs/22 §2.2.
+
+    O recorte é aplicado AQUI e em nenhum outro lugar: as ligações não sabem
+    filtrar sozinhas (só guardam `questao_id`), e o laço de `recorrencia`
+    descarta a ligação cuja questão ficou de fora. Estreitar esta consulta
+    estreita tudo o que vem depois, de uma vez só.
+    """
     consulta = (
         cliente.table("questao_vestibular")
         .select("id, ano, fase, vestibular")
@@ -110,6 +140,8 @@ def _carregar_questoes(
     )
     if vestibular:
         consulta = consulta.eq("vestibular", vestibular)
+    if fase is not None:
+        consulta = consulta.eq("fase", fase)
     return consulta.execute().data or []
 
 

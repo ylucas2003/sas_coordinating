@@ -164,6 +164,57 @@ justamente porque o texto ia cru para a tela — ninguém lê LaTeX cru, então
 ninguém distinguia uma barra a menos do resto da notação. Só apareceu ao
 renderizar.
 
+### Sprint Aba Estudar · três campos, em dado real *(02/09)*
+
+Implementação do desenho entregue pelo Claude Design (`sas-rea-do-aluno/`).
+⚠️ **Estado: ESCRITA, fora de produção** — verificada no browser local a
+390x844 nos dois temas, migrations `0041`/`0042` com `up`/`down`/`up` limpos.
+Falta o deploy.
+
+A aba Estudar deixa de ser duas metades e passa a ser **três campos**: Banco,
+Estatísticas e Meu progresso. A decisão que destravou o sprint foi de desenho:
+**Estatísticas passou a falar só do mundo** — recorrência por tópico do edital,
+sem nenhuma métrica de acerto do aluno. Com isso a tela deixou de depender do
+Sprint 6 (classificar as 1.031 questões de simulado) para existir.
+
+| Parte | O quê | Estado |
+|---|---|---|
+| B1 | `questoesPorAno` em `/banco/estatisticas` — o denominador de "% da prova" | ✅ 10 testes |
+| B2 | `fase` como parâmetro da mesma rota, ao lado de `vestibular` | ✅ |
+| B3 | `colecao=recentes\|arquivo` em `/banco/questoes`, traduzida para `extraido_por` | ✅ 8 testes |
+| B4 | `GET /banco/progresso` — agregado, com `get_current_aluno` | ✅ 12 testes |
+| M1 | `0041` — `extraido_por` NOT NULL DEFAULT 'pipeline' | ✅ |
+| M2 | `0042` — `alternativa_escolhida` + `acertou` em `questao_estudo_aluno` | ✅ 12 testes |
+| F1 | Cartão em modo página: tarja fixa, "Ampliar" e a folha que explica | ✅ |
+| F2 | Estudar → três campos | ✅ |
+| F3 | Estatísticas: ranking, decompor, mapa do edital, ficha do assunto | ✅ |
+| F4 | Meu progresso: vazio primeiro, depois matéria / assunto / ano | ✅ |
+| — | "O que mais cai" (`EstudarAssuntos.tsx`) **apagada** | ✅ rodava em mock |
+
+**Quatro fontes saíram do mock**: `estatisticasDoBanco` (era "ligada no papel,
+sem tela"), `progressoDoBanco` (nova), `respostaNoTreino` (a resposta do treino
+morria no `useState`) e a matéria de um código de tópico no Treino, que passou
+a sair da taxonomia real em vez de um catálogo de cinco assuntos. O inventário
+gerado ([30](30-estado-da-implementacao.md)) foi de 20 para 22 fontes ligadas.
+
+**O que o dado real ensinou, e que o protótipo não podia saber:**
+
+- O acervo do IME **pula 1997, 2000, 2001 e 2003**. A linha do gráfico se parte
+  nesses anos em vez de interpolar, e a média móvel é de ANOS e não de posições
+  no array — uma janela de três posições sobre [1996, 1998, 1999] mediria
+  quatro anos e chamaria isso de "média de três".
+- Em Matemática e Física a **maioria dos blocos do edital tem um tópico só**,
+  com o mesmo nome. O mapa do edital suprime o cabeçalho redundante e funde os
+  blocos de um item numa grade única — com a grade de três colunas fixas do
+  desenho, o mapa ficava com duas colunas vazias por linha.
+- `--alu-topo-altura` virou token: a tarja do modo página gruda abaixo da barra
+  de topo, e com um `62px` cravado ela sumiria atrás dela num aparelho com
+  notch, onde `safe-area-inset-top` chega a 47px.
+
+**Fora do escopo, declarado:** a ponderação por recência de
+[24 §4](24-jornada-do-aluno.md) (decisão de 02/09 — o ranking usa incidência
+bruta), e `acertoPorAssunto`, que segue dependendo do Sprint 6.
+
 ### Sprint Redesenho do casco *(23/08)*
 
 Rail de ícones no lugar da topbar de 7 abas, migalhas, faixa de filtros

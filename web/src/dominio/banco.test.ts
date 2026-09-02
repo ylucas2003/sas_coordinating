@@ -4,6 +4,7 @@ import {
   agruparPorBloco,
   algumFiltroAtivo,
   chaveTopico,
+  combinarEstatisticas,
   ehDissertativa,
   filtrarQuestoes,
   ordenarPorProva,
@@ -430,5 +431,105 @@ describe('reordenar', () => {
   it('lista de um item e lista vazia não quebram', () => {
     expect(reordenar(['só'], 0, 0)).toEqual(['só']);
     expect(reordenar([], 0, 0)).toEqual([]);
+  });
+});
+
+describe('combinarEstatisticas', () => {
+  // A ficha do assunto precisa das duas bancas SEPARADAS (uma linha por
+  // vestibular) e o ranking ao lado precisa da soma. Fundir aqui resolve os
+  // dois com as mesmas duas requisições — e garante que as duas telas contem a
+  // mesma coisa, em vez de somarem por caminhos diferentes.
+
+  function resposta(
+    materia: 'Matemática',
+    topicos: { codigo: string; nome: string; total: number; porAno: Record<number, number> }[],
+    anos: number[],
+    questoesPorAno: Record<number, number>,
+    semClassificacao = 0,
+  ) {
+    return {
+      materia,
+      topicos: topicos.map((t) => ({
+        codigo: t.codigo,
+        nome: t.nome,
+        blocoNome: 'Geometria',
+        total: t.total,
+        porAno: t.porAno,
+        porFase: {},
+        porVestibular: {},
+      })),
+      anos,
+      questoesPorAno,
+      totalQuestoes: Object.values(questoesPorAno).reduce((s, v) => s + v, 0),
+      semClassificacao,
+    };
+  }
+
+  const ita = resposta(
+    'Matemática',
+    [
+      { codigo: '1.1', nome: 'Trigonometria', total: 5, porAno: { 2019: 3, 2020: 2 } },
+      { codigo: '1.2', nome: 'Geometria analítica', total: 1, porAno: { 2020: 1 } },
+    ],
+    [2019, 2020],
+    { 2019: 20, 2020: 20 },
+    2,
+  );
+
+  const ime = resposta(
+    'Matemática',
+    [
+      { codigo: '1.1', nome: 'Trigonometria', total: 1, porAno: { 1998: 1 } },
+      { codigo: '1.2', nome: 'Geometria analítica', total: 7, porAno: { 1998: 4, 2019: 3 } },
+    ],
+    [1998, 2019],
+    { 1998: 10, 2019: 10 },
+    1,
+  );
+
+  it('soma os totais dos tópicos sem contar ninguém duas vezes', () => {
+    // Cada questão pertence a um vestibular só, então a soma é exata. (O que
+    // conta duas vezes é a questão MISTA entre tópicos, e isso é de propósito.)
+    const junto = combinarEstatisticas(ita, ime);
+    const porCodigo = Object.fromEntries(junto.topicos.map((t) => [t.codigo, t.total]));
+
+    expect(porCodigo).toEqual({ '1.1': 6, '1.2': 8 });
+  });
+
+  it('reordena pelo total somado, e não mantém a ordem do ITA', () => {
+    // 1.1 lidera no ITA (5 contra 1) e 1.2 lidera no total (8 contra 6).
+    // Manter a ordem da primeira resposta faria o ranking contradizer o número
+    // que ele mostra ao lado.
+    const junto = combinarEstatisticas(ita, ime);
+    expect(junto.topicos.map((t) => t.codigo)).toEqual(['1.2', '1.1']);
+  });
+
+  it('une os anos dos dois acervos, que começam em anos diferentes', () => {
+    const junto = combinarEstatisticas(ita, ime);
+    expect(junto.anos).toEqual([1998, 2019, 2020]);
+  });
+
+  it('soma o denominador ano a ano', () => {
+    // 2019 tem prova nas duas bancas: 20 do ITA mais 10 do IME.
+    const junto = combinarEstatisticas(ita, ime);
+    expect(junto.questoesPorAno).toEqual({ 1998: 10, 2019: 30, 2020: 20 });
+  });
+
+  it('soma porAno de cada tópico', () => {
+    const junto = combinarEstatisticas(ita, ime);
+    const trigonometria = junto.topicos.find((t) => t.codigo === '1.1');
+    expect(trigonometria?.porAno).toEqual({ 1998: 1, 2019: 3, 2020: 2 });
+  });
+
+  it('soma as sem classificação, que não podem sumir de nenhum dos dois lados', () => {
+    const junto = combinarEstatisticas(ita, ime);
+    expect(junto.semClassificacao).toBe(3);
+    expect(junto.totalQuestoes).toBe(60);
+  });
+
+  it('tópico presente só numa das bancas atravessa intacto', () => {
+    const so = resposta('Matemática', [], [2019], { 2019: 20 });
+    const junto = combinarEstatisticas(ita, so);
+    expect(junto.topicos.map((t) => t.total)).toEqual([5, 1]);
   });
 });

@@ -24,11 +24,12 @@ export const chavesBanco = {
   questoes: ['banco', 'questoes'] as const,
   pagina: (filtros: FiltrosBanco) => ['banco', 'questoes', filtros] as const,
   questao: (id: string) => ['banco', 'questoes', id] as const,
-  estatisticas: (materia: MateriaBanco | null, vestibular?: VestibularBanco) =>
-    ['banco', 'estatisticas', materia, vestibular ?? null] as const,
+  estatisticas: (materia: MateriaBanco | null, vestibular?: VestibularBanco, fase?: number) =>
+    ['banco', 'estatisticas', materia, vestibular ?? null, fase ?? null] as const,
   listas: ['banco', 'listas'] as const,
   lista: (id: string) => ['banco', 'listas', id] as const,
   estudo: ['banco', 'estudo'] as const,
+  progresso: ['banco', 'progresso'] as const,
 };
 
 /**
@@ -74,13 +75,39 @@ export function useQuestao(id: string | null) {
   });
 }
 
-/** Recorrência por tópico. Agrega no servidor sobre a tabela inteira (docs/22 §2.2). */
-export function useEstatisticasBanco(materia: MateriaBanco | null, vestibular?: VestibularBanco) {
+/**
+ * Recorrência por tópico. Agrega no servidor sobre a tabela inteira (docs/22 §2.2).
+ *
+ * `fase` entra na chave de cache junto com `vestibular`: os dois estreitam a
+ * resposta inteira, e duas respostas de recortes diferentes sob a mesma chave
+ * fariam a tela mostrar o número de um recorte sob o rótulo do outro.
+ */
+export function useEstatisticasBanco(
+  materia: MateriaBanco | null,
+  vestibular?: VestibularBanco,
+  fase?: number,
+) {
   return useQuery({
-    queryKey: chavesBanco.estatisticas(materia, vestibular),
-    queryFn: () => banco.estatisticasBanco(materia!, vestibular),
+    queryKey: chavesBanco.estatisticas(materia, vestibular, fase),
+    queryFn: () => banco.estatisticasBanco(materia!, vestibular, fase),
     enabled: !!materia,
     staleTime: FRESCOR_CONTEUDO_DE_PROVA,
+  });
+}
+
+/**
+ * Quanto do acervo o aluno marcou como feito, já agregado.
+ *
+ * Sem `staleTime`: ao contrário do conteúdo de prova, isto muda por USO — o
+ * aluno marca uma questão e volta para a tela de progresso esperando ver o
+ * número subir. A invalidação de `useAtualizarEstudo` cobre o caminho curto;
+ * o frescor zero cobre o aluno que marcou no celular e abriu no computador.
+ */
+export function useProgressoBanco({ habilitada = true }: OpcoesConsulta = {}) {
+  return useQuery({
+    queryKey: chavesBanco.progresso,
+    queryFn: banco.progressoDoBanco,
+    enabled: habilitada,
   });
 }
 
@@ -178,6 +205,10 @@ export function useAtualizarEstudo() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: chavesBanco.estudo });
       queryClient.invalidateQueries({ queryKey: chavesBanco.questoes });
+      // O progresso é contado a partir de `resolvida`: sem esta linha, marcar
+      // uma questão e voltar para "Meu progresso" mostraria o número velho, e
+      // o aluno concluiria que a marcação não pegou.
+      queryClient.invalidateQueries({ queryKey: chavesBanco.progresso });
       invalidarListas(queryClient);
     },
   });

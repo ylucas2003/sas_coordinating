@@ -34,6 +34,7 @@ export {
   useInsight,
   useLista,
   useListas,
+  useProgressoBanco,
   useQuestaoDoBanco,
   useQuestoesDoBanco,
   useQuestoesDoSimulado,
@@ -126,15 +127,6 @@ export function useConquistas() {
 /** mock · o cartão de aprovados, entregue como afordância */
 export function useDepoimento() {
   return useQuery({ queryKey: ['mock', 'depoimentos'], queryFn: mocks.buscarDepoimento, ...fixo });
-}
-
-/** mock · docs/24 §4 (importância) e §3 (meu acerto) */
-export function useAssuntos() {
-  return useQuery({
-    queryKey: ['mock', 'importanciaDoAssunto'],
-    queryFn: mocks.buscarAssuntos,
-    ...fixo,
-  });
 }
 
 /** mock · docs/24 §4.5 — depende do Sprint 6 */

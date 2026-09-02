@@ -273,3 +273,116 @@
   resize: vertical;
   line-height: 1.6;
 }
+
+/* ─── MODO PÁGINA — o acervo histórico ────────────────────────────────────
+   Anterior a 2019, a imagem não é o recorte da questão: é a PÁGINA INTEIRA do
+   caderno, com as vizinhas dentro (migrations 0031/0033). O aluno precisa
+   saber qual número procurar, ou conclui que abriu a questão errada. */
+
+/* ⚠️ A TARJA É FIXA NO TOPO DO CARTÃO, e isso é o ponto dela: uma página A4 é
+   mais alta que a tela, e um aviso que rola para fora deixa de avisar
+   exatamente quando passa a ser necessário.
+
+   O `top` desce a altura da barra do casco — que é `position: sticky; top: 0`
+   com z-index 20 (aluno-casco.css). Sem isso a tarja gruda ATRÁS dela e o
+   número fica escondido justamente durante a rolagem.
+
+   ⚠️ O valor vem do TOKEN, e não de um número medido aqui: a barra cresce com
+   a `safe-area-inset-top`, que num aparelho com notch chega a 47px. Um `62px`
+   cravado funciona no emulador e esconde a tarja no iPhone de verdade. */
+.alu-questao__tarja {
+  position: sticky;
+  top: var(--alu-topo-altura);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin: 10px calc(var(--alu-raio) * -1 + 4px) 0;
+  background: var(--alu-superficie);
+  border-top: 1px solid var(--alu-borda);
+  border-bottom: 1px solid var(--alu-borda);
+}
+
+.alu-questao__tarja-numero {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border: 1px solid var(--alu-borda);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+}
+
+.alu-questao__tarja-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.alu-questao__tarja-texto strong {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.alu-questao__tarja-texto span {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--alu-texto-2);
+  text-wrap: pretty;
+}
+
+.alu-questao__tarja-ajuda {
+  width: var(--alu-toque);
+  height: var(--alu-toque);
+  flex: none;
+  border-radius: var(--alu-raio-pilula);
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-texto-2);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.alu-questao__pagina {
+  position: relative;
+}
+
+/* "Ampliar" abre o PNG original numa aba — é lá que o pinch-zoom nativo
+   funciona. Sobreposto ao canto da imagem, com fundo sólido: sobre uma prova
+   escaneada, texto sem fundo fica ilegível na metade das páginas. */
+.alu-questao__ampliar {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  min-height: var(--alu-toque);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: var(--alu-raio-pilula);
+  border: 1px solid var(--alu-borda);
+  background: var(--alu-superficie);
+  color: var(--alu-dado);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.alu-questao__ampliar:hover {
+  border-color: var(--alu-dado);
+}
+
+/* No desktop a barra do casco não existe (some a partir de 900px), então a
+   tarja gruda no topo da janela. */
+@media (min-width: 900px) {
+  .alu-questao__tarja {
+    top: 0;
+  }
+}

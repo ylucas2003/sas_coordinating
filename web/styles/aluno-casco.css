@@ -36,6 +36,11 @@
   position: sticky;
   top: 0;
   z-index: 20;
+  /* Garante a altura que `--alu-topo-altura` promete: quem gruda abaixo dela
+     (a tarja do modo página) se posiciona por esse token, e as duas só
+     continuam casando se este `min-height` existir. */
+  min-height: var(--alu-topo-altura);
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 12px;

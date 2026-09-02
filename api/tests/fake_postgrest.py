@@ -1,4 +1,10 @@
-"""Fake mínimo do cliente PostgREST — só o que o motor de lembretes usa.
+"""Fake mínimo do cliente PostgREST.
+
+Nasceu para o motor de lembretes e hoje serve também o banco de questões
+(`app/banco/`), que é a outra parte do projeto cuja lógica só se prova
+exercitando a CONSULTA montada — filtro de coleção, recorte por fase e
+paginação erram calados, e um teste que chamasse os agregadores por dentro
+passaria por cima justamente do lugar onde o erro mora.
 
 Existe porque a varredura da véspera (P3) é a única peça do motor cuja lógica
 NÃO cabe numa função pura: ela é reconciliação, e o que importa é a sequência
@@ -16,6 +22,23 @@ import uuid
 from typing import ClassVar
 
 
+def _ordenavel(v):
+    """Chave de ordenação total, para colunas de tipos diferentes conviverem.
+
+    A versão anterior coagia tudo para `str`, e com isso o ano 10 vinha antes
+    do 2 — inofensivo nos timestamps do motor de lembretes, mas o banco de
+    questões ordena por `ano` e `numero`, onde a ordem textual é simplesmente
+    a errada. `None` continua em primeiro, como antes.
+    """
+    if v is None:
+        return (0, 0.0, "")
+    if isinstance(v, bool):
+        return (2, 0.0, str(v))
+    if isinstance(v, (int, float)):
+        return (1, float(v), "")
+    return (2, 0.0, str(v))
+
+
 class Resp:
     def __init__(self, data, count=None):
         self.data = data
@@ -29,7 +52,11 @@ class Query:
         self.colunas = "*"
         self.contagem = None
         self._limit = None
-        self._order = None
+        self._range = None
+        # LISTA, e não um par: `.order("ano").order("numero").order("id")` é
+        # ordenação composta, e guardar só a última faria um teste de ordem
+        # passar sem ter testado ordem nenhuma.
+        self._order = []
 
     # --- filtros ---
     def eq(self, c, v): self.filtros.append(("eq", c, v)); return self
@@ -45,7 +72,17 @@ class Query:
         return _Negado(self)
     def like(self, c, v): self.filtros.append(("like", c, v)); return self
     def limit(self, n): self._limit = n; return self
-    def order(self, c, desc=False): self._order = (c, desc); return self
+    def order(self, c, desc=False): self._order.append((c, desc)); return self
+
+    def range(self, inicio, fim):
+        """Intervalo do PostgREST: 0-based e INCLUSIVO nas duas pontas.
+
+        A ponta fechada é o detalhe que engana: `range(0, 19)` são vinte linhas,
+        não dezenove. É a tradução que `consultas.listar_questoes` faz uma vez
+        só, e é aqui que ela se prova.
+        """
+        self._range = (inicio, fim)
+        return self
 
     def _bate(self, linha) -> bool:
         for tipo, col, val in self.filtros:
@@ -65,7 +102,10 @@ class Query:
     #: Embeds de FILHO: {tabela_filha: coluna_fk}. O PostgREST resolve pela FK
     #: declarada no schema; aqui a relação é declarada à mão, uma por vez, para
     #: o fake não virar um ORM.
-    FILHOS: ClassVar[dict[str, str]] = {"predicado_criterio": "criterio_id"}
+    FILHOS: ClassVar[dict[str, str]] = {
+        "predicado_criterio": "criterio_id",
+        "questao_vestibular_alternativa": "questao_id",
+    }
 
     def _embed(self, linha):
         """Resolve os selects aninhados — o pai `evento_agenda` e os filhos."""
@@ -89,10 +129,19 @@ class Query:
         tabela = self.db.setdefault(self.tabela, {})
         if self.op == "select":
             linhas = [self._embed(l) for l in tabela.values() if self._bate(l)]
-            if self._order:
-                linhas.sort(key=lambda l: str(l.get(self._order[0]) or ""), reverse=self._order[1])
+            # Da última chave para a primeira: `sort` é estável, então aplicar
+            # na ordem inversa produz a ordenação composta correta.
+            for col, desc in reversed(self._order):
+                linhas.sort(key=lambda l, c=col: _ordenavel(l.get(c)), reverse=desc)
+            # A contagem é do conjunto FILTRADO, antes do recorte de página —
+            # é o que o `count="exact"` do PostgREST devolve, e é dele que sai
+            # o "de N questões" da tela.
             n = len(linhas)
-            if self._limit: linhas = linhas[: self._limit]
+            if self._range:
+                inicio, fim = self._range
+                linhas = linhas[inicio : fim + 1]
+            elif self._limit:
+                linhas = linhas[: self._limit]
             return Resp(linhas, count=n if self.contagem else None)
         if self.op == "insert":
             itens = self.payload if isinstance(self.payload, list) else [self.payload]
@@ -113,10 +162,28 @@ class Query:
             return Resp(criados)
         if self.op == "upsert":
             item = dict(self.payload)
-            chave = self.kw.get("on_conflict", "id")
-            existente = next((k for k, v in tabela.items() if v.get(chave) == item.get(chave)), None)
-            id_ = existente or item.get("id") or str(uuid.uuid4())
-            item.setdefault("id", id_)
+            # `on_conflict` pode ser COMPOSTO — "aluno_id,questao_id" é a PK de
+            # `questao_estudo_aluno` (0029). A versão anterior comparava
+            # `v.get("aluno_id,questao_id")`, uma coluna que não existe: os dois
+            # lados davam None, None == None é verdadeiro, e o upsert
+            # sobrescrevia a PRIMEIRA linha da tabela — a de outro aluno,
+            # inclusive. Falhava calado, que é o pior jeito de um fake falhar.
+            chaves = [c.strip() for c in self.kw.get("on_conflict", "id").split(",")]
+            existente = next(
+                (k for k, v in tabela.items() if all(v.get(c) == item.get(c) for c in chaves)),
+                None,
+            )
+            if existente is not None:
+                id_ = existente
+            elif "id" in item:
+                id_ = item["id"]
+            elif len(chaves) > 1:
+                # Sem coluna `id`, a própria chave composta identifica a linha.
+                id_ = tuple(item.get(c) for c in chaves)
+            else:
+                id_ = str(uuid.uuid4())
+            if len(chaves) == 1 and chaves[0] == "id":
+                item.setdefault("id", id_)
             tabela[id_] = {**tabela.get(id_, {}), **item}
             return Resp([tabela[id_]])
         if self.op == "delete":

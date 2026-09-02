@@ -99,9 +99,16 @@ describe('a costura', () => {
       (f) => f.estado !== 'real' && !usadas.has(f.chave),
     ).map((f) => f.chave);
 
-    // Estas quatro não têm hook porque não são leitura de servidor: são regra
-    // pura aplicada sobre dado real (`ordenarFilaDeTreino`, `resumoDoTreino`),
+    // Estas não têm hook porque não são leitura de servidor: são regra pura
+    // aplicada sobre dado real (`ordenarFilaDeTreino`, `resumoDoTreino`),
     // catálogo do chat, ou afordância sem funcionalidade.
+    //
+    // `respostaNoTreino` SAIU desta lista em 02/09: virou real com a migration
+    // 0042 e é gravada por `useAtualizarEstudo`, a mesma mutação do cartão.
+    // `importanciaDoAssunto` ENTROU: a decisão de 02/09 foi ranquear por
+    // incidência bruta, sem ponderação por recência, e a tela que a consumia
+    // ("O que mais cai") foi apagada. Ela sobrevive só como heurística interna
+    // da fila de treino, sem hook.
     expect(naoConsumidas.sort()).toEqual(
       [
         'acertoPorAssunto',
@@ -110,7 +117,7 @@ describe('a costura', () => {
         'esquadrilha',
         'formulaMatematica',
         'ganchoDeRetorno',
-        'respostaNoTreino',
+        'importanciaDoAssunto',
       ].sort(),
     );
   });
