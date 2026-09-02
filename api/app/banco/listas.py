@@ -21,7 +21,7 @@ Duas formas de dizer "não deu", e a distinção importa para a rota traduzir:
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -437,23 +437,31 @@ def remover_questao(
 # ─── Estudo do aluno (docs/22 §P6) ───────────────────────────────────────
 
 
+def _para_estudo(linha: Mapping[str, Any]) -> EstudoQuestao:
+    """Linha crua → o tipo da fronteira. Uma função só, usada pela leitura e
+    pela escrita: duas conversões divergiriam no dia em que uma coluna nova
+    entrasse só de um lado."""
+    return EstudoQuestao(
+        questaoId=linha["questao_id"],
+        resolvida=bool(linha["resolvida"]),
+        anotacao=linha.get("anotacao"),
+        alternativaEscolhida=linha.get("alternativa_escolhida"),
+        acertou=linha.get("acertou"),
+    )
+
+
 def listar_estudo(cliente: Client, aluno_id: str) -> list[EstudoQuestao]:
-    """O que este aluno marcou ou anotou. Questão sem linha = não tocada."""
+    """O que este aluno marcou, anotou ou respondeu. Questão sem linha = não
+    tocada — que é a maioria delas, e é a informação principal da tela de
+    progresso."""
     linhas = (
         cliente.table("questao_estudo_aluno")
-        .select("questao_id, resolvida, anotacao")
+        .select("questao_id, resolvida, anotacao, alternativa_escolhida, acertou")
         .eq("aluno_id", aluno_id)
         .order("atualizado_em", desc=True)
         .execute()
     ).data or []
-    return [
-        EstudoQuestao(
-            questaoId=linha["questao_id"],
-            resolvida=bool(linha["resolvida"]),
-            anotacao=linha.get("anotacao"),
-        )
-        for linha in linhas
-    ]
+    return [_para_estudo(linha) for linha in linhas]
 
 
 def atualizar_estudo(
@@ -462,6 +470,7 @@ def atualizar_estudo(
     questao_id: str,
     resolvida: bool | None = None,
     anotacao: str | None = None,
+    alternativa_escolhida: str | None = None,
 ) -> EstudoQuestao:
     """Upsert por (aluno_id, questao_id). `None` num campo = não mexer nele.
 
@@ -471,15 +480,26 @@ def atualizar_estudo(
     mudança de biblioteca de distância. O campo ausente é preservado aqui,
     explicitamente.
 
-    Para **limpar** a anotação, mande `""` — string vazia vira NULL, para que
-    "sem anotação" tenha uma representação só no banco.
+    Para **limpar** a anotação ou a resposta, mande `""` — string vazia vira
+    NULL, para que "sem anotação" e "não respondeu" tenham uma representação só
+    no banco.
+
+    ⚠️ `acertou` é CALCULADO aqui, contra o gabarito que já está no banco, e
+    nunca aceito de quem chamou (0042). É dele que sai a leitura de em que
+    assunto o aluno erra; deixá-lo entrar pelo corpo poria essa leitura a um
+    `curl` de distância de discordar da prova.
+
+    ⚠️ E `acertou` NÃO mexe em `resolvida`. Responder no treino não marca a
+    questão como feita: a marca é auto-declarada e o aluno é quem a dá, no pé
+    do cartão. As duas colunas dizem coisas diferentes e a tela as separa.
     """
-    if obter_questao(cliente, questao_id) is None:
+    questao = obter_questao(cliente, questao_id)
+    if questao is None:
         raise ValueError(f"Questão inexistente no banco: {questao_id}")
 
     atuais = (
         cliente.table("questao_estudo_aluno")
-        .select("resolvida, anotacao")
+        .select("resolvida, anotacao, alternativa_escolhida, acertou")
         .eq("aluno_id", aluno_id)
         .eq("questao_id", questao_id)
         .limit(1)
@@ -493,6 +513,13 @@ def atualizar_estudo(
     else:
         anotacao_final = anotacao.strip() or None
 
+    if alternativa_escolhida is None:
+        letra_final = atual.get("alternativa_escolhida")
+        acertou_final = atual.get("acertou")
+    else:
+        letra_final = alternativa_escolhida.strip().upper() or None
+        acertou_final = _conferir(letra_final, questao.gabarito)
+
     linha = (
         cliente.table("questao_estudo_aluno")
         .upsert(
@@ -501,6 +528,8 @@ def atualizar_estudo(
                 "questao_id": questao_id,
                 "resolvida": resolvida_final,
                 "anotacao": anotacao_final,
+                "alternativa_escolhida": letra_final,
+                "acertou": acertou_final,
                 "atualizado_em": _agora(),
             },
             on_conflict="aluno_id,questao_id",
@@ -509,8 +538,23 @@ def atualizar_estudo(
         .execute()
     ).data[0]
 
-    return EstudoQuestao(
-        questaoId=linha["questao_id"],
-        resolvida=bool(linha["resolvida"]),
-        anotacao=linha.get("anotacao"),
-    )
+    return _para_estudo(linha)
+
+
+def _conferir(letra: str | None, gabarito: str | None) -> bool | None:
+    """A letra marcada contra a letra da banca. `None` = não dá para dizer.
+
+    Três nulos diferentes chegam aqui e todos viram o mesmo `None`, porque a
+    tela não pode distingui-los como acerto ou erro:
+
+      * o aluno pulou a questão (`letra` vazia);
+      * a questão é dissertativa — 420 e 469 das 934 originais não têm letra, e
+        isso é o esperado, não dado faltando (docs/22 §8, risco 4);
+      * a objetiva não teve o gabarito importado.
+
+    ⚠️ `None` NUNCA pode virar `False` na tela. "Errou" e "não sabemos" são
+    conselhos de estudo opostos.
+    """
+    if not letra or not gabarito:
+        return None
+    return letra == gabarito.strip().upper()

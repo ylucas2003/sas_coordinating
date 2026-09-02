@@ -18,6 +18,14 @@ import { Icone } from './Icone';
 // ⚠️ A IMAGEM É O CONTEÚDO. O enunciado é um PNG de largura variável; sem
 // `max-width: 100%` ele estoura a viewport a 360px (docs/28 §6). Quem garante
 // isso é `.alu-questao__imagem`; aqui o cuidado é só não trocar a classe.
+//
+// ⚠️ O MODO PÁGINA (`extraidoPor === 'pagina'`, migrations 0033/0031) é o
+// acervo histórico, e ele muda o contrato do cartão: a imagem não é o recorte
+// da questão, é a PÁGINA INTEIRA do caderno — com as questões vizinhas dentro.
+// Sem dizer qual número procurar, o aluno acha que abriu a questão errada. Por
+// isso a tarja é FIXA no topo do cartão: uma página A4 é mais alta que a tela,
+// e um aviso que rola para fora deixa de avisar exatamente quando ele passa a
+// ser necessário.
 
 /** Média e baixa se declaram: classificação errada põe o aluno treinando o
  *  assunto errado, e numa sessão de treino isso importa mais (docs/28 §6). */
@@ -33,6 +41,9 @@ interface Props {
   onAlternarNaLista?: (questaoId: string) => void;
   /** Some com o link "abrir em tela cheia" quando já se está nela. */
   semLinkParaFicha?: boolean;
+  /** Reabre a explicação da página inteira. A tela é dona da folha; o cartão só
+   *  pede — senão cada cartão da lista teria a sua, e abrir uma abriria trinta. */
+  onExplicarPagina?: () => void;
 }
 
 export function CartaoQuestaoAluno({
@@ -41,6 +52,7 @@ export function CartaoQuestaoAluno({
   naLista = false,
   onAlternarNaLista,
   semLinkParaFicha = false,
+  onExplicarPagina,
 }: Props) {
   const [gabaritoVisivel, setGabaritoVisivel] = useState(false);
   const [anotando, setAnotando] = useState(false);
@@ -57,8 +69,13 @@ export function CartaoQuestaoAluno({
   // 'visao' é página escaneada lida por um agente: ali o TEXTO é o principal e
   // a imagem vira consulta, o inverso do caso comum (docs/22).
   const ehVisao = questao.extraidoPor === 'visao';
+  const ehPagina = questao.extraidoPor === 'pagina';
   const mostrarImagem =
     !ehVisao && questao.usaImagemNoRender && !!questao.imagemUrl && !imagemFalhou;
+  // ⚠️ No modo página `enunciadoMd` pode ser NULL (CHECK da 0033): a questão foi
+  // ingerida sem transcrição de propósito. Se a imagem não carregar, o cartão
+  // não tem o que mostrar — e dizer isso é melhor que um retângulo vazio.
+  const paginaSemImagem = ehPagina && !mostrarImagem && !questao.enunciadoMd;
 
   function salvarAnotacao() {
     const texto = rascunho.trim();
@@ -81,15 +98,63 @@ export function CartaoQuestaoAluno({
         )}
       </header>
 
+      {ehPagina && (
+        <div className="alu-questao__tarja">
+          <span className="alu-questao__tarja-numero alu-magnitude">{questao.numero}</span>
+          <span className="alu-questao__tarja-texto">
+            <strong>Procure a questão {questao.numero} nesta página</strong>
+            <span>
+              Esta é a página inteira da prova. Outras questões aparecem junto — é normal.
+            </span>
+          </span>
+          {onExplicarPagina && (
+            <button
+              type="button"
+              className="alu-questao__tarja-ajuda"
+              aria-label="Por que a página vem inteira"
+              onClick={onExplicarPagina}
+            >
+              ?
+            </button>
+          )}
+        </div>
+      )}
+
       {mostrarImagem ? (
-        <img
-          className="alu-questao__imagem"
-          src={questao.imagemUrl ?? ''}
-          alt={`Enunciado — ${questao.vestibular} ${questao.ano}, questão ${questao.numero}`}
-          loading="lazy"
-          decoding="async"
-          onError={() => setImagemFalhou(true)}
-        />
+        <div className={ehPagina ? 'alu-questao__pagina' : undefined}>
+          <img
+            className="alu-questao__imagem"
+            src={questao.imagemUrl ?? ''}
+            alt={
+              ehPagina
+                ? `Página da prova — ${questao.vestibular} ${questao.ano}, com a questão ${questao.numero}`
+                : `Enunciado — ${questao.vestibular} ${questao.ano}, questão ${questao.numero}`
+            }
+            loading="lazy"
+            decoding="async"
+            onError={() => setImagemFalhou(true)}
+          />
+          {ehPagina && (
+            // Abre o PNG original numa aba, que é onde o pinch-zoom nativo
+            // funciona. Um visualizador próprio reimplementaria pior o que o
+            // navegador já faz — e uma A4 a 200dpi dentro de um cartão de 330px
+            // é ilegível sem ampliar.
+            <a
+              className="alu-questao__ampliar"
+              href={questao.imagemUrl ?? ''}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icone nome="ampliar" tamanho={16} />
+              Ampliar
+            </a>
+          )}
+        </div>
+      ) : paginaSemImagem ? (
+        <p className="alu-questao__sem-gabarito">
+          A imagem desta página não carregou. Ela é a única forma desta questão — não há
+          texto transcrito para mostrar no lugar.
+        </p>
       ) : (
         // A sujeira de OCR do enunciado continua sendo dívida conhecida; o
         // que saiu daqui em 01/09 foi a fórmula crua, que agora o Markdown

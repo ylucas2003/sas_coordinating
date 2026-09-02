@@ -102,6 +102,13 @@
   --alu-rail: 240px;
   --alu-lateral: 320px;
   --alu-barra-inferior: 64px;
+  /* Altura da barra de topo do celular (`.alu-topo`), que é `sticky; top: 0`.
+     Existe como token porque QUEM PRECISA DELA não é ela mesma: a tarja do
+     modo página gruda logo abaixo, e com um número cravado no CSS da tarja o
+     aparelho com notch — onde `safe-area-inset-top` chega a 47px — esconderia
+     justamente o aviso que diz qual questão procurar.
+     34px de conteúdo + 9px de folga em cima e embaixo + 1px de traço. */
+  --alu-topo-altura: calc(53px + env(safe-area-inset-top));
 }
 
 /* A preferência do sistema é o PISO, não uma terceira opção.

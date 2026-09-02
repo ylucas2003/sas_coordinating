@@ -34,7 +34,7 @@ que decorrem disso:
 | `canvas_sync/` | Sincronização com o Canvas LMS — fonte de verdade das notas. `mapeador.py` compõe **e** parseia os nomes de assignment; as duas gramáticas precisam casar |
 | `ingest/` | Pipeline de planilha (CSV/XLSX), idempotente por construção |
 | `lembretes/` | Motor de e-mail via SES. Disparo é materializado na criação da regra e revalidado antes do envio |
-| `banco/` | Banco de questões ITA·IME (docs/22): consultas filtradas, recorrência por tópico e listas com dono. **É a única rota que pagina** — e o motivo está escrito em `schemas/banco.py`. As tabelas são a **fonte da verdade**: os JSONs não são versionados, e `scripts/exportar_banco_questoes.py` é a saída (docs/22 §13) |
+| `banco/` | Banco de questões ITA·IME (docs/22): consultas filtradas, recorrência por tópico, progresso do aluno e listas com dono. **É a única rota que pagina** — e o motivo está escrito em `schemas/banco.py`. As tabelas são a **fonte da verdade**: os JSONs não são versionados, e `scripts/exportar_banco_questoes.py` é a saída (docs/22 §13) |
 | `gravacoes_aula/` | Publica a aula gravada do Canvas no YouTube: baixa os dois componentes do BigBlueButton, compõe com o template da marca (ffmpeg), guarda no S3, publica como **não listado** (LGPD — são menores) e pendura a página da aula no módulo certo do Canvas (`0035`, `0036`); a coordenação acompanha em `/integracoes/aulas`. A gravação some do Canvas em ~7 dias, então o cron roda de hora em hora. Estados `publicado`/`publicado_sem_confirmacao` são TERMINAIS: reprocessar geraria segunda cópia no canal |
 | `auditoria.py` | Quem fez o quê. **Nunca** grave senha, hash, token ou corpo de mensagem |
 
@@ -81,7 +81,7 @@ inferência de modelo a partir de substring do nome.
 
 ## Migrations
 
-27 em [migrations/](migrations/), cada uma com par `.down.sql`. Runner próprio,
+41 em [migrations/](migrations/), cada uma com par `.down.sql`. Runner próprio,
 estado em `_migracoes_aplicadas`.
 
 ```sh
@@ -96,7 +96,7 @@ Depois de qualquer migration que toque `metrica_simulado`, rode
 ## Ferramentas
 
 ```sh
-./.venv/bin/python -m pytest tests/ -q   # 120 testes
+./.venv/bin/python -m pytest tests/ -q   # 331 testes (+15 pulados)
 ./.venv/bin/ruff check .                 # lint — configurado em pyproject.toml
 ./.venv/bin/ruff check . --fix
 ./.venv/bin/mypy app                     # sob demanda, fora do gate

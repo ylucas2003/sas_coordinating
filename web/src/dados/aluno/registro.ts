@@ -150,10 +150,10 @@ export const FONTES: Fonte[] = [
     estado: 'real',
     descricao: 'Página filtrada do acervo ITA·IME — a única rota paginada do projeto',
     doc: 'docs/28 §1',
-    rotaFutura: 'GET /banco/questoes',
-    telas: ['Estudar', 'Questão em tela cheia', 'Sessão de treino'],
+    rotaFutura: 'GET /banco/questoes?…&colecao',
+    telas: ['Banco', 'Questão em tela cheia', 'Sessão de treino'],
     observacao:
-      'Filtrar por tópico exige matéria: a rota devolve 400 sem ela, e a folha de filtros impede a combinação.',
+      'Filtrar por tópico exige matéria: a rota devolve 400 sem ela, e a folha de filtros impede a combinação. Em 02/09 ganhou `colecao=recentes|arquivo`, traduzida para `extraido_por` na camada de consulta — o aluno e a URL não precisam do nome da coluna. O Arquivo é a página INTEIRA do caderno (0033) e o cartão de lá leva tarja dizendo qual número procurar.',
   },
   {
     chave: 'questaoDoBanco',
@@ -176,10 +176,10 @@ export const FONTES: Fonte[] = [
     estado: 'real',
     descricao: 'Recorrência bruta de cada tópico, por ano, fase e vestibular',
     doc: 'docs/28 §5',
-    rotaFutura: 'GET /banco/estatisticas',
-    telas: ['— nenhuma'],
+    rotaFutura: 'GET /banco/estatisticas?materia&vestibular&fase',
+    telas: ['Estatísticas (ranking, mapa do edital, ficha do assunto)'],
     observacao:
-      '⚠️ LIGADA NO PAPEL, SEM TELA. "O que mais cai" lê `importanciaDoAssunto` (mock), não esta rota — é justamente aqui que falta a ponderação por recência de docs/24 §4. Nunca pagina, de propósito: truncar leitura estatística devolve número errado sem parecer errado.',
+      'Ganhou tela em 02/09 e virou a espinha da aba Estatísticas. `questoesPorAno` (denominador de "% da prova") e o filtro `fase` entraram junto: os dois estreitam a resposta INTEIRA, e é isso que mantém numerador e denominador no mesmo recorte. A ficha faz DUAS chamadas, uma por vestibular — `porVestibular` é agregado e não tem quebra por ano —, e as duas falham independentemente: série ausente é declarada na tela, nunca desenhada como zero. Nunca pagina, de propósito.',
   },
   {
     chave: 'listas',
@@ -192,10 +192,22 @@ export const FONTES: Fonte[] = [
   {
     chave: 'estudo',
     estado: 'real',
-    descricao: 'Resolvida e anotação, por aluno e questão',
+    descricao: 'Resolvida, anotação e a resposta do treino, por aluno e questão',
     doc: 'docs/28 §1',
     rotaFutura: 'GET/PUT /banco/estudo',
-    telas: ['Estudar', 'Questão em tela cheia'],
+    telas: ['Banco', 'Questão em tela cheia', 'Sessão de treino', 'Meu progresso'],
+    observacao:
+      '⚠️ `resolvida` e `acertou` NÃO são a mesma coisa e não se somam: a primeira é auto-declarada e pode existir sem resposta nenhuma; a segunda é conferida contra o gabarito, no servidor (0042). Ausência de linha = questão não tocada, que é a maioria.',
+  },
+  {
+    chave: 'progressoDoBanco',
+    estado: 'real',
+    descricao: 'Quanto do acervo o aluno marcou como feito — por matéria, por assunto e por ano',
+    doc: 'este handoff · api/app/banco/progresso.py',
+    rotaFutura: 'GET /banco/progresso',
+    telas: ['Meu progresso', 'Estudar (o subtítulo dos três campos)'],
+    observacao:
+      'Agrega no servidor de propósito: `GET /banco/estudo` devolve as linhas cruas, sem atributo de questão, e montar a tela com ela obrigaria o celular a baixar as ~2.700 questões para cruzar no navegador. Devolve SEMPRE o par (feitas, total) — contagem sem denominador é bug de produto. Usa `get_current_aluno`: é dado pessoal de menor, e o id sai do token.',
   },
   {
     chave: 'origemDaResolucao',
@@ -290,7 +302,7 @@ export const FONTES: Fonte[] = [
     doc: 'docs/29 §A.3',
     origemDoDado: '`/me/simulado/{id}/questoes` já devolve isso por simulado — falta somar',
     rotaFutura: 'GET /me/erros',
-    telas: ['Estudar', 'Sessão de treino (origem `erros`)'],
+    telas: ['Estudar (o elo quieto)', 'Sessão de treino (origem `erros`)'],
     esforco: 'P',
     observacao:
       'O material de estudo mais óbvio que temos, enterrado atrás de uma navegação.',
@@ -313,10 +325,10 @@ export const FONTES: Fonte[] = [
     descricao: 'Fatia da prova ponderada por recência (meia-vida 5 anos) e a tendência ao lado',
     doc: 'docs/24 §4',
     depende: '`/banco/estatisticas`, que já dá a incidência bruta — falta a ponderação',
-    telas: ['O que mais cai', 'Estudar'],
+    telas: ['— nenhuma'],
     esforco: 'M',
     observacao:
-      'Independe do Sprint 6: só depende do que já está no Postgres. É o que docs/24 §8 chama de "B pode começar hoje".',
+      '⚠️ ADIADA POR DECISÃO DE 02/09: a tela de Estatísticas ranqueia por INCIDÊNCIA BRUTA, sem ponderação por recência, e a tendência sai de código puro sobre a mesma série que o gráfico desenha (`dominio/serieDoAssunto.ts`). Sobrevive só como heurística interna da fila de treino (o fixture `ASSUNTOS` em `mocks.ts`, dentro de `ordenarFilaDeTreino`). Independe do Sprint 6 e continua sendo "B pode começar hoje" de docs/24 §8, quando a missão do dia for construída.',
   },
   {
     chave: 'acertoPorAssunto',
@@ -324,7 +336,7 @@ export const FONTES: Fonte[] = [
     descricao: 'Quanto o aluno acerta em cada tópico do edital',
     doc: 'docs/24 §3',
     depende: 'classificar as 1.031 questões de simulado (`questao_topico`, Sprint 6)',
-    telas: ['O que mais cai', 'Estudar', 'Resumo do treino'],
+    telas: ['Resumo do treino'],
     esforco: 'G',
     observacao:
       'O caminho crítico de tudo. Classificar 1.031 questões faz 237.081 respostas passarem a dizer em que assunto o aluno erra.',
@@ -342,14 +354,13 @@ export const FONTES: Fonte[] = [
   },
   {
     chave: 'respostaNoTreino',
-    estado: 'mock',
-    descricao: 'A alternativa que o aluno escolheu e se acertou',
-    doc: 'docs/28 §3',
-    depende: '`alternativa_escolhida` + `acertou` em `questao_estudo_aluno` (migration P)',
+    estado: 'real',
+    descricao: 'A alternativa que o aluno escolheu no treino e se ela bate com o gabarito',
+    doc: 'api/migrations/0042_resposta_no_treino.sql',
+    rotaFutura: 'PUT /banco/estudo/{id} · alternativaEscolhida',
     telas: ['Sessão de treino', 'Resumo do treino'],
-    esforco: 'P',
     observacao:
-      'A única fonte de acerto por assunto que NÃO depende do Sprint 6 — as questões do banco já são classificadas. E não muda a diretriz: alimenta o plano, nunca o XP.',
+      'Ligada em 02/09 (migration 0042). É a única fonte de acerto por assunto que NÃO depende do Sprint 6 — as questões do banco já são classificadas por tópico do edital. ⚠️ `acertou` é calculado no SERVIDOR contra o gabarito, nunca aceito do cliente; `null` é "não dá para dizer" (dissertativa ou sem gabarito), jamais "errou". E não muda a diretriz: alimenta o plano de estudo, NUNCA o XP — treino não é supervisionado.',
   },
   {
     chave: 'xp',

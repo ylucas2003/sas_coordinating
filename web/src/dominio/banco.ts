@@ -205,6 +205,81 @@ export function resumoRecorrencia(
     .slice(0, limite);
 }
 
+/**
+ * Funde as respostas de `/banco/estatisticas` de duas bancas numa só.
+ *
+ * Existe porque a ficha do assunto precisa das DUAS séries separadas (uma linha
+ * por vestibular, e `porVestibular` é agregado, sem quebra por ano), enquanto o
+ * ranking ao lado precisa do total das duas. Buscar as duas e fundir aqui
+ * resolve os dois com as MESMAS duas requisições — e, mais importante, garante
+ * que o ranking e a ficha contem a mesma coisa: derivar um do outro é o que
+ * impede as duas telas de mostrarem números diferentes do mesmo assunto.
+ *
+ * A soma é exata, e não uma aproximação: cada questão pertence a exatamente um
+ * vestibular, então somar ITA e IME não conta ninguém duas vezes. (O que soma
+ * duas vezes é a questão MISTA entre TÓPICOS, e isso é outra coisa e é de
+ * propósito — docs/22 §1.5.)
+ *
+ * ⚠️ Chame só com as duas respostas presentes. Se uma falhou, o resultado desta
+ * função seria "o mundo sem o IME" apresentado como "o mundo" — exatamente a
+ * mentira que a tela tem de declarar em vez de desenhar.
+ */
+export function combinarEstatisticas(
+  a: EstatisticasBanco,
+  b: EstatisticasBanco,
+): EstatisticasBanco {
+  const somarContagens = (
+    x: Record<number, number>,
+    y: Record<number, number>,
+  ): Record<number, number> => {
+    const soma: Record<number, number> = {};
+    for (const fonte of [x, y]) {
+      for (const [chave, valor] of Object.entries(fonte)) {
+        const k = Number(chave);
+        soma[k] = (soma[k] ?? 0) + valor;
+      }
+    }
+    return soma;
+  };
+
+  const somarTexto = (
+    x: Record<string, number>,
+    y: Record<string, number>,
+  ): Record<string, number> => {
+    const soma: Record<string, number> = { ...x };
+    for (const [chave, valor] of Object.entries(y)) soma[chave] = (soma[chave] ?? 0) + valor;
+    return soma;
+  };
+
+  const deB = new Map(b.topicos.map((t) => [t.codigo, t]));
+
+  return {
+    materia: a.materia,
+    // A ordem canônica é recorrência decrescente, e ela muda ao somar: um
+    // tópico que é 3º no ITA e 1º no IME pode virar 1º no total. Reordenar aqui
+    // é o que mantém o ranking coerente com o número que ele mostra.
+    topicos: a.topicos
+      .map((topico) => {
+        const outro = deB.get(topico.codigo);
+        if (!outro) return topico;
+        return {
+          ...topico,
+          total: topico.total + outro.total,
+          porAno: somarContagens(topico.porAno, outro.porAno),
+          porFase: somarContagens(topico.porFase, outro.porFase),
+          porVestibular: somarTexto(topico.porVestibular, outro.porVestibular),
+        };
+      })
+      .sort((x, y) => y.total - x.total || x.nome.localeCompare(y.nome, 'pt-BR')),
+    // União: o domínio do eixo passa a cobrir os dois acervos, que começam em
+    // anos diferentes (migration 0031).
+    anos: [...new Set([...a.anos, ...b.anos])].sort((x, y) => x - y),
+    questoesPorAno: somarContagens(a.questoesPorAno, b.questoesPorAno),
+    totalQuestoes: a.totalQuestoes + b.totalQuestoes,
+    semClassificacao: a.semClassificacao + b.semClassificacao,
+  };
+}
+
 export interface SerieAnual {
   anos: number[];
   totais: number[];

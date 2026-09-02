@@ -435,7 +435,6 @@ export const buscarExtratoXp = () => entregar(EXTRATO_XP);
 export const buscarLiga = () => entregar(LIGA);
 export const buscarConquistas = () => entregar(CONQUISTAS);
 export const buscarDepoimento = () => entregar(DEPOIMENTO);
-export const buscarAssuntos = () => entregar(ASSUNTOS);
 export const buscarMissao = () => entregar(MISSAO);
 export const buscarErros = () => entregar(ERROS);
 export const buscarCiclosAnteriores = () => entregar(CICLOS_ANTERIORES);

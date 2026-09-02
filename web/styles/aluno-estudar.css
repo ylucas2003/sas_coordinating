@@ -38,25 +38,12 @@ a.alu-est-elo-quieto:hover {
   color: var(--alu-dado);
 }
 
-/* ── As duas metades ──────────────────────────────────────────────────── */
+/* ── A tira de cobertura ──────────────────────────────────────────────────
+   ⚠️ Não é firula (docs/24 §3.3). A taxonomia do edital só cobre Matemática,
+   Física e Química, e uma tela por assunto que ignore Inglês em silêncio faz o
+   aluno concluir que está coberto — e o Inglês da Fase 1 do ITA é a ÚNICA
+   matéria eliminatória. Vazada, 1px, sem preenchimento: é aviso, não alarme. */
 
-.alu-est-metade {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-
-.alu-est-divisor {
-  border: none;
-  border-top: 1px solid var(--alu-borda);
-  margin: 10px 0 4px;
-  width: 100%;
-}
-
-/* A TIRA DE COBERTURA. Vazada e de 1px de propósito: é aviso, não alarme —
-   pintá-la de ALERTA a poria competindo com a etiqueta de distância, que é a
-   única coisa vermelha do sistema (docs/24 §7.1, regra 2). */
 .alu-est-cobertura {
   display: flex;
   flex-direction: column;
@@ -69,74 +56,6 @@ a.alu-est-elo-quieto:hover {
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--alu-texto-2);
-}
-
-/* ── Os três cartões de origem ────────────────────────────────────────── */
-
-.alu-est-origem__linha {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.alu-est-origem__texto {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  /* `flex: 1 1 170px` deixa o botão descer sozinho abaixo de ~330px em vez de
-     espremer o nome do assunto até quebrar letra a letra. */
-  flex: 1 1 170px;
-  min-width: 0;
-}
-
-.alu-est-origem__titulo {
-  font-size: 19px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-  color: var(--alu-magnitude);
-  overflow-wrap: anywhere;
-}
-
-.alu-est-origem__conta {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--alu-dado);
-  font-variant-numeric: tabular-nums;
-}
-
-/* A razão é a linha quieta: ela explica a escolha sem disputar o olho com o
-   botão (regra 6 — silencie o que não é o jogo). */
-.alu-est-origem__razao {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--alu-texto-2);
-}
-
-/* O recomendado é o mais destacado dos três: borda na cor DADO, e só ele leva
-   a tecla cheia de ACAO. Os outros dois usam a fantasma. */
-.alu-est-origem--principal {
-  border-color: var(--alu-dado);
-}
-
-.alu-est-origem--principal .alu-est-origem__titulo {
-  font-size: 22px;
-}
-
-.alu-est-elo-quieto {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  align-self: flex-start;
-  min-height: var(--alu-toque);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--alu-texto-2);
-}
-
-.alu-est-elo-quieto:hover {
-  color: var(--alu-dado);
 }
 
 /* ── Busca e filtro ───────────────────────────────────────────────────── */
@@ -396,118 +315,6 @@ a.alu-est-elo-quieto:hover {
   align-items: flex-start;
 }
 
-/* ── "O que mais cai" ─────────────────────────────────────────────────── */
-
-.alu-assunto__explicacao {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--alu-texto-2);
-}
-
-.alu-assunto-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.alu-assunto {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 0;
-  border-top: 1px solid var(--alu-borda);
-}
-
-.alu-assunto:first-child {
-  border-top: none;
-  padding-top: 4px;
-}
-
-.alu-assunto__cabeca {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.alu-assunto__nome {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1 1 150px;
-  min-width: 0;
-}
-
-.alu-assunto__nome strong {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-  overflow-wrap: anywhere;
-}
-
-/* Três colunas em telefone largo, duas a 360px: os números não podem ficar
-   apertados a ponto de a tendência quebrar entre os dois valores. */
-.alu-assunto__numeros {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-  gap: 10px 14px;
-  margin: 0;
-}
-
-.alu-assunto__numero {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.alu-assunto__numero dd {
-  margin: 0;
-}
-
-.alu-assunto__valor {
-  font-size: 24px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* OS DOIS NÚMEROS DA TENDÊNCIA, sempre visíveis (docs/24 §4.2, passo 4): uma
-   seta sozinha esconde a escala, e "▼" sobre 6% e sobre 0,4% são a mesma seta
-   com conselhos opostos. */
-.alu-assunto__tendencia {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-  font-size: 14px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--alu-texto-2);
-}
-
-.alu-assunto__agora {
-  color: var(--alu-magnitude);
-}
-
-.alu-assunto__delta {
-  font-style: normal;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--alu-texto-2);
-  white-space: nowrap;
-}
-
-.alu-assunto__n {
-  margin: 0;
-  font-size: 11.5px;
-  color: var(--alu-texto-2);
-  font-variant-numeric: tabular-nums;
-}
-
 /* ── Minhas listas ────────────────────────────────────────────────────── */
 
 .alu-listas__nova {
@@ -698,5 +505,987 @@ a.alu-est-elo-quieto:hover {
 
   .alu-est-origem--principal .alu-est-origem__titulo {
     font-size: 26px;
+  }
+}
+
+/* ─── OS TRÊS CAMPOS ──────────────────────────────────────────────────────
+   A aba abre nestes três cartões, e cada um leva ao seu campo. Substituem as
+   duas metades ("Treinar agora" + "Todas as questões") do desenho anterior.
+
+   São `<a>` com cara de tecla, e não `<button>`: cada um NAVEGA. O leitor de
+   tela precisa anunciar "link", e o toque longo precisa oferecer "abrir em
+   nova aba" — coisas que um botão com `navigate()` tira de quem usa. */
+
+.alu-campos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.alu-campo-cartao {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio);
+  color: var(--alu-magnitude);
+  text-decoration: none;
+  min-height: var(--alu-toque);
+  transition: transform 80ms ease-out;
+}
+
+.alu-campo-cartao:active {
+  transform: translateY(2px);
+}
+
+.alu-campo-cartao__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.alu-campo-cartao__titulo {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.alu-campo-cartao__sub {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--alu-texto-2);
+  text-wrap: pretty;
+}
+
+/* 70px é o tamanho que o desenho pede; `flex: none` impede que ele encolha e
+   empurre o texto para três linhas a 360px. */
+.alu-campo-cartao__icone {
+  width: 70px;
+  height: 70px;
+  flex: none;
+}
+
+/* ─── AS DUAS COLEÇÕES ────────────────────────────────────────────────────
+   Controle segmentado, e não pílula removível: uma das duas está SEMPRE ativa,
+   porque as duas metades do acervo se leem de formas diferentes (0031/0033) e
+   a tela precisa dizer qual está mostrando.
+
+   `fieldset` sem borda nem padding — ele está aqui pela semântica de grupo, e
+   o `legend` é só para leitor de tela. */
+
+.alu-colecoes {
+  display: flex;
+  gap: 8px;
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.alu-colecao {
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  text-align: left;
+  border: 1px solid var(--alu-borda);
+  border-radius: 14px;
+  background: var(--alu-superficie);
+  color: var(--alu-magnitude);
+  cursor: pointer;
+}
+
+.alu-colecao.is-ativa {
+  border-color: var(--alu-dado);
+  background: color-mix(in srgb, var(--alu-dado) 18%, transparent);
+}
+
+.alu-colecao__nome {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.alu-colecao__como {
+  font-size: 11px;
+  color: var(--alu-texto-2);
+  line-height: 1.3;
+}
+
+/* ─── O RECORTE (Estatísticas) ────────────────────────────────────────────
+   Matéria, vestibular e fase. Todo o estado vive na URL. */
+
+.alu-recorte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: 16px;
+}
+
+.alu-recorte__grupo {
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.alu-recorte__grupo legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.alu-recorte__opcoes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.alu-recorte__opcao {
+  min-height: var(--alu-toque);
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-magnitude);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* A opção ativa usa a cor da AÇÃO, que é a de maior contraste com o fundo nos
+   dois temas — navy no dia, ouro na noite. É o que faz o recorte escolhido se
+   ler de relance sem depender de matiz. */
+.alu-recorte__opcao.is-ativa {
+  background: var(--alu-acao);
+  border-color: var(--alu-acao);
+  color: var(--alu-acao-texto);
+}
+
+/* ─── DECOMPOR POR ────────────────────────────────────────────────────── */
+
+.alu-decompor {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 8px;
+}
+
+/* O rótulo ocupa a linha inteira acima dos três botões: a 390px ele e os três
+   não cabem lado a lado, e deixá-lo empurrar "Fase" para uma segunda linha
+   sozinho fazia os três parecerem dois controles diferentes. */
+.alu-decompor > .alu-olho {
+  grid-column: 1 / -1;
+}
+
+.alu-decompor__opcao {
+  min-width: 0;
+  min-height: var(--alu-toque);
+  border-radius: 10px;
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-magnitude);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.alu-decompor__opcao.is-ativa {
+  border-color: var(--alu-dado);
+  background: color-mix(in srgb, var(--alu-dado) 18%, transparent);
+}
+
+.alu-legenda {
+  display: flex;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--alu-texto-2);
+}
+
+.alu-legenda li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.alu-legenda__cor {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* ─── O RANKING ───────────────────────────────────────────────────────── */
+
+.alu-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.alu-ranking__linha {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border: none;
+  border-top: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-magnitude);
+  text-align: left;
+  cursor: pointer;
+}
+
+.alu-ranking__nome {
+  width: 118px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alu-ranking__nome strong {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Tópico que nunca caiu continua na lista — "não apareceu em dezoito anos" é
+   informação de estudo — mas em texto secundário, sem disputar atenção. */
+.alu-ranking__nome strong.is-inerte,
+.alu-ranking__total.is-inerte {
+  color: var(--alu-texto-2);
+}
+
+.alu-ranking__barras {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.alu-ranking__barra {
+  display: block;
+  height: 16px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.alu-ranking__preenchimento {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--alu-dado);
+}
+
+.alu-ranking__parte {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alu-ranking__parte .alu-ranking__barra {
+  flex: 1;
+  height: 13px;
+}
+
+.alu-ranking__parte-valor {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.alu-ranking__parte-rotulo {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--alu-texto-2);
+  width: 24px;
+  flex: none;
+}
+
+.alu-ranking__total {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* As sem classificação: tracejada, porque são um grupo de natureza diferente
+   dos tópicos do edital — e nunca somem (docs/22 §8, risco 3). */
+.alu-ranking__orfas {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px dashed var(--alu-borda);
+  color: var(--alu-texto-2);
+}
+
+.alu-ranking__orfas div {
+  flex: 1;
+  min-width: 0;
+}
+
+.alu-ranking__orfas strong {
+  font-size: 15px;
+}
+
+.alu-ranking__orfas p {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 6px 0 0;
+}
+
+.alu-ranking__orfas span {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* ─── O MAPA DO EDITAL ────────────────────────────────────────────────── */
+
+.alu-mapa__topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.alu-mapa__topo p {
+  flex: 1;
+}
+
+.alu-mapa__bloco {
+  margin-top: 14px;
+}
+
+/* `auto-fit`, e não três colunas fixas.
+   
+   A taxonomia real não é uniforme: em Matemática a maioria dos blocos do
+   edital tem UM tópico só — "Trigonometria" é bloco e é tópico —, enquanto
+   "Álgebra e Funções" tem três. Com três colunas cravadas, o bloco de um item
+   virava um fragmento de um terço com duas colunas vazias ao lado, e a tela
+   parecia quebrada quando na verdade estava mostrando a estrutura do edital.
+   Com `auto-fit` o item sozinho ocupa a linha e o bloco de três se divide. */
+.alu-mapa__grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.alu-mapa__celula {
+  min-height: 64px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--alu-magnitude);
+}
+
+/* ⚠️ O vazio é CONTORNO TRACEJADO, e não um tom pálido: pálido se confunde com
+   "caiu pouco", e "nunca caiu" é outra categoria de informação. */
+.alu-mapa__celula.is-vazia {
+  background: transparent;
+  border: 1px dashed var(--alu-borda);
+  color: var(--alu-texto-2);
+}
+
+.alu-mapa__legenda {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  font-size: 12px;
+  color: var(--alu-texto-2);
+}
+
+.alu-mapa__legenda-vazio,
+.alu-mapa__legenda-escala {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alu-mapa__legenda-escala {
+  margin-left: auto;
+}
+
+.alu-mapa__amostra {
+  width: 22px;
+  height: 10px;
+  flex: none;
+}
+
+.alu-mapa__amostra.is-vazia {
+  width: 26px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px dashed var(--alu-borda);
+}
+
+/* ─── A FICHA DO ASSUNTO ──────────────────────────────────────────────── */
+
+.alu-ficha {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.alu-ficha__navegacao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.alu-ficha__seta {
+  width: var(--alu-toque);
+  height: var(--alu-toque);
+  flex: none;
+  border-radius: 12px;
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-magnitude);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.alu-ficha__identidade {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.alu-ficha__nome {
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.alu-ficha__numeros {
+  display: flex;
+  gap: 10px;
+}
+
+.alu-ficha__numero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+}
+
+.alu-ficha__numero .alu-magnitude {
+  font-size: 34px;
+}
+
+/* O "de 18" acompanha o "3º" na mesma linha, mas em corpo de texto: o número
+   grande é a posição, não o tamanho do ranking. */
+.alu-ficha__de {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--alu-texto-2);
+  letter-spacing: 0;
+}
+
+.alu-ficha__cabeca {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.alu-ficha__eixos {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.alu-ficha__eixos .alu-recorte__opcao {
+  flex: 1;
+  min-width: 100px;
+  border-radius: var(--alu-raio-pilula);
+}
+
+.alu-ficha__nota,
+.alu-ficha__frase {
+  font-size: 15px;
+  line-height: 1.5;
+  text-wrap: pretty;
+  margin: 0;
+}
+
+.alu-ficha__nota {
+  font-size: 12px;
+  color: var(--alu-texto-2);
+  margin-top: 12px;
+}
+
+.alu-ficha__frase {
+  color: var(--alu-magnitude);
+}
+
+.alu-ficha__secos {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+}
+
+.alu-ficha__seco {
+  flex: 1;
+  border-top: 1px solid var(--alu-borda);
+  padding-top: 12px;
+}
+
+.alu-ficha__seco dd {
+  margin: 7px 0 0;
+  font-size: 24px;
+}
+
+/* A declaração de série ausente. Traço, e não preenchimento: é aviso, não
+   alarme — `--alu-alerta` é reservado para a distância do corte. */
+.alu-declaracao {
+  border: 1px solid var(--alu-borda);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.alu-declaracao p {
+  flex: 1;
+  min-width: 160px;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* ─── A SÉRIE ANUAL (o gráfico da ficha) ──────────────────────────────── */
+
+.alu-serie {
+  margin-top: 12px;
+}
+
+/* O eixo Y fica FORA do trilho: dentro dele, "0%" e "8%" saíam da tela junto
+   com os anos antigos, e um gráfico sem escala visível não se lê. */
+.alu-serie__quadro {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.alu-serie__eixo {
+  flex: none;
+}
+
+/* ⚠️ ROLA DENTRO DE SI, e o corpo da página nunca rola na horizontal. Cada ano
+   é uma coluna de 44px porque a coluna É o alvo de toque — trinta anos passam
+   de mil pixels, e é esse o preço de um alvo que o dedo alcança. */
+.alu-serie__trilho {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+
+.alu-serie__svg {
+  display: block;
+  width: 100%;
+}
+
+.alu-serie__coluna {
+  cursor: pointer;
+}
+
+.alu-serie__coluna:hover {
+  fill: color-mix(in srgb, var(--alu-dado) 8%, transparent);
+}
+
+.alu-serie__coluna:focus-visible {
+  outline: 2px solid var(--alu-dado-claro);
+  outline-offset: -2px;
+}
+
+/* A frase do período descoberto: fora do SVG de propósito, para não rolar
+   junto com o eixo. */
+.alu-serie__lacuna {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+  margin: 10px 0 0;
+  text-wrap: pretty;
+}
+
+.alu-serie__legenda {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--alu-texto-2);
+}
+
+.alu-serie__legenda li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* O topo do eixo em palavras, para leitor de tela: o número está no SVG, e o
+   `aria-label` do gráfico não repete a escala. */
+.alu-serie__teto-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ─── MEU PROGRESSO ───────────────────────────────────────────────────── */
+
+.alu-prog-vazio {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.alu-prog-vazio__titulo {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.alu-prog-gesto {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alu-prog-gesto__linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* A amostra do botão real, inerte: ensina a FORMA que o aluno vai procurar no
+   pé do cartão. Não é tocável de propósito — tocar aqui não faria nada, e um
+   botão morto ensina errado. */
+.alu-prog-gesto__botao {
+  min-height: var(--alu-toque);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--alu-borda);
+  color: var(--alu-magnitude);
+  font-size: 13px;
+  flex: none;
+}
+
+.alu-prog-gesto__linha p {
+  flex: 1;
+  min-width: 160px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--alu-texto-2);
+  margin: 0;
+}
+
+.alu-prog-gesto__nota {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+  border-top: 1px solid var(--alu-borda);
+  padding-top: 12px;
+  margin: 0;
+}
+
+.alu-prog-topo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alu-prog-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.alu-prog-total__feitas {
+  font-size: 56px;
+}
+
+.alu-prog-total__de {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--alu-texto-2);
+  letter-spacing: -0.02em;
+}
+
+.alu-prog-aviso,
+.alu-prog-cobertura {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.alu-prog-secao {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.alu-prog-materias {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.alu-prog-materias .alu-recorte__opcao {
+  flex: 1;
+  min-width: 96px;
+}
+
+.alu-prog-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.alu-prog-item {
+  border-top: 1px solid var(--alu-borda);
+  padding: 13px 0;
+}
+
+.alu-prog-item__elo {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.alu-prog-item__cabeca {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.alu-prog-item__nome {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.alu-prog-item__par {
+  font-size: 13px;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.alu-prog-item__nota {
+  font-size: 12px;
+  color: var(--alu-texto-2);
+  margin: 8px 0 0;
+}
+
+/* A barra tem CONTORNO, e não só preenchimento: com 0 de 842 o preenchimento
+   some, e sem o contorno não sobraria nada dizendo que a barra existe. */
+.alu-prog-barra {
+  height: 8px;
+  border: 1px solid var(--alu-borda);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 9px;
+}
+
+.alu-prog-barra__preenchimento {
+  height: 100%;
+  background: var(--alu-dado);
+}
+
+/* ── A grade matéria × ano ─────────────────────────────────────────────── */
+
+.alu-prog-grade__trilho {
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+
+.alu-prog-grade {
+  border-collapse: separate;
+  border-spacing: 5px;
+}
+
+.alu-prog-grade th {
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--alu-texto-2);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  padding: 0;
+}
+
+.alu-prog-grade th[scope='row'] {
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  padding-right: 6px;
+}
+
+.alu-prog-grade td {
+  padding: 0;
+  width: 22px;
+  height: 22px;
+}
+
+.alu-prog-grade__alvo {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+
+/* Célula tocada mas em zero: contorno, não preenchimento pálido. O vazio é o
+   dado — é o ano que o aluno nunca abriu. */
+.alu-prog-grade__alvo.is-intocada {
+  background: transparent;
+  border-color: var(--alu-borda);
+}
+
+.alu-prog-grade__alvo:focus-visible {
+  outline: 2px solid var(--alu-dado-claro);
+  outline-offset: 1px;
+}
+
+/* Sem prova daquela matéria naquele ano: nada. Buraco de acervo não é buraco
+   de estudo, e não pode parecer um. */
+.alu-prog-grade__vazia {
+  background: transparent;
+}
+
+/* ─── A FOLHA DA PÁGINA INTEIRA ───────────────────────────────────────── */
+
+.alu-onb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.alu-onb__desenho {
+  width: 100%;
+  max-width: 250px;
+  height: auto;
+}
+
+.alu-onb__titulo {
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  text-align: center;
+  margin: 0;
+}
+
+.alu-onb__texto {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--alu-texto-2);
+  text-align: center;
+  text-wrap: pretty;
+  margin: 0;
+}
+
+/* ─── DESKTOP ─────────────────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  /* Os três campos lado a lado: a comparação entre eles é o ponto da tela, e a
+     coluna de 640px comporta três cartões de 200px. */
+  .alu-campos {
+    flex-direction: row;
+    gap: 18px;
+  }
+
+  .alu-campo-cartao {
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+    min-height: 250px;
+    padding: 24px;
+  }
+
+  .alu-campo-cartao__icone {
+    width: 84px;
+    height: 84px;
+    margin-top: auto;
+    align-self: flex-end;
+  }
+
+  .alu-mapa__grade {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .alu-ranking__nome {
+    width: 200px;
+  }
+
+  .alu-ficha__identidade {
+    text-align: left;
   }
 }

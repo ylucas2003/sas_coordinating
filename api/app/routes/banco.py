@@ -28,10 +28,11 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from supabase import Client
 
 from ..auth import get_current_aluno, get_current_user
-from ..banco import consultas, estatisticas, listas
+from ..banco import consultas, estatisticas, listas, progresso
 from ..schemas.banco import (
     AtualizarEstudo,
     AtualizarLista,
+    ColecaoBanco,
     CriarLista,
     DonoLista,
     EstatisticasBanco,
@@ -40,6 +41,7 @@ from ..schemas.banco import (
     ListaResumo,
     MateriaBanco,
     PaginaQuestoes,
+    ProgressoDoAluno,
     QuestaoVestibular,
     TaxonomiaMateria,
     VestibularBanco,
@@ -134,6 +136,13 @@ async def listar_questoes(
             f"'{consultas.TOPICO_SEM_CLASSIFICACAO}' traz as que ninguém classificou"
         ),
     ),
+    colecao: ColecaoBanco | None = Query(
+        None,
+        description=(
+            "'recentes' (recorte da questão) ou 'arquivo' (página inteira do "
+            "caderno). Omitida, traz o acervo inteiro"
+        ),
+    ),
     busca: str | None = Query(None, description="texto no enunciado"),
     pagina: int = Query(1, ge=1, description="1-based, como a URL mostra"),
     # O teto é o do domínio, não uma cópia: duplicar o número aqui o deixaria
@@ -174,6 +183,7 @@ async def listar_questoes(
             ano=ano,
             fase=fase,
             topico=topico,
+            colecao=colecao,
             busca=busca,
             pagina=pagina,
             por_pagina=por_pagina,
@@ -208,13 +218,22 @@ async def obter_estatisticas(
     # Física com "1.1" de Química e o número não significaria nada.
     materia: MateriaBanco = Query(...),
     vestibular: VestibularBanco | None = Query(None, description="omitido, soma ITA e IME"),
+    fase: int | None = Query(None, ge=1, le=2, description="omitida, soma as duas"),
 ) -> EstatisticasBanco:
     """Recorrência de cada tópico do edital, por ano, por fase e por vestibular.
 
     Agrega sobre a tabela inteira e **nunca pagina** — ver o docstring de
     `listar_questoes` e docs/22 §2.2.
+
+    `vestibular` e `fase` são parâmetro, e não peneira no front, porque
+    estreitam numerador e denominador juntos — ver o docstring de
+    `estatisticas.recorrencia`. Para as duas séries da ficha do assunto, o
+    front chama duas vezes (`vestibular=ITA` e `vestibular=IME`) e usa o
+    `porAno` de cada: `porVestibular` é agregado e não tem quebra por ano.
+    ⚠️ As duas chamadas falham de forma independente, e a série ausente por
+    erro tem de ser DECLARADA na tela — nunca desenhada como zero.
     """
-    return estatisticas.recorrencia(get_supabase(), materia, vestibular)
+    return estatisticas.recorrencia(get_supabase(), materia, vestibular, fase)
 
 
 # ─── Listas: têm dono, e o dono é o da sessão (docs/22 §P5) ──────────────
@@ -327,14 +346,35 @@ async def listar_estudo(user: dict = Depends(get_current_aluno)) -> list[EstudoQ
     return listas.listar_estudo(get_supabase(), user["aluno_id"])
 
 
+@router.get("/progresso", response_model=ProgressoDoAluno)
+async def obter_progresso(user: dict = Depends(get_current_aluno)) -> ProgressoDoAluno:
+    """Quanto do acervo este aluno marcou como feito, em três recortes.
+
+    `get_current_aluno` e não `get_current_user`: é dado pessoal de menor de
+    idade, e o `aluno_id` sai do token — nunca da URL nem do corpo. Não há
+    parâmetro de aluno nesta rota de propósito; se um dia houver uma visão da
+    coordenação, ela é outra rota, com outra autorização.
+
+    Agrega sobre o acervo inteiro e **nunca pagina** — ver o docstring de
+    `banco/progresso.py`.
+    """
+    return progresso.progresso_do_aluno(get_supabase(), user["aluno_id"])
+
+
 @router.put("/estudo/{questao_id}", response_model=EstudoQuestao)
 async def atualizar_estudo(
     body: AtualizarEstudo,
     questao_id: str = Path(...),
     user: dict = Depends(get_current_aluno),
 ) -> EstudoQuestao:
-    """Marca resolvida e/ou anota. Campo ausente não é mexido; `anotacao: ""`
-    limpa a anotação (`listas.atualizar_estudo`)."""
+    """Marca resolvida, anota e/ou grava a resposta do treino.
+
+    Campo ausente não é mexido; `""` em `anotacao` ou `alternativaEscolhida`
+    limpa aquele campo (`listas.atualizar_estudo`).
+
+    `acertou` sai do servidor, comparando a letra com o gabarito do banco — não
+    existe no corpo de propósito (0042).
+    """
     try:
         return listas.atualizar_estudo(
             get_supabase(),
@@ -342,6 +382,7 @@ async def atualizar_estudo(
             questao_id,
             resolvida=body.resolvida,
             anotacao=body.anotacao,
+            alternativa_escolhida=body.alternativaEscolhida,
         )
     except ValueError as exc:
         # Aqui o 404 é o certo, ao contrário das rotas de lista: a questão é o

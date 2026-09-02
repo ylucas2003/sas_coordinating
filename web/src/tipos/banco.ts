@@ -13,6 +13,16 @@ export type MateriaBanco = 'Física' | 'Química' | 'Matemática';
 export type Confianca = 'alta' | 'media' | 'baixa';
 export type DonoLista = 'aluno' | 'coordenacao';
 
+/**
+ * As duas coleções do acervo, em vocabulário de produto.
+ *
+ * Quem as separa no banco é `extraido_por` (0031/0033), mas nem o aluno nem a
+ * URL precisam do nome da coluna: 'recentes' é o recorte fino da questão, e
+ * 'arquivo' é a página inteira do caderno. A tradução mora num lugar só, na
+ * camada de consulta do backend.
+ */
+export type ColecaoBanco = 'recentes' | 'arquivo';
+
 // ─── Taxonomia ───────────────────────────────────────────────────────────
 
 export interface TopicoTaxonomia {
@@ -118,6 +128,7 @@ export interface FiltrosBanco {
   fase?: number;
   /** Código do tópico, sempre dentro de uma matéria (ver `TopicoTaxonomia`). */
   topico?: string;
+  colecao?: ColecaoBanco;
   /** Busca textual sobre o enunciado — não é semântica (docs/22 §8). */
   busca?: string;
   pagina?: number;
@@ -144,9 +155,72 @@ export interface RecorrenciaTopico {
 export interface EstatisticasBanco {
   materia: MateriaBanco;
   topicos: RecorrenciaTopico[];
+  /**
+   * O DOMÍNIO da série temporal, e não uma lista decorativa.
+   *
+   * ⚠️ Preencha a série contra ela, nunca contra as chaves de `porAno`:
+   * `porAno` só traz o ano com ocorrência, e plotar só essas chaves comprime o
+   * tempo — o buraco some, e o buraco é a informação. `dominio/banco.ts`
+   * (`seriesPorAno`) é quem faz isso.
+   *
+   * ⚠️ E ela COMEÇA onde há acervo, nunca num ano cravado no código: pedindo
+   * `vestibular=ITA` o primeiro ano é 2008, porque o acervo do ITA começa ali
+   * (migration 0031). Desenhar o ITA em zero antes disso AFIRMA que o assunto
+   * não caía no ITA, quando a verdade é que não temos a prova.
+   */
   anos: number[];
+  /**
+   * Quantas questões a banca cobrou em cada ano DESTE recorte — o denominador
+   * de "% da prova".
+   *
+   * ⚠️ Não tente derivá-lo somando `total` dos tópicos: questão mista soma nos
+   * dois tópicos de propósito (docs/22 §1.5), então a soma passa do total e o
+   * percentual sairia menor que a verdade.
+   */
+  questoesPorAno: Record<number, number>;
   totalQuestoes: number;
   semClassificacao: number;
+}
+
+// ─── Progresso do aluno no acervo ────────────────────────────────────────
+//
+// ⚠️ TODO NÚMERO VEM COM O SEU PAR. "412 questões" não é progresso; "412 de
+// 2.693" é. E "feitas" é `resolvida`, que é AUTO-DECLARADO — a tela pode dizer
+// "o que você marcou como feito", nunca "seu domínio" nem "seu acerto".
+
+export interface ParDeProgresso {
+  feitas: number;
+  total: number;
+}
+
+export interface ProgressoPorMateria extends ParDeProgresso {
+  materia: MateriaBanco;
+}
+
+export interface ProgressoPorAssunto extends ParDeProgresso {
+  materia: MateriaBanco;
+  /** 'sem-assunto' na linha das órfãs — vale como filtro em `/banco/questoes`. */
+  codigo: string;
+  nome: string;
+  blocoNome: string;
+}
+
+export interface ProgressoPorAno extends ParDeProgresso {
+  materia: MateriaBanco;
+  ano: number;
+}
+
+export interface ProgressoDoAluno extends ParDeProgresso {
+  porMateria: ProgressoPorMateria[];
+  porAssunto: ProgressoPorAssunto[];
+  /**
+   * Só os pares (matéria, ano) que EXISTEM no acervo. Par ausente é "não houve
+   * prova dessa matéria nesse ano" — diferente de "houve e você não fez
+   * nenhuma", e a grade tem de desenhar os dois casos diferente. Ler ausência
+   * como zero faz o aluno confundir buraco de acervo com buraco de estudo.
+   */
+  porAno: ProgressoPorAno[];
+  anos: number[];
 }
 
 // ─── Listas ──────────────────────────────────────────────────────────────
@@ -181,10 +255,29 @@ export interface EstudoQuestao {
   questaoId: string;
   resolvida: boolean;
   anotacao: string | null;
+  /** A letra marcada no treino (0042). `null` = pulou, ou nunca respondeu. */
+  alternativaEscolhida: string | null;
+  /**
+   * ⚠️ `null` é "não dá para dizer", NUNCA "errou": questão dissertativa ou
+   * sem gabarito importado não tem como ser conferida. Desenhar `null` como
+   * erro dá ao aluno o conselho de estudo oposto ao certo.
+   *
+   * ⚠️ E não é `resolvida`. `resolvida` é auto-declarado ("eu fiz esta") e
+   * pode existir sem resposta nenhuma; `acertou` foi conferido contra o
+   * gabarito. As duas não se somam nem se tira média entre elas.
+   */
+  acertou: boolean | null;
 }
 
 /** Campo omitido = não mexe. É `PUT` parcial de propósito (docs/22 §P6). */
 export interface RemendoEstudo {
   resolvida?: boolean;
   anotacao?: string | null;
+  /**
+   * A letra do treino; `''` limpa a resposta.
+   *
+   * ⚠️ `acertou` não entra aqui de propósito — quem confere é o servidor,
+   * contra o gabarito do banco (0042).
+   */
+  alternativaEscolhida?: string | null;
 }

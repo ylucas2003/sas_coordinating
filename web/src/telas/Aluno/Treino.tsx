@@ -6,17 +6,20 @@ import { Markdown } from '../../componentes/ui/Markdown';
 import {
   RAZAO_DA_FILA,
   ordenarFilaDeTreino,
-  useAssuntos,
   useLista,
   useMeusErros,
   useMissaoDoDia,
+  useAtualizarEstudo,
   useQuestoesDoBanco,
+  useTaxonomia,
 } from '../../dados/aluno';
 import type {
+  BlocoTaxonomia,
   FiltrosBanco,
   MateriaBanco,
   QuestaoVestibular,
   RespostaNoTreino,
+  TaxonomiaMateria,
 } from '../../dados/aluno';
 import { ehDissertativa, temGabarito } from '../../dominio/banco';
 import { Icone } from './pecas/Icone';
@@ -103,7 +106,7 @@ export function Treino() {
   // ── De onde vem o recorte ─────────────────────────────────────────────
   const missao = useMissaoDoDia();
   const erros = useMeusErros();
-  const assuntos = useAssuntos();
+  const taxonomia = useTaxonomia();
   const lista = useLista(listaId);
 
   // `/treino/assunto/7.2` não diz a matéria, e TÓPICO EXIGE MATÉRIA: '1.1' é
@@ -113,8 +116,16 @@ export function Treino() {
   // `?materia=Física`, e — por último — a busca no catálogo de assuntos.
   const codigoDoAssunto = origem === 'assunto' ? (resto[resto.length - 1] ?? null) : null;
   const materiaDaUrl = materiaDoBanco(resto.length > 1 ? resto[0] : busca.get('materia'));
+  // A matéria de um código de tópico, procurada na taxonomia REAL do edital.
+  // Antes isto vinha do catálogo mockado de cinco assuntos, que só acertava
+  // para esses cinco: com os 65 tópicos de verdade, o link de assunto sem
+  // matéria passa a resolver sempre.
   const materiaDoCatalogo = materiaDoBanco(
-    assuntos.data?.find((a) => a.topicoCodigo === codigoDoAssunto)?.materia,
+    taxonomia.data?.find((arvore: TaxonomiaMateria) =>
+      arvore.blocos.some((bloco: BlocoTaxonomia) =>
+        bloco.topicos.some((topico) => topico.codigo === codigoDoAssunto),
+      ),
+    )?.materia,
   );
   const materiaDoAssunto = materiaDaUrl ?? materiaDoCatalogo;
 
@@ -205,6 +216,10 @@ export function Treino() {
   const [escolha, setEscolha] = useState<string | null>(null);
   const [conferido, setConferido] = useState(false);
   const [respostas, setRespostas] = useState<RespostaDaSessao[]>([]);
+  // A mesma mutação do cartão: `PUT /banco/estudo/{id}`. Um campo por vez, e
+  // campo ausente não é mexido — gravar a resposta não apaga a anotação nem a
+  // marca de resolvida.
+  const gravarResposta = useAtualizarEstudo();
 
   const questao = fila[indice];
   const total = fila.length;
@@ -246,7 +261,24 @@ export function Treino() {
         assunto: questao.topicos[0]?.nome ?? null,
       },
     ]);
-  }, [questao, escolha, conferido]);
+
+    // A resposta sobrevive à sessão (migration 0042). O `acertou` gravado é o
+    // do SERVIDOR, conferido contra o gabarito do banco — o cálculo daqui em
+    // cima serve só ao veredito imediato da tela.
+    //
+    // Sem `await` e sem bloquear o veredito: a conferência já está feita na
+    // tela, e uma rede lenta não pode segurar a resposta na frente do aluno. Se
+    // a gravação falhar, o que se perde é a estatística de estudo — não a
+    // sessão, que continua no `useState`.
+    //
+    // ⚠️ Isto NÃO marca a questão como resolvida. `resolvida` é auto-declarado
+    // e o aluno é quem dá a marca, no pé do cartão; encadear as duas apagaria a
+    // diferença que "Meu progresso" é obrigado a mostrar.
+    gravarResposta.mutate({
+      questaoId: questao.id,
+      remendo: { alternativaEscolhida: escolha },
+    });
+  }, [questao, escolha, conferido, gravarResposta]);
 
   const caminhoDaSessao = `/treino/${origem}${resto.length ? `/${resto.join('/')}` : ''}`;
 
@@ -277,7 +309,7 @@ export function Treino() {
   // eterno em vez de dizer que falta a lista.
   const semRecorte = origem === 'lista' ? !listaId : filtros === null;
   const carregando = semRecorte
-    ? origem !== 'lista' && (missao.isPending || erros.isPending || assuntos.isPending)
+    ? origem !== 'lista' && (missao.isPending || erros.isPending || taxonomia.isPending)
     : origem === 'lista'
       ? lista.isPending
       : pagina.isPending;
@@ -436,11 +468,6 @@ export function Treino() {
               // quem usa leitor de tela aperta "Responder" e não ouve nada.
               aria-live="polite"
             >
-              {/* A resposta do aluno não tem onde ser gravada: `questao_estudo_aluno`
-                  só tem `resolvida` e `anotacao`, e `alternativa_escolhida` +
-                  `acertou` são a migration que docs/28 §3 pede. Ela vive no
-                  `useState` desta tela e morre com a sessão — a tarja diz isso. */}
-              <TarjaFonte chave="respostaNoTreino" />
               <p className="alu-treino__veredito-titulo">
                 {acertou ? 'Você acertou' : `A resposta era ${gabarito ?? '—'}`}
               </p>

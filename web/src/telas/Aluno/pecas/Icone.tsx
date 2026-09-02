@@ -21,6 +21,9 @@ const CAMINHOS = {
     'M9 4h6v3H9z M8 4H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1h-2 M9 12h6 M9 16h4',
   bandeira: 'M5 21V4 M5 4h11l-2 4 2 4H5',
   busca: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.3-4.3',
+  // Lupa com o "+" dentro: é "ver maior", e não "procurar" — o mesmo desenho
+  // sem o mais já significa outra coisa dois ícones acima.
+  ampliar: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M16.5 16.5L21 21 M11 8v6 M8 11h6',
   filtro: 'M3 5h18 M6 12h12 M10 19h4',
   voltar: 'M19 12H5 M12 19l-7-7 7-7',
   avancar: 'M5 12h14 M12 5l7 7-7 7',

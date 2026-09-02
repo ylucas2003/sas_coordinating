@@ -27,6 +27,8 @@ export type {
 } from '../../tipos/aluno';
 
 export type {
+  BlocoTaxonomia,
+  ColecaoBanco,
   Confianca,
   EstatisticasBanco,
   EstudoQuestao,
@@ -35,6 +37,11 @@ export type {
   ListaResumo,
   MateriaBanco,
   PaginaQuestoes,
+  ParDeProgresso,
+  ProgressoDoAluno,
+  ProgressoPorAno,
+  ProgressoPorAssunto,
+  ProgressoPorMateria,
   QuestaoVestibular,
   RecorrenciaTopico,
   TaxonomiaMateria,

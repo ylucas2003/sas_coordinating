@@ -7,7 +7,9 @@ import { useLiga, useProximoSimulado, useSequencia, useXp } from '../../dados/al
 import * as api from '../../servicos/api';
 import * as sessao from '../../servicos/sessao';
 import { Estudar } from './Estudar';
-import { EstudarAssuntos } from './EstudarAssuntos';
+import { EstudarBanco } from './EstudarBanco';
+import { EstudarEstatisticas } from './EstudarEstatisticas';
+import { EstudarProgresso } from './EstudarProgresso';
 import { EstudarLista } from './EstudarLista';
 import { EstudarListas } from './EstudarListas';
 import { Hoje } from './Hoje';
@@ -130,7 +132,16 @@ export function CascoAluno() {
           <Routes>
             <Route path="/" element={<Hoje nome={primeiro} />} />
             <Route path="/estudar" element={<Estudar />} />
-            <Route path="/estudar/assuntos" element={<EstudarAssuntos />} />
+            <Route path="/estudar/banco" element={<EstudarBanco />} />
+            <Route path="/estudar/estatisticas" element={<EstudarEstatisticas />} />
+            <Route path="/estudar/progresso" element={<EstudarProgresso />} />
+            {/* A antiga "O que mais cai" rodava em mock e mostrava "você acerta
+                X%" — a métrica que o desenho de 02/09 tirou de Estatísticas. A
+                tela saiu; o caminho fica, porque pode estar em link salvo. */}
+            <Route
+              path="/estudar/assuntos"
+              element={<Navigate to="/estudar/estatisticas" replace />}
+            />
             <Route path="/estudar/listas" element={<EstudarListas />} />
             <Route path="/estudar/listas/:id" element={<EstudarLista />} />
             <Route path="/provas" element={<Provas />} />
