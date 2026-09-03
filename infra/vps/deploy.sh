@@ -146,27 +146,44 @@ resumo_e_confirmacao() {
 # git pull no bloco remoto é trivial.
 #
 # NUNCA envia .env: os segredos de produção são gerados no servidor e ficam só
-# lá. Como estão em --exclude, o --delete também não os toca.
+# lá. Como está em --exclude, o --delete também não o toca.
+#
+# ⚠️ A LISTA DE EXCLUDES ERA ESCRITA À MÃO, E NÃO CONHECIA O .gitignore.
+#
+# O efeito não era desperdício: era vazamento. `.auditoria-mobile/` está no
+# .gitignore desde sempre e continha capturas do painel de um ALUNO REAL — nome,
+# nota, "37º de 179", percentil por matéria. Como não estava em nenhum
+# --exclude, ia para o VPS a cada deploy. E como `git status --porcelain` não
+# lista arquivo ignorado, a tela de confirmação (`resumo_e_confirmacao`) nunca
+# mencionou isso: o operador confirmava sem ter como saber.
+#
+# `--filter=':- .gitignore'` faz o rsync herdar a régua que o repositório já
+# mantém, e fecha a classe inteira do problema em vez de tapar um buraco por
+# vez. De quebra, o envio caiu de 4.870 arquivos / 1,63 GB para 842 / 36,7 MB —
+# eram 929 MB de PDF original e 570 MB de provas resolvidas, todos gitignorados
+# e nenhum deles usado em produção.
+#
+# Os quatro --exclude que SOBRAM não são redundância: nenhum deles está no
+# .gitignore, e cada um tem um motivo próprio:
+#   .git/              versionado por definição; o servidor não precisa do histórico
+#   /dados/            é o storage de produção, que mora NO servidor — mandar o
+#                      local por cima apagaria upload de verdade
+#   .env               segredo gerado no servidor; em --exclude também para o
+#                      --delete não o remover
+#   /sas-rea-do-aluno/ bundle de handoff de design (29 MB de PNG), não é fonte
+CAMINHOS_QUE_O_GITIGNORE_NAO_COBRE=(
+    --exclude '.git/'
+    --exclude '/dados/'
+    --exclude '.env'
+    --exclude '.DS_Store'
+    --exclude '/sas-rea-do-aluno/'
+)
+
 enviar_codigo() {
     log "Enviando código (rsync)"
     rsync -az --delete --stats \
-        --exclude '.git/' \
-        --exclude '.venv/' \
-        --exclude '__pycache__/' \
-        --exclude '*.pyc' \
-        --exclude '.pytest_cache/' \
-        --exclude '.mypy_cache/' \
-        --exclude '.dados/' \
-        --exclude '/dados/' \
-        --exclude '*.log' \
-        --exclude '/web/dist/' \
-        --exclude 'cdk.out/' \
-        --exclude 'node_modules/' \
-        --exclude 'dist/' \
-        --exclude '.DS_Store' \
-        --exclude '.env' \
-        --exclude 'grading_prototype/dados_exemplo/' \
-        --exclude 'grading_prototype/resultados/' \
+        --filter=':- .gitignore' \
+        "${CAMINHOS_QUE_O_GITIGNORE_NAO_COBRE[@]}" \
         "$RAIZ/" "$DESTINO:/opt/sas/" | tail -4
 }
 
