@@ -86,6 +86,13 @@ class RecorteDaTela(BaseModel):
     turmaIds: list[Annotated[str, Field(max_length=64, pattern=_ID)]] = Field(
         default_factory=list, max_length=100
     )
+    # O recorte de ano e vestibular que estreita a fileira de ciclos do Painel
+    # (docs/32 §3.2). Fechados como os demais: inteiro com faixa e Literal, e
+    # nunca string livre — o preâmbulo entra em `role=system`.
+    anos: list[Annotated[int, Field(ge=2000, le=2100)]] = Field(
+        default_factory=list, max_length=20
+    )
+    vestibulares: list[Literal["ITA", "IME"]] = Field(default_factory=list, max_length=2)
 
 
 class ContextoDaTela(BaseModel):
@@ -165,6 +172,13 @@ def preambulo(cliente, ctx: ContextoDaTela | None) -> str | None:
             recorte.append(f"{len(r.sedeIds)} sede(s) filtrada(s)")
         if r.turmaIds:
             recorte.append(f"{len(r.turmaIds)} turma(s) filtrada(s)")
+        # Só entra quando o coordenador de fato estreitou: com tudo marcado — o
+        # estado inicial — dizer "3 anos, 2 vestibulares" gastaria token para
+        # descrever a ausência de recorte.
+        if r.anos and len(r.anos) == 1:
+            recorte.append(f"ano letivo {r.anos[0]}")
+        if r.vestibulares and len(r.vestibulares) == 1:
+            recorte.append(f"vestibular {r.vestibulares[0]}")
         if recorte:
             linhas.append(f"- Recorte em tela: {', '.join(recorte)}")
 

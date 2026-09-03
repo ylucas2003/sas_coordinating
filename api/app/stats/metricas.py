@@ -23,6 +23,7 @@ from supabase import Client
 from . import criterios
 from .utils import (
     como_float,
+    filtro_nota_valida,
     detectar_bimodalidade,
     histograma_bins,
     kurtosis,
@@ -214,11 +215,16 @@ def _carregar_notas(
 
     Retorna (presentes_com_dimensoes, n_ausentes).
     """
+    # A view carrega `computavel` e `nota_confiavel` desde a 0043 justamente
+     # para esta leitura poder filtrar como as outras — antes dela, média por
+     # turma e média por aluno sairiam de populações diferentes.
     resp_pres = (
-        cliente.table("v_nota_dimensoes")
-        .select("aluno_id, pontuacao, turma_id, sede_id")
-        .eq("simulado_id", simulado_id)
-        .eq("presente", True)
+        filtro_nota_valida(
+            cliente.table("v_nota_dimensoes")
+            .select("aluno_id, pontuacao, turma_id, sede_id")
+            .eq("simulado_id", simulado_id)
+        )
+        .eq("nota_confiavel", True)
         .execute()
     )
     presentes: list[dict] = []

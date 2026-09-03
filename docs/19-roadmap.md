@@ -357,20 +357,31 @@ O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já te
 
 **Pré-voo:** a decisão do WhatsApp ([§4](#4--decisões-em-aberto)). Sem ela, P1 se desenha errado.
 
-### Sprint 4 · Dado e leitura — *5 partes*
+### Sprint 4 · Dado e leitura — *4 partes*
 
-| Parte | O quê | Origem |
+> **Estado: ESCRITA, fora de produção** *(03/09)*. Plano, medição contra
+> produção e decisões em [32-plano-sprint-4.md](32-plano-sprint-4.md); o estado
+> parte a parte está no §5.1 de lá. Localmente verdes: **358 testes** na API e
+> **299** no front, com a `0043` aplicada, revertida e reaplicada.
+
+| Parte | O quê | Estado |
 |---|---|---|
-| P1 | B.3 Zero × ausência nas estatísticas | docs/10 |
-| P2 | B.4 Precedência entre ingest de planilha e sync do Canvas | docs/10 |
-| P3 | C.2 Split ano / vestibular / ciclo no Painel | docs/10 |
-| P4 | C.3 Range de período em Ciclos | docs/10 |
-| P6 | Envio em lote ao Canvas — "enviar N pendências do ciclo" (C5) | Sprint 2, Onda 3 |
+| P1 | B.3 Zero × ausência — `nota.computavel` derivada de evidência direta | ✅ escrita (Problema A). ⬜ Problema B — as oito provas de 2023 — espera o aval da coordenação |
+| P2 | B.4 Precedência planilha × Canvas | ✅ escrita — virou **aposentar a planilha**: zero uploads em produção, em toda a vida do sistema |
+| P3 | C.2 Split ano / vestibular / ciclo no Painel | ✅ escrita |
+| ~~P4~~ | ~~C.3 Range de período em Ciclos~~ | ✅ **já estava feito** — `RangeDatas` + `intersectaPeriodo`. Saiu do sprint |
+| P6 | Envio em lote ao Canvas (C5) | ✅ escrita — e fechou um buraco maior: `enviarCicloAoCanvas` existia na API e **nenhuma linha do front o chamava** |
 
 > A antiga **P5** (unificar `thresholds.py` com `criterios.py`) **saiu daqui**:
 > foi puxada para a Sprint 5 em 30/08, porque os gráficos em camadas dependem
 > dela para não desenhar três leituras do mesmo corte errado. A numeração das
 > outras não mudou, para não invalidar referência de fora.
+
+> ⚠️ **Duas coisas mudam de número quando isto for para produção**, e valem
+> aviso antes: o Problema A tira 122 células da conta (efeito pequeno, e
+> individual), e o Problema B — se aprovado — move a média de oito provas de
+> 2023 de ~1,1 para ~3,8, o que é grande e visível em qualquer comparação
+> histórica. Segunda mudança seguida na mesma tela, depois da régua da Sprint 5.
 
 ### Sprint 5 · Assistente com contexto, régua do coordenador e gráficos — *5 partes*
 
@@ -463,14 +474,22 @@ Do mesmo brainstorming, lado coordenação ([25](25-leitura-da-coordenacao.md)).
 Quase tudo que o áudio pediu **já estava planejado** (C.2, C.3, D.1, D.2–D.4);
 o que é novo é pequeno e não depende de nada:
 
-| O quê | Tamanho |
-|---|---|
-| Faixa de filtros colapsando quando passa de uma linha, com resumo do ativo, memorizado por tela | P |
-| Busca padronizada como grupo da `BarraFiltros` nas sete telas — hoje existe em três lugares diferentes e falta em quatro telas | P |
-| `/banco` adotar a `BarraFiltros` — nasceu com sidebar própria e reabriu a dívida que C.1 fechou | M |
-| Explicar na tela o que é "criar acesso de coordenação" — o modelo está certo, o produto é que não conta ([25 §3](25-leitura-da-coordenacao.md)) | P |
-| Cartão de decisão acima da tabela do Painel — "o que merece atenção hoje" | M |
-| Dossiê de ciclo como artefato (texto + gráfico + tabela), reusando o exportador do banco | M |
+> **Estado: ESCRITO, fora de produção** *(03/09)*. Plano, levantamento e estado
+> item a item em [33-plano-polimento-coordenacao.md](33-plano-polimento-coordenacao.md).
+> O levantamento achou **três coisas que mudaram o desenho da proposta**: a
+> busca global já existia na topbar, o cartão de decisão estava escrito e
+> desligado (`AlertCard` importado por ninguém, e o sino apontando para uma
+> âncora inexistente), e o `/banco` só podia adotar a faixa **depois** de ela
+> aprender a colapsar.
+
+| O quê | Tamanho | Estado |
+|---|---|---|
+| Faixa de filtros colapsando quando passa de uma linha, com resumo do ativo, memorizado por superfície | P | ✅ escrito |
+| Busca padronizada como grupo da `BarraFiltros` — são **oito** superfícies, não sete, e faltava em **cinco** | P | ✅ escrito |
+| `/banco` adotar a `BarraFiltros` — nasceu com sidebar própria e reabriu a dívida que C.1 fechou | M | ✅ escrito |
+| Explicar na tela o que é "criar acesso de coordenação" ([25 §3](25-leitura-da-coordenacao.md)) | P | ✅ escrito. O convite por e-mail segue travado na decisão de e-mail transacional |
+| Cartão de decisão acima da tabela do Painel — "o que merece atenção hoje" | M | ✅ escrito — era ligar o que já existia |
+| Dossiê de ciclo como artefato (texto + gráfico + tabela) | M | ✅ escrito, **com os gráficos** — nenhum dos dois exportadores sabia levar SVG |
 
 **Total à frente: 6 sprints, 34 partes**, mais o polimento avulso de 6 itens.
 

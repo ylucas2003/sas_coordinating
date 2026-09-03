@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 
-import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { normalizar } from '../../util/formato';
+import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import { SeloCanvasGravacao, SeloSituacao } from '../../componentes/ui/SeloGravacao';
 import { useTituloDaTela } from '../../componentes/layout/migalhas';
 import { usePainelGravacoes } from '../../hooks/consultas';
@@ -43,6 +45,7 @@ export function SincronizacaoAulas() {
   useTituloDaTela('Aulas · Canvas ↔ YouTube');
 
   const [cursos, setCursos] = useState<ReadonlySet<string>>(new Set());
+  const [busca, setBusca] = useState('');
   const [situacoes, setSituacoes] = useState<ReadonlySet<Situacao>>(new Set());
 
   // O hook liga e desliga o próprio polling a partir da resposta.
@@ -61,22 +64,49 @@ export function SincronizacaoAulas() {
   );
 
   const filtro = useMemo(() => ({ cursos, situacoes }), [cursos, situacoes]);
-  const filtradas = useMemo(() => aplicarFiltros(aulas, filtro), [aulas, filtro]);
+  const filtradas = useMemo(() => {
+    const q = normalizar(busca.trim());
+    const doRecorte = aplicarFiltros(aulas, filtro);
+    if (!q) return doRecorte;
+    return doRecorte.filter(
+      (a) => normalizar(a.titulo ?? '').includes(q) || normalizar(a.youtubeTitulo ?? '').includes(q),
+    );
+  }, [aulas, filtro, busca]);
   const contagens = useMemo(() => contarPorChip(aulas, filtro), [aulas, filtro]);
   const ativo = algumFiltroAtivo(filtro);
 
   return (
     <div className="tela">
       <BarraFiltros
-        algumAtivo={ativo}
+        tela="integracoes.aulas"
+        algumAtivo={ativo || busca.trim() !== ''}
         onLimpar={() => {
           setCursos(FILTRO_GRAVACOES_VAZIO.cursos);
           setSituacoes(FILTRO_GRAVACOES_VAZIO.situacoes);
+          setBusca('');
         }}
         grupos={[
           {
+            chave: 'busca',
+            rotulo: 'Aula',
+            resumo: resumirTexto(busca),
+            corpo: (
+              <Busca
+                valor={busca}
+                onChange={setBusca}
+                placeholder="Buscar aula…"
+                rotulo="Buscar aula pelo título"
+              />
+            ),
+          },
+          {
             chave: 'curso',
             rotulo: 'Curso',
+            resumo: resumirSelecao(
+              cursos,
+              cursosDisponiveis.map((c) => ({ valor: c.cursoId, label: c.nome })),
+              'curso', 'cursos',
+            ),
             corpo: (
               <Pills
                 opcoes={cursosDisponiveis.map((c) => ({
@@ -92,6 +122,11 @@ export function SincronizacaoAulas() {
           {
             chave: 'situacao',
             rotulo: 'Situação',
+            resumo: resumirSelecao(
+              situacoes,
+              SITUACOES.map((s) => ({ valor: s, label: ROTULO_SITUACAO[s] })),
+              'situação', 'situações',
+            ),
             corpo: (
               <Pills
                 opcoes={SITUACOES.map((s) => ({

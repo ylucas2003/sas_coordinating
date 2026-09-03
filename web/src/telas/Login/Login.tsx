@@ -37,7 +37,17 @@ export function Login() {
     cancelado: null,
     recusado: `O Canvas recusou o login: ${MOTIVO_CANVAS[motivo] ?? motivo}`,
     falhou: 'O Canvas não confirmou o login. Tente de novo, ou entre com matrícula e senha.',
-    'sem-conta': 'Sua conta do Canvas não está cadastrada no SAS. Procure a coordenação.',
+    // A recusa certa (o SAS decide quem entra), dita de um jeito que ensina o
+    // que fazer. A versão anterior — "Procure a coordenação" — mandava a
+    // pessoa embora sem dizer o que pedir (docs/33 §6).
+    //
+    // ⚠️ Sem ecoar o e-mail na mensagem, embora ele fosse o texto mais útil
+    // possível: ele viajaria na query string, e query string entra em
+    // histórico de navegador e em log de acesso do nginx.
+    'sem-conta':
+      'Sua conta do Canvas ainda não tem acesso ao SAS. Peça a um coordenador para criar seu '
+      + 'acesso usando o mesmo e-mail da sua conta do Canvas — o Canvas diz quem você é, mas o '
+      + 'acesso ao SAS é criado aqui dentro.',
   }[params.get('canvas') ?? ''] ?? null;
   const [modo, setModo] = useState<Modo>('aluno');
   const [formulario, setFormulario] = useState<Formulario>('login');

@@ -144,9 +144,12 @@ def trajetoria_aluno(cliente: Client, *, aluno_id: str, limite: int = 40) -> dic
         .select(
             "pontuacao, presente, simulado("
             "id, nome, rotulo_curto, data_aplicacao, anulado, e_agregado, "
-            "materia_id, nota_maxima, tipo, ciclo_id)"
+            "nota_confiavel, materia_id, nota_maxima, tipo, ciclo_id)"
         )
         .eq("aluno_id", aluno_id)
+        # Mesma régua da trajetória de /alunos: o zero sem resposta sai da
+        # série, a prova não confiável fica.
+        .eq("computavel", True)
         .execute()
     )
 

@@ -419,7 +419,9 @@ def upsert_respostas_questao_em_lote(
 ) -> int:
     """Upsert em lote de `questao_resposta_aluno` (PK aluno_id+questao_id).
 
-    Espera dicts com aluno_id, questao_id, alternativa_id (ou None) e correta.
+    Espera dicts com aluno_id, questao_id, alternativa_id (ou None), correta e
+    balde_sem_alternativa ("none" | "other" | None — qual balde sintético do
+    Quiz Statistics gerou a linha; ver 0043).
     Retorna o número de linhas enviadas.
     """
     if not respostas:

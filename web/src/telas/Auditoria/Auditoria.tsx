@@ -4,7 +4,9 @@ import { Link } from 'react-router-dom';
 
 import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
 import { Avatar } from '../../componentes/ui/Avatar';
-import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { normalizar } from '../../util/formato';
+import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import * as api from '../../servicos/api';
 import type { CanalAuditoria, EventoAuditoria } from '../../tipos/dominio';
 
@@ -87,6 +89,7 @@ function Decisao({ detalhe, quem }: { detalhe: Record<string, unknown> | null; q
 
 export function Auditoria() {
   const [canais, setCanais] = useState<ReadonlySet<string>>(new Set());
+  const [busca, setBusca] = useState('');
   // Só criações e alterações por padrão — login não muda nada (22/08).
   const [incluirLogins, setIncluirLogins] = useState(false);
   // Paginação por cursor: cada "carregar mais" empilha uma página.
@@ -109,8 +112,21 @@ export function Auditoria() {
   const eventos = useMemo(() => {
     const todas = consultas.flatMap((q) => q.data?.eventos ?? []);
     // Vários canais marcados = filtra no cliente (a API filtra um só).
-    return canais.size > 1 ? todas.filter((e) => e.canal && canais.has(e.canal)) : todas;
-  }, [consultas, canais]);
+    const doCanal = canais.size > 1 ? todas.filter((e) => e.canal && canais.has(e.canal)) : todas;
+    const q = normalizar(busca.trim());
+    if (!q) return doCanal;
+    // ⚠️ Peneira as páginas JÁ CARREGADAS, não a trilha inteira — a auditoria
+    // é paginada por cursor e cresce sem teto. Por isso o rótulo do grupo diz
+    // "nas páginas carregadas": uma busca que parece varrer tudo e varre 100
+    // linhas seria pior que não ter busca.
+    return doCanal.filter(
+      (e) =>
+        normalizar(e.ator_nome ?? '').includes(q) ||
+        normalizar(e.ator_id ?? '').includes(q) ||
+        normalizar(e.recurso ?? '').includes(q) ||
+        normalizar(e.acao ?? '').includes(q),
+    );
+  }, [consultas, canais, busca]);
 
   const primeira = consultas[0];
   const proximo = consultas[consultas.length - 1]?.data?.proximo_antes_de_id ?? null;
@@ -130,11 +146,36 @@ export function Auditoria() {
       <AbasAdmin />
 
       <BarraFiltros
-        algumAtivo={canais.size > 0 || incluirLogins}
-        onLimpar={() => { setCanais(new Set()); setIncluirLogins(false); setCursores([undefined]); }}
+        tela="auditoria"
+        algumAtivo={canais.size > 0 || incluirLogins || busca.trim() !== ''}
+        onLimpar={() => {
+          setCanais(new Set());
+          setIncluirLogins(false);
+          setBusca('');
+          setCursores([undefined]);
+        }}
         grupos={[
           {
+            chave: 'busca', rotulo: 'Buscar (nas páginas carregadas)',
+            resumo: resumirTexto(busca),
+            corpo: (
+              <Busca
+                valor={busca}
+                onChange={setBusca}
+                placeholder="Autor, recurso ou ação…"
+                rotulo="Buscar na trilha já carregada"
+              />
+            ),
+          },
+          {
             chave: 'canal', rotulo: 'Canal',
+            resumo: resumirSelecao(
+              canais,
+              (Object.keys(CANAL_LABEL) as CanalAuditoria[]).map((c) => ({
+                valor: c, label: CANAL_LABEL[c],
+              })),
+              'canal', 'canais',
+            ),
             corpo: (
               <Pills
                 opcoes={(Object.keys(CANAL_LABEL) as CanalAuditoria[]).map((c) => ({ valor: c, label: CANAL_LABEL[c] }))}
@@ -145,6 +186,7 @@ export function Auditoria() {
           },
           {
             chave: 'incluir', rotulo: 'Incluir também',
+            resumo: incluirLogins ? 'com entradas no sistema' : null,
             corpo: (
               <Pills
                 opcoes={[{ valor: 'logins', label: 'Entradas no sistema' }]}

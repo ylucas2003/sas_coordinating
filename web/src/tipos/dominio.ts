@@ -70,11 +70,21 @@ export interface Aluno {
 export interface Ciclo {
   id: string;
   nome: string;
+  /** O número do ciclo dentro do ano — `4` em "Ciclo 4 · ITA · 2026". */
+  ordem: number;
   anoLetivo: number;
   vestibularAlvo: VestibularAlvo | null;
   periodoInicio: string;
   periodoFim: string;
   simuladoIds: string[];
+  /**
+   * `null` = o ciclo veio do Canvas e não há o que enviar. `divergente` = o
+   * coordenador escolheu não criar o grupo lá, e o retry nunca reenvia
+   * sozinho (docs/18 §2.5). A rota não devolvia isto até a Sprint 4, e por
+   * isso nenhuma tela conseguia mostrar que o ciclo estava assim.
+   */
+  canvasEstado: EstadoCanvas | null;
+  canvasErro: string | null;
 }
 
 export interface Simulado {
@@ -92,6 +102,13 @@ export interface Simulado {
   vestibularAlvo: VestibularAlvo | null;
   notaMaxima: number;
   anulado: boolean;
+  /**
+   * `false` = a prova saiu dos agregados porque o zero dela é prática de
+   * lançamento, não desempenho (docs/32 §1.2). As notas individuais continuam
+   * visíveis, com a ressalva.
+   */
+  notaConfiavel: boolean;
+  motivoNotaNaoConfiavel: string | null;
   origem: 'canvas' | 'sas';
   /**
    * Sincronização SAS→Canvas (só relevante em `origem: 'sas'`). 'pendente' e
@@ -109,6 +126,9 @@ export interface Simulado {
 export interface Alerta {
   id: string;
   categoria: CategoriaAlerta;
+  /** Sobre quem é o alerta — `aluno`, `simulado`, `turma`, `sede`, `ciclo`. */
+  entidadeTipo: string;
+  entidadeId: string;
   severidade: Severidade;
   tagLabel: string;
   titulo: string;
@@ -459,4 +479,52 @@ export interface CursoGravacao {
 export interface PainelGravacoes {
   cursos: CursoGravacao[];
   aulas: GravacaoAula[];
+}
+
+
+// ─── Envio em lote ao Canvas (docs/32 §4) ─────────────────────────────────
+
+/** Uma nota que o SAS editou e o Canvas ainda não tem. */
+export interface NotaDivergente {
+  alunoId: string;
+  simuladoId: string;
+  aluno: string;
+  simulado: string;
+  noSas: number | null;
+  noCanvas: number | null;
+}
+
+/**
+ * O que subiria se o coordenador mandasse o ciclo inteiro.
+ *
+ * É o que alimenta o diálogo de confirmação: a regra de 21/08 — "nada sobe ao
+ * Canvas sem alguém clicar" — aplicada ao lote quer dizer que ele vê a lista
+ * ANTES de mandar.
+ */
+export interface PendenciasCanvas {
+  cicloId: string;
+  nome: string | null;
+  grupo: { pendente: boolean; estado: string | null; erro: string | null };
+  simulados: Array<{ id: string; nome: string; estado: string | null; erro: string | null }>;
+  notas: NotaDivergente[];
+  /** Quantas notas ficaram além do teto do lote. Nunca truncar em silêncio. */
+  notasAlemDoTeto: number;
+  total: number;
+}
+
+/** Resultado POR ITEM. Sucesso parcial é o caso normal. */
+export interface ResultadoLoteCanvas {
+  itens: Array<{
+    tipo: 'ciclo' | 'simulado' | 'nota';
+    id: string;
+    rotulo: string;
+    ok: boolean;
+    erro: string | null;
+  }>;
+  total: number;
+  enviados: number;
+  falhas: number;
+  /** Preenchido quando o lote parou no meio — hoje, só se o grupo falhar. */
+  interrompido: string | null;
+  notasAlemDoTeto?: number;
 }

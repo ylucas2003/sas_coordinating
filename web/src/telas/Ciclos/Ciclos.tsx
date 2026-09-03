@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { TheadOrdenavel } from '../../componentes/ui/TabelaOrdenavel';
 import { ordenarLinhas, proximaOrdenacao } from '../../componentes/ui/ordenacao';
 import type { ColunaTabela, Ordenacao } from '../../componentes/ui/ordenacao';
-import { BarraFiltros, Pills, RangeDatas } from '../../componentes/ui/filtros/BarraFiltros';
+import { BarraFiltros, Busca, Pills, RangeDatas } from '../../componentes/ui/filtros/BarraFiltros';
 import type { GrupoFiltro } from '../../componentes/ui/filtros/BarraFiltros';
 import { CriarCiclo } from '../../componentes/dialogos/CriarCiclo';
 import {
@@ -12,14 +12,20 @@ import {
 } from '../../dominio/ciclos';
 import type { FiltroCiclos } from '../../dominio/ciclos';
 import { useCiclos } from '../../hooks/consultas';
+import { SeloCanvas } from '../../componentes/ui/SeloCanvas';
 import type { Ciclo } from '../../tipos/dominio';
+import { resumirPeriodo, resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import { fmtDataBR } from '../../util/data';
+import { normalizar } from '../../util/formato';
 
 const COLUNAS: Array<ColunaTabela<Ciclo>> = [
   { chave: 'nome', label: 'Ciclo', valor: (c) => c.nome },
   { chave: 'vestibular', label: 'Vestibular', valor: (c) => c.vestibularAlvo },
   { chave: 'periodo', label: 'Período', valor: (c) => c.periodoInicio },
   { chave: 'simulados', label: 'Simulados', valor: (c) => (c.simuladoIds ?? []).length, tipo: 'numero' },
+  // Um ciclo 'divergente' era diferente do Canvas E invisível: a rota nem
+  // devolvia `canvas_estado`, então nenhuma tela podia mostrá-lo (docs/32 §4.1).
+  { chave: 'canvas', label: 'Canvas', valor: (c) => c.canvasEstado, ordenavel: false },
   { chave: 'acao', label: '', ordenavel: false },
 ];
 
@@ -29,11 +35,18 @@ export function Ciclos() {
   const { data: ciclos = [], isPending, isError, error } = useCiclos();
 
   const [filtro, setFiltro] = useState<FiltroCiclos>(FILTRO_CICLOS_VAZIO);
+  // A busca fica FORA de `FiltroCiclos` de propósito: aquele tipo é o recorte
+  // do domínio, testado, e a busca é peneira de texto sobre o resultado dele.
+  const [busca, setBusca] = useState('');
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
   const [dialogoAberto, setDialogoAberto] = useState(false);
 
   const opcoes = useMemo(() => montarOpcoes(ciclos), [ciclos]);
-  const filtrados = useMemo(() => aplicarFiltros(ciclos, filtro), [ciclos, filtro]);
+  const filtrados = useMemo(() => {
+    const q = normalizar(busca.trim());
+    const doRecorte = aplicarFiltros(ciclos, filtro);
+    return q ? doRecorte.filter((c) => normalizar(c.nome).includes(q)) : doRecorte;
+  }, [ciclos, filtro, busca]);
   const contagens = useMemo(() => contarPorChip(ciclos, filtro), [ciclos, filtro]);
   const linhas = useMemo(() => ordenarLinhas(filtrados, COLUNAS, ordenacao), [filtrados, ordenacao]);
 
@@ -48,8 +61,26 @@ export function Ciclos() {
 
   const grupos: Array<GrupoFiltro | null> = [
     {
+      chave: 'busca',
+      rotulo: 'Ciclo',
+      resumo: resumirTexto(busca),
+      corpo: (
+        <Busca
+          valor={busca}
+          onChange={setBusca}
+          placeholder="Buscar ciclo…"
+          rotulo="Buscar ciclo pelo nome"
+        />
+      ),
+    },
+    {
       chave: 'vestibular',
       rotulo: 'Vestibular',
+      resumo: resumirSelecao(
+        filtro.vestibulares,
+        opcoes.vestibulares.map((v) => ({ valor: v, label: v })),
+        'vestibular', 'vestibulares',
+      ),
       corpo: (
         <Pills
           opcoes={opcoes.vestibulares.map((v) => ({ valor: v, label: v, contagem: contagens.vestibular.get(v) ?? 0 }))}
@@ -63,6 +94,11 @@ export function Ciclos() {
       ? {
           chave: 'ano',
           rotulo: 'Ano letivo',
+          resumo: resumirSelecao(
+            filtro.anos,
+            opcoes.anos.map((a) => ({ valor: a, label: String(a) })),
+            'ano', 'anos',
+          ),
           corpo: (
             <Pills
               opcoes={opcoes.anos.map((a) => ({ valor: a, label: String(a), contagem: contagens.ano.get(a) ?? 0 }))}
@@ -75,6 +111,7 @@ export function Ciclos() {
     {
       chave: 'periodo',
       rotulo: 'Período',
+      resumo: resumirPeriodo(filtro.periodo.inicio, filtro.periodo.fim, fmtDataBR),
       corpo: (
         <RangeDatas
           inicio={filtro.periodo.inicio}
@@ -88,9 +125,10 @@ export function Ciclos() {
   return (
     <>
       <BarraFiltros
+        tela="provas.ciclos"
         grupos={grupos}
-        algumAtivo={algumFiltroAtivo(filtro)}
-        onLimpar={() => setFiltro(FILTRO_CICLOS_VAZIO)}
+        algumAtivo={algumFiltroAtivo(filtro) || busca.trim() !== ''}
+        onLimpar={() => { setFiltro(FILTRO_CICLOS_VAZIO); setBusca(''); }}
       />
 
       <div className="tela-cabecalho">
@@ -135,6 +173,7 @@ export function Ciclos() {
                   </td>
                   <td>{`${fmtDataBR(c.periodoInicio)} → ${fmtDataBR(c.periodoFim)}`}</td>
                   <td>{(c.simuladoIds ?? []).length}</td>
+                  <td><SeloCanvas estado={c.canvasEstado} erro={c.canvasErro} /></td>
                   <td>
                     <Link to={`/ciclos/${c.id}`} onClick={(ev) => ev.stopPropagation()}>
                       Ver →

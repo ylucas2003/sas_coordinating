@@ -95,6 +95,9 @@ class ResumoIngestao:
     ciclos_processados: int = 0
     simulados_processados: int = 0
     notas_gravadas: int = 0
+    #: Sempre 0 desde a Sprint 4 — a regra que reclassificava zero como
+    #: ausência saiu (etapa 5e). O campo fica porque uploads antigos têm o
+    #: número gravado em `upload.resumo`, e a tela de histórico o lê.
     notas_reclassificadas_como_ausencia: int = 0
     colunas_ignoradas: int = 0
     avisos: list[str] = field(default_factory=list)
@@ -553,52 +556,41 @@ def _processar(
 
     # 5e — coleta notas pra upsert em lote (próxima etapa).
     #
-    # Regra "zero = provável abandono" (ver project_zeros_provaveis_ausencias):
-    # zero numa prova isolada pode ser nota real (aluno desistiu daquela matéria),
-    # mas se um aluno tirou 0 em 2+ provas do MESMO DIA, é muito mais provável
-    # que ele faltou aquele dia inteiro — reclassificamos essas células como
-    # `presente=false, pontuacao=null` pra não contaminar média/distribuição.
+    # ⚠️ **A REGRA "2+ ZEROS NO MESMO DIA = AUSÊNCIA" SAIU DAQUI (Sprint 4).**
+    #
+    # Ela inferia falta a partir de coincidência e escrevia `presente = false,
+    # pontuacao = null` por cima do que o Canvas afirmava — destruindo o fato
+    # para gravar a suposição. A medição contra produção (docs/32 §1.4) mostrou
+    # o tamanho do estrago: a regra pega **414 células**; onde há dado de
+    # questão para conferir, **73 confirmam e 12 contradizem — 14% de erro**,
+    # apagando a pontuação de quem respondeu; e em **329** delas não há como
+    # conferir. Um proxy que erra 14% no verificável e opera às cegas em 79%
+    # dos casos não é regra, é dano.
+    #
+    # O que ficou no lugar: `nota.computavel`, derivada por
+    # `stats/computavel.py` a partir de evidência DIRETA — o aluno não marcou
+    # nenhuma alternativa —, sem tocar em `presente` nem em `pontuacao`. O
+    # veredicto é reversível e recalculável; o dado do Canvas, intacto.
+    #
+    # O ingest não avalia aqui porque a evidência mora em
+    # `questao_resposta_aluno`, que a planilha não traz. Quem avalia é o sync,
+    # depois das questões (`canvas_sync/sincronizar.py`), ou o backfill
+    # (`scripts/backfill_computavel.py`) para uma carga histórica.
     notas_para_gravar: list[dict[str, Any]] = []
-    n_reclassificadas = 0
     for matricula, _, linha in linhas_validas:
         aluno_id = matricula_para_id.get(matricula)
         if not aluno_id:
             continue
-
-        # Passo 1: parseia células e agrupa zeros por data.
-        notas_aluno: list[dict[str, Any]] = []
-        zeros_por_data: dict[date, list[int]] = defaultdict(list)
         for indice_coluna, info in simulados_por_coluna.items():
             pontuacao = parsear_decimal_br(linha[indice_coluna])
-            presente = pontuacao is not None
-            idx_no_array = len(notas_aluno)
-            notas_aluno.append({
+            notas_para_gravar.append({
                 "aluno_id": aluno_id,
                 "simulado_id": info["simulado_id"],
                 "pontuacao": pontuacao,
-                "presente": presente,
-                "_data": info["data_aplicacao"],  # campo temporário, removido antes do upsert
+                # Célula vazia é ausência; zero é zero. O que o SAS conclui
+                # sobre esse zero é assunto de `computavel`, não daqui.
+                "presente": pontuacao is not None,
             })
-            if presente and pontuacao == 0:
-                zeros_por_data[info["data_aplicacao"]].append(idx_no_array)
-
-        # Passo 2: reclassifica zeros em dias com 2+ zeros.
-        for data_aplicacao, indices in zeros_por_data.items():
-            if len(indices) < 2:
-                continue
-            for idx in indices:
-                notas_aluno[idx]["pontuacao"] = None
-                notas_aluno[idx]["presente"] = False
-                n_reclassificadas += 1
-
-        # Passo 3: remove campo temporário e adiciona ao lote.
-        for nota in notas_aluno:
-            nota.pop("_data", None)
-        notas_para_gravar.extend(notas_aluno)
-
-    resumo.notas_reclassificadas_como_ausencia = n_reclassificadas
-    if n_reclassificadas > 0:
-        _etapa(t0, f"reclassificadas como ausência: {n_reclassificadas} notas zero (2+ no mesmo dia)")
 
     _emitir_etapa(
         cliente,

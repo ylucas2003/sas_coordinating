@@ -26,7 +26,14 @@ from typing import Any
 from supabase import Client
 
 from . import thresholds as th
-from .utils import como_float, hash_dedup_alerta, nota_real, welch_t_test
+from .utils import (
+    como_float,
+    filtro_nota_valida,
+    hash_dedup_alerta,
+    nota_real,
+    simulado_entra_no_agregado,
+    welch_t_test,
+)
 
 log = logging.getLogger("sas.stats.alertas")
 
@@ -151,6 +158,7 @@ def regra_prova_mal_calibrada(cliente: Client) -> list[dict]:
         cliente.table("simulado")
         .select("id, nome, ciclo_id, tipo, anulado")
         .eq("anulado", False)
+        .eq("nota_confiavel", True)
         .lte("data_aplicacao", date.today().isoformat())
         .execute()
     )
@@ -225,6 +233,7 @@ def regra_materia_em_risco(cliente: Client) -> list[dict]:
         cliente.table("simulado")
         .select("id, nome, materia_id, data_aplicacao, anulado, e_agregado")
         .eq("anulado", False)
+        .eq("nota_confiavel", True)
         .eq("e_agregado", False)
         .lte("data_aplicacao", date.today().isoformat())
         .order("data_aplicacao")
@@ -298,6 +307,7 @@ def regra_diferenca_entre_sedes(cliente: Client) -> list[dict]:
         cliente.table("simulado")
         .select("id, nome, anulado, e_agregado, nota_maxima")
         .eq("anulado", False)
+        .eq("nota_confiavel", True)
         .eq("e_agregado", False)
         .lte("data_aplicacao", date.today().isoformat())
         .execute()
@@ -309,10 +319,12 @@ def regra_diferenca_entre_sedes(cliente: Client) -> list[dict]:
     for sim in sims_resp.data or []:
         nota_maxima_sim = como_float(sim.get("nota_maxima"))
         resp = (
-            cliente.table("v_nota_dimensoes")
-            .select("pontuacao, sede_id")
-            .eq("simulado_id", sim["id"])
-            .eq("presente", True)
+            filtro_nota_valida(
+                cliente.table("v_nota_dimensoes")
+                .select("pontuacao, sede_id")
+                .eq("simulado_id", sim["id"])
+            )
+            .eq("nota_confiavel", True)
             .execute()
         )
         por_sede: dict[str, list[float]] = defaultdict(list)
@@ -391,6 +403,7 @@ def regra_panorama_ciclo(cliente: Client) -> list[dict]:
         cliente.table("simulado")
         .select("id, ciclo_id, anulado, e_agregado")
         .eq("anulado", False)
+        .eq("nota_confiavel", True)
         .eq("e_agregado", False)
         .lte("data_aplicacao", date.today().isoformat())
         .execute()
@@ -483,20 +496,21 @@ def _historico_notas_por_aluno(cliente: Client, ctx: _Contexto) -> dict[str, lis
         return ctx.historico
 
     resp = (
-        cliente.table("nota")
-        .select(
-            "aluno_id, pontuacao, simulado("
-            "id, data_aplicacao, anulado, e_agregado, nota_maxima"
-            ")"
+        filtro_nota_valida(
+            cliente.table("nota")
+            .select(
+                "aluno_id, pontuacao, simulado("
+                "id, data_aplicacao, anulado, e_agregado, nota_confiavel, nota_maxima"
+                ")"
+            )
         )
-        .eq("presente", True)
         .execute()
     )
 
     bruto: dict[str, list[dict]] = defaultdict(list)
     for linha in resp.data or []:
         sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
+        if not simulado_entra_no_agregado(sim):
             continue
         nota = nota_real(
             como_float(linha.get("pontuacao")),

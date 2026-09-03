@@ -3,10 +3,15 @@ import { NavLink } from 'react-router-dom';
 /**
  * Abas da Administração.
  *
- * Contas, Auditoria e Importar saíram do menu principal e viraram abas daqui:
- * são as três tarefas de manutenção do sistema, feitas por quem administra e
+ * Contas, Auditoria e Integrações saíram do menu principal e viraram abas
+ * daqui: são as tarefas de manutenção do sistema, feitas por quem administra e
  * não por quem acompanha turma. No rail elas competiam por atenção com as
  * telas de uso diário.
+ *
+ * "Importar planilha" saiu da fila em 03/09/2026, quando a entrada por planilha
+ * foi aposentada (docs/32 §2.4). A rota `/importar` continua existindo e
+ * explica o que mudou — mas oferecer a aba seria oferecer um caminho de escrita
+ * que o produto deixou de ter.
  *
  * São `NavLink` e não estado porque continuam sendo rotas próprias — cada uma
  * tem URL, histórico e link direto.
@@ -15,7 +20,6 @@ import { NavLink } from 'react-router-dom';
 const ABAS = [
   { para: '/administracao', label: 'Contas' },
   { para: '/auditoria', label: 'Auditoria' },
-  { para: '/importar', label: 'Importar planilha' },
   { para: '/integracoes', label: 'Integrações' },
 ];
 

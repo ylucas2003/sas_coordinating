@@ -98,9 +98,15 @@ async def sincronizar_questoes_do_quiz(
             if user_ids:
                 tem_user_ids = True
 
-            if canvas_answer_id.lower() in _BUCKETS_SEM_ALTERNATIVA or not canvas_answer_id:
-                # Em branco / fora das alternativas: vira resposta sem alternativa.
-                respostas_brutas.append((questao_id, None, False, user_ids))
+            balde = canvas_answer_id.lower() if canvas_answer_id else "none"
+            if balde in _BUCKETS_SEM_ALTERNATIVA or not canvas_answer_id:
+                # Em branco / fora das alternativas: vira resposta sem
+                # alternativa — mas QUAL dos dois fica gravado. Até a 0043 os
+                # dois viravam `alternativa_id IS NULL` indistintamente, e a
+                # regra "não marcou nada" ficaria apoiada nessa conflação:
+                # "other" é resposta numa alternativa que não existe mais, não
+                # é branco (docs/32 §1.4).
+                respostas_brutas.append((questao_id, None, False, user_ids, balde))
                 continue
 
             alternativas_payload.append(
@@ -111,7 +117,7 @@ async def sincronizar_questoes_do_quiz(
                     "correta": correta,
                 }
             )
-            respostas_brutas.append((questao_id, canvas_answer_id, correta, user_ids))
+            respostas_brutas.append((questao_id, canvas_answer_id, correta, user_ids, None))
 
     chave_para_alternativa_id = upsert_alternativas_em_lote(
         cliente, alternativas=alternativas_payload
@@ -123,7 +129,7 @@ async def sincronizar_questoes_do_quiz(
     # MESMO upsert quebram com "ON CONFLICT cannot affect row a second time".
     # Alternativa real vence bucket em branco.
     resposta_por_chave: dict[tuple[str, str], dict[str, Any]] = {}
-    for questao_id, canvas_answer_id, correta, user_ids in respostas_brutas:
+    for questao_id, canvas_answer_id, correta, user_ids, balde in respostas_brutas:
         alternativa_id = (
             chave_para_alternativa_id.get((questao_id, canvas_answer_id))
             if canvas_answer_id
@@ -142,6 +148,7 @@ async def sincronizar_questoes_do_quiz(
                 "questao_id": questao_id,
                 "alternativa_id": alternativa_id,
                 "correta": correta,
+                "balde_sem_alternativa": balde,
             }
     n_respostas = upsert_respostas_questao_em_lote(
         cliente, respostas=list(resposta_por_chave.values())

@@ -5,7 +5,9 @@
 // (ITA e IME pesam as matérias de formas diferentes) e a definição de "em
 // zona de corte". Testada em painel.test.ts.
 
-import type { Aluno, AlunoClassificado, Ciclo, Simulado, TipoSimulado } from '../tipos/dominio';
+import type {
+  Alerta, Aluno, AlunoClassificado, Ciclo, Simulado, TipoSimulado,
+} from '../tipos/dominio';
 
 export interface ColunaPainel {
   id: string;
@@ -177,12 +179,31 @@ export interface NotaDoPainel {
   presente?: boolean;
   acertos?: number | null;
   total?: number | null;
+  /** `false` = o SAS concluiu que este número não é desempenho (docs/32 §1.4). */
+  computavel?: boolean;
+  motivoNaoComputavel?: string | null;
 }
 
 export type NotasPorSimulado = Record<string, NotaDoPainel[]>;
-/** alunoId → simuladoId → nota. */
+/** alunoId → simuladoId → nota. Só o que ENTRA na conta. */
 export type NotasPorAluno = Record<string, Record<string, number>>;
 
+/** A nota que a média ignorou, para a célula poder dizer que ignorou. */
+export interface NotaIgnorada {
+  nota: number | null;
+  motivo: string | null;
+}
+export type IgnoradasPorAluno = Record<string, Record<string, NotaIgnorada>>;
+
+/**
+ * O mapa que alimenta média, ranking e colunas virtuais.
+ *
+ * ⚠️ Nota não computável NÃO entra aqui — e é o ponto todo. A régua do
+ * servidor já a exclui da classificação; se ela continuasse neste mapa, a
+ * média que o Painel calcula no cliente somaria um zero que o servidor não
+ * somou, e as duas leituras da mesma turma divergiriam sem erro nenhum.
+ * Para mostrá-la na célula, use `buildNotasIgnoradas`.
+ */
 export function buildNotasAluno(
   alunos: readonly Aluno[],
   sims: readonly Simulado[],
@@ -192,8 +213,35 @@ export function buildNotasAluno(
   for (const aluno of alunos) mapa[aluno.id] = {};
 
   for (const sim of sims) {
-    for (const { alunoId, nota } of notasPorSim[sim.id] ?? []) {
-      if (mapa[alunoId] && nota != null) mapa[alunoId][sim.id] = nota;
+    for (const linha of notasPorSim[sim.id] ?? []) {
+      if (linha.computavel === false) continue;
+      if (mapa[linha.alunoId] && linha.nota != null) mapa[linha.alunoId][sim.id] = linha.nota;
+    }
+  }
+  return mapa;
+}
+
+/**
+ * O que ficou de fora, com o motivo. Um número que o produto decidiu ignorar
+ * precisa dizer que ignorou — senão o coordenador vê a média mudar e não sabe
+ * por quê, que foi exatamente como a régua da Sprint 5 assustou.
+ */
+export function buildNotasIgnoradas(
+  alunos: readonly Aluno[],
+  sims: readonly Simulado[],
+  notasPorSim: NotasPorSimulado,
+): IgnoradasPorAluno {
+  const mapa: IgnoradasPorAluno = {};
+  for (const aluno of alunos) mapa[aluno.id] = {};
+
+  for (const sim of sims) {
+    for (const linha of notasPorSim[sim.id] ?? []) {
+      if (linha.computavel !== false) continue;
+      if (!mapa[linha.alunoId]) continue;
+      mapa[linha.alunoId][sim.id] = {
+        nota: linha.nota,
+        motivo: linha.motivoNaoComputavel ?? null,
+      };
     }
   }
   return mapa;
@@ -326,6 +374,8 @@ export interface DadosPainel {
   colunasFull: ColunaPainel[];
   colunas: ColunaPainel[];
   notasAluno: NotasPorAluno;
+  /** O que a média deixou de fora, por aluno e simulado, com o motivo. */
+  notasIgnoradas: IgnoradasPorAluno;
   mediasVirtuais: Record<string, Record<string, number | null>>;
   mediasPorColuna: Record<string, number | null>;
   alunosOrdenados: Aluno[];
@@ -355,7 +405,7 @@ export function montarPainel({
   classificacao: ClassificacaoPorAluno;
 }): DadosPainel {
   const vazio: DadosPainel = {
-    colunasFull: [], colunas: [], notasAluno: {}, mediasVirtuais: {},
+    colunasFull: [], colunas: [], notasAluno: {}, notasIgnoradas: {}, mediasVirtuais: {},
     mediasPorColuna: {}, alunosOrdenados: [], fasesDisponiveis: [],
     faseSelecionada: fase, resumo: null, erro: null,
   };
@@ -376,6 +426,7 @@ export function montarPainel({
 
   const colunasFull = resolverColunas(defs, sims);
   const notasAluno = buildNotasAluno(alunos, sims, notasPorSim);
+  const notasIgnoradas = buildNotasIgnoradas(alunos, sims, notasPorSim);
 
   const mediasVirtuais: Record<string, Record<string, number | null>> = {};
   for (const aluno of alunos) {
@@ -436,7 +487,7 @@ export function montarPainel({
   };
 
   return {
-    colunasFull, colunas, notasAluno, mediasVirtuais, mediasPorColuna,
+    colunasFull, colunas, notasAluno, notasIgnoradas, mediasVirtuais, mediasPorColuna,
     alunosOrdenados, fasesDisponiveis, faseSelecionada, resumo, erro: null,
   };
 }
@@ -505,4 +556,88 @@ const NOMES_SEDE: Record<string, string> = {
 /** O banco guarda a sede em código; a UI mostra o nome legível. */
 export function nomeSede(bruto: string): string {
   return NOMES_SEDE[bruto] ?? bruto.replace(/_/g, ' ').replace(/\b3O\b/g, '3°');
+}
+
+// ─── A faixa de decisão (docs/33 §3) ──────────────────────────────────────
+//
+// A promessa do CLAUDE.md é "sinalizar o que merece atenção em vez de esperar
+// que o coordenador saiba o que procurar". O motor de alertas cumpre metade
+// dela desde a Sprint 1, e a outra metade nunca chegou à tela: `AlertCard.tsx`
+// existia, comentado como "componente central do Painel", e **nenhum arquivo o
+// importava**. O sino da topbar apontava para `/painel#alertas`, âncora que
+// não existia em tela nenhuma.
+//
+// O que falta é curadoria, não código — e a curadoria é isto: contar o que
+// exige ação e respeitar o recorte que a tela está mostrando.
+
+export interface ContagemDecisao {
+  /** Abaixo do corte na régua em uso. */
+  cortados: number;
+  /** Passou, mas com alguma matéria perto do corte — é onde a ação ainda cabe. */
+  noLimite: number;
+  /** No ciclo e sem nota nenhuma: não é desempenho, é ausência de dado. */
+  semNota: number;
+  total: number;
+}
+
+/**
+ * As três contagens, a partir do que a tela JÁ tem em memória.
+ *
+ * Nenhuma requisição nova: `classificacao` vem de
+ * `GET /ciclos/{id}/classificacao`, que o Painel já pede para colorir a
+ * tabela. A faixa é leitura do mesmo dado, não uma segunda fonte — e isso é o
+ * que impede a faixa de discordar da tabela logo abaixo dela.
+ */
+export function contarDecisoes(
+  alunos: readonly Aluno[],
+  classificacao: ClassificacaoPorAluno,
+): ContagemDecisao {
+  let cortados = 0;
+  let noLimite = 0;
+  let semNota = 0;
+
+  for (const aluno of alunos) {
+    const v = classificacao[aluno.id];
+    if (!v) continue;
+    if (!v.aprovado) {
+      cortados += 1;
+      continue;
+    }
+    if (v.media == null) {
+      semNota += 1;
+      continue;
+    }
+    // Âmbar é a régua do servidor dizendo "passou, mas perto" — a mesma que
+    // pinta a célula. Reimplementar a distância aqui seria a terceira cópia da
+    // regra de corte, que é o que a Sprint 2 proibiu.
+    if (Object.values(v.notas).some((n) => n.tom === 'ambar')) noLimite += 1;
+  }
+
+  return { cortados, noLimite, semNota, total: alunos.length };
+}
+
+/**
+ * Os alertas que falam do que está na tela, e a contagem do que ficou de fora.
+ *
+ * ⚠️ O ponto: os alertas são globais e a tabela abaixo está filtrada. Uma
+ * faixa dizendo "3 alunos em queda" sobre uma tabela de uma turma só é uma
+ * mentira de contexto. Mas esconder em silêncio é pior — é a armadilha 2 do
+ * CLAUDE.md noutra roupa (número errado sem parecer errado). Daí devolver as
+ * duas coisas: o que entra, e quantos não entraram.
+ *
+ * Alerta que não é de aluno (prova mal calibrada, diferença entre sedes) passa
+ * sempre: ele fala do ciclo, não de quem está na lista.
+ */
+export function alertasDoRecorte(
+  alertas: readonly Alerta[],
+  alunosNoRecorte: readonly Aluno[],
+  recorteAtivo: boolean,
+): { visiveis: Alerta[]; ocultos: number } {
+  if (!recorteAtivo) return { visiveis: [...alertas], ocultos: 0 };
+
+  const ids = new Set(alunosNoRecorte.map((a) => a.id));
+  const visiveis = alertas.filter(
+    (a) => a.entidadeTipo !== 'aluno' || ids.has(a.entidadeId),
+  );
+  return { visiveis, ocultos: alertas.length - visiveis.length };
 }

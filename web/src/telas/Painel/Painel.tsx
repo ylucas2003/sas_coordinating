@@ -3,9 +3,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { EdicaoCriterio } from '../../componentes/dialogos/EdicaoCriterio';
 import { SeletorCriterio } from '../../componentes/ui/SeletorCriterio';
-import { BarraFiltros, Pills, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
+import { BarraFiltros, Busca, Pills, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
+import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
+import {
+  RECORTE_VAZIO, cicloPadrao, ciclosNoRecorte, contagensDoRecorte, recorteCompleto, rotuloDoCiclo,
+} from '../../dominio/painelFiltros';
+import type { RecortePainel } from '../../dominio/painelFiltros';
 import { FichaNota } from '../../componentes/dialogos/FichaNota';
 import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
+import { FaixaDecisao } from './FaixaDecisao';
 import { TabelaPainel } from './TabelaPainel';
 import {
   estatisticasDoSimulado, montarPainel, nomeSede, normMateria,
@@ -37,6 +43,9 @@ export function Painel() {
   const { data: turmas = [] } = useTurmas();
 
   const [cicloId, setCicloId] = useState<string | null>(null);
+  // Ano e vestibular estreitam a fileira de ciclos, e nascem com TUDO marcado
+  // (decisão do Yan, 03/09) — o recorte inteiro é o estado neutro.
+  const [recorte, setRecorte] = useState<RecortePainel>(RECORTE_VAZIO);
   const [sedeIds, setSedeIds] = useState<ReadonlySet<string>>(new Set());
   const [turmaIds, setTurmaIds] = useState<ReadonlySet<string>>(new Set());
   const [busca, setBusca] = useState('');
@@ -51,8 +60,36 @@ export function Painel() {
 
   const editarNota = useEditarNota();
 
-  // Primeiro ciclo da lista assim que ela chega.
-  const cicloAtivo = ciclos.find((c) => c.id === cicloId) ?? ciclos[0] ?? null;
+  // Semeia UMA vez, quando os ciclos chegam. Semear a cada render desfaria o
+  // que o coordenador acabou de desmarcar.
+  const jaSemeou = useRef(false);
+  useEffect(() => {
+    if (jaSemeou.current || ciclos.length === 0) return;
+    jaSemeou.current = true;
+    setRecorte(recorteCompleto(ciclos));
+  }, [ciclos]);
+
+  const todasAsOpcoes = useMemo(() => recorteCompleto(ciclos), [ciclos]);
+  const anosOrdenados = useMemo(
+    () => [...todasAsOpcoes.anos].sort((a, b) => b - a),
+    [todasAsOpcoes],
+  );
+  const vestibularesOrdenados = useMemo(
+    () => [...todasAsOpcoes.vestibulares].sort(),
+    [todasAsOpcoes],
+  );
+  const ciclosVisiveis = useMemo(() => ciclosNoRecorte(ciclos, recorte), [ciclos, recorte]);
+  const contagens = useMemo(() => contagensDoRecorte(ciclos, recorte), [ciclos, recorte]);
+
+  // O ciclo escolhido pode ter saído da fileira quando o recorte mudou; aí a
+  // tela cai no default do recorte novo em vez de apontar para um ciclo que
+  // não está mais visível. Antes disto o Painel abria em `ciclos[0]`, que é o
+  // primeiro dos TRÊS ciclos com `ordem = 1` — e qual dos três não estava
+  // definido (docs/32 §3.1).
+  const cicloAtivo = useMemo(
+    () => ciclosVisiveis.find((c) => c.id === cicloId) ?? cicloPadrao(ciclosVisiveis, simulados),
+    [ciclosVisiveis, cicloId, simulados],
+  );
   const { data: notasPorSim = {}, isPending: carregandoNotas } = useNotasDoCiclo(cicloAtivo, simulados);
   const { data: criterios = [] } = useCriteriosDisponiveis();
   // Veredito, motivo, cor e posição vêm do servidor (docs/18 §1.2). A fase
@@ -75,7 +112,9 @@ export function Painel() {
     criterio,
     sedeIds: [...sedeIds],
     turmaIds: [...turmaIds],
-  }), [cicloAtivo?.id, fase, criterio, sedeIds, turmaIds]));
+    anos: [...recorte.anos],
+    vestibulares: [...recorte.vestibulares],
+  }), [cicloAtivo?.id, fase, criterio, sedeIds, turmaIds, recorte]));
 
   const alunosFiltrados = useMemo(() => {
     const q = normMateria(busca.trim());
@@ -132,17 +171,74 @@ export function Painel() {
   return (
     <div className="tela">
       <BarraFiltros
-        algumAtivo={sedeIds.size > 0 || turmaIds.size > 0}
+        tela="painel"
+        algumAtivo={
+          sedeIds.size > 0 ||
+          turmaIds.size > 0 ||
+          recorte.anos.size !== todasAsOpcoes.anos.size ||
+          recorte.vestibulares.size !== todasAsOpcoes.vestibulares.size
+        }
+        // Nesta faixa "limpar" é voltar para TUDO marcado, não para vazio:
+        // com os dois eixos nascendo cheios, o vazio não é o estado neutro —
+        // é a fileira de ciclos sem nenhum ciclo.
         onLimpar={() => {
           setSedeIds(new Set());
           setTurmaIds(new Set());
+          setRecorte(recorteCompleto(ciclos));
         }}
         grupos={[
           {
+            chave: 'ano', rotulo: 'Ano letivo',
+            resumo: resumirSelecao(
+              recorte.anos,
+              anosOrdenados.map((a) => ({ valor: a, label: String(a) })),
+              'ano', 'anos',
+            ),
+            corpo: (
+              <Pills
+                opcoes={anosOrdenados.map((ano) => ({
+                  valor: ano,
+                  label: String(ano),
+                  contagem: contagens.porAno.get(ano) ?? 0,
+                }))}
+                selecionados={recorte.anos}
+                onToggle={(ano) =>
+                  setRecorte((r) => ({ ...r, anos: alternarConjunto(r.anos, ano) }))}
+              />
+            ),
+          },
+          {
+            chave: 'vestibular', rotulo: 'Vestibular',
+            resumo: resumirSelecao(
+              recorte.vestibulares,
+              vestibularesOrdenados.map((v) => ({ valor: v, label: v })),
+              'vestibular', 'vestibulares',
+            ),
+            corpo: (
+              <Pills
+                opcoes={vestibularesOrdenados.map((v) => ({
+                  valor: v,
+                  label: v,
+                  contagem: contagens.porVestibular.get(v) ?? 0,
+                }))}
+                selecionados={recorte.vestibulares}
+                onToggle={(v) =>
+                  setRecorte((r) => ({ ...r, vestibulares: alternarConjunto(r.vestibulares, v) }))}
+              />
+            ),
+          },
+          {
             chave: 'ciclo', rotulo: 'Ciclo',
+            // O nome inteiro, e não o rótulo curto da pílula: colapsada, a faixa
+            // perde o contexto que o recorte dava, e "4" sozinho não diz de
+            // que ano nem de que vestibular.
+            resumo: cicloAtivo?.nome ?? null,
             corpo: (
               <PillsUnica
-                opcoes={ciclos.map((c) => ({ valor: c.id, label: c.nome }))}
+                opcoes={ciclosVisiveis.map((c) => ({
+                  valor: c.id,
+                  label: rotuloDoCiclo(c, recorte),
+                }))}
                 selecionado={cicloAtivo?.id ?? null}
                 onSelecionar={(id) => {
                   setCicloId(id);
@@ -153,6 +249,11 @@ export function Painel() {
           },
           {
             chave: 'sede', rotulo: 'Sede',
+            resumo: resumirSelecao(
+              sedeIds,
+              sedes.map((sd) => ({ valor: sd.id, label: nomeSede(sd.nome) })),
+              'sede', 'sedes',
+            ),
             corpo: (
               <Pills
                 // Sedes com prefixo de ano são resíduo de importações antigas.
@@ -165,7 +266,24 @@ export function Painel() {
             ),
           },
           {
+            chave: 'busca', rotulo: 'Aluno',
+            resumo: resumirTexto(busca),
+            corpo: (
+              <Busca
+                valor={busca}
+                onChange={setBusca}
+                placeholder="Buscar aluno…"
+                rotulo="Buscar aluno na tabela"
+              />
+            ),
+          },
+          {
             chave: 'turma', rotulo: 'Turmas',
+            resumo: resumirSelecao(
+              turmaIds,
+              turmas.map((t) => ({ valor: t.id, label: t.nome })),
+              'turma', 'turmas',
+            ),
             corpo: (
               <Pills
                 opcoes={turmas.map((t) => ({ valor: t.id, label: t.nome }))}
@@ -187,7 +305,6 @@ export function Painel() {
 
         <div className="painel-header__controles">
           <BotaoAjuda criterio={classificacaoResp?.criterio ?? null} />
-          <BuscaAluno valor={busca} onChange={setBusca} />
           <Segmento
             opcoes={[
               { label: 'Ranking', value: 'ranking' as const },
@@ -217,6 +334,15 @@ export function Painel() {
 
       {erroSalvar && <div className="agendar__erro">{erroSalvar}</div>}
 
+      {cicloAtivo && (
+        <FaixaDecisao
+          alunosNoRecorte={dados.alunosOrdenados}
+          classificacao={classificacao}
+          recorteAtivo={sedeIds.size > 0 || turmaIds.size > 0 || busca.trim() !== ''}
+          nomeCriterio={classificacaoResp?.criterio.nome ?? null}
+        />
+      )}
+
       {resumo && (
         <div className="kpi-grid kpi-grid--cartoes">
           <Kpi rotulo="Alunos no ciclo" valor={resumo.totalAlunos} />
@@ -241,6 +367,7 @@ export function Painel() {
             alunos={dados.alunosOrdenados}
             colunas={dados.colunas}
             notasAluno={dados.notasAluno}
+            notasIgnoradas={dados.notasIgnoradas}
             mediasVirtuais={dados.mediasVirtuais}
             mediasPorColuna={dados.mediasPorColuna}
             classificacao={classificacao}
@@ -317,27 +444,6 @@ function DialogoNota({
   );
 }
 
-function BuscaAluno({ valor, onChange }: { valor: string; onChange: (v: string) => void }) {
-  return (
-    <div className="painel-busca-wrap">
-      <svg
-        xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      >
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
-      <input
-        className="painel-busca"
-        type="text"
-        placeholder="Buscar aluno…"
-        value={valor}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
-  );
-}
-
 /** Seletor de valor único em pílulas — ordenação e fase. */
 function Segmento<V extends string>({
   opcoes, valor, onEscolher,
@@ -410,8 +516,10 @@ function LegendaCriterio({ criterio }: { criterio: CriterioClassificacao | null 
 
 const AJUDA_ITENS = [
   'Escolha um ciclo na faixa de filtros para carregar os dados.',
+  'Estreite a fileira de ciclos por Ano letivo e Vestibular — os dois nascem com tudo marcado.',
   'Filtre por Sede e Turmas na mesma faixa (múltipla seleção).',
-  'Use a busca para encontrar um aluno específico.',
+  'Use a busca da faixa para encontrar um aluno na tabela.',
+  'A faixa colapsa sozinha quando não cabe numa linha; o resumo do que está ativo fica no lugar.',
   'Ranking: não-cortados primeiro, depois os cortados; desempate pela ordem do critério.',
   'Troque o critério (Tio Leo, ITA, IME) para ver a mesma turma sob outra régua.',
   'Clique nos separadores Top 10 / 50 / 100 para ocultar ou exibir os alunos abaixo.',

@@ -115,7 +115,23 @@ export function SimuladoFicha() {
               )}
             </h1>
             {simulado.anulado && <span className="tag tone-anulado">Anulado</span>}
+            {!simulado.notaConfiavel && (
+              <span className="tag tone-ambar">Fora das estatísticas</span>
+            )}
           </div>
+
+          {/* A ressalva inteira, e não só a etiqueta: quem abre esta prova
+              precisa saber que a média mostrada em outros lugares NÃO a
+              inclui, e por quê. Esconder a prova seria pior — o aluno de 2023
+              não perde o histórico dele (docs/32 §1.5, item 6). */}
+          {!simulado.notaConfiavel && (
+            <p className="tela-subtitulo" style={{ marginTop: 8 }}>
+              <b>Esta prova não entra nas médias, nos histogramas nem nos alertas.</b>{' '}
+              {simulado.motivoNotaNaoConfiavel
+                || 'As notas dela não representam desempenho.'}{' '}
+              As notas individuais continuam abaixo, e continuam no histórico de cada aluno.
+            </p>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
             <p className="screen-subtitle" style={{ margin: 0 }}>
               {`${FASE_PREFIXO[simulado.tipo ?? ''] ?? ''}aplicado em ${simulado.dataAplicacao} · ${simulado.nPresentes ?? '—'} presentes`}

@@ -1545,11 +1545,140 @@
   flex-wrap: wrap;
 }
 
+/* O contêiner que de fato mede a quebra de linha. `BarraFiltros` compara o
+   `offsetTop` dos filhos DIRETOS daqui — por isso os grupos são filhos deste
+   nó, e não da faixa. */
+.barra-filtros__grupos {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ⚠️ `hidden` sozinho não vence `display: flex` — a especificidade do
+   atributo perde para a da classe, e a faixa "colapsada" continuaria aberta.
+   Esta regra é o que faz o colapso existir. */
+.barra-filtros__grupos[hidden] {
+  display: none;
+}
+
 .barra-filtros__grupo {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  /* ⚠️ Sem isto o grupo ENCOLHE em vez de quebrar de linha.
+     
+     Um item de flex tem `flex-shrink: 1` por padrão, então com três grupos
+     disputando 328px a 360px cada um era espremido a ~93px — e aí as pílulas
+     quebravam DENTRO do grupo, uma por linha, transformando a faixa numa
+     coluna de trinta linhas. `min-content` é a largura da pílula mais larga:
+     abaixo disso o grupo não desce, e quem quebra é a faixa, que é o que ela
+     existe para fazer. Achado na verificação a 360px. */
+  min-width: min-content;
+}
+
+/* ⚠️ O CONSERTO QUE IMPORTA, e ele é no CONTÊINER, não no grupo.
+   
+   `.barra-filtros__grupos` tem `flex: 1 1 0%` e `min-width: 0`. Numa faixa que
+   também carrega o botão "Filtros" e o "Limpar", isso significa que ele ABSORVE
+   todo o aperto em vez de quebrar para a linha de baixo: a 360px o botão e o
+   limpar comiam ~245px dos 300 úteis e sobravam 83px para os grupos inteiros.
+   As pílulas então quebravam uma por linha, deslocadas 110px à direita, e a
+   faixa virava uma coluna — com `flex-wrap: wrap` no pai sem nunca disparar,
+   porque um item que pode encolher nunca precisa quebrar.
+
+   Dando base 100% no celular, o botão e o limpar ficam na primeira linha e os
+   grupos ganham a largura inteira na segunda. Achado na verificação a 360px,
+   que é o alvo real do projeto. */
+@media (max-width: 560px) {
+  .barra-filtros__grupos {
+    flex: 1 0 100%;
+  }
+
+  /* E cada grupo na própria linha: a 360px dois lado a lado deixam o rótulo do
+     segundo longe das suas próprias pílulas, e o olho associa rótulo e pílula
+     errados — pior que ocupar mais altura. */
+  .barra-filtros__grupo {
+    flex: 1 0 100%;
+  }
+
+  /* E sem o filete vertical: ele separa grupos LADO A LADO. Com um grupo por
+     linha ele vira um traço solto à esquerda do rótulo, apontando para nada —
+     quem separa aqui é a própria quebra de linha. */
+  .barra-filtros__sep {
+    display: none;
+  }
+}
+
+/* ─── Colapso ───────────────────────────────────────────────────────────
+   Colapsada, a faixa vira uma linha só: o botão, o resumo do que está ativo,
+   e o limpar. O resumo é OBRIGATÓRIO — é ele que impede um filtro em vigor de
+   ficar invisível, que é o único jeito de o colapso sair caro (docs/33 §2). */
+
+.barra-filtros.is-colapsada {
+  gap: 12px;
+}
+
+.barra-filtros__alternar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  flex: none;
+  transition: border-color 150ms, color 150ms;
+}
+
+.barra-filtros__alternar:hover {
+  border-color: var(--color-navy-light);
+  color: var(--color-navy);
+}
+
+/* O campo de busca da faixa. O ícone fica dentro do campo, como na topbar —
+   é o mesmo gesto, e desenhá-lo diferente faria parecer outra coisa. */
+.barra-filtros__busca {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.barra-filtros__busca > svg {
+  position: absolute;
+  left: 12px;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+/* ⚠️ Seletor descendente de propósito, e não `.barra-filtros__busca-campo`
+   sozinho: o campo também é `.pill-campo`, que declara `padding: 7px 14px` —
+   SHORTHAND, e cem linhas mais abaixo neste arquivo. Com a mesma
+   especificidade quem vence é a ordem, o `padding-left` morria, e o texto
+   começava exatamente embaixo da lupa. Amarrar ao pai tira a correção das
+   mãos da ordem do arquivo. Achado na verificação a 360px. */
+.barra-filtros__busca > .barra-filtros__busca-campo {
+  padding-left: 32px;
+  min-width: 190px;
+}
+
+.barra-filtros__resumo {
+  font-size: 13px;
+  color: var(--color-text-body);
+  min-width: 0;
+  /* Uma linha: o resumo existe para caber onde os filtros não cabiam. O
+     `title` não é preciso porque expandir mostra tudo, e é um clique. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .barra-filtros__rotulo {
@@ -1585,6 +1714,32 @@
 .barra-filtros__limpar[disabled] {
   color: var(--color-text-tertiary);
   cursor: default;
+}
+
+/* A PRIMEIRA regra de celular desta faixa — até aqui não havia nenhuma, e no
+   Painel ela chegava a ocupar a tela inteira antes de a tabela começar. Não
+   força o colapso por media query: quem decide continua sendo a medição, e no
+   celular ela dá "transbordou" quase sempre, que é o mesmo efeito com uma
+   regra a menos. O que muda aqui é só o aperto. */
+@media (max-width: 880px) {
+  .barra-filtros {
+    padding: 12px 14px;
+    gap: 14px;
+  }
+
+  .barra-filtros__grupos {
+    gap: 14px;
+  }
+
+  /* Colapsada no celular, o limpar não empurra o resumo para fora: ele vai
+     para o fim da linha e o resumo fica com a largura que sobrar. */
+  .barra-filtros.is-colapsada {
+    flex-wrap: nowrap;
+  }
+
+  .barra-filtros.is-colapsada .barra-filtros__limpar {
+    flex: none;
+  }
 }
 
 /* ─── Pílula selecionável ───────────────────────────────────────────────
@@ -1818,4 +1973,40 @@
   .camadas__topo { flex-direction: column; }
   .camadas__degraus { align-self: stretch; justify-content: space-between; }
   .camadas__degrau { flex: 1; padding: 0 8px; }
+}
+
+
+/* ─── Pendências do ciclo no Canvas (docs/32 §4) ────────────────────────
+   Um bloco, não um badge: o coordenador precisa ler O QUE está pendente
+   antes de decidir mandar, e a lista é a decisão. */
+
+.ciclo-canvas {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ciclo-canvas__lista {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* Vermelho aqui é informação, não decoração: é o motivo de uma falha. */
+.ciclo-canvas__erro {
+  color: var(--color-red);
+}
+
+
+/* A explicação do acesso de coordenação (docs/33 §6). Largura de leitura, e
+   não a da tela: um parágrafo de 200 caracteres por linha ninguém lê. */
+.admin__explicacao {
+  max-width: 70ch;
+  margin-top: 8px;
 }

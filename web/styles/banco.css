@@ -20,48 +20,54 @@
 
 /* ═══ Casca ═══════════════════════════════════════════════════════════ */
 
+/* Coluna única: os filtros viraram a `BarraFiltros` horizontal, acima do
+   conteúdo, como nas outras sete telas (docs/33 §7). O grid de duas colunas
+   com a sidebar de 248px saiu junto com o `<aside>`. */
 .banco-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 14px;
-  align-items: start;
-}
-
-@media (min-width: 880px) {
-  .banco-layout {
-    grid-template-columns: 248px minmax(0, 1fr);
-    gap: 18px;
-  }
-}
-
-
-/* ═══ Coluna de filtros ═══════════════════════════════════════════════ */
-
-/* Mesmos valores de `.card` (layout.css) de propósito: a tela pode compor
-   `class="card banco-filtros"` sem que nada brigue. */
-.banco-filtros {
   min-width: 0;
+}
+
+/* ═══ O painel de assuntos ════════════════════════════════════════════
+   A árvore do edital não cabe numa linha de pílulas, e achatá-la em pílulas
+   planas perderia a hierarquia — que é justamente o que o aluno reconhece do
+   edital. Então ela vira um painel que abre a partir do grupo. */
+
+.banco-assunto {
+  position: relative;
+}
+
+.banco-assunto__painel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(340px, calc(100vw - 32px));
+  /* O que a coluna grudada dava de graça e aqui precisa ser dito: a árvore de
+     65 tópicos rola por dentro em vez de esticar a página. */
+  max-height: min(60dvh, 480px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  padding: 12px 14px;
 }
 
-/* Grudar só a partir do degrau em que a coluna existe de verdade. No celular
-   ela é um bloco acima do conteúdo, e sticky ali roubaria a tela inteira. */
-@media (min-width: 880px) {
-  .banco-filtros {
-    position: sticky;
-    top: 20px;
-    max-height: calc(100dvh - 40px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-}
+
+/* ═══ Campos e grupos do banco ════════════════════════════════════════
+
+   ⚠️ O contêiner `.banco-filtros` — o `<aside>` que era a coluna de filtros,
+   com `position: sticky` acima de 880px — SAIU na Sprint de polimento: os
+   filtros viraram a `BarraFiltros` horizontal (docs/33 §7).
+
+   As subclasses abaixo FICAM, e não são resíduo: `MinhaLista` e
+   `Estatisticas` compõem os próprios formulários com elas. `__busca` é o
+   único estilo de campo de texto que o banco tem. Apagá-las junto com o
+   contêiner deixaria as duas telas sem desenho. */
 
 .banco-filtros__grupo {
   min-width: 0;

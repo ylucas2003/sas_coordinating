@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { LIMITES_RANKING, linhaVisivel } from '../../dominio/painel';
 import type { ClassificacaoPorAluno } from '../../dominio/painel';
 import type { TomNota } from '../../tipos/dominio';
-import type { ColunaPainel, NotasPorAluno } from '../../dominio/painel';
+import type { ColunaPainel, IgnoradasPorAluno, NotasPorAluno } from '../../dominio/painel';
 import type { Aluno } from '../../tipos/dominio';
 import { fmtNota } from '../../util/formato';
 
@@ -10,6 +10,8 @@ interface Props {
   alunos: readonly Aluno[];
   colunas: readonly ColunaPainel[];
   notasAluno: NotasPorAluno;
+  /** O que a média deixou de fora — a célula mostra, marcado. */
+  notasIgnoradas: IgnoradasPorAluno;
   mediasVirtuais: Record<string, Record<string, number | null>>;
   mediasPorColuna: Record<string, number | null>;
   /** Veredito, motivo e cor por aluno — vem do servidor. */
@@ -46,8 +48,33 @@ function NotaBadge({
   );
 }
 
+/** Motivo técnico → frase. `motivo` novo cai no texto genérico, sem quebrar. */
+const TEXTO_IGNORADA: Record<string, string> = {
+  todas_em_branco: 'nenhuma alternativa marcada',
+};
+
+/**
+ * A nota que a média não somou — visível, riscada, e dizendo por quê.
+ *
+ * Regra da casa: um número que o produto decidiu ignorar precisa DIZER que
+ * ignorou. Some-lo da tela esconderia a decisão; deixá-lo igual aos outros
+ * faria o coordenador somar de cabeça um valor que o sistema não somou
+ * (docs/32 §1.5, item 7).
+ */
+function NotaIgnoradaBadge({ nota, motivo }: { nota: number | null; motivo: string | null }) {
+  const explicacao = (motivo && TEXTO_IGNORADA[motivo]) || 'não entra na média';
+  return (
+    <span
+      className="nota-badge nota-badge--ignorada"
+      title={`${fmtNota(nota)} — ${explicacao}; não entra na média`}
+    >
+      {fmtNota(nota)}
+    </span>
+  );
+}
+
 export function TabelaPainel({
-  alunos, colunas, notasAluno, mediasVirtuais, mediasPorColuna, classificacao,
+  alunos, colunas, notasAluno, notasIgnoradas, mediasVirtuais, mediasPorColuna, classificacao,
   recolhidos, onToggleLimite, onEditarNota,
 }: Props) {
   return (
@@ -111,6 +138,7 @@ export function TabelaPainel({
                       ? notasAluno[aluno.id]?.[col.sim.id] ?? null
                       : null;
                   const editavel = !col.virtual && !!col.sim;
+                  const ignorada = col.sim ? notasIgnoradas[aluno.id]?.[col.sim.id] : undefined;
 
                   return (
                     <td
@@ -125,10 +153,14 @@ export function TabelaPainel({
                           : undefined
                       }
                     >
-                      <NotaBadge
-                        nota={nota}
-                        tom={col.sim?.materia?.codigo ? veredito?.notas[col.sim.materia.codigo]?.tom : undefined}
-                      />
+                      {ignorada ? (
+                        <NotaIgnoradaBadge nota={ignorada.nota} motivo={ignorada.motivo} />
+                      ) : (
+                        <NotaBadge
+                          nota={nota}
+                          tom={col.sim?.materia?.codigo ? veredito?.notas[col.sim.materia.codigo]?.tom : undefined}
+                        />
+                      )}
                     </td>
                   );
                 })}

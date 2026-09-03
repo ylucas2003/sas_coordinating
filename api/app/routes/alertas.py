@@ -73,6 +73,13 @@ def _linha_para_alerta(linha: dict) -> Alerta:
     return Alerta(
         id=linha["id"],
         categoria=categoria,
+        # A entidade vai explícita, e não só embutida no `href`. A faixa de
+        # decisão do Painel precisa saber SOBRE QUEM é o alerta para respeitar
+        # o recorte da tela (ciclo, sede, turma); deduzir isso do caminho seria
+        # o front reimplementando `_href_para_entidade` de trás para frente,
+        # e quebraria calado no dia em que a rota mudasse (docs/33 §3).
+        entidadeTipo=linha["entidade_tipo"],
+        entidadeId=linha["entidade_id"],
         severidade=linha["severidade"],
         tagLabel=_TAG_LABEL.get(categoria, categoria),
         titulo=linha.get("titulo") or "",

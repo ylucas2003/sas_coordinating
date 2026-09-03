@@ -379,6 +379,22 @@ O cartão de questão é a peça crítica: hoje ele é uma imagem PNG de largura
 variável dentro de um container fixo. No celular precisa de `max-width: 100%;
 height: auto`, como `Histograma` e `LinhaTemporal` já ganharam.
 
+> ⚠️ **A coluna própria de filtros saiu em 03/09/2026.** Esta seção justificou
+> `.banco-filtros` como `<aside>` — "o resto da coordenação usa a
+> `.barra-filtros` horizontal; aqui não, porque são muitos assuntos por edital
+> e eles não caberiam numa linha" —, e a justificativa **estava certa enquanto
+> a faixa não colapsava**. Agora ela colapsa quando o conteúdo passa de uma
+> linha, e a árvore de assuntos virou um grupo que abre em painel: o `/banco`
+> adotou a `BarraFiltros` como as outras sete superfícies, fechando a dívida de
+> "dois sistemas de filtro" que esta exceção reabria
+> ([33 §7](33-plano-polimento-coordenacao.md)).
+>
+> O que se perdeu na troca, e que esta seção tinha de bom: a coluna grudava
+> (`position: sticky`) e rolava sozinha acima de 880px. O painel do grupo
+> Assunto rola por dentro no lugar, com `max-height` e `overscroll-behavior`.
+> **O resto do §3.5 continua valendo inteiro** — a aba nasceu mobile-first, e é
+> por isso que a troca só pôde acontecer depois de a faixa aprender a colapsar.
+
 ### 3.6 Pronto quando
 
 Aluno e coordenador abrem `/banco`, filtram por matéria e tópico e leem uma

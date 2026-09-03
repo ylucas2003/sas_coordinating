@@ -18,6 +18,9 @@ export interface RecorteDaTela {
   criterio?: string;
   sedeIds?: string[];
   turmaIds?: string[];
+  /** O recorte de ano e vestibular do Painel (docs/32 §3.2). */
+  anos?: number[];
+  vestibulares?: string[];
 }
 
 export interface EntidadeAberta {

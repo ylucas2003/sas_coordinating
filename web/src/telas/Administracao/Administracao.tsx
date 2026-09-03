@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 
 import { Campo, Dialogo, Linha2 } from '../../componentes/dialogos/Dialogo';
 import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
-import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { useAcessosDeAlunos, useCoordenadores } from '../../hooks/consultas';
 import {
@@ -67,6 +68,23 @@ export function Administracao() {
         <div>
           <h1 className="tela-titulo">Contas da coordenação</h1>
           <p className="tela-subtitulo">Quem pode entrar no painel. Contas não são apagadas: desativar preserva a autoria na auditoria.</p>
+          {/*
+            O modelo está certo; o produto é que não contava (docs/25 §3). As
+            quatro dúvidas do áudio de 29/08 têm resposta no código e nenhuma
+            estava escrita em lugar visível — e se o autor do produto não sabe,
+            o coordenador também não vai saber.
+
+            A frase que resume a regra está em `auth_canvas.py`: "o Canvas diz
+            QUEM é; o SAS decide quem ENTRA".
+          */}
+          <p className="tela-subtitulo admin__explicacao">
+            <b>Criar um acesso aqui não cria nada no Canvas.</b> A conta passa a existir só no
+            SAS, e funciona inteira com e-mail e senha. Se você usar <b>o mesmo e-mail que a
+            pessoa tem no Canvas</b>, ela também poderá entrar pelo botão do Canvas — na hora,
+            pelo botão “Ligar ao Canvas”, ou sozinho no primeiro login. E o caminho contrário
+            não existe: <b>ser admin no Canvas não dá acesso ao SAS</b> enquanto alguém não
+            criar a conta por aqui.
+          </p>
         </div>
         <button className="btn btn-primary" onClick={() => setCriando(true)}>Nova conta</button>
       </div>
@@ -102,11 +120,20 @@ export function Administracao() {
       )}
 
       <BarraFiltros
-        algumAtivo={filtros.size > 0}
-        onLimpar={() => setFiltros(new Set())}
+        tela="administracao"
+        algumAtivo={filtros.size > 0 || busca.trim() !== ''}
+        onLimpar={() => { setFiltros(new Set()); setBusca(''); }}
         grupos={[
           {
             chave: 'acesso', rotulo: 'Primeiro acesso',
+            resumo: resumirSelecao(
+              filtros,
+              [
+                { valor: 'com', label: 'já fez o primeiro acesso' },
+                { valor: 'sem', label: 'nunca entrou' },
+              ],
+              'situação', 'situações',
+            ),
             corpo: (
               <Pills
                 opcoes={[
@@ -120,13 +147,13 @@ export function Administracao() {
           },
           {
             chave: 'busca', rotulo: 'Buscar',
+            resumo: resumirTexto(busca),
             corpo: (
-              <input
-                className="pill-campo"
+              <Busca
+                valor={busca}
+                onChange={setBusca}
                 placeholder="Nome ou matrícula…"
-                aria-label="Buscar aluno por nome ou matrícula"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
+                rotulo="Buscar aluno por nome ou matrícula"
               />
             ),
           },
@@ -166,7 +193,12 @@ export function Administracao() {
           rodape={<button className="btn btn--primary" onClick={() => setSenhaRevelada(null)}>Já anotei</button>}
         >
           <p className="section__subtitle">
-            Esta é a única vez que ela aparece. Entregue ao titular pelo canal do colégio — depois disto ninguém consegue lê-la de volta, só redefinir.
+            Esta é a única vez que ela aparece. Entregue ao titular pelo canal do colégio — depois
+            disto ninguém consegue lê-la de volta, só redefinir.
+          </p>
+          <p className="section__subtitle">
+            Ela vale <b>só no SAS</b>: não é a senha do Canvas, e redefinir aqui não mexe em nada
+            lá. Quem entrar pelo botão do Canvas nem chega a usá-la.
           </p>
           <code className="agendar__preview-nome" style={{ fontSize: 18, userSelect: 'all' }}>{senhaRevelada.senha}</code>
         </Dialogo>
@@ -293,7 +325,9 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
         </Campo>
       </Linha2>
       <p className="agendar__ajuda">
-        Use o mesmo e-mail do Canvas: o SAS liga o login pelo Canvas sozinho — agora, ou na primeira vez que a pessoa entrar por ele.
+        Use o mesmo e-mail do Canvas: o SAS liga o login pelo Canvas sozinho — agora, ou na
+        primeira vez que a pessoa entrar por ele. Com outro e-mail a conta funciona igual, só
+        entra por senha.
       </p>
       {erro && <div className="agendar__erro">{erro}</div>}
     </Dialogo>

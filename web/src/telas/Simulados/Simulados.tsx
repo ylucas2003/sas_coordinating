@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { CalendarioAnual } from '../../componentes/ui/CalendarioAnual';
-import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { normalizar } from '../../util/formato';
+import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import type { GrupoFiltro } from '../../componentes/ui/filtros/BarraFiltros';
 import { proximaOrdenacao } from '../../componentes/ui/ordenacao';
 import type { Ordenacao } from '../../componentes/ui/ordenacao';
@@ -28,6 +30,7 @@ export function Simulados() {
   const { data: ciclos = [] } = useCiclos();
 
   const [filtro, setFiltro] = useState<FiltroSimulados>(FILTRO_VAZIO);
+  const [busca, setBusca] = useState('');
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
   // Calendário começa oculto: o usuário decide quando mostrar.
   const [calendarioVisivel, setCalendarioVisivel] = useState(false);
@@ -44,7 +47,16 @@ export function Simulados() {
   }, [todos]);
 
   const opcoes = useMemo(() => montarOpcoes(simulados), [simulados]);
-  const filtrados = useMemo(() => aplicarFiltros(simulados, filtro), [simulados, filtro]);
+  const filtrados = useMemo(() => {
+    const q = normalizar(busca.trim());
+    const doRecorte = aplicarFiltros(simulados, filtro);
+    if (!q) return doRecorte;
+    // Nome E rótulo curto: quem procura "P17" não digita o nome inteiro, e
+    // quem procura "Termodinâmica" não sabe o rótulo.
+    return doRecorte.filter(
+      (s) => normalizar(s.nome).includes(q) || normalizar(s.rotuloCurto ?? '').includes(q),
+    );
+  }, [simulados, filtro, busca]);
   const contagens = useMemo(() => contarPorChip(simulados, filtro), [simulados, filtro]);
   const datasCalendario = useMemo(() => datasDoCalendario(simulados, filtro), [simulados, filtro]);
 
@@ -62,7 +74,23 @@ export function Simulados() {
 
   const grupos: GrupoFiltro[] = [
     {
+      chave: 'busca', rotulo: 'Prova',
+      resumo: resumirTexto(busca),
+      corpo: (
+        <Busca
+          valor={busca}
+          onChange={setBusca}
+          placeholder="Buscar prova…"
+          rotulo="Buscar prova por nome ou rótulo"
+        />
+      ),
+    },
+    {
       chave: 'vestibular', rotulo: 'Vestibular',
+      resumo: resumirSelecao(
+        filtro.vestibulares, opcoes.vestibulares.map((v) => ({ valor: v, label: v })),
+        'vestibular', 'vestibulares',
+      ),
       corpo: (
         <Pills
           opcoes={opcoes.vestibulares.map((v) => ({ valor: v, label: v, contagem: contagens.vestibular.get(v) ?? 0 }))}
@@ -73,6 +101,7 @@ export function Simulados() {
     },
     {
       chave: 'fase', rotulo: 'Fase',
+      resumo: resumirSelecao(filtro.fases, opcoes.fases, 'fase', 'fases'),
       corpo: (
         <Pills
           opcoes={opcoes.fases.map((f) => ({ valor: f.valor, label: f.label, contagem: contagens.fase.get(f.valor) ?? 0 }))}
@@ -83,6 +112,10 @@ export function Simulados() {
     },
     {
       chave: 'ciclo', rotulo: 'Ciclo',
+      resumo: resumirSelecao(
+        filtro.ciclos, opcoes.ciclos.map((c) => ({ valor: c.ordem, label: c.label })),
+        'ciclo', 'ciclos',
+      ),
       corpo: (
         <Pills
           opcoes={opcoes.ciclos.map((c) => ({ valor: c.ordem, label: c.label, contagem: contagens.ciclo.get(c.ordem) ?? 0 }))}
@@ -93,6 +126,10 @@ export function Simulados() {
     },
     {
       chave: 'disciplina', rotulo: 'Disciplina',
+      resumo: resumirSelecao(
+        filtro.materias, opcoes.materias.map((m) => ({ valor: m.codigo, label: m.nome })),
+        'disciplina', 'disciplinas',
+      ),
       corpo: (
         <Pills
           opcoes={opcoes.materias.map((m) => ({ valor: m.codigo, label: m.nome, contagem: contagens.materia.get(m.codigo) ?? 0 }))}
@@ -106,9 +143,10 @@ export function Simulados() {
   return (
     <>
       <BarraFiltros
+        tela="provas.simulados"
         grupos={grupos}
-        algumAtivo={algumFiltroAtivo(filtro)}
-        onLimpar={() => setFiltro(FILTRO_VAZIO)}
+        algumAtivo={algumFiltroAtivo(filtro) || busca.trim() !== ''}
+        onLimpar={() => { setFiltro(FILTRO_VAZIO); setBusca(''); }}
       />
 
       <div className="tela-cabecalho">

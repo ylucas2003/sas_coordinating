@@ -25,10 +25,20 @@ import { MinhaLista } from './MinhaLista';
 // coordenação vira filha do `<main>` de AppShell, no aluno é mais um bloco da
 // coluna de `.alu-body__inner`.
 //
-// Os filtros são a coluna `.banco-filtros` de `.banco-layout`, que nasce
-// empilhada no celular e vira coluna a partir de 880px. O resto da coordenação
-// usa a `.barra-filtros` horizontal; aqui não, porque são muitos assuntos por
-// edital e eles não caberiam numa linha (docs/22 §3.5).
+// Os filtros são a `BarraFiltros` da coordenação — a mesma das outras sete
+// telas. **Mudou na Sprint de polimento** (docs/33 §7): até então esta aba
+// tinha coluna própria (`.banco-filtros`, um `<aside>`), e o motivo estava
+// escrito aqui — "são muitos assuntos por edital e eles não caberiam numa
+// linha (docs/22 §3.5)".
+//
+// A justificativa estava certa **enquanto a faixa não colapsava**. Agora ela
+// colapsa quando passa de uma linha, e a árvore de assuntos virou um grupo que
+// abre em painel — então a exceção deixou de ter razão de ser, e com ela some
+// a dívida de "dois sistemas de filtro" que a C.1 existiu para fechar e que
+// esta aba tinha reaberto.
+//
+// O que se perdeu na troca, e vale saber: a coluna grudava e rolava sozinha
+// acima de 880px. O painel do grupo Assunto rola por dentro no lugar.
 
 /**
  * Perfil de quem está vendo a aba. Coincide com `DonoLista` (tipos/banco.ts):

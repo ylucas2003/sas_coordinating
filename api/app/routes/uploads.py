@@ -1,25 +1,31 @@
-"""Endpoints de upload e auditoria de planilhas."""
+"""Endpoints de auditoria de planilhas — a ESCRITA foi aposentada.
+
+A planilha foi como o projeto nasceu, e por isso a rota de upload existiu. Em
+30/08/2026 a medição em produção mostrou `SELECT count(*) FROM upload` = **0**:
+nem uma vez em toda a vida do sistema. As 102.143 notas entraram pelo sync do
+Canvas ([docs/32 §2.4](../../../docs/32-plano-sprint-4.md)).
+
+O problema não era a rota estar ociosa — era ela ser um **segundo escritor sem
+arbitragem**. `nota.pontuacao` tem a disputa resolvida desde a `0024`
+(`pontuacao_canvas`/`pontuacao_sas` + trigger), mas `nota.presente` não tem par
+nenhum: quem escrevesse por último venceria, em silêncio. Fechar a porta faz a
+pergunta de precedência **deixar de existir**, que é melhor que respondê-la.
+
+⚠️ Aposentar aqui quer dizer **tirar do caminho de quem clica**, não apagar o
+código. `app/ingest/` fica inteiro e roda por `scripts/importar_planilha.py` —
+é o plano B se o Canvas cair, e o caminho de uma carga histórica. As rotas de
+LEITURA continuam: o histórico de uploads é dado de auditoria.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Depends,
-    File,
-    Form,
-    HTTPException,
-    UploadFile,
-)
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from ..auth import get_current_coordenador
-from ..ingest.pipeline import processar_planilha
-from ..ingest.upsert import criar_upload
-from ..storage import salvar_planilha
-from ..supabase_client import criar_cliente_supabase, get_supabase
+from ..supabase_client import get_supabase
 
 router = APIRouter(
     prefix="/uploads",
@@ -29,13 +35,6 @@ router = APIRouter(
 
 
 # ─── Schemas de resposta ──────────────────────────────────────────────────
-
-
-class RespostaUpload(BaseModel):
-    """Resposta do POST /uploads."""
-    upload_id: str
-    status: str
-    resumo: dict[str, Any]
 
 
 class RegistroUpload(BaseModel):
@@ -66,96 +65,26 @@ class DetalheUpload(BaseModel):
 # ─── POST /uploads ────────────────────────────────────────────────────────
 
 
-@router.post("", response_model=RespostaUpload)
+@router.post("", status_code=410)
 async def receber_upload(
-    background_tasks: BackgroundTasks,
     arquivo: UploadFile = File(..., description="Planilha CSV ou XLSX exportada do Canvas."),
     autor: str | None = Form(default=None, description="Identificador de quem enviou."),
     salvar_no_storage: bool = Form(default=True),
-) -> RespostaUpload:
-    """Recebe a planilha e dispara a ingestão em background.
-
-    A rota retorna imediatamente após salvar a linha em `upload` (status =
-    'processando'). O cliente acompanha o progresso fazendo polling em
-    `GET /uploads/{id}` — os eventos `ETAPA N/7: ...` alimentam a barra
-    do frontend, e o status muda para `sucesso` ou `erro` no fim.
-    """
-    if not arquivo.filename:
-        raise HTTPException(status_code=400, detail="Arquivo sem nome.")
-
-    conteudo = await arquivo.read()
-    if not conteudo:
-        raise HTTPException(status_code=400, detail="Arquivo vazio.")
-
-    # Validar config do Supabase ANTES de devolver o upload_id — assim, se as
-    # credenciais estiverem erradas, o cliente recebe um 500 de cara em vez de
-    # ficar polling um upload que nunca vai sair de 'processando'.
-    cliente = get_supabase()
-
-    caminho_storage: str | None = None
-    if salvar_no_storage:
-        try:
-            caminho_storage = salvar_planilha(
-                arquivo_origem=arquivo.filename,
-                conteudo=conteudo,
-            )
-        except Exception:
-            # Falha ao subir pro storage não impede a ingestão.
-            caminho_storage = None
-
-    # Cria a linha de upload AGORA pra devolver o ID. O processamento
-    # propriamente dito (parsing + upserts) roda em background.
-    upload_id = criar_upload(
-        cliente,
-        arquivo_origem=arquivo.filename,
-        caminho_storage=caminho_storage,
-        autor=autor,
-    )
-
-    background_tasks.add_task(
-        _processar_em_background,
-        upload_id=upload_id,
-        arquivo_origem=arquivo.filename,
-        conteudo=conteudo,
-        caminho_storage=caminho_storage,
-        autor=autor,
-    )
-
-    return RespostaUpload(
-        upload_id=upload_id,
-        status="processando",
-        resumo={},
-    )
-
-
-def _processar_em_background(
-    *,
-    upload_id: str,
-    arquivo_origem: str,
-    conteudo: bytes,
-    caminho_storage: str | None,
-    autor: str | None,
 ) -> None:
-    """Wrapper síncrono — FastAPI BackgroundTasks chama isto após enviar a resposta.
+    """410 Gone — a planilha deixou de ser caminho de entrada (docs/32 §2.4).
 
-    Usa cliente Supabase NOVO (não cacheado) para ter conexão TCP isolada do
-    cliente que serve o polling do frontend. Sem isso, o GOAWAY de uma stream
-    HTTP/2 da pipeline derruba também as streams do polling.
+    A assinatura fica de pé de propósito: um cliente antigo que ainda poste
+    recebe a explicação, e não um 404 que parece rota quebrada. O corpo do
+    arquivo nem chega a ser lido.
     """
-    cliente = criar_cliente_supabase()
-    try:
-        processar_planilha(
-            cliente=cliente,
-            arquivo_origem=arquivo_origem,
-            conteudo=conteudo,
-            caminho_storage=caminho_storage,
-            autor=autor,
-            upload_id_existente=upload_id,
-        )
-    except Exception:
-        # `processar_planilha` já registra o erro no `upload` e em `upload_evento`.
-        # Aqui só evitamos que a exceção escale e quebre o worker do FastAPI.
-        pass
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "A importação de planilha foi aposentada. Quem traz nota para o SAS é o "
+            "sync do Canvas, que roda a cada 5 minutos. Para carga histórica, use "
+            "`api/scripts/importar_planilha.py` — o mesmo pipeline, fora da requisição."
+        ),
+    )
 
 
 # ─── GET /uploads ─────────────────────────────────────────────────────────

@@ -19,10 +19,24 @@ só: `index.html`.
 `componentes/layout/` monta rail (5 destinos) + topbar (migalhas, busca, sino,
 avatar) + `<main>`. Três consequências que se descobre errando:
 
-- **Não existe mais sidebar de filtros.** `PainelFiltros`, `Sidebar` e
-  `rotas.ts::sidebarPara` foram apagados. Filtro agora é `BarraFiltros` —
-  faixa horizontal de `.pill` acima da tabela. Exceção deliberada: o Banco,
-  cujos assuntos por edital não cabem numa linha (docs/22 §3.5).
+- **Não existe mais sidebar de filtros, e agora não há exceção.** `PainelFiltros`,
+  `Sidebar` e `rotas.ts::sidebarPara` foram apagados. Filtro é `BarraFiltros` —
+  faixa horizontal de `.pill` acima da tabela — nas **oito** superfícies,
+  inclusive o Banco, que tinha `<aside>` próprio até a Sprint de polimento
+  (docs/33 §7). São oito e não sete porque `/provas` tem duas (Ciclos e
+  Simulados, conforme `?aba=`) e `/integracoes/aulas` é uma delas.
+  - A faixa **colapsa sozinha quando o conteúdo passa de uma linha**, com o
+    resumo do que está ativo no lugar, e lembra a escolha por superfície. Ao
+    acrescentar um grupo, **passe `resumo`**: é ele que impede um filtro em
+    vigor de ficar invisível quando a faixa fecha. Os helpers estão em
+    `dominio/filtros.ts`.
+  - A `tela` que a faixa recebe é a SUPERFÍCIE, não a rota (`provas.ciclos` ≠
+    `provas.simulados`).
+- **Duas buscas, e elas não competem.** A da topbar é NAVEGAÇÃO — digite de
+  qualquer tela, atalho `/`, e vá para a ficha do aluno. A da `BarraFiltros`
+  (`<Busca>`) é RECORTE: peneira as linhas da tela em que você está. A primeira
+  já existia e não estava documentada, o que fez o inventário do docs/25 §1.1
+  concluir que faltava busca global.
 - **A tela não monta `<main>`.** Quem monta é o casco; a rota devolve
   `.tela`, que é só a coluna de blocos. Dois `<main>` na página é HTML
   inválido e o leitor de tela anuncia duas regiões principais.
