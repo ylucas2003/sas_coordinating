@@ -21,7 +21,7 @@ from supabase import Client
 
 from ...stats import classificacao as _classif
 from ...stats import criterios
-from ...stats.utils import como_float, nota_real
+from ...stats.utils import como_float, nota_real, simulado_entra_no_agregado
 
 
 # ─── alunos_em_risco ──────────────────────────────────────────────────────
@@ -129,13 +129,15 @@ def materias_problematicas(cliente: Client, *, ciclo_id: str) -> dict:
     # Simulados do ciclo, F2 apenas, não anulados.
     sim_resp = (
         cliente.table("simulado")
-        .select("id, materia_id, tipo, fase, nota_maxima, anulado, e_agregado")
+        .select(
+            "id, materia_id, tipo, fase, nota_maxima, anulado, e_agregado, nota_confiavel"
+        )
         .eq("ciclo_id", ciclo_id)
         .execute()
     )
     sims = [
         s for s in (sim_resp.data or [])
-        if not s.get("anulado") and not s.get("e_agregado")
+        if simulado_entra_no_agregado(s)
         and s.get("materia_id") and s.get("tipo") == "fase_2"
     ]
     if not sims:
@@ -154,6 +156,7 @@ def materias_problematicas(cliente: Client, *, ciclo_id: str) -> dict:
         .select("aluno_id, simulado_id, pontuacao, presente")
         .in_("simulado_id", [s["id"] for s in sims])
         .eq("presente", True)
+        .eq("computavel", True)
         .execute()
     )
 

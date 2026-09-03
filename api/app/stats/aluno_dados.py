@@ -17,7 +17,7 @@ from typing import Any
 from supabase import Client
 
 from .metricas import mapa_metrica_geral_por_simulado
-from .utils import como_float, nota_real
+from .utils import como_float, filtro_nota_valida, nota_real, simulado_entra_no_agregado
 
 
 def simulados_do_aluno(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
@@ -29,10 +29,14 @@ def simulados_do_aluno(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
         .select(
             "pontuacao, presente, simulado("
             "id, nome, rotulo_curto, data_aplicacao, nota_maxima, materia_id, tipo, anulado, e_agregado, "
+            "nota_confiavel, motivo_nota_nao_confiavel, "
             "ciclo:ciclo_id(id, ordem, vestibular_alvo)"
             ")"
         )
         .eq("aluno_id", aluno_id)
+        # Sem `filtro_nota_valida` de propósito: esta é a ficha do aluno, e uma
+        # nota que saiu da média tem de continuar visível, com a marca. Quem
+        # some daqui é a ausência, não a nota que o SAS decidiu não somar.
         .eq("presente", True)
         .execute()
     )
@@ -44,6 +48,8 @@ def simulados_do_aluno(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
     itens: list[dict[str, Any]] = []
     for linha in resp.data or []:
         sim = linha.get("simulado") or {}
+        # Só anulado e agregado saem da LISTA. Prova não confiável fica: o
+        # aluno de 2023 não perde o histórico, e a tela põe a ressalva.
         if sim.get("anulado") or sim.get("e_agregado"):
             continue
         nota = nota_real(como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima")))
@@ -141,10 +147,11 @@ def detalhe_simulado_do_aluno(
     nome_mat = {m["id"]: m["nome"] for m in (mats_resp.data or [])}
 
     notas_resp = (
-        cliente.table("nota")
-        .select("aluno_id, pontuacao")
-        .eq("simulado_id", simulado_id)
-        .eq("presente", True)
+        filtro_nota_valida(
+            cliente.table("nota")
+            .select("aluno_id, pontuacao")
+            .eq("simulado_id", simulado_id)
+        )
         .execute()
     )
 
@@ -174,17 +181,21 @@ def detalhe_simulado_do_aluno(
 
     # Delta vs média de todos os outros simulados do aluno
     outras_resp = (
-        cliente.table("nota")
-        .select("pontuacao, presente, simulado(nota_maxima, anulado, e_agregado)")
-        .eq("aluno_id", aluno_id)
-        .eq("presente", True)
+        filtro_nota_valida(
+            cliente.table("nota")
+            .select(
+                "pontuacao, presente, "
+                "simulado(nota_maxima, anulado, e_agregado, nota_confiavel)"
+            )
+            .eq("aluno_id", aluno_id)
+        )
         .neq("simulado_id", simulado_id)
         .execute()
     )
     outras: list[float] = []
     for linha in outras_resp.data or []:
         s = linha.get("simulado") or {}
-        if s.get("anulado") or s.get("e_agregado"):
+        if not simulado_entra_no_agregado(s):
             continue
         n = nota_real(como_float(linha.get("pontuacao")), como_float(s.get("nota_maxima")))
         if n is not None:
@@ -216,15 +227,16 @@ def detalhe_simulado_do_aluno(
 def evolucao_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any]:
     """Séries aluno × turma por matéria/ciclo — mesma resposta de GET /me/evolucao."""
     resp = (
-        cliente.table("nota")
-        .select(
-            "pontuacao, presente, simulado("
-            "id, nota_maxima, materia_id, anulado, e_agregado, "
-            "ciclo:ciclo_id(id, ordem)"
-            ")"
+        filtro_nota_valida(
+            cliente.table("nota")
+            .select(
+                "pontuacao, presente, simulado("
+                "id, nota_maxima, materia_id, anulado, e_agregado, nota_confiavel, "
+                "ciclo:ciclo_id(id, ordem)"
+                ")"
+            )
+            .eq("aluno_id", aluno_id)
         )
-        .eq("aluno_id", aluno_id)
-        .eq("presente", True)
         .execute()
     )
 
@@ -239,7 +251,7 @@ def evolucao_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any]:
 
     for linha in resp.data or []:
         sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
+        if not simulado_entra_no_agregado(sim):
             continue
         ciclo = sim.get("ciclo") or {}
         ordem = ciclo.get("ordem")

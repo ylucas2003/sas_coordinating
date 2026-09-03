@@ -1336,24 +1336,48 @@
     </article>
 
     <!-- ============================== 13 · Sprint 4 ============================== -->
-    <article class="ciclo" data-estado="proposta">
+    <article class="ciclo" data-estado="curso">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">SPRINT 4</span>
-        <span class="selo selo--espera">proposta</span>
-        <span class="ciclo__quando">5 partes · a P5 foi para a Sprint 5</span>
+        <span class="selo selo--curso">escrita, fora de produção</span>
+        <span class="ciclo__quando">4 partes · escrita em 03/09</span>
       </div>
       <h2>Dado e leitura</h2>
       <p class="ciclo__resumo">Recolhe o que o Bloco B e o Bloco C do documento 10 deixaram pendente, mais as duas
-        partes que a Onda 3 da Sprint 2 cortou por falta de tempo.</p>
-      <ul class="fontes"><li>docs/19-roadmap.md §3</li><li>docs/10 Partes 5</li></ul>
+        partes que a Onda 3 da Sprint 2 cortou por falta de tempo. <b>O número para de mudar de significado conforme
+        a origem do dado.</b></p>
+      <ul class="fontes"><li>docs/32-plano-sprint-4.md</li><li>docs/19-roadmap.md §3</li><li>docs/10 Partes 5</li></ul>
+
+      <p class="nota"><b>A medição contra produção reorganizou o sprint.</b> Duas das cinco partes não eram o que a
+        proposta dizia: a <b>P4 já estava feita</b> (saiu), e a <b>P2 virou “aposentar a planilha”</b> — em toda a
+        vida do sistema, <b>zero uploads em produção</b>, e a rota era um segundo escritor sem arbitragem para
+        <code>nota.presente</code>. E a P1 virou <b>dois</b> problemas: 122 células de quem abriu a prova e não
+        marcou nada, e <b>oito provas de 2023 onde mora 71% de todos os zeros do sistema</b>.</p>
 
       <ul class="partes">
-        <li><span class="cod">P1</span><span class="oque"><b>Zero × ausência nas estatísticas</b><em>B.3 — o par do P3 da Sprint 3, do lado do motor estatístico.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P2</span><span class="oque"><b>Precedência entre ingest de planilha e sync do Canvas</b><em>B.4 — hoje quem escreve por último vence.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P3</span><span class="oque"><b>Split ano / vestibular / ciclo no Painel</b><em>C.2.</em></span><span class="selo selo--espera">—</span></li>
-        <li><span class="cod">P4</span><span class="oque"><b>Range de período em Ciclos</b><em>C.3.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P1</span><span class="oque"><b>Zero × ausência nas estatísticas</b><em>B.3. Nasceu
+          <code>nota.computavel</code>, derivada de evidência DIRETA — o aluno não marcou nenhuma alternativa —, sem
+          tocar no que o Canvas afirma. A regra antiga, que apagava <code>pontuacao</code> de quem tinha 2+ zeros no
+          mesmo dia, <b>saiu</b>: errava 14% dos casos verificáveis e operava às cegas em 79% deles.</em></span><span class="selo selo--curso">escrita</span></li>
+        <li><span class="cod">P1b</span><span class="oque"><b>As oito provas de 2023</b><em>Onde o professor lançou 0
+          para quem faltou: a média divulgada é 1,10 onde a de quem fez é 3,84. As colunas, o filtro e a ressalva na
+          tela estão de pé; falta a migration de dados. <b>É a única coisa do sprint que precisa da
+          coordenação.</b></em></span><span class="selo selo--trava">decisão</span></li>
+        <li><span class="cod">P2</span><span class="oque"><b>A planilha sai do caminho</b><em>B.4. <code>POST /uploads</code>
+          responde 410, a aba sai da Administração, e <code>app/ingest/</code> vira script. Com um só escritor, a
+          pergunta de precedência <b>deixa de existir</b> em vez de ser respondida.</em></span><span class="selo selo--curso">escrita</span></li>
+        <li><span class="cod">P3</span><span class="oque"><b>Split ano / vestibular / ciclo no Painel</b><em>C.2. A
+          fileira saía <code>1·IME·2026 | 1·ITA·2027 | 1·IME·2025 | 2·ITA·2025 …</code> — três anos e dois
+          vestibulares intercalados —, e o Painel abria num ciclo que ninguém escolheu. Ano e vestibular são de
+          seleção múltipla e nascem com tudo marcado.</em></span><span class="selo selo--curso">escrita</span></li>
+        <li><span class="cod">P4</span><span class="oque"><b>Range de período em Ciclos</b><em>C.3. <b>Já estava
+          feito</b> — <code>RangeDatas</code> + <code>intersectaPeriodo</code>, com extremos abertos e período nulo
+          tratados. Saiu do sprint.</em></span><span class="selo selo--ok">já estava</span></li>
         <li><span class="cod">P5</span><span class="oque"><b>Corte na Fase 1 pela zona do aluno</b><em>Unificar <code>thresholds.py</code> com <code>criterios.py</code>. <b>Puxada para a Sprint 5 em 30/08</b>: os gráficos em camadas dependem dela.</em></span><span class="selo selo--espera">movida</span></li>
-        <li><span class="cod">P6</span><span class="oque"><b>Envio em lote ao Canvas</b><em>“Enviar as N pendências do ciclo” — hoje cada objeto tem seu botão. Também da Onda 3.</em></span><span class="selo selo--espera">—</span></li>
+        <li><span class="cod">P6</span><span class="oque"><b>Envio em lote ao Canvas</b><em>E o buraco maior que ele
+          revelou: <code>enviarCicloAoCanvas</code> existia na API e <b>nenhuma linha do front o chamava</b> — um
+          ciclo “divergente” ficava assim para sempre, e <code>GET /ciclos</code> nem devolvia o estado. Agora vê-se
+          a lista item a item antes de mandar, e o resultado item a item depois.</em></span><span class="selo selo--curso">escrita</span></li>
       </ul>
 
       <div class="ganho">
@@ -1641,40 +1665,47 @@
     </article>
 
     <!-- ============================== 18 · Polimento ============================== -->
-    <article class="ciclo" data-estado="proposta">
+    <article class="ciclo" data-estado="curso">
       <div class="ciclo__topo">
         <span class="ciclo__ordem">AVULSO</span>
-        <span class="selo selo--espera">proposta · não é sprint</span>
-        <span class="ciclo__quando">6 itens · PR avulso, qualquer hora</span>
+        <span class="selo selo--curso">escrito · fora de produção</span>
+        <span class="ciclo__quando">6 PRs escritos em 03/09 · não é sprint</span>
       </div>
       <h2>Polimento da coordenação</h2>
       <p class="ciclo__resumo">O outro lado do mesmo brainstorming. <b>Quase tudo que foi pedido já estava
         planejado</b> — nomes grandes de filtro é a C.2 (Sprint 4 · P3), range de período é a C.3, chat que bloqueia a
         tela é a D.1, descrita no documento 10 como <em>o item mais barato dele</em>. O que é novo é pequeno e não
         depende de nada.</p>
+      <p class="nota"><b>Escrito em 03/09, depois da Sprint 4</b> — plano e estado item a item em
+        <code>docs/33-plano-polimento-coordenacao.md</code>. O levantamento antes de codar achou três coisas que
+        mudaram o desenho: <b>a busca global já existia</b> na topbar (com atalho <code>/</code>), o <b>cartão de
+        decisão estava escrito e desligado</b> — <code>AlertCard.tsx</code> importado por ninguém, e o sino da topbar
+        apontando para <code>/painel#alertas</code>, âncora que não existia —, e o <b>/banco só podia adotar a faixa
+        depois</b> de ela aprender a colapsar, senão a aba perdia o comportamento de celular que já tinha. Falta a
+        verificação visual e o convite por e-mail, que depende de decisão.</p>
       <ul class="fontes"><li>docs/25-leitura-da-coordenacao.md</li><li>docs/10 §C.1–C.3 · §D.1–D.4</li></ul>
 
       <ul class="partes">
         <li><span class="cod">1</span><span class="oque"><b>A faixa de filtros colapsa</b><em>Aberta por padrão,
           colapsando <b>quando passa de uma linha</b>, com o resumo do que está ativo no lugar
           (<code>Ciclo 4 · ITA · 2026 · 2 turmas</code>) e o estado memorizado por tela. ⚠️ Colapsar tudo por padrão
-          seria voltar à sidebar que o redesenho do casco tirou. Tamanho P.</em></span><span class="selo selo--espera">—</span></li>
+          seria voltar à sidebar que o redesenho do casco tirou. Tamanho P.</em></span><span class="selo selo--curso">escrito</span></li>
         <li><span class="cod">2</span><span class="oque"><b>A busca ganha um lugar só</b><em>Hoje ela existe em três
           telas, em três lugares diferentes — nos controles do cabeçalho no Painel, como grupo da faixa na
-          Administração, no topo da sidebar no Banco — e falta em quatro. Tamanho P.</em></span><span class="selo selo--espera">—</span></li>
+          Administração, no topo da sidebar no Banco — e falta em quatro. Tamanho P.</em></span><span class="selo selo--curso">escrito</span></li>
         <li><span class="cod">3</span><span class="oque"><b>O <code>/banco</code> adota a <code>BarraFiltros</code></b><em>C.1
           está ✅ para seis telas, mas o Banco nasceu depois com sidebar própria. São dois sistemas de filtro de novo —
-          exatamente o problema que a C.1 existiu para resolver. Tamanho M.</em></span><span class="selo selo--espera">—</span></li>
+          exatamente o problema que a C.1 existiu para resolver. Tamanho M.</em></span><span class="selo selo--curso">escrito</span></li>
         <li><span class="cod">4</span><span class="oque"><b>Explicar o acesso de coordenação</b><em>O modelo está
           certo; o produto é que não conta. Um parágrafo antes do botão de criar, uma recusa que ensine o que fazer, e
-          a senha inicial saindo por e-mail em vez de por conversa. Tamanho P.</em></span><span class="selo selo--espera">—</span></li>
+          a senha inicial saindo por e-mail em vez de por conversa. Tamanho P.</em></span><span class="selo selo--curso">escrito</span></li>
         <li><span class="cod">5</span><span class="oque"><b>Cartão de decisão no Painel</b><em>Uma faixa
           <i>acima</i> da tabela dizendo o que merece atenção hoje. A tabela fica — é a tela de varrer 900 pessoas, e
-          cartão não compara 900 linhas. Tamanho M.</em></span><span class="selo selo--espera">—</span></li>
+          cartão não compara 900 linhas. Tamanho M.</em></span><span class="selo selo--curso">escrito</span></li>
         <li><span class="cod">6</span><span class="oque"><b>Dossiê de ciclo como artefato</b><em>Texto, gráfico e
           tabela num documento que se salva e se leva para a reunião. Metade já existe: os relatórios são tools, o
           gráfico e o CSV já viram artefato na conversa, e o exportador de PDF/Word do banco é o mesmo motor. Tamanho
-          M.</em></span><span class="selo selo--espera">—</span></li>
+          M.</em></span><span class="selo selo--curso">escrito</span></li>
       </ul>
 
       <p class="nota"><b>A conclusão sobre planilhas saiu quase invertida do palpite inicial.</b> A régua que sobrou é

@@ -20,7 +20,7 @@ from datetime import date
 from supabase import Client
 
 from .criterios import FASE_1, Criterio, NotaDaMateria, Veredito, avaliar, tom_da_nota
-from .utils import como_float, nota_real
+from .utils import como_float, filtro_nota_valida, nota_real
 
 log = logging.getLogger("sas.stats.classificacao_ciclo")
 
@@ -185,10 +185,11 @@ def _carregar_notas(cliente: Client, *, simulado_ids: list[str]) -> list[dict]:
     offset = 0
     while True:
         lote = (
-            cliente.table("nota")
-            .select("aluno_id, simulado_id, pontuacao")
-            .in_("simulado_id", simulado_ids)
-            .eq("presente", True)
+            filtro_nota_valida(
+                cliente.table("nota")
+                .select("aluno_id, simulado_id, pontuacao")
+                .in_("simulado_id", simulado_ids)
+            )
             .range(offset, offset + _TAMANHO_PAGINA - 1)
             .execute()
             .data

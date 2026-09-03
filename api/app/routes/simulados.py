@@ -40,7 +40,7 @@ router = APIRouter(
 _CAMPOS_SIMULADO = (
     "id, nome, rotulo_curto, tipo, data_aplicacao, ciclo_id, materia_id, "
     "nota_maxima, anulado, origem, canvas_estado, canvas_erro, evento_agenda_id, "
-    "external_id, "
+    "external_id, nota_confiavel, motivo_nota_nao_confiavel, "
     # O código da matéria não é lido por `_linha_para_simulado` — ele existe
     # para `corte_aplicavel`, no PATCH. Sem o embed, a régua não sabe de que
     # matéria se trata e cai na exigência de MÉDIA (5,0 no Tio Leo), gravando
@@ -85,6 +85,8 @@ def _linha_para_simulado(
         vestibularAlvo=ciclo.get("vestibular_alvo"),
         notaMaxima=float(linha.get("nota_maxima") or 0),
         anulado=bool(linha.get("anulado")),
+        notaConfiavel=linha.get("nota_confiavel", True) is not False,
+        motivoNotaNaoConfiavel=linha.get("motivo_nota_nao_confiavel"),
         origem=linha.get("origem") or "canvas",
         canvasEstado=linha.get("canvas_estado") or "sincronizado",
         canvasErro=linha.get("canvas_erro"),
@@ -343,7 +345,7 @@ async def listar_notas_simulado(simulado_id: str) -> list[dict]:
     cliente = get_supabase()
     base = (
         cliente.table("simulado")
-        .select("nota_maxima")
+        .select("nota_maxima, nota_confiavel, motivo_nota_nao_confiavel")
         .eq("id", simulado_id)
         .limit(1)
         .execute()
@@ -352,9 +354,12 @@ async def listar_notas_simulado(simulado_id: str) -> list[dict]:
         raise HTTPException(status_code=404, detail=f"simulado {simulado_id} não encontrado")
     nota_maxima_sim = como_float(base.data[0].get("nota_maxima"))
 
+    # A nota que o SAS decidiu não somar continua vindo — marcada. Um número
+    # que o produto ignora precisa DIZER que ignorou: sem isso o coordenador vê
+    # a média mudar e não sabe por quê (docs/32 §1.5, item 7).
     resp = (
         cliente.table("nota")
-        .select("pontuacao, presente, aluno(id, nome)")
+        .select("pontuacao, presente, computavel, motivo_nao_computavel, aluno(id, nome)")
         .eq("simulado_id", simulado_id)
         .execute()
     )
@@ -371,6 +376,8 @@ async def listar_notas_simulado(simulado_id: str) -> list[dict]:
                 "acertos": pontuacao_bruta,                              # bruto
                 "total": nota_maxima_sim,
                 "presente": bool(linha.get("presente")),
+                "computavel": linha.get("computavel", True) is not False,
+                "motivoNaoComputavel": linha.get("motivo_nao_computavel"),
             }
         )
     saida.sort(key=lambda r: (not r["presente"], -(r["nota"] or 0)))

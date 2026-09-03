@@ -426,6 +426,7 @@ def relatorio_ciclo(cliente: Client, *, ciclo_id: str) -> dict:
         .select("aluno_id, simulado_id, pontuacao, presente")
         .in_("simulado_id", sim_ids)
         .eq("presente", True)
+        .eq("computavel", True)
         .execute()
     )
 

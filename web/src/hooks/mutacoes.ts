@@ -183,3 +183,19 @@ export function useDesativarCriterio() {
     onSuccess: () => invalidarTudo(queryClient),
   });
 }
+
+
+/**
+ * Envio em lote do ciclo ao Canvas (docs/32 §4).
+ *
+ * Invalida tudo porque um lote bem-sucedido mexe em estado de ciclo, de
+ * simulado e de nota ao mesmo tempo — e o selo "só no SAS" some de várias
+ * telas de uma vez.
+ */
+export function useEnviarCicloAoCanvasEmLote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (cicloId: string) => api.enviarCicloAoCanvasEmLote(cicloId),
+    onSuccess: () => invalidarTudo(queryClient),
+  });
+}

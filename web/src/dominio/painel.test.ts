@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildColunasDinamicas, buildNotasAluno, calcularMediasVirtuais, colunasExibidas,
+  alertasDoRecorte, buildColunasDinamicas, buildNotasAluno, buildNotasIgnoradas,
+  calcularMediasVirtuais, colunasExibidas, contarDecisoes,
   estatisticasDoSimulado, linhaVisivel, mediaGeralAluno, mediaPonderada, montarPainel,
   nomeSede, normMateria, obterEsquema, resolverColunas,
 } from './painel';
@@ -29,9 +30,10 @@ function aluno(id: string, nome: string): Aluno {
 
 function ciclo(vestibular: string | null, simuladoIds: string[]): Ciclo {
   return {
-    id: 'C1', nome: 'Ciclo 1', anoLetivo: 2026,
+    id: 'C1', nome: 'Ciclo 1', ordem: 1, anoLetivo: 2026,
     vestibularAlvo: vestibular as Ciclo['vestibularAlvo'],
     periodoInicio: '2026-03-01', periodoFim: '2026-03-31', simuladoIds,
+    canvasEstado: null, canvasErro: null,
   };
 }
 
@@ -314,6 +316,67 @@ describe('buildNotasAluno', () => {
     );
     expect(mapa).toEqual({ A1: { S1: 7 } });
   });
+
+  // O servidor já tira a nota não computável da classificação. Se ela ficasse
+  // aqui, a média que o Painel calcula no cliente somaria um zero que o
+  // servidor não somou — e as duas leituras da mesma turma divergiriam sem
+  // erro nenhum, que é a pior forma de errar (docs/32 §1.5).
+  it('deixa a nota não computável fora do mapa que vira média', () => {
+    const mapa = buildNotasAluno(
+      [aluno('A1', 'Ana')],
+      [sim('S1', 'Matemática', 'fase_1')],
+      { S1: [{ alunoId: 'A1', nota: 0, computavel: false, motivoNaoComputavel: 'todas_em_branco' }] },
+    );
+    expect(mapa).toEqual({ A1: {} });
+  });
+
+  it('computavel ausente é computável — o default do banco é true', () => {
+    const mapa = buildNotasAluno(
+      [aluno('A1', 'Ana')],
+      [sim('S1', 'Matemática', 'fase_1')],
+      { S1: [{ alunoId: 'A1', nota: 0 }] },
+    );
+    expect(mapa).toEqual({ A1: { S1: 0 } });
+  });
+});
+
+describe('buildNotasIgnoradas', () => {
+  it('guarda o que a média deixou de fora, com o motivo', () => {
+    const mapa = buildNotasIgnoradas(
+      [aluno('A1', 'Ana')],
+      [sim('S1', 'Matemática', 'fase_1')],
+      { S1: [{ alunoId: 'A1', nota: 0, computavel: false, motivoNaoComputavel: 'todas_em_branco' }] },
+    );
+    expect(mapa).toEqual({ A1: { S1: { nota: 0, motivo: 'todas_em_branco' } } });
+  });
+
+  it('nota que conta não aparece aqui', () => {
+    const mapa = buildNotasIgnoradas(
+      [aluno('A1', 'Ana')],
+      [sim('S1', 'Matemática', 'fase_1')],
+      { S1: [{ alunoId: 'A1', nota: 7 }] },
+    );
+    expect(mapa).toEqual({ A1: {} });
+  });
+
+  // As duas metades são complementares: toda nota está num mapa ou no outro,
+  // nunca nos dois. É o que garante que a célula sempre tenha o que mostrar.
+  it('nenhuma nota cai nos dois mapas', () => {
+    const notas = {
+      S1: [
+        { alunoId: 'A1', nota: 7 },
+        { alunoId: 'A2', nota: 0, computavel: false, motivoNaoComputavel: 'todas_em_branco' },
+      ],
+    };
+    const alunos = [aluno('A1', 'Ana'), aluno('A2', 'Bia')];
+    const sims = [sim('S1', 'Matemática', 'fase_1')];
+    const contam = buildNotasAluno(alunos, sims, notas);
+    const fora = buildNotasIgnoradas(alunos, sims, notas);
+    for (const id of ['A1', 'A2']) {
+      const nas_duas = Object.keys(contam[id]).filter((s) => s in fora[id]);
+      expect(nas_duas).toEqual([]);
+    }
+  });
 });
 
 describe('estatisticasDoSimulado', () => {
@@ -348,5 +411,71 @@ describe('estatisticasDoSimulado', () => {
     const e = estatisticasDoSimulado(notas, 'A5')!;
     expect(e.posicao).toBeNull();
     expect(e.totalPresentes).toBe(4);
+  });
+});
+
+
+describe('contarDecisoes', () => {
+  const alunos = [aluno('A1', 'Ana'), aluno('A2', 'Bia'), aluno('A3', 'Caio'), aluno('A4', 'Dan')];
+  const classif = {
+    A1: { alunoId: 'A1', nome: 'Ana', turmaId: null, posicao: 1, aprovado: false,
+          motivo: 'Química 3,2', media: 4.1, notas: {} },
+    A2: { alunoId: 'A2', nome: 'Bia', turmaId: null, posicao: 2, aprovado: true,
+          motivo: null, media: 5.2,
+          notas: { quimica: { nota: 4.4, tom: 'ambar' as const } } },
+    A3: { alunoId: 'A3', nome: 'Caio', turmaId: null, posicao: 3, aprovado: true,
+          motivo: null, media: 8.0,
+          notas: { quimica: { nota: 8.0, tom: 'verde' as const } } },
+    A4: { alunoId: 'A4', nome: 'Dan', turmaId: null, posicao: 4, aprovado: true,
+          motivo: null, media: null, notas: {} },
+  };
+
+  it('separa cortado, no limite e sem nota', () => {
+    expect(contarDecisoes(alunos, classif)).toEqual({
+      cortados: 1, noLimite: 1, semNota: 1, total: 4,
+    });
+  });
+
+  it('cortado não é contado duas vezes por estar também no limite', () => {
+    const so_a1 = contarDecisoes([alunos[0]], classif);
+    expect(so_a1.cortados).toBe(1);
+    expect(so_a1.noLimite).toBe(0);
+  });
+
+  it('aluno sem classificação ainda carregada não entra em contagem nenhuma', () => {
+    const c = contarDecisoes([aluno('ZZ', 'Zed')], classif);
+    expect(c).toEqual({ cortados: 0, noLimite: 0, semNota: 0, total: 1 });
+  });
+});
+
+describe('alertasDoRecorte', () => {
+  const doAluno = (id: string, alunoId: string) => ({
+    id, categoria: 'QUEDA_RENDIMENTO' as const, entidadeTipo: 'aluno', entidadeId: alunoId,
+    severidade: 'vermelho' as const, tagLabel: '', titulo: '', subtitulo: '',
+    tempoRelativo: '', href: '', sparkline: [],
+  });
+  const daProva = {
+    id: 'x', categoria: 'PROVA_MAL_CALIBRADA' as const, entidadeTipo: 'simulado',
+    entidadeId: 'S9', severidade: 'ambar' as const, tagLabel: '', titulo: '',
+    subtitulo: '', tempoRelativo: '', href: '', sparkline: [],
+  };
+  const alertas = [doAluno('a1', 'A1'), doAluno('a2', 'FORA'), daProva];
+
+  it('sem recorte, passa tudo', () => {
+    const r = alertasDoRecorte(alertas, [aluno('A1', 'Ana')], false);
+    expect(r.visiveis).toHaveLength(3);
+    expect(r.ocultos).toBe(0);
+  });
+
+  it('com recorte, esconde o aluno de fora — e DIZ quantos escondeu', () => {
+    const r = alertasDoRecorte(alertas, [aluno('A1', 'Ana')], true);
+    expect(r.visiveis.map((a) => a.id)).toEqual(['a1', 'x']);
+    expect(r.ocultos).toBe(1);
+  });
+
+  it('alerta que não é de aluno passa sempre: ele fala do ciclo', () => {
+    const r = alertasDoRecorte([daProva], [], true);
+    expect(r.visiveis).toHaveLength(1);
+    expect(r.ocultos).toBe(0);
   });
 });

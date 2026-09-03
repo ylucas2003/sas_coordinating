@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { BlocoPendenciasCanvas } from './PendenciasCanvas';
+import { exportarDossiePdf, exportarDossieWord } from './dossie';
 import { Histograma } from '../../componentes/ui/Histograma';
 import { GraficoEmCamadas } from '../../componentes/ui/GraficoEmCamadas';
 import { InsightsPainel } from '../../componentes/ui/InsightsPainel';
@@ -49,6 +51,12 @@ export function CicloFicha() {
   const { data: stats, isPending: carregandoStats, isError: erroStats } = useEstatisticasCiclo(id, criterio);
 
   const [avancadoAberto, setAvancadoAberto] = useState(false);
+  const [erroDossie, setErroDossie] = useState('');
+  const [gerandoDossie, setGerandoDossie] = useState(false);
+  // A raiz da ficha: é dela que o dossiê colhe os `<svg>` que já estão
+  // desenhados. Redesenhá-los fora da árvore para exportar seria manter dois
+  // desenhos do mesmo gráfico, e eles divergiriam no primeiro ajuste.
+  const refFicha = useRef<HTMLDivElement>(null);
 
   const doCiclo = useMemo(() => {
     if (!ciclo) return [];
@@ -84,8 +92,37 @@ export function CicloFicha() {
     );
   }
 
+  async function gerarDossie(formato: 'pdf' | 'word') {
+    if (!stats || !ciclo) return;
+    setErroDossie('');
+    setGerandoDossie(true);
+    try {
+      // Todos os `<svg>` da ficha, na ordem em que aparecem. Os títulos vêm do
+      // cabeçalho de seção mais próximo acima de cada um — o documento herda a
+      // narrativa da tela em vez de inventar uma.
+      const svgs = Array.from(refFicha.current?.querySelectorAll('svg') ?? []);
+      const graficos = svgs.map((svg) => ({
+        titulo: tituloDoGrafico(svg),
+        svg: svg as SVGSVGElement,
+      }));
+      const dados = {
+        ciclo,
+        stats,
+        simulados: doCiclo,
+        nomeCriterio: criterios.find((c) => c.slug === criterio)?.nome ?? criterio,
+        graficos,
+      };
+      if (formato === 'pdf') await exportarDossiePdf(dados);
+      else await exportarDossieWord(dados);
+    } catch (e) {
+      setErroDossie((e as Error).message || 'Não consegui gerar o dossiê.');
+    } finally {
+      setGerandoDossie(false);
+    }
+  }
+
   return (
-    <div className="tela">
+    <div className="tela" ref={refFicha}>
       <section className="card ciclo-ficha">
         <div className="screen-header">
           <div className="screen-breadcrumb">{ciclo.id}</div>
@@ -99,7 +136,29 @@ export function CicloFicha() {
           <div className="ciclo-ficha__regua">
             <span className="ciclo-ficha__regua-rotulo">Régua de corte</span>
             <SeletorCriterio criterios={criterios} valor={criterio} onEscolher={setCriterio} />
+            {/* O dossiê é o mesmo conteúdo da tela em documento — texto,
+                gráfico e tabela — para levar à reunião (docs/33 §5). Fica
+                junto da régua porque ela decide os números que ele carrega. */}
+            {stats && (
+              <>
+                <button
+                  className="btn-editar-sim"
+                  disabled={gerandoDossie}
+                  onClick={() => gerarDossie('pdf')}
+                >
+                  {gerandoDossie ? 'Gerando…' : 'Dossiê PDF'}
+                </button>
+                <button
+                  className="btn-editar-sim"
+                  disabled={gerandoDossie}
+                  onClick={() => gerarDossie('word')}
+                >
+                  Dossiê Word
+                </button>
+              </>
+            )}
           </div>
+          {erroDossie && <div className="agendar__erro">{erroDossie}</div>}
         </div>
 
         {carregandoStats ? (
@@ -124,6 +183,7 @@ export function CicloFicha() {
                 adivinhar (docs/31 §P5). */}
             <Conjunta stats={stats} />
             <PorMateria recortes={stats.porMateria ?? []} />
+            <BlocoPendenciasCanvas cicloId={ciclo.id} canvasEstado={ciclo.canvasEstado} />
             <TabelaSimuladosDoCiclo simulados={doCiclo} />
 
             <div className="ciclo-avancado__toggle">
@@ -603,4 +663,26 @@ function MiniBadge({
       )}
     </div>
   );
+}
+
+
+/**
+ * O título de um gráfico, para o dossiê: o cabeçalho de seção mais próximo
+ * acima dele na árvore. Assim o documento herda a narrativa da tela em vez de
+ * inventar rótulos que divergiriam no primeiro ajuste de layout.
+ */
+function tituloDoGrafico(svg: SVGSVGElement): string {
+  let no: Element | null = svg;
+  while (no) {
+    const anterior: Element | null = no.previousElementSibling;
+    if (anterior) {
+      const titulo = anterior.matches('h1, h2, h3, .section__title, .camadas__titulo')
+        ? anterior
+        : anterior.querySelector('h1, h2, h3, .section__title, .camadas__titulo');
+      if (titulo?.textContent?.trim()) return titulo.textContent.trim();
+    }
+    no = no.parentElement;
+    if (no?.classList.contains('ciclo-ficha')) break;
+  }
+  return 'Gráfico';
 }

@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Avatar } from '../../componentes/ui/Avatar';
 import { Sparkline } from '../../componentes/ui/Sparkline';
 import { TheadOrdenavel } from '../../componentes/ui/TabelaOrdenavel';
 import { ordenarLinhas, proximaOrdenacao } from '../../componentes/ui/ordenacao';
 import type { ColunaTabela, Ordenacao } from '../../componentes/ui/ordenacao';
-import { BarraFiltros, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import { useAlunos, useSedes, useTurmas } from '../../hooks/consultas';
 import type { Aluno } from '../../tipos/dominio';
-import { fmtNota } from '../../util/formato';
+import { fmtNota, normalizar } from '../../util/formato';
 
 const PERFIL_LABEL = { ancora: 'Âncora', misterio: 'Mistério', regular: 'Regular' } as const;
 const TENDENCIA_LABEL = { subindo: '↑ Subindo', estavel: '→ Estável', caindo: '↓ Caindo' } as const;
@@ -32,8 +33,22 @@ export function Alunos() {
   const { data: turmas = [] } = useTurmas();
   const { data: sedes = [] } = useSedes();
 
-  const [turmasSel, setTurmasSel] = useState<ReadonlySet<string>>(new Set());
-  const [sedesSel, setSedesSel] = useState<ReadonlySet<string>>(new Set());
+  const [busca, setBusca] = useState('');
+  // 🐛 O alerta de turma/sede aponta para `/alunos?turmaId=X` — `_href_para_entidade`
+  // em `routes/alertas.py` monta assim desde a Sprint 1 —, e esta tela nunca
+  // leu a query: os filtros moram em `useState`, e o link caía numa lista sem
+  // filtro nenhum. Resíduo do hash router anterior à migração React, achado ao
+  // ligar a faixa de decisão (docs/33 §3).
+  //
+  // Semente inicial, não sincronização: depois do primeiro render quem manda é
+  // o clique do usuário. Amarrar os dois faria a pílula brigar com a URL.
+  const [params] = useSearchParams();
+  const [turmasSel, setTurmasSel] = useState<ReadonlySet<string>>(
+    () => new Set(params.getAll('turmaId')),
+  );
+  const [sedesSel, setSedesSel] = useState<ReadonlySet<string>>(
+    () => new Set(params.getAll('sedeId')),
+  );
   const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
 
   const turmaPorId = useMemo(() => new Map(turmas.map((t) => [t.id, t])), [turmas]);
@@ -54,15 +69,15 @@ export function Alunos() {
     [turmaPorId, sedePorId],
   );
 
-  const filtrados = useMemo(
-    () =>
-      alunos.filter((a) => {
-        if (turmasSel.size && !turmasSel.has(a.turmaId)) return false;
-        if (sedesSel.size && !sedesSel.has(a.sedeId)) return false;
-        return true;
-      }),
-    [alunos, turmasSel, sedesSel],
-  );
+  const filtrados = useMemo(() => {
+    const q = normalizar(busca.trim());
+    return alunos.filter((a) => {
+      if (turmasSel.size && !turmasSel.has(a.turmaId)) return false;
+      if (sedesSel.size && !sedesSel.has(a.sedeId)) return false;
+      if (q && !normalizar(a.nome).includes(q)) return false;
+      return true;
+    });
+  }, [alunos, turmasSel, sedesSel, busca]);
 
   // Cross-filtering: cada dimensão conta ignorando o próprio filtro, senão as
   // contagens virariam sempre o total selecionado.
@@ -85,7 +100,7 @@ export function Alunos() {
     [filtrados, colunas, ordenacao],
   );
 
-  const algumAtivo = turmasSel.size + sedesSel.size > 0;
+  const algumAtivo = turmasSel.size + sedesSel.size > 0 || busca.trim() !== '';
 
   function alternar<V>(conjunto: ReadonlySet<V>, valor: V): ReadonlySet<V> {
     const novo = new Set(conjunto);
@@ -97,15 +112,33 @@ export function Alunos() {
   return (
     <div className="tela">
       <BarraFiltros
+        tela="alunos"
         algumAtivo={algumAtivo}
         onLimpar={() => {
           setTurmasSel(new Set());
           setSedesSel(new Set());
+          setBusca('');
         }}
         grupos={[
           {
+            chave: 'busca',
+            rotulo: 'Aluno',
+            resumo: resumirTexto(busca),
+            corpo: (
+              <Busca
+                valor={busca}
+                onChange={setBusca}
+                placeholder="Buscar aluno…"
+                rotulo="Buscar aluno na lista"
+              />
+            ),
+          },
+          {
             chave: 'turma',
             rotulo: 'Turma',
+            resumo: resumirSelecao(
+              turmasSel, turmas.map((t) => ({ valor: t.id, label: t.nome })), 'turma', 'turmas',
+            ),
             corpo: (
               <Pills
                 opcoes={turmas.map((t) => ({
@@ -121,6 +154,9 @@ export function Alunos() {
           {
             chave: 'sede',
             rotulo: 'Sede',
+            resumo: resumirSelecao(
+              sedesSel, sedes.map((sd) => ({ valor: sd.id, label: sd.nome })), 'sede', 'sedes',
+            ),
             corpo: (
               <Pills
                 opcoes={sedes.map((sd) => ({

@@ -40,6 +40,7 @@ from ..ingest.upsert import (
     upsert_simulados_em_lote,
     upsert_turma,
 )
+from ..stats import computavel
 from . import mapeador
 from .arquivos import sincronizar_arquivos_do_curso
 from .cliente import ClienteCanvas
@@ -642,7 +643,18 @@ async def sincronizar_ano_atual(
     # POST /canvas-sync/reconciliar recomputa tudo pra curar drift de turma.
     from ..stats import classificacao as _classif, metricas as _metricas
 
+    # ⚠️ **A ORDEM AQUI É O PONTO**, duas vezes.
+    #
+    # 1. Depois das QUESTÕES: a evidência mora em `questao_resposta_aluno`, que
+    #    a etapa (6) de cada curso acabou de popular. Avaliar antes dela
+    #    classificaria todo mundo como computável e sumiria com o efeito **sem
+    #    erro nenhum** — nenhuma exceção, nenhum log, só a estatística de volta
+    #    ao que era. É a falha silenciosa mais provável do sprint.
+    # 2. Antes do RECOMPUTE: métrica e classificação leem `computavel`. Rodar
+    #    depois delas deixaria o cache um ciclo atrás da conclusão, e a tela
+    #    contradiria a régua — foi o que aconteceu com a 0037 (docs/31).
     if resumo.simulados_tocados:
+        computavel.avaliar_computavel(cliente, simulado_ids=sorted(resumo.simulados_tocados))
         _metricas.recalcular_simulados(cliente, resumo.simulados_tocados)
     if resumo.alunos_tocados:
         _classif.recalcular_alunos(cliente, resumo.alunos_tocados)

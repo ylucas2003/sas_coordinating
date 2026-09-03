@@ -239,6 +239,19 @@
   font-weight: 500;
 }
 
+/* A nota que a média não somou (docs/32 §1.4).
+   Riscada e apagada, nunca escondida: o coordenador precisa ver que o número
+   existe E que ele não entrou na conta. Sem cor de semáforo de propósito —
+   não é desempenho ruim, é dado que o produto decidiu não ler. O `title` do
+   componente carrega o motivo. */
+.nota-badge--ignorada {
+  background: transparent;
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  cursor: help;
+}
+
 /* ─── Controles do Painel ───────────────────────────────────────────────
    Ajuda, busca, ordenação, fase e critério, à direita do título. */
 
@@ -455,3 +468,120 @@
 .painel-help-dot--verde    { background: var(--color-green); }
 .painel-help-dot--ambar    { background: var(--color-amber); }
 .painel-help-dot--vermelho { background: var(--color-red); }
+
+
+/* ─── A faixa de decisão (docs/33 §3) ───────────────────────────────────
+   Acima da tabela, e não no lugar dela: cartão é para decidir, tabela é para
+   comparar — e a tabela do Painel existe para varrer 900 pessoas. */
+
+.faixa-decisao {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* O sino da topbar aponta para `#alertas`. Sem isto, o navegador rola até
+     debaixo do casco fixo e a faixa fica escondida atrás dele. */
+  scroll-margin-top: 20px;
+}
+
+.faixa-decisao__topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.faixa-decisao__titulo {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-body);
+}
+
+.faixa-decisao__regua {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.faixa-decisao__numeros {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.faixa-decisao__numero {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.faixa-decisao__valor {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-body);
+}
+
+.faixa-decisao__rotulo {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.faixa-decisao__alertas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faixa-decisao__vazio {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.faixa-decisao__rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.faixa-decisao__mais {
+  font-size: 13px;
+  color: var(--color-navy);
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.faixa-decisao__mais:hover {
+  background: var(--color-navy-tint);
+}
+
+/* O que o recorte escondeu. Discreto, mas presente — esconder em silêncio é
+   a armadilha que esta linha existe para não cometer. */
+.faixa-decisao__ocultos {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-left: auto;
+}
+
+@media (max-width: 880px) {
+  .faixa-decisao {
+    padding: 14px 16px;
+  }
+
+  /* No celular os números viram coluna: lado a lado, "passaram, mas perto do
+     corte" quebra em três linhas e o número perde o rótulo de vista. */
+  .faixa-decisao__numeros {
+    gap: 10px;
+    flex-direction: column;
+  }
+}

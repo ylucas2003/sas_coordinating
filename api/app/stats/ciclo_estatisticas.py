@@ -45,6 +45,7 @@ from supabase import Client
 from . import criterios
 from .utils import (
     como_float,
+    filtro_nota_valida,
     detectar_bimodalidade,
     histograma_bins,
     kurtosis,
@@ -190,7 +191,11 @@ def _carregar_ciclo_anterior(cliente: Client, ciclo_atual: dict) -> dict | None:
 
 
 def _carregar_simulados(cliente: Client, *, ciclo_id: str) -> list[dict]:
-    """Todos os simulados não-anulados/não-agregados do ciclo (F1 + F2)."""
+    """Os simulados do ciclo que entram no agregado (F1 + F2).
+
+    Fora ficam os anulados, os agregados e — desde a Sprint 4 — as provas
+    marcadas como não confiáveis (docs/32 §1.2, Problema B).
+    """
     resp = (
         cliente.table("simulado")
         .select("id, nome, rotulo_curto, tipo, data_aplicacao, materia_id, nota_maxima")
@@ -218,10 +223,11 @@ def _carregar_notas(cliente: Client, *, simulados: list[dict]) -> dict[str, list
     nota_max_por_sim = {s["id"]: como_float(s.get("nota_maxima")) or 10.0 for s in simulados}
 
     resp = (
-        cliente.table("nota")
-        .select("aluno_id, simulado_id, pontuacao, presente")
-        .in_("simulado_id", ids)
-        .eq("presente", True)
+        filtro_nota_valida(
+            cliente.table("nota")
+            .select("aluno_id, simulado_id, pontuacao, presente")
+            .in_("simulado_id", ids)
+        )
         .execute()
     )
     saida: dict[str, list[dict]] = defaultdict(list)

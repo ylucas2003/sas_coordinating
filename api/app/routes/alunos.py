@@ -190,10 +190,14 @@ async def trajetoria_aluno(aluno_id: str) -> list[dict]:
         cliente.table("nota")
         .select(
             "pontuacao, presente, simulado("
-            "id, nome, data_aplicacao, anulado, e_agregado, materia_id, nota_maxima, tipo"
+            "id, nome, data_aplicacao, anulado, e_agregado, nota_confiavel, "
+            "materia_id, nota_maxima, tipo"
             ")"
         )
         .eq("aluno_id", aluno_id)
+        # A prova não confiável continua na linha; o zero sem resposta, não —
+        # ele não é desempenho, e afundaria a série de quem não fez a prova.
+        .eq("computavel", True)
         .execute()
     )
     linhas: list[dict] = []
@@ -244,11 +248,13 @@ async def heatmap_aluno(aluno_id: str) -> dict:
         .select(
             "pontuacao, presente, simulado("
             "id, nome, rotulo_curto, data_aplicacao, materia_id, tipo, "
-            "anulado, e_agregado, nota_maxima, "
+            "anulado, e_agregado, nota_confiavel, motivo_nota_nao_confiavel, nota_maxima, "
             "ciclo:ciclo_id(id, ordem, nome, vestibular_alvo)"
             ")"
         )
         .eq("aluno_id", aluno_id)
+        # Sem filtro de `computavel`: é a ficha do aluno. Uma nota que saiu da
+        # média continua aparecendo, marcada — quem some daqui é a ausência.
         .eq("presente", True)
         .execute()
     )
@@ -377,10 +383,11 @@ def _vetores_de_features(cliente) -> dict[str, list[float | None]]:
         cliente.table("nota")
         .select(
             "aluno_id, pontuacao, simulado("
-            "materia_id, data_aplicacao, anulado, e_agregado, nota_maxima"
+            "materia_id, data_aplicacao, anulado, e_agregado, nota_confiavel, nota_maxima"
             ")"
         )
         .eq("presente", True)
+        .eq("computavel", True)
         .execute()
     )
 

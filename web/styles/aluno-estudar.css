@@ -1639,7 +1639,12 @@ a.alu-est-elo-quieto:hover {
 }
 
 .alu-banco__exportar p {
-  flex: 1;
+  /* ⚠️ Linha inteira, e não `flex: 1`. A 360px a frase cabia ao lado do
+     "Exportar PDF" e empurrava só o "Word" para baixo: as duas ações irmãs
+     terminavam em linhas e colunas diferentes, e o par deixava de se ler como
+     par. Ocupando a linha toda, a frase explica e os dois botões ficam juntos
+     embaixo. Aos 900px a frase some e a regra deixa de valer. */
+  flex: 1 0 100%;
   min-width: 140px;
   font-size: 12px;
   line-height: 1.4;

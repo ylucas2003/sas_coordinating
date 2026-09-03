@@ -196,9 +196,12 @@ def _linha_aluno(cliente: Client, aluno_id: str, titulo: str | None) -> dict:
         cliente.table("nota")
         .select(
             "pontuacao, presente, simulado("
-            "id, nome, rotulo_curto, data_aplicacao, anulado, e_agregado, nota_maxima)"
+            "id, nome, rotulo_curto, data_aplicacao, anulado, e_agregado, "
+            "nota_confiavel, nota_maxima)"
         )
         .eq("aluno_id", aluno_id)
+        # Mesma régua da trajetória: o zero sem resposta sai da série.
+        .eq("computavel", True)
         .execute()
     )
     aluno_resp = cliente.table("aluno").select("nome").eq("id", aluno_id).limit(1).execute()

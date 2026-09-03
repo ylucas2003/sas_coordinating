@@ -21,7 +21,15 @@ from supabase import Client
 
 from . import criterios
 from . import thresholds as th
-from .utils import como_float, nota_real, percentil, regressao_linear, t_critico
+from .utils import (
+    como_float,
+    filtro_nota_valida,
+    nota_real,
+    percentil,
+    regressao_linear,
+    simulado_entra_no_agregado,
+    t_critico,
+)
 
 log = logging.getLogger("sas.stats.classificacao")
 
@@ -290,7 +298,7 @@ def _carregar_alunos_ativos(cliente: Client) -> list[dict]:
 
 _SELECT_NOTA_SIMULADO = (
     "aluno_id, pontuacao, simulado("
-    "id, data_aplicacao, anulado, e_agregado, materia_id, tipo, nota_maxima)"
+    "id, data_aplicacao, anulado, e_agregado, nota_confiavel, materia_id, tipo, nota_maxima)"
 )
 _TAMANHO_PAGINA = 1000
 
@@ -309,7 +317,9 @@ def _carregar_notas_com_simulado(
     ids = list(aluno_ids) if aluno_ids is not None else None
     offset = 0
     while True:
-        query = cliente.table("nota").select(_SELECT_NOTA_SIMULADO).eq("presente", True)
+        query = filtro_nota_valida(
+            cliente.table("nota").select(_SELECT_NOTA_SIMULADO)
+        )
         if ids is not None:
             query = query.in_("aluno_id", ids)
         lote = query.range(offset, offset + _TAMANHO_PAGINA - 1).execute().data or []
@@ -328,13 +338,14 @@ def _notas_recentes_por_aluno(
     (acertos / total * 10), não os acertos brutos. Isso é o que permite
     somar/comparar valores entre simulados de matérias diferentes.
 
-    Filtra simulados anulados e agregados. Mantém só as últimas `janela` notas
+    Filtra o que não entra no agregado — anulado, agregado e prova marcada
+    como não confiável. Mantém só as últimas `janela` notas
     por aluno. `aluno_ids` restringe a varredura (sync incremental); None = tudo.
     """
     bruto: dict[str, list[dict]] = defaultdict(list)
     for linha in _carregar_notas_com_simulado(cliente, aluno_ids=aluno_ids):
         sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
+        if not simulado_entra_no_agregado(sim):
             continue
         pontuacao_bruta = como_float(linha.get("pontuacao"))
         nota_maxima = como_float(sim.get("nota_maxima"))
@@ -455,7 +466,7 @@ def _notas_fase2_por_aluno_materia(
     bruto: dict[str, dict[str, list[tuple[str, float]]]] = defaultdict(lambda: defaultdict(list))
     for linha in _carregar_notas_com_simulado(cliente, aluno_ids=aluno_ids):
         sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
+        if not simulado_entra_no_agregado(sim):
             continue
         if sim.get("tipo") != "fase_2":
             continue

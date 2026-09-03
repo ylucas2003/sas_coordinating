@@ -21,6 +21,7 @@ import type { Ciclo, Simulado } from '../tipos/dominio';
  */
 export const chaves = {
   alertas: ['alertas'] as const,
+  pendenciasCanvas: (cicloId: string) => ['ciclos', cicloId, 'pendencias-canvas'] as const,
   alunos: ['alunos'] as const,
   aluno: (id: string) => ['alunos', id] as const,
   simulados: ['simulados'] as const,
@@ -33,6 +34,15 @@ export const chaves = {
   fotoPropria: ['foto', 'propria'] as const,
   foto: (tipo: 'aluno' | 'coordenador', id: string) => ['foto', tipo, id] as const,
 };
+
+/** O que do ciclo ainda não está no Canvas. Só carrega quando pedido. */
+export function usePendenciasCanvas(cicloId: string | null) {
+  return useQuery({
+    queryKey: chaves.pendenciasCanvas(cicloId ?? ''),
+    enabled: !!cicloId,
+    queryFn: () => api.pendenciasCanvasDoCiclo(cicloId as string),
+  });
+}
 
 export function useAlertas() {
   return useQuery({ queryKey: chaves.alertas, queryFn: api.listarAlertas });

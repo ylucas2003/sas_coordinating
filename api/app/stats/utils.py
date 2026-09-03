@@ -13,6 +13,63 @@ import statistics as st
 from typing import Iterable, Sequence
 
 
+# ─── O que é "nota que conta" ─────────────────────────────────────────────
+
+
+def filtro_nota_valida(query):
+    """Aplica, num só lugar, a definição de nota que entra na estatística.
+
+    Duas condições, e até a Sprint 4 só a primeira existia:
+
+      1. `presente = true`   — o aluno fez a prova (o Canvas afirma);
+      2. `computavel = true` — o SAS não achou evidência de que o número não é
+         desempenho. Hoje só há uma evidência assim: o aluno abriu a prova e
+         não marcou nenhuma alternativa (docs/32 §1.4, Problema A).
+
+    Existe para a 19ª leitura não nascer errada. Eram **18 consultas** com
+    `.eq("presente", True)` escrito à mão, espalhadas por `stats/`, `routes/` e
+    `chat/tools/`; replicar a segunda condição nelas garantiria que alguém
+    esquecesse uma — e o sintoma seria duas telas mostrando médias diferentes
+    da mesma turma, sem erro nenhum em lugar nenhum.
+
+    ⚠️ Só serve para quem lê de `nota` ou de `v_nota_dimensoes`. As duas
+    condições são colunas de lá.
+
+    ⚠️ O Problema B — a prova inteira cujo zero é prática de lançamento — NÃO
+    passa por aqui: `nota_confiavel` é coluna de `simulado`, e filtrar coluna
+    de recurso embutido no PostgREST não filtra a linha-pai, só esvazia o
+    embed. Ele segue o caminho que `anulado` já usa há dois sprints — o
+    conjunto de simulados é carregado à parte e peneirado por
+    `simulado_entra_no_agregado`.
+    """
+    return query.eq("presente", True).eq("computavel", True)
+
+
+def simulado_entra_no_agregado(simulado: dict) -> bool:
+    """Esta prova pode entrar em média, desvio, histograma e alerta?
+
+    Três motivos para ficar de fora, e os três são sobre a PROVA, nunca sobre
+    quem a fez:
+
+      - `anulado`      — a prova foi anulada;
+      - `e_agregado`   — é a linha somatória, contá-la seria contar duas vezes;
+      - `nota_confiavel = false` — a coluna inteira não representa desempenho.
+        São oito provas de 2023 em que o professor lançou 0 para quem faltou:
+        71% de todos os zeros do sistema, e uma média divulgada de 1,10 onde a
+        média de quem realmente fez é 3,84 (docs/32 §1.2).
+
+    ⚠️ Isto é a régua do AGREGADO. A trajetória do aluno de 2023 continua
+    mostrando a nota que ele tirou, com a ressalva na tela: quem perde a prova
+    é a estatística, não o histórico da pessoa.
+    """
+    if simulado.get("anulado") or simulado.get("e_agregado"):
+        return False
+    # Ausente = true: linha lida antes da 0043, ou select que não pediu a
+    # coluna. O default do banco é `true`, e presumir o contrário esvaziaria
+    # silenciosamente qualquer consulta que esquecesse de selecioná-la.
+    return simulado.get("nota_confiavel", True) is not False
+
+
 # ─── Regressão linear simples ─────────────────────────────────────────────
 
 

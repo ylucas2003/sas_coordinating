@@ -17,7 +17,7 @@ from typing import Any
 from supabase import Client
 
 from ...stats import classificacao as _classif
-from ...stats.utils import como_float, nota_real
+from ...stats.utils import como_float, nota_real, simulado_entra_no_agregado
 
 
 # ─── comparar_ciclos ──────────────────────────────────────────────────────
@@ -154,15 +154,19 @@ def comparar_alunos(cliente: Client, *, aluno_ids: list[str]) -> dict:
 
     resp = (
         cliente.table("nota")
-        .select("aluno_id, pontuacao, simulado(materia_id, anulado, e_agregado, nota_maxima)")
+        .select(
+            "aluno_id, pontuacao, "
+            "simulado(materia_id, anulado, e_agregado, nota_confiavel, nota_maxima)"
+        )
         .eq("presente", True)
+        .eq("computavel", True)
         .in_("aluno_id", ids)
         .execute()
     )
     por_aluno_materia: dict[tuple[str, str], list[float]] = defaultdict(list)
     for linha in resp.data or []:
         sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
+        if not simulado_entra_no_agregado(sim):
             continue
         mid = sim.get("materia_id")
         nota = nota_real(como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima")))
@@ -343,15 +347,17 @@ def _vetores_features(cliente: Client) -> dict[str, list[float | None]]:
     resp = (
         cliente.table("nota")
         .select("aluno_id, pontuacao, simulado("
-                "materia_id, data_aplicacao, anulado, e_agregado, nota_maxima)")
+                "materia_id, data_aplicacao, anulado, e_agregado, nota_confiavel, "
+                "nota_maxima)")
         .eq("presente", True)
+        .eq("computavel", True)
         .execute()
     )
 
     por_aluno: dict[str, list[dict]] = defaultdict(list)
     for linha in resp.data or []:
         sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
+        if not simulado_entra_no_agregado(sim):
             continue
         mid = sim.get("materia_id")
         nota = nota_real(como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima")))

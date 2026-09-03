@@ -4,12 +4,13 @@
 // Convenção: funções puras de I/O. Nada de estado, nada de invalidação — quem
 // invalida é o hook que chama (ver src/hooks/).
 
-import { del, get, patch, post, postArquivo, put, qs, streamSSE } from './http';
+import { del, get, patch, post, put, qs, streamSSE } from './http';
 import type { ContextoDaTela } from '../dominio/contextoDaTela';
-import type { EventoSSE, OpcoesUpload } from './http';
+import type { EventoSSE } from './http';
 import type {
   Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria,
-  PainelAcessos, PainelGravacoes, Sede, Simulado, Turma, UsuarioCoordenacao,
+  PainelAcessos, PainelGravacoes, PendenciasCanvas, ResultadoLoteCanvas, Sede, Simulado, Turma,
+  UsuarioCoordenacao,
 } from '../tipos/dominio';
 
 const enc = encodeURIComponent;
@@ -229,6 +230,14 @@ export const estatisticasCiclo = (
   get<unknown>(
     `/ciclos/${enc(id)}/estatisticas${qs({ com_insights: comInsights ? undefined : 'false', criterio })}`,
   );
+/** O que subiria se o ciclo inteiro fosse enviado. Leitura, sem efeito. */
+export const pendenciasCanvasDoCiclo = (id: string) =>
+  get<PendenciasCanvas>(`/ciclos/${enc(id)}/pendencias-canvas`);
+
+/** Manda o ciclo inteiro: grupo → simulados → notas, com resultado por item. */
+export const enviarCicloAoCanvasEmLote = (id: string) =>
+  post<ResultadoLoteCanvas>(`/ciclos/${enc(id)}/enviar-canvas-lote`, {});
+
 export const enviarCicloAoCanvas = (id: string) =>
   post<{ canvas_estado: string; erro?: string }>(`/ciclos/${enc(id)}/enviar-canvas`, {});
 export const criarCiclo = (corpo: { ordem: number; vestibular: string; ano?: number; sincronizar_canvas: boolean }) =>
@@ -240,12 +249,11 @@ export const listarSedes = () => get<Sede[]>('/sedes');
 export const listarTurmas = () => get<Turma[]>('/turmas');
 export const listarMaterias = () => get<Materia[]>('/materias');
 
-// ─── Uploads de planilha ─────────────────────────────────────────────────
-
-export const enviarPlanilha = (
-  arquivo: File,
-  { autor, ...resto }: { autor?: string } & OpcoesUpload = {},
-) => postArquivo<unknown>('/uploads', arquivo, { campos: { autor }, ...resto });
+// ─── Uploads de planilha — só leitura ────────────────────────────────────
+//
+// `enviarPlanilha` saiu em 03/09/2026: `POST /uploads` responde 410 e a
+// entrada por planilha virou script (docs/32 §2.4). As duas leituras ficam
+// porque o histórico de importações é dado de auditoria.
 
 export const listarUploads = () => get<unknown[]>('/uploads');
 export const obterUpload = (id: string) => get<unknown>(`/uploads/${enc(id)}`);
