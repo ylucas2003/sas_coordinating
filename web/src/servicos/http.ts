@@ -102,10 +102,34 @@ export function del<T>(caminho: string): Promise<T> {
 }
 
 /** Monta uma query string, ignorando valores nulos. */
-export function qs(params: Record<string, string | number | boolean | null | undefined>): string {
+/**
+ * Query string a partir de um objeto. `null`/`undefined` somem.
+ *
+ * Array vira parâmetro REPETIDO (`?anos=2024&anos=2023`), que é o que o FastAPI
+ * lê como `list[int]` sem parser próprio. `String([2024, 2023])` daria
+ * "2024,2023" numa chave só, e o backend receberia um inteiro malformado.
+ *
+ * ⚠️ A CHAVE É O NOME DO CAMPO. `qs()` serializa o objeto de filtros direto,
+ * sem tabela de tradução, então o campo do front e o parâmetro da rota têm de
+ * ter o mesmo nome. `anos` no front contra `ano` na rota já custou um filtro
+ * que não filtrava, em silêncio — `test_colecao_banco.py` trava isso agora.
+ * Array vazio não emite nada — e isso é deliberado: no filtro de anos, lista
+ * vazia significa "todos", igual a ausente.
+ */
+export function qs(
+  params: Record<
+    string,
+    string | number | boolean | readonly (string | number)[] | null | undefined
+  >,
+): string {
   const busca = new URLSearchParams();
   for (const [chave, valor] of Object.entries(params)) {
-    if (valor != null) busca.set(chave, String(valor));
+    if (valor == null) continue;
+    if (Array.isArray(valor)) {
+      for (const item of valor) busca.append(chave, String(item));
+    } else {
+      busca.set(chave, String(valor));
+    }
   }
   const texto = busca.toString();
   return texto ? `?${texto}` : '';

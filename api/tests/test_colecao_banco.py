@@ -172,3 +172,94 @@ def test_paginar_dentro_da_colecao_nao_repete_nem_perde(cliente):
     assert ids(primeira) | ids(segunda) == {"recente_q01", "recente_q02", "recente_q03"}
     # Ano decrescente: 2022, 2021 na primeira página; 2019 sobra para a segunda.
     assert [q.ano for q in primeira.questoes] == [2022, 2021]
+
+
+# ─── O filtro de anos é de múltipla escolha ──────────────────────────────
+#
+# O acervo de brinquedo cobre 1973, 2009, 2011, 2019, 2021 e 2022. O que estes
+# testes travam é que a rota aceita VÁRIOS anos e que "nenhum ano" continua
+# significando "todos" — a convenção que o front usa para manter a URL curta
+# quando o filtro abre com tudo ligado (decisão de 02/09).
+
+
+def test_varios_anos_de_uma_vez(cliente):
+    pagina = consultas.listar_questoes(cliente, consultas.FiltrosQuestoes(anos=[2019, 2011]))
+
+    assert ids(pagina) == {"recente_q01", "arquivo_q04"}
+    assert pagina.total == 2
+
+
+def test_um_ano_so_continua_funcionando(cliente):
+    pagina = consultas.listar_questoes(cliente, consultas.FiltrosQuestoes(anos=[1973]))
+
+    assert ids(pagina) == {"piloto_q06"}
+
+
+def test_sem_anos_traz_todos(cliente):
+    """`None` e lista vazia são o MESMO recorte — "todos os anos".
+
+    O front colapsa a lista cheia em "nenhuma", para não carregar os trinta
+    anos do acervo na URL só para dizer o que dizer nada já diz.
+    """
+    sem = consultas.listar_questoes(cliente, consultas.FiltrosQuestoes(anos=None))
+    vazia = consultas.listar_questoes(cliente, consultas.FiltrosQuestoes(anos=[]))
+
+    assert sem.total == vazia.total == 6
+
+
+def test_ano_que_nao_existe_no_acervo_devolve_vazio(cliente):
+    """E vazio de verdade, não o acervo inteiro: um filtro que não casa com
+    nada tem de devolver nada, ou o aluno lê um recorte mais largo do que pediu."""
+    pagina = consultas.listar_questoes(cliente, consultas.FiltrosQuestoes(anos=[1500]))
+
+    assert pagina.total == 0
+    assert pagina.questoes == []
+
+
+def test_anos_combinam_com_a_colecao(cliente):
+    pagina = consultas.listar_questoes(
+        cliente, consultas.FiltrosQuestoes(anos=[2019, 2011], colecao="recentes")
+    )
+
+    assert ids(pagina) == {"recente_q01"}
+
+
+# ─── O contrato de NOME entre a rota e o front ───────────────────────────
+
+
+def test_os_nomes_dos_parametros_batem_com_os_campos_de_FiltrosBanco():
+    """A rota tem de expor exatamente os nomes que o front serializa.
+
+    ⚠️ Este teste existe por causa de um bug real, e do pior tipo. O campo do
+    front chamava-se `anos` e o parâmetro da rota, `ano`. O `qs()` do front
+    serializa o objeto de filtros DIRETO para a query string, sem tabela de
+    tradução — então `anos=2025&anos=2024` chegava, não casava com nada, e era
+    **ignorado em silêncio**: as pílulas mudavam, a URL mudava, e a lista voltava
+    inteira. Filtro que não filtra, sem erro nenhum na tela.
+
+    Os testes de domínio não pegaram porque chamam `consultas.listar_questoes`
+    direto, pulando a camada HTTP — que é justamente onde o nome vive.
+
+    A lista abaixo é o espelho de `FiltrosBanco` em `web/src/tipos/banco.ts`.
+    Mudou lá, muda aqui, e o teste é quem avisa.
+    """
+    from app.main import create_app
+
+    rota = next(
+        r
+        for r in create_app().routes
+        if getattr(r, "path", None) == "/banco/questoes" and "GET" in getattr(r, "methods", ())
+    )
+    nomes = {p.alias for p in rota.dependant.query_params}
+
+    assert {
+        "materia",
+        "vestibular",
+        "anos",
+        "fase",
+        "topico",
+        "colecao",
+        "busca",
+        "pagina",
+        "porPagina",
+    } <= nomes, f"a rota expõe {sorted(nomes)}"

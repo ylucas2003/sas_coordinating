@@ -193,7 +193,10 @@ export function EstudarEstatisticas() {
           onMudar={mudar}
           onVerQuestoes={(codigo, nome, ano) => {
             const recorte = new URLSearchParams({ materia, topico: codigo, assunto: nome });
-            if (ano) recorte.set('ano', String(ano));
+            // `anos` (lista), e não `ano`: o filtro do Banco é de múltipla
+            // escolha desde 02/09. Vindo daqui é um ano só — o que o aluno
+            // tocou no gráfico —, e lá ele pode acrescentar outros.
+            if (ano) recorte.set('anos', String(ano));
             navegar(`/estudar/banco?${recorte}`);
           }}
         />

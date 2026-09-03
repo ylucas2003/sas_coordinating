@@ -323,7 +323,7 @@ function Celula({
                 background: `color-mix(in srgb, var(--alu-dado) ${Math.round(25 + fracao * 75)}%, transparent)`,
               }
         }
-        to={`/estudar/banco?materia=${encodeURIComponent(materia)}&ano=${ano}`}
+        to={`/estudar/banco?materia=${encodeURIComponent(materia)}&anos=${ano}`}
       >
         <span className="alu-so-leitor">
           {`${materia} em ${ano}: ${par.feitas} de ${par.total} marcadas`}
