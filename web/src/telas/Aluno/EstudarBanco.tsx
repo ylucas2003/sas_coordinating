@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-import { useEstudo, useQuestoesDoBanco } from '../../dados/aluno';
+import { useEstudo, useLista, useListas, useQuestoesDoBanco } from '../../dados/aluno';
 import type { ColecaoBanco, FiltrosBanco, QuestaoVestibular } from '../../dados/aluno';
+import { exportarPdf, exportarWord } from '../Banco/exportar';
+import { CabecaDoCampo } from './pecas/CabecaDoCampo';
 import { CartaoQuestaoAluno } from './pecas/CartaoQuestaoAluno';
 import {
   FolhaDaPaginaInteira,
   usePaginaInteiraExplicada,
 } from './pecas/FolhaDaPaginaInteira';
-import { FolhaFiltros } from './pecas/FolhaFiltros';
+import { FolhaFiltros, PainelDeFiltros } from './pecas/FolhaFiltros';
 import type { RotulosDeFiltro } from './pecas/FolhaFiltros';
 import { Icone } from './pecas/Icone';
 import { MATERIAS_COM_TAXONOMIA, fmtInteiro } from './pecas/formato';
@@ -46,6 +48,9 @@ const COLECOES: { id: ColecaoBanco; nome: string; comoE: string }[] = [
   { id: 'recentes', nome: 'Recentes', comoE: 'recorte da questão' },
   { id: 'arquivo', nome: 'Arquivo', comoE: 'página inteira do caderno' },
 ];
+
+/** Quantas colunas o desktop mostra. No celular é sempre uma. */
+type Colunas = 1 | 2;
 
 /**
  * Adia um valor. A busca é textual sobre o enunciado de milhares de questões:
@@ -114,11 +119,18 @@ function lerColecao(params: URLSearchParams): ColecaoBanco {
   return params.get('colecao') === 'arquivo' ? 'arquivo' : 'recentes';
 }
 
+/** Uma ou duas colunas no desktop. Duas é o padrão do desenho: serve para
+ *  varrer a lista. Uma dá largura à página inteira do caderno, no Arquivo. */
+function lerColunas(params: URLSearchParams): Colunas {
+  return params.get('colunas') === '1' ? 1 : 2;
+}
+
 export function EstudarBanco() {
   const [params, setParams] = useSearchParams();
 
   const filtros = useMemo(() => lerFiltros(params), [params]);
   const colecao = lerColecao(params);
+  const colunas = lerColunas(params);
   const rotulos = useMemo<RotulosDeFiltro>(() => {
     const assunto = params.get('assunto');
     return assunto ? { topico: assunto } : {};
@@ -176,6 +188,34 @@ export function EstudarBanco() {
 
   const questoes = useQuestoesDoBanco(recorte);
   const estudo = useEstudo();
+
+  // As duas contagens do acervo, sem filtro nenhum: alimentam o subtítulo de
+  // cada coleção E o total do campo de busca. `porPagina: 1` porque só o
+  // `total` interessa — trazer vinte questões para mostrar um número seria
+  // pagar a página duas vezes. Ficam uma hora em cache (conteúdo de prova).
+  const totalRecentes = useQuestoesDoBanco({ colecao: 'recentes', pagina: 1, porPagina: 1 });
+  const totalArquivo = useQuestoesDoBanco({ colecao: 'arquivo', pagina: 1, porPagina: 1 });
+  const porColecao: Record<ColecaoBanco, number | null> = {
+    recentes: totalRecentes.data?.total ?? null,
+    arquivo: totalArquivo.data?.total ?? null,
+  };
+  const totalDoAcervo =
+    porColecao.recentes != null && porColecao.arquivo != null
+      ? porColecao.recentes + porColecao.arquivo
+      : null;
+
+  // A lista de trabalho: a mais recente entre as que têm questão. Uma lista
+  // vazia não se exporta, e oferecer "Exportar PDF" nela abriria um documento
+  // em branco.
+  const listas = useListas();
+  const escolhida = useMemo(() => {
+    const comQuestoes = (listas.data ?? []).filter((l) => l.totalQuestoes > 0);
+    return [...comQuestoes].sort((a, b) => b.atualizadaEm.localeCompare(a.atualizadaEm))[0] ?? null;
+  }, [listas.data]);
+  // As questões da lista escolhida, para o exportador — ele monta o documento a
+  // partir delas. São poucas (a lista é montada à mão), então vem junto em vez
+  // de ser buscada no clique, que deixaria o botão pensando.
+  const listaCheia = useLista(escolhida?.id ?? null);
 
   // ── Acúmulo das páginas ────────────────────────────────────────────────
   // "CARREGAR MAIS", e nunca rolagem infinita: o aluno abre uma questão em
@@ -259,62 +299,145 @@ export function EstudarBanco() {
     aplicarRecorte({}, {});
   }
 
+  const daLista = listaCheia.data ?? null;
+
   return (
     <>
-      <Link className="alu-est-voltar" to="/estudar">
-        <Icone nome="voltar" tamanho={16} />
-        Estudar
-      </Link>
+      <CabecaDoCampo titulo="Banco de questões" />
 
-      <h1 className="alu-titulo-tela">Banco de questões</h1>
+      <div className="alu-banco">
+        {/* A coluna fixa só existe no desktop (o CSS a esconde no celular),
+            onde há largura ao lado da lista. No celular a mesma capacidade sobe
+            do rodapé, pela folha — ver o comentário de `FolhaFiltros`. */}
+        <PainelDeFiltros filtros={filtros} onAplicar={aplicarRecorte} />
 
-      <div className="alu-est-busca">
-        <span className="alu-est-busca__campo">
-          <Icone nome="busca" tamanho={18} />
-          <input
-            className="alu-campo"
-            type="search"
-            enterKeyHint="search"
-            value={busca}
-            placeholder="Buscar no enunciado…"
-            aria-label="Buscar questões pelo enunciado"
-            onChange={(ev) => {
-              setBusca(ev.target.value);
-              setPagina(1);
-            }}
-          />
-        </span>
+        <div className="alu-banco__corpo">
+          {/* Os dois grupos convivem numa barra só. No celular eles empilham —
+              busca, depois filtros + lista, depois exportar. No desktop cada
+              grupo vira `display: contents` e os controles se alinham numa
+              linha só, como o desenho pede. É por isso que eles compartilham um
+              pai: sem ele, o CSS não teria como juntá-los. */}
+          <div className="alu-banco__barra">
+          <div className="alu-banco__ferramentas">
+            <span className="alu-est-busca__campo">
+              <Icone nome="busca" tamanho={18} />
+              <input
+                className="alu-campo"
+                type="search"
+                enterKeyHint="search"
+                value={busca}
+                // O total no `placeholder` é o do acervo INTEIRO, e é lido do
+                // servidor — nunca cravado. Um "2.693" no código envelheceria
+                // calado na próxima importação, e é justamente o número que
+                // promete ao aluno o tamanho do que ele tem em mãos.
+                placeholder={
+                  totalDoAcervo == null
+                    ? 'Buscar no banco de questões'
+                    : `Buscar no banco de ${fmtInteiro(totalDoAcervo)} questões`
+                }
+                aria-label="Buscar questões pelo enunciado"
+                onChange={(ev) => {
+                  setBusca(ev.target.value);
+                  setPagina(1);
+                }}
+              />
+            </span>
 
-        <button
-          type="button"
-          className={`alu-est-filtrar${ativos.length ? ' is-ativo' : ''}`}
-          aria-expanded={folhaAberta}
-          onClick={() => setFolhaAberta(true)}
-        >
-          <Icone nome="filtro" tamanho={18} />
-          Filtrar
-          {ativos.length > 0 && <span className="alu-est-filtrar__contagem">{ativos.length}</span>}
-        </button>
-      </div>
+            {/* Some no desktop: lá o painel de filtros está sempre à vista, e
+                um botão que abre o que já está aberto é ruído. */}
+            <button
+              type="button"
+              className={`alu-est-filtrar${ativos.length ? ' is-ativo' : ''}`}
+              aria-expanded={folhaAberta}
+              onClick={() => setFolhaAberta(true)}
+            >
+              <Icone nome="filtro" tamanho={18} />
+              Filtros
+              {ativos.length > 0 && (
+                <span className="alu-est-filtrar__contagem">{ativos.length}</span>
+              )}
+            </button>
 
-      {/* As duas coleções. Controle segmentado, e não pílula removível: uma das
-          duas está sempre ativa, porque as duas metades do acervo se leem de
-          formas diferentes e a tela precisa dizer qual está mostrando. */}
-      <fieldset className="alu-colecoes">
-        <legend className="alu-so-leitor">Coleção do acervo</legend>
-        {COLECOES.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            className={`alu-colecao${c.id === colecao ? ' is-ativa' : ''}`}
-            aria-pressed={c.id === colecao}
-            onClick={() => trocarColecao(c.id)}
-          >
-            <span className="alu-colecao__nome">{c.nome}</span>
-            <span className="alu-colecao__como">{c.comoE}</span>
-          </button>
-        ))}
-      </fieldset>
+            <Link className="alu-banco__lista" to="/estudar/listas">
+              Minha lista
+              {escolhida && <span className="alu-banco__lista-n">{escolhida.totalQuestoes}</span>}
+            </Link>
+
+            {/* Uma coluna dá largura à página inteira do caderno; duas servem
+                para varrer. A escolha é do aluno, e vive na URL como o resto do
+                recorte. Só no desktop — a 390px não há o que escolher. */}
+            <fieldset className="alu-banco__visao">
+              <legend className="alu-so-leitor">Densidade da lista</legend>
+              {([1, 2] as Colunas[]).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`alu-banco__visao-opcao${colunas === n ? ' is-ativa' : ''}`}
+                  aria-pressed={colunas === n}
+                  aria-label={n === 1 ? 'Uma questão por linha' : 'Duas por linha'}
+                  onClick={() => atualizarUrl({ colunas: n === 2 ? null : '1' })}
+                >
+                  <Icone nome={n === 1 ? 'faixas' : 'grade'} tamanho={17} />
+                </button>
+              ))}
+            </fieldset>
+          </div>
+
+          {/* Exportar a lista para resolver no papel. Existe porque a prova é
+              no papel: treinar na tela e fazer a prova na folha são gestos
+              diferentes, e o aluno pede o PDF para simular o segundo. */}
+          <div className="alu-banco__exportar">
+            <p>
+              {escolhida
+                ? 'Exportar sua lista para resolver no papel'
+                : 'Monte uma lista para exportar e resolver no papel'}
+            </p>
+            <button
+              type="button"
+              className="alu-banco__exportar-acao is-primaria"
+              // Desabilitado enquanto as questões não chegaram: exportar uma
+              // lista pela metade produz um PDF que parece completo.
+              disabled={!daLista || daLista.questoes.length === 0}
+              onClick={() => daLista && exportarPdf(daLista)}
+            >
+              Exportar PDF
+            </button>
+            <button
+              type="button"
+              className="alu-banco__exportar-acao"
+              disabled={!daLista || daLista.questoes.length === 0}
+              onClick={() => daLista && exportarWord(daLista)}
+            >
+              Word
+            </button>
+          </div>
+          </div>
+
+          {/* As duas coleções. Controle segmentado, e não pílula removível: uma
+              das duas está sempre ativa, porque as duas metades do acervo se
+              leem de formas diferentes e a tela precisa dizer qual está
+              mostrando. O subtítulo é a CONTAGEM REAL de cada uma — é ela que
+              diz ao aluno que o Arquivo é a metade maior. */}
+          <fieldset className="alu-colecoes">
+            <legend className="alu-so-leitor">Coleção do acervo</legend>
+            {COLECOES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`alu-colecao${c.id === colecao ? ' is-ativa' : ''}`}
+                aria-pressed={c.id === colecao}
+                onClick={() => trocarColecao(c.id)}
+              >
+                <span className="alu-colecao__nome">{c.nome}</span>
+                {/* A aba diz COMO a coleção se lê — a diferença estrutural
+                    entre as duas (0031/0033), que não muda com importação
+                    nova. Quantas são fica na linha abaixo: repetir o número
+                    aqui e ali daria ao aluno dois lugares para conferir a
+                    mesma coisa. */}
+                <span className="alu-colecao__como">{c.comoE}</span>
+              </button>
+            ))}
+          </fieldset>
 
       {ativos.length > 0 && (
         <ul className="alu-est-pilulas">
@@ -339,13 +462,15 @@ export function EstudarBanco() {
         </ul>
       )}
 
-      <p className="alu-est-recorte" aria-live="polite">
-        {questoes.isPending
-          ? 'Contando…'
-          : `${fmtInteiro(total)} ${total === 1 ? 'questão' : 'questões'} em ${
-              colecao === 'recentes' ? 'Recentes' : 'Arquivo'
-            }`}
-      </p>
+          {/* ⚠️ "inclui as sem classificação de tópico" não é rodapé: sem essa
+              frase o aluno soma os assuntos do filtro, não fecha com o total, e
+              conclui que a tela está errada (docs/22 §8). O que a coleção É
+              fica na aba acima; aqui é só quantas e o que entra na conta. */}
+          <p className="alu-est-recorte" aria-live="polite">
+            {questoes.isPending
+              ? 'Contando…'
+              : `${fmtInteiro(total)} ${total === 1 ? 'questão' : 'questões'} · inclui as sem classificação de tópico`}
+          </p>
 
       {questoes.isError ? (
         <div className="alu-bloco">
@@ -404,7 +529,14 @@ export function EstudarBanco() {
         <Esqueleto />
       ) : (
         <>
-          <ul className="alu-est-lista">
+          {/* Duas classes de recorte, e as duas mexem no CHROME do cartão:
+              em "Recentes" o cartão perde a caixa no celular e vira item de
+              lista separado por traço (é o desenho: o enunciado já é uma caixa,
+              e caixa dentro de caixa vira ruído); em "Arquivo" ele mantém a
+              caixa, porque a tarja fixa precisa de um fundo para grudar. */}
+          <ul
+            className={`alu-est-lista alu-est-lista--${colecao} alu-est-lista--col${colunas}`}
+          >
             {lista.map((q) => (
               <li key={q.id}>
                 <CartaoQuestaoAluno questao={q} onExplicarPagina={explicacao.reabrir} />
@@ -424,6 +556,9 @@ export function EstudarBanco() {
           )}
         </>
       )}
+
+        </div>
+      </div>
 
       {folhaAberta && (
         <FolhaFiltros

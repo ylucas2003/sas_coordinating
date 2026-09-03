@@ -177,6 +177,15 @@
   margin: 0 auto;
 }
 
+/* Os 640px são medida de LEITURA: uma coluna de blocos de texto e gráfico não
+   deve passar disso, ou a linha fica longa demais para o olho voltar. O Banco
+   não é leitura, é NAVEGAÇÃO — painel de filtros ao lado de uma grade de
+   questões —, e ali o teto vira um vinco no meio da tela com espaço vazio dos
+   dois lados. Solta só para ele, pelo mesmo `:has()` da grade do casco. */
+.alu-centro:has(.alu-banco) {
+  max-width: none;
+}
+
 .alu-rail,
 .alu-lateral {
   display: none;
@@ -247,6 +256,19 @@
     padding-bottom: 24px;
     max-width: calc(var(--alu-rail) + var(--alu-coluna) + var(--alu-lateral) + 56px + 48px);
     margin: 0 auto;
+  }
+
+  /* O Banco é a única tela do aluno que não cabe nos 640px da coluna: ela
+     carrega um painel de filtros de 236px E uma grade de duas questões lado a
+     lado. Nos 640, o painel comia mais da metade e a grade virava duas tiras
+     de 144px — questão de prova não se lê em 144px.
+
+     `:has()` e não uma prop na tela: quem define a grade é o CASCO, e
+     propriedade CSS herda para baixo, nunca para cima. É o mesmo mecanismo que
+     já abre o rail (web/CLAUDE.md), então não inventa padrão novo. */
+  .alu-corpo:has(.alu-banco) {
+    grid-template-columns: var(--alu-rail) minmax(0, 1fr) var(--alu-lateral);
+    max-width: 1560px;
   }
 
   .alu-rail,

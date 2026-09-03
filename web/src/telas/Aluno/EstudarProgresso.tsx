@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { useProgressoBanco } from '../../dados/aluno';
 import type { MateriaBanco, ProgressoDoAluno } from '../../dados/aluno';
+import { CabecaDoCampo } from './pecas/CabecaDoCampo';
 import { Icone } from './pecas/Icone';
 import { AVISO_DE_COBERTURA, MATERIAS_COM_TAXONOMIA, fmtInteiro } from './pecas/formato';
 
@@ -33,12 +34,7 @@ export function EstudarProgresso() {
 
   return (
     <>
-      <Link className="alu-est-voltar" to="/estudar">
-        <Icone nome="voltar" tamanho={16} />
-        Estudar
-      </Link>
-
-      <h1 className="alu-titulo-tela">Meu progresso</h1>
+      <CabecaDoCampo titulo="Meu progresso" />
 
       {progresso.isError ? (
         // ⚠️ FALHA DE CONSULTA NUNCA VIRA ESTADO VAZIO. "Você ainda não marcou

@@ -34,6 +34,11 @@ const CAMINHOS = {
   seta_cima: 'M12 19V5 M5 12l7-7 7 7',
   seta_baixo: 'M12 5v14 M19 12l-7 7-7-7',
   chevron: 'M9 18l6-6-6-6',
+  // O irmão esquerdo do `chevron`. Não é o `voltar`: aquele é uma SETA, que
+  // promete "desfazer o passo"; este é o chevron de cabeçalho do desenho, que
+  // diz "subir um nível" — e a diferença aparece quando os dois convivem na
+  // mesma tela, como na ficha do assunto.
+  chevron_esquerda: 'M15 18l-6-6 6-6',
   chevron_baixo: 'M6 9l6 6 6-6',
   relogio: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 7v5l3 2',
   calendario:
@@ -45,6 +50,11 @@ const CAMINHOS = {
   documento:
     'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5 M9 13h6 M9 17h4',
   lista: 'M8 6h13 M8 12h13 M8 18h13 M3.5 6h.01 M3.5 12h.01 M3.5 18h.01',
+  // As duas densidades do banco no desktop: uma faixa larga por questão, ou
+  // duas colunas para varrer. Desenhados como o que produzem, não como o que
+  // significam — o aluno reconhece a forma da lista antes de ler o rótulo.
+  faixas: 'M4 5h16v6H4z M4 14h16v6H4z',
+  grade: 'M4 5h7v15H4z M13 5h7v15h-7z',
   lixeira:
     'M4 7h16 M10 11v6 M14 11v6 M6 7l1 12.1a1 1 0 0 0 1 .9h8a1 1 0 0 0 1-.9L18 7 M9 7V4.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7',
   anotar: 'M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',

@@ -6,11 +6,21 @@ import type { FiltrosBanco, TaxonomiaMateria } from '../../../dados/aluno';
 import { Folha } from './Folha';
 import { fmtInteiro } from './formato';
 
-// A folha de filtros do acervo — matéria, vestibular, fase, ano e assunto.
+// Os filtros do acervo — matéria, vestibular, fase, ano e assunto.
+//
+// UM corpo, DUAS cascas, e a diferença entre elas é de semântica, não de
+// aparência:
+//
+//   FolhaFiltros    celular. Sobe do rodapé, guarda RASCUNHO e só aplica no
+//                   "Ver N questões". Sem rascunho, cada toque recarregaria a
+//                   lista atrás da folha — que nem está visível.
+//   PainelDeFiltros desktop. Coluna fixa à esquerda, SEM rascunho: a lista está
+//                   ao lado e visível, então o toque aplica na hora e o
+//                   resultado é a resposta. Um botão "aplicar" aqui seria um
+//                   passo a mais para ver o que já dava para ver.
 //
 // No celular filtro NUNCA é coluna lateral (docs/28 §4): a `FiltrosBanco` da
-// coordenação é um `<aside>` de 280px, e aqui não há 280px sobrando. A mesma
-// capacidade sobe do rodapé.
+// coordenação é um `<aside>` de 280px, e aqui não há 280px sobrando.
 //
 // ⚠️ A REGRA QUE ESTA FOLHA EXISTE PARA CUMPRIR (docs/28 §6): filtrar por
 // tópico EXIGE matéria. `1.1` é "Fundamentos" em Física, "Conjuntos e Lógica"
@@ -49,30 +59,26 @@ function unicos<T>(valores: T[]): T[] {
   return [...new Set(valores)];
 }
 
-export function FolhaFiltros({ filtros, rotulos, busca, onFechar, onAplicar }: Props) {
-  // Rascunho local: as pílulas mudam o recorte na hora, mas a lista só troca
-  // quando o aluno confirma no rodapé. Sem isso, cada toque recarregaria a
-  // lista atrás da folha — e ela nem está visível.
-  const [rascunho, setRascunho] = useState<FiltrosBanco>(filtros);
-  const [rotuloTopico, setRotuloTopico] = useState<string | null>(rotulos.topico ?? null);
+interface PropsDoCorpo {
+  /** O recorte que as pílulas refletem — rascunho na folha, aplicado no painel. */
+  recorte: FiltrosBanco;
+  /** Troca uma chave. `undefined` no valor limpa. */
+  aoAlternar: <C extends keyof FiltrosBanco>(chave: C, valor: FiltrosBanco[C]) => void;
+  /** O nome do tópico escolhido, que só a árvore do edital sabe. */
+  aoEscolherTopico: (codigo: string, nome: string, jaEstava: boolean) => void;
+}
 
+/**
+ * Os grupos de pílula. Sem casca e sem estado próprio: quem guarda o recorte é
+ * o pai, porque é o pai que sabe se ele é rascunho ou já é o recorte da tela.
+ */
+export function CorpoDeFiltros({ recorte, aoAlternar, aoEscolherTopico }: PropsDoCorpo) {
   // Uma consulta só, sem matéria: devolve as três árvores de uma vez, e com
-  // elas os anos, as fases e os vestibulares que existem no acervo. Pedir por
-  // matéria daria uma requisição a cada troca de pílula sem nada em troca.
+  // elas os anos, as fases e os vestibulares que existem no acervo.
   const taxonomia = useTaxonomia();
 
-  // A contagem do rodapé é o recorte DE VERDADE, pedido ao servidor com
-  // `porPagina: 1`: só o `total` interessa, e trazer 20 questões que ninguém
-  // vai ver para mostrar um número seria pagar a página duas vezes.
-  const contagem = useQuestoesDoBanco({
-    ...rascunho,
-    busca: busca.trim() || undefined,
-    pagina: 1,
-    porPagina: 1,
-  });
-
   const arvores = taxonomia.data ?? [];
-  const daMateria = arvores.find((a) => a.materia === rascunho.materia) ?? null;
+  const daMateria = arvores.find((a) => a.materia === recorte.materia) ?? null;
   // Escolhida a matéria, os anos e as fases passam a ser os DELA: o IME
   // objetivo não tem os mesmos anos em todas as matérias, e oferecer um ano
   // que devolve lista vazia é oferecer um beco.
@@ -85,6 +91,178 @@ export function FolhaFiltros({ filtros, rotulos, busca, onFechar, onAplicar }: P
   const topicos: TopicoDoEdital[] = daMateria
     ? daMateria.blocos.flatMap((b) => b.topicos)
     : [];
+
+  return (
+    <>
+      {taxonomia.isPending && <p className="alu-carregando">Carregando os filtros…</p>}
+
+      {taxonomia.isError && (
+        <div className="alu-filtros__erro">
+          <p className="alu-erro">Não deu para carregar os filtros.</p>
+          <button
+            type="button"
+            className="alu-tecla alu-tecla--fantasma alu-tecla--pequena"
+            onClick={() => {
+              taxonomia.refetch();
+            }}
+          >
+            Tentar de novo
+          </button>
+        </div>
+      )}
+
+      {taxonomia.isSuccess && (
+        <>
+          <Grupo legenda="Matéria">
+            {materias.map((m) => (
+              <Pilula
+                key={m}
+                rotulo={m}
+                ativa={recorte.materia === m}
+                onToque={() => aoAlternar('materia', m)}
+              />
+            ))}
+          </Grupo>
+
+          <Grupo legenda="Vestibular">
+            {vestibulares.map((v) => (
+              <Pilula
+                key={v}
+                rotulo={v}
+                ativa={recorte.vestibular === v}
+                onToque={() => aoAlternar('vestibular', v)}
+              />
+            ))}
+          </Grupo>
+
+          <Grupo legenda="Fase">
+            {fases.map((f) => (
+              <Pilula
+                key={f}
+                rotulo={`Fase ${f}`}
+                ativa={recorte.fase === f}
+                onToque={() => aoAlternar('fase', f)}
+              />
+            ))}
+          </Grupo>
+
+          <Grupo legenda="Ano">
+            {anos.map((a) => (
+              <Pilula
+                key={a}
+                rotulo={String(a)}
+                ativa={recorte.ano === a}
+                onToque={() => aoAlternar('ano', a)}
+              />
+            ))}
+          </Grupo>
+
+          {/* `disabled` no `fieldset` e não só nos botões: é o que faz o
+              teclado e o leitor de tela pularem o grupo inteiro, em vez de
+              anunciarem trinta pílulas que não respondem. */}
+          <fieldset className="alu-filtros__grupo" disabled={!recorte.materia}>
+            <legend className="alu-filtros__legenda">Assunto</legend>
+
+            {!recorte.materia ? (
+              <p className="alu-filtros__aviso">
+                Escolha uma matéria primeiro — o mesmo código de assunto existe nas três e
+                significa coisa diferente em cada uma.
+              </p>
+            ) : topicos.length === 0 ? (
+              <p className="alu-filtros__aviso">
+                Esta matéria ainda não tem assunto classificado no edital.
+              </p>
+            ) : (
+              <div className="alu-filtros__opcoes">
+                {topicos.map((t) => (
+                  <Pilula
+                    key={t.codigo}
+                    rotulo={`${t.nome} · ${t.totalQuestoes}`}
+                    ativa={recorte.topico === t.codigo}
+                    onToque={() =>
+                      aoEscolherTopico(t.codigo, t.nome, recorte.topico === t.codigo)
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </fieldset>
+        </>
+      )}
+    </>
+  );
+}
+
+interface PropsDoPainel {
+  filtros: FiltrosBanco;
+  onAplicar: (filtros: FiltrosBanco, rotulos: RotulosDeFiltro) => void;
+}
+
+/**
+ * A coluna fixa do desktop. Aplica na hora — a lista está ao lado.
+ *
+ * Sem rascunho e sem "aplicar": o resultado do toque é visível no mesmo
+ * movimento do olho, então um botão de confirmação seria um passo a mais para
+ * ver o que já estava à vista. O "Limpar" continua, porque desfazer cinco
+ * pílulas uma a uma não é desfazer.
+ */
+export function PainelDeFiltros({ filtros, onAplicar }: PropsDoPainel) {
+  const algumAtivo = Object.keys(filtros).length > 0;
+
+  function alternar<C extends keyof FiltrosBanco>(chave: C, valor: FiltrosBanco[C]) {
+    const novo: FiltrosBanco = { ...filtros };
+    if (filtros[chave] === valor) delete novo[chave];
+    else novo[chave] = valor;
+    // Trocar ou limpar a matéria limpa o tópico junto — ver o ⚠️ do topo.
+    if (chave === 'materia') delete novo.topico;
+    onAplicar(novo, {});
+  }
+
+  return (
+    <aside className="alu-painel-filtros">
+      <div className="alu-painel-filtros__cabeca">
+        <h2 className="alu-painel-filtros__titulo">Filtros</h2>
+        {algumAtivo && (
+          <button
+            type="button"
+            className="alu-filtros__limpar"
+            onClick={() => onAplicar({}, {})}
+          >
+            Limpar
+          </button>
+        )}
+      </div>
+
+      <CorpoDeFiltros
+        recorte={filtros}
+        aoAlternar={alternar}
+        aoEscolherTopico={(codigo, nome, jaEstava) => {
+          const novo: FiltrosBanco = { ...filtros };
+          if (jaEstava) delete novo.topico;
+          else novo.topico = codigo;
+          onAplicar(novo, jaEstava ? {} : { topico: nome });
+        }}
+      />
+    </aside>
+  );
+}
+
+export function FolhaFiltros({ filtros, rotulos, busca, onFechar, onAplicar }: Props) {
+  // Rascunho local: as pílulas mudam o recorte na hora, mas a lista só troca
+  // quando o aluno confirma no rodapé. Sem isso, cada toque recarregaria a
+  // lista atrás da folha — e ela nem está visível.
+  const [rascunho, setRascunho] = useState<FiltrosBanco>(filtros);
+  const [rotuloTopico, setRotuloTopico] = useState<string | null>(rotulos.topico ?? null);
+
+  // A contagem do rodapé é o recorte DE VERDADE, pedido ao servidor com
+  // `porPagina: 1`: só o `total` interessa, e trazer 20 questões que ninguém
+  // vai ver para mostrar um número seria pagar a página duas vezes.
+  const contagem = useQuestoesDoBanco({
+    ...rascunho,
+    busca: busca.trim() || undefined,
+    pagina: 1,
+    porPagina: 1,
+  });
 
   function alternar<C extends keyof FiltrosBanco>(chave: C, valor: FiltrosBanco[C]) {
     setRascunho((atual) => {
@@ -136,103 +314,14 @@ export function FolhaFiltros({ filtros, rotulos, busca, onFechar, onAplicar }: P
         </button>
       }
     >
-      {taxonomia.isPending && <p className="alu-carregando">Carregando os filtros…</p>}
-
-      {taxonomia.isError && (
-        <div className="alu-filtros__erro">
-          <p className="alu-erro">Não deu para carregar os filtros.</p>
-          <button
-            type="button"
-            className="alu-tecla alu-tecla--fantasma alu-tecla--pequena"
-            onClick={() => {
-              taxonomia.refetch();
-            }}
-          >
-            Tentar de novo
-          </button>
-        </div>
-      )}
-
-      {taxonomia.isSuccess && (
-        <>
-          <Grupo legenda="Matéria">
-            {materias.map((m) => (
-              <Pilula
-                key={m}
-                rotulo={m}
-                ativa={rascunho.materia === m}
-                onToque={() => alternar('materia', m)}
-              />
-            ))}
-          </Grupo>
-
-          <Grupo legenda="Vestibular">
-            {vestibulares.map((v) => (
-              <Pilula
-                key={v}
-                rotulo={v}
-                ativa={rascunho.vestibular === v}
-                onToque={() => alternar('vestibular', v)}
-              />
-            ))}
-          </Grupo>
-
-          <Grupo legenda="Fase">
-            {fases.map((f) => (
-              <Pilula
-                key={f}
-                rotulo={`Fase ${f}`}
-                ativa={rascunho.fase === f}
-                onToque={() => alternar('fase', f)}
-              />
-            ))}
-          </Grupo>
-
-          <Grupo legenda="Ano">
-            {anos.map((a) => (
-              <Pilula
-                key={a}
-                rotulo={String(a)}
-                ativa={rascunho.ano === a}
-                onToque={() => alternar('ano', a)}
-              />
-            ))}
-          </Grupo>
-
-          {/* `disabled` no `fieldset` e não só nos botões: é o que faz o
-              teclado e o leitor de tela pularem o grupo inteiro, em vez de
-              anunciarem trinta pílulas que não respondem. */}
-          <fieldset className="alu-filtros__grupo" disabled={!rascunho.materia}>
-            <legend className="alu-filtros__legenda">Assunto</legend>
-
-            {!rascunho.materia ? (
-              <p className="alu-filtros__aviso">
-                Escolha uma matéria primeiro — o mesmo código de assunto existe nas três e
-                significa coisa diferente em cada uma.
-              </p>
-            ) : topicos.length === 0 ? (
-              <p className="alu-filtros__aviso">
-                Esta matéria ainda não tem assunto classificado no edital.
-              </p>
-            ) : (
-              <div className="alu-filtros__opcoes">
-                {topicos.map((t) => (
-                  <Pilula
-                    key={t.codigo}
-                    rotulo={`${t.nome} · ${t.totalQuestoes}`}
-                    ativa={rascunho.topico === t.codigo}
-                    onToque={() => {
-                      const jaEstava = rascunho.topico === t.codigo;
-                      alternar('topico', t.codigo);
-                      setRotuloTopico(jaEstava ? null : t.nome);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </fieldset>
-        </>
-      )}
+      <CorpoDeFiltros
+        recorte={rascunho}
+        aoAlternar={alternar}
+        aoEscolherTopico={(codigo, nome, jaEstava) => {
+          alternar('topico', codigo);
+          setRotuloTopico(jaEstava ? null : nome);
+        }}
+      />
     </Folha>
   );
 }

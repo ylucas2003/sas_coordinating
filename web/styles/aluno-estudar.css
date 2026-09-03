@@ -167,14 +167,17 @@ a.alu-est-elo-quieto:hover {
   color: var(--alu-texto-2);
 }
 
+ /* Caixa alta e tracking servem a RÓTULO de duas ou três palavras. Aqui a
+    linha virou frase — "1.294 questões · recorte da questão · inclui as sem
+    classificação de tópico" —, e em versalete ela ocupava duas linhas de
+    letra garrafal a 390px, gritando o que é nota de rodapé. */
 .alu-est-recorte {
   margin: 0;
   font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  line-height: 1.5;
   color: var(--alu-texto-2);
   font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
 }
 
 /* ── A lista do acervo ────────────────────────────────────────────────── */
@@ -1487,5 +1490,325 @@ a.alu-est-elo-quieto:hover {
 
   .alu-ficha__identidade {
     text-align: left;
+  }
+}
+
+/* ─── O CABEÇALHO DOS CAMPOS ──────────────────────────────────────────────
+   `‹` num quadrado de 44px, NA MESMA LINHA do título. Substitui o elo de texto
+   "← Estudar" acima do h1, que empurrava o título para baixo da dobra a 390px
+   — e o título é o que diz ao aluno onde ele está. */
+
+.alu-cabeca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.alu-cabeca__voltar {
+  width: var(--alu-toque);
+  height: var(--alu-toque);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  color: var(--alu-magnitude);
+}
+
+.alu-cabeca__voltar:hover {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+.alu-cabeca__titulo {
+  margin: 0;
+  min-width: 0;
+}
+
+/* ─── O BANCO ─────────────────────────────────────────────────────────── */
+
+.alu-banco {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.alu-banco__corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.alu-banco__barra,
+.alu-banco__ferramentas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.alu-banco__barra {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* No celular a busca ocupa a linha inteira e "Filtros" + "Minha lista" dividem
+   a de baixo. */
+.alu-banco__ferramentas .alu-est-busca__campo {
+  flex: 1 1 100%;
+}
+
+.alu-banco__ferramentas .alu-est-filtrar,
+.alu-banco__lista {
+  flex: 1;
+  min-width: 0;
+}
+
+.alu-banco__lista {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  background: transparent;
+  color: var(--alu-texto-2);
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.alu-banco__lista:hover {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+/* O número usa o mesmo separador dos outros rótulos da tela — "Minha lista · 8"
+   — em vez de uma bolinha de contagem, que na barra de topo já significa
+   "novidade não vista". */
+.alu-banco__lista-n::before {
+  content: '· ';
+  color: var(--alu-texto-2);
+}
+
+.alu-banco__lista-n {
+  font-weight: 700;
+  color: var(--alu-magnitude);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A escolha de densidade é só do desktop: a 390px não há o que escolher. */
+.alu-banco__visao {
+  display: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.alu-banco__visao-opcao {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--alu-texto-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.alu-banco__visao-opcao.is-ativa {
+  background: color-mix(in srgb, var(--alu-dado) 22%, transparent);
+  color: var(--alu-dado);
+}
+
+.alu-banco__exportar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.alu-banco__exportar p {
+  flex: 1;
+  min-width: 140px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--alu-texto-2);
+  margin: 0;
+}
+
+.alu-banco__exportar-acao {
+  min-height: var(--alu-toque);
+  padding: 0 14px;
+  border-radius: var(--alu-raio-pequeno);
+  border: 1px solid var(--alu-borda);
+  background: transparent;
+  color: var(--alu-texto-2);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.alu-banco__exportar-acao.is-primaria {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+  font-weight: 700;
+}
+
+/* Desabilitado é VAZADO e apagado, nunca escondido: o aluno precisa ver que
+   exportar existe para entender por que montar uma lista vale a pena. */
+.alu-banco__exportar-acao:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ─── O CARTÃO DENTRO DA LISTA ────────────────────────────────────────────
+   Em "Recentes" o cartão perde a caixa no celular: o enunciado JÁ é uma caixa
+   (a imagem, com traço próprio), e caixa dentro de caixa a 390px vira ruído —
+   é o que o desenho mostra. Em "Arquivo" a caixa fica, porque a tarja fixa
+   precisa de um fundo opaco para grudar sem deixar o conteúdo passar por trás. */
+
+@media (max-width: 899px) {
+  .alu-est-lista--recentes .alu-questao {
+    background: transparent;
+    border: none;
+    border-top: 1px solid var(--alu-borda);
+    border-radius: 0;
+    padding: 14px 0;
+  }
+}
+
+/* ─── DESKTOP ─────────────────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  /* Duas colunas: filtros fixos à esquerda, acervo à direita. */
+  .alu-banco {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .alu-banco__corpo {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Os dois grupos viram itens de uma linha só — busca, lista e densidade à
+     esquerda; exportar à direita. Continuam DOIS grupos (e não uma lista chapada
+     de botões via `display: contents`) porque `order` e `flex-wrap` sobre sete
+     itens soltos produziam quatro linhas ragged que mudavam de forma a cada
+     rótulo. Dois blocos que quebram juntos são previsíveis. */
+  .alu-banco__barra {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .alu-banco__ferramentas {
+    flex: 1 1 420px;
+    flex-wrap: nowrap;
+  }
+
+  .alu-banco__exportar {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  /* `min-width: 0` é o que permite o campo encolher: sem ele o `min-width:
+     auto` do flex trava o item na largura intrínseca do `<input>` (que tem
+     tamanho padrão do agente do usuário), e o grupo inteiro empurra o
+     "Exportar" para a linha de baixo mesmo quando há espaço. */
+  .alu-banco__ferramentas .alu-est-busca__campo {
+    flex: 1 1 200px;
+    min-width: 0;
+  }
+
+  .alu-banco__ferramentas .alu-est-busca__campo .alu-campo {
+    min-width: 0;
+  }
+
+  /* O botão "Filtros" some: o painel está sempre à vista, e um botão que abre
+     o que já está aberto é ruído. */
+  .alu-banco__ferramentas .alu-est-filtrar {
+    display: none;
+  }
+
+  /* A frase que explica a exportação sai: no desktop os dois botões estão na
+     barra, ao lado da lista, e o contexto se lê sozinho. */
+  .alu-banco__exportar p {
+    display: none;
+  }
+
+  .alu-banco__lista,
+  .alu-banco__exportar-acao {
+    flex: none;
+  }
+
+  .alu-banco__visao {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--alu-borda);
+    border-radius: var(--alu-raio-pequeno);
+    flex: none;
+  }
+
+  /* Duas por linha para varrer a lista; uma para dar largura à página inteira
+     do caderno. */
+  .alu-est-lista--col2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+}
+
+/* ─── O PAINEL DE FILTROS (desktop) ───────────────────────────────────── */
+
+.alu-painel-filtros {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .alu-painel-filtros {
+    display: block;
+    width: 236px;
+    flex: none;
+    padding: 16px;
+    background: var(--alu-superficie);
+    border: var(--alu-borda-largura) solid var(--alu-borda);
+    border-radius: var(--alu-raio);
+    /* Acompanha a rolagem da lista: com trinta pílulas de assunto, um painel
+       estático sairia da tela justo quando o aluno quisesse trocar o recorte. */
+    position: sticky;
+    top: 24px;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .alu-painel-filtros__cabeca {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .alu-painel-filtros__titulo {
+    flex: 1;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0;
   }
 }

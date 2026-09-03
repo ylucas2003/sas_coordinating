@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { combinarEstatisticas } from '../../dominio/banco';
 import {
@@ -17,6 +17,7 @@ import type {
   VestibularBanco,
 } from '../../dados/aluno';
 import { GraficoDoAssunto } from './pecas/GraficoDoAssunto';
+import { CabecaDoCampo } from './pecas/CabecaDoCampo';
 import { Icone } from './pecas/Icone';
 import { AVISO_DE_COBERTURA, MATERIAS_COM_TAXONOMIA, fmtInteiro } from './pecas/formato';
 
@@ -129,12 +130,7 @@ export function EstudarEstatisticas() {
 
   return (
     <>
-      <Link className="alu-est-voltar" to="/estudar">
-        <Icone nome="voltar" tamanho={16} />
-        Estudar
-      </Link>
-
-      <h1 className="alu-titulo-tela">Estatísticas</h1>
+      <CabecaDoCampo titulo="Estatísticas" />
       <p className="alu-est-cobertura">
         <span className="alu-olho alu-olho--quieto">Cobertura</span>
         {AVISO_DE_COBERTURA}
