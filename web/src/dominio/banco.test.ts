@@ -3,6 +3,8 @@ import {
   FILTRO_QUESTOES_VAZIO,
   agruparPorBloco,
   algumFiltroAtivo,
+  alternarAno,
+  anosMarcados,
   chaveTopico,
   combinarEstatisticas,
   ehDissertativa,
@@ -531,5 +533,67 @@ describe('combinarEstatisticas', () => {
     const so = resposta('Matemática', [], [2019], { 2019: 20 });
     const junto = combinarEstatisticas(ita, so);
     expect(junto.topicos.map((t) => t.total)).toEqual([5, 1]);
+  });
+});
+
+describe('o filtro de anos', () => {
+  // Múltipla escolha, começando com TODOS ligados (decisão de 02/09). O que
+  // estes testes travam é a convenção que as duas coisas juntas exigem:
+  // `undefined` significa "todos", e a lista cheia nunca chega à URL.
+
+  const ACERVO = [2025, 2024, 2023, 2022];
+
+  describe('anosMarcados', () => {
+    it('sem filtro, TODAS as pílulas acendem', () => {
+      // É o requisito de origem: uma fileira apagada diria ao aluno que nada
+      // está selecionado, quando tudo está.
+      expect([...anosMarcados(undefined, ACERVO)].sort()).toEqual([2022, 2023, 2024, 2025]);
+    });
+
+    it('com filtro, só os escolhidos', () => {
+      expect([...anosMarcados([2024, 2022], ACERVO)].sort()).toEqual([2022, 2024]);
+    });
+  });
+
+  describe('alternarAno', () => {
+    it('o primeiro toque DESMARCA, porque tudo começa marcado', () => {
+      expect(alternarAno(undefined, ACERVO, 2023)).toEqual([2025, 2024, 2022]);
+    });
+
+    it('desmarcar mais um vai tirando da lista', () => {
+      expect(alternarAno([2025, 2024, 2022], ACERVO, 2022)).toEqual([2025, 2024]);
+    });
+
+    it('marcar de volta o que faltava colapsa para TODOS', () => {
+      // Sem o colapso, a URL carregaria os quatro anos para dizer o mesmo que
+      // dizer nada — e o link deixaria de valer para o ano que entrar depois.
+      expect(alternarAno([2025, 2024, 2023], ACERVO, 2022)).toBeUndefined();
+    });
+
+    it('desmarcar o ÚLTIMO volta para todos, e não para nenhum', () => {
+      // "Nenhum ano" só produz tela vazia, sempre. Apagar a última marca é o
+      // gesto de recomeçar, então ele limpa o filtro.
+      expect(alternarAno([2024], ACERVO, 2024)).toBeUndefined();
+    });
+
+    it('a ordem é decrescente: o ano recente é o que o aluno procura antes', () => {
+      expect(alternarAno([2022, 2025], ACERVO, 2023)).toEqual([2025, 2023, 2022]);
+    });
+
+    it('descarta ano que já não existe no acervo', () => {
+      // `?anos=1999,2025` num link velho: 1999 saiu do banco e não seleciona
+      // questão nenhuma. Carregá-lo adiante só sujaria a URL.
+      expect(alternarAno([1999, 2025], ACERVO, 2024)).toEqual([2025, 2024]);
+    });
+
+    it('um ano morto não impede o recorte de virar "todos"', () => {
+      // Os quatro anos do acervo estão marcados; o 1999 pendurado não muda
+      // isso, e o recorte É todos.
+      expect(alternarAno([1999, 2025, 2024, 2023], ACERVO, 2022)).toBeUndefined();
+    });
+
+    it('acervo vazio não quebra', () => {
+      expect(alternarAno(undefined, [], 2024)).toBeUndefined();
+    });
   });
 });

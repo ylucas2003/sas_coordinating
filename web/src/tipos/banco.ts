@@ -124,7 +124,19 @@ export interface PaginaQuestoes {
 export interface FiltrosBanco {
   materia?: MateriaBanco;
   vestibular?: VestibularBanco;
-  ano?: number;
+  /**
+   * Anos escolhidos. **Ausente = TODOS**, e não "nenhum".
+   *
+   * O filtro é de múltipla escolha e abre com todos ligados (decisão de
+   * 02/09), então "todos" e "sem filtro" são o mesmo recorte. Guardar
+   * `undefined` em vez da lista cheia mantém a URL curta E faz um link
+   * compartilhado continuar valendo quando o acervo ganhar um ano novo — a
+   * lista cheia gravada hoje excluiria 2026 em silêncio.
+   *
+   * A conversão entre a lista e as pílulas marcadas é de `dominio/banco.ts`
+   * (`anosMarcados`, `alternarAno`), não de cada tela.
+   */
+  anos?: number[];
   fase?: number;
   /** Código do tópico, sempre dentro de uma matéria (ver `TopicoTaxonomia`). */
   topico?: string;

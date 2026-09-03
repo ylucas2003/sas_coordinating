@@ -127,7 +127,18 @@ async def obter_taxonomia(
 async def listar_questoes(
     materia: MateriaBanco | None = Query(None),
     vestibular: VestibularBanco | None = Query(None),
-    ano: int | None = Query(None),
+    # ⚠️ O nome é `anos`, no PLURAL, e tem de casar com o campo `anos` de
+    # `FiltrosBanco` no front — é o `qs()` que serializa o objeto direto para a
+    # query string, sem tabela de tradução. Com os dois nomes divergindo, o
+    # parâmetro chega e é ignorado: as pílulas mudam, a URL muda, e a lista
+    # volta inteira. Filtro que não filtra, sem erro nenhum na tela.
+    anos: list[int] | None = Query(
+        None,
+        description=(
+            "repetível — `anos=2024&anos=2023`. Omitido, traz todos os anos. "
+            "O filtro é de múltipla escolha e abre com todos ligados"
+        ),
+    ),
     fase: int | None = Query(None),
     topico: str | None = Query(
         None,
@@ -180,7 +191,7 @@ async def listar_questoes(
         consultas.FiltrosQuestoes(
             materia=materia,
             vestibular=vestibular,
-            ano=ano,
+            anos=anos,
             fase=fase,
             topico=topico,
             colecao=colecao,

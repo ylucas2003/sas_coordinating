@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { alternarAno, anosMarcados } from '../../../dominio/banco';
 import { useQuestoesDoBanco, useTaxonomia } from '../../../dados/aluno';
-import type { FiltrosBanco, TaxonomiaMateria } from '../../../dados/aluno';
+import type { ColecaoBanco, FiltrosBanco, TaxonomiaMateria } from '../../../dados/aluno';
 import { Folha } from './Folha';
 import { fmtInteiro } from './formato';
 
@@ -42,6 +43,15 @@ interface Props {
   rotulos: RotulosDeFiltro;
   /** A busca corrente, para o "VER N QUESTÕES" contar o recorte de verdade. */
   busca: string;
+  /**
+   * A coleção em vigor. Entra na CONTAGEM do rodapé, e não nas pílulas.
+   *
+   * ⚠️ Sem ela o rodapé prometia "Ver 320 questões" e a tela mostrava 240:
+   * a folha contava sobre o acervo inteiro enquanto a lista atrás dela já
+   * estava restrita ao Arquivo. Um número que não é o que se vai ver é pior
+   * que nenhum número — é o botão mentindo sobre o próprio destino.
+   */
+  colecao?: ColecaoBanco;
   onFechar: () => void;
   onAplicar: (filtros: FiltrosBanco, rotulos: RotulosDeFiltro) => void;
 }
@@ -62,8 +72,11 @@ function unicos<T>(valores: T[]): T[] {
 interface PropsDoCorpo {
   /** O recorte que as pílulas refletem — rascunho na folha, aplicado no painel. */
   recorte: FiltrosBanco;
-  /** Troca uma chave. `undefined` no valor limpa. */
+  /** Troca uma chave de escolha única. `undefined` no valor limpa. */
   aoAlternar: <C extends keyof FiltrosBanco>(chave: C, valor: FiltrosBanco[C]) => void;
+  /** O ano é o único grupo de MÚLTIPLA escolha, e por isso tem caminho próprio:
+   *  o toggle dele não é "troca o valor", é "acrescenta ou tira da lista". */
+  aoAlternarAno: (ano: number, disponiveis: readonly number[]) => void;
   /** O nome do tópico escolhido, que só a árvore do edital sabe. */
   aoEscolherTopico: (codigo: string, nome: string, jaEstava: boolean) => void;
 }
@@ -72,7 +85,12 @@ interface PropsDoCorpo {
  * Os grupos de pílula. Sem casca e sem estado próprio: quem guarda o recorte é
  * o pai, porque é o pai que sabe se ele é rascunho ou já é o recorte da tela.
  */
-export function CorpoDeFiltros({ recorte, aoAlternar, aoEscolherTopico }: PropsDoCorpo) {
+export function CorpoDeFiltros({
+  recorte,
+  aoAlternar,
+  aoAlternarAno,
+  aoEscolherTopico,
+}: PropsDoCorpo) {
   // Uma consulta só, sem matéria: devolve as três árvores de uma vez, e com
   // elas os anos, as fases e os vestibulares que existem no acervo.
   const taxonomia = useTaxonomia();
@@ -146,13 +164,17 @@ export function CorpoDeFiltros({ recorte, aoAlternar, aoEscolherTopico }: PropsD
             ))}
           </Grupo>
 
+          {/* ⚠️ O ÚNICO grupo de múltipla escolha, e o único que abre com TUDO
+              marcado (decisão de 02/09). "Sem filtro" e "todos os anos" são o
+              mesmo recorte, e mostrá-lo apagado diria ao aluno que nada está
+              selecionado — quando tudo está. Quem traduz é `anosMarcados`. */}
           <Grupo legenda="Ano">
             {anos.map((a) => (
               <Pilula
                 key={a}
                 rotulo={String(a)}
-                ativa={recorte.ano === a}
-                onToque={() => aoAlternar('ano', a)}
+                ativa={anosMarcados(recorte.anos, anos).has(a)}
+                onToque={() => aoAlternarAno(a, anos)}
               />
             ))}
           </Grupo>
@@ -236,6 +258,9 @@ export function PainelDeFiltros({ filtros, onAplicar }: PropsDoPainel) {
       <CorpoDeFiltros
         recorte={filtros}
         aoAlternar={alternar}
+        aoAlternarAno={(ano, disponiveis) =>
+          onAplicar({ ...filtros, anos: alternarAno(filtros.anos, disponiveis, ano) }, {})
+        }
         aoEscolherTopico={(codigo, nome, jaEstava) => {
           const novo: FiltrosBanco = { ...filtros };
           if (jaEstava) delete novo.topico;
@@ -247,7 +272,7 @@ export function PainelDeFiltros({ filtros, onAplicar }: PropsDoPainel) {
   );
 }
 
-export function FolhaFiltros({ filtros, rotulos, busca, onFechar, onAplicar }: Props) {
+export function FolhaFiltros({ filtros, rotulos, busca, colecao, onFechar, onAplicar }: Props) {
   // Rascunho local: as pílulas mudam o recorte na hora, mas a lista só troca
   // quando o aluno confirma no rodapé. Sem isso, cada toque recarregaria a
   // lista atrás da folha — e ela nem está visível.
@@ -259,6 +284,7 @@ export function FolhaFiltros({ filtros, rotulos, busca, onFechar, onAplicar }: P
   // vai ver para mostrar um número seria pagar a página duas vezes.
   const contagem = useQuestoesDoBanco({
     ...rascunho,
+    colecao,
     busca: busca.trim() || undefined,
     pagina: 1,
     porPagina: 1,
@@ -317,6 +343,9 @@ export function FolhaFiltros({ filtros, rotulos, busca, onFechar, onAplicar }: P
       <CorpoDeFiltros
         recorte={rascunho}
         aoAlternar={alternar}
+        aoAlternarAno={(ano, disponiveis) =>
+          setRascunho((atual) => ({ ...atual, anos: alternarAno(atual.anos, disponiveis, ano) }))
+        }
         aoEscolherTopico={(codigo, nome, jaEstava) => {
           alternar('topico', codigo);
           setRotuloTopico(jaEstava ? null : nome);

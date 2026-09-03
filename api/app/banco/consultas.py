@@ -93,7 +93,11 @@ class FiltrosQuestoes:
 
     materia: str | None = None
     vestibular: str | None = None
-    ano: int | None = None
+    # LISTA, e não um ano: o filtro de anos é de múltipla escolha e começa com
+    # todos ligados (decisão de 02/09). `None` e lista vazia significam a mesma
+    # coisa — "todos os anos" —, porque uma lista com os trinta anos do acervo
+    # é o mesmo recorte que nenhum filtro, e é o front que colapsa um no outro.
+    anos: list[int] | None = None
     fase: int | None = None
     topico: str | None = None
     # 'recentes' ou 'arquivo' — vocabulário de produto, traduzido para
@@ -216,8 +220,8 @@ def listar_questoes(cliente: Client, filtros: FiltrosQuestoes) -> PaginaQuestoes
         consulta = consulta.eq("materia", filtros.materia)
     if filtros.vestibular:
         consulta = consulta.eq("vestibular", filtros.vestibular)
-    if filtros.ano is not None:
-        consulta = consulta.eq("ano", filtros.ano)
+    if filtros.anos:
+        consulta = consulta.in_("ano", filtros.anos)
     if filtros.fase is not None:
         consulta = consulta.eq("fase", filtros.fase)
     if filtros.colecao:

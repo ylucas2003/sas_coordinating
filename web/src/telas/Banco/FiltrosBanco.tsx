@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { alternarAno, anosMarcados } from '../../dominio/banco';
 import { useTaxonomia } from '../../hooks/banco';
 import type {
   BlocoTaxonomia,
@@ -69,7 +70,7 @@ export function FiltrosBanco({ filtros, onFiltrar }: Props) {
   const algumAtivo =
     filtros.materia != null ||
     filtros.vestibular != null ||
-    filtros.ano != null ||
+    (filtros.anos?.length ?? 0) > 0 ||
     filtros.fase != null ||
     filtros.topico != null ||
     (filtros.busca ?? '') !== '';
@@ -79,7 +80,7 @@ export function FiltrosBanco({ filtros, onFiltrar }: Props) {
     onFiltrar({
       materia: undefined,
       vestibular: undefined,
-      ano: undefined,
+      anos: undefined,
       fase: undefined,
       topico: undefined,
       busca: undefined,
@@ -170,8 +171,13 @@ export function FiltrosBanco({ filtros, onFiltrar }: Props) {
           {anos.map((ano) => (
             <Chip
               key={ano}
-              ativo={filtros.ano === ano}
-              onClick={() => onFiltrar({ ano: filtros.ano === ano ? undefined : ano })}
+              // ⚠️ MÚLTIPLA ESCOLHA, e abre com TODOS marcados (decisão de
+              // 02/09). "Sem filtro" e "todos os anos" são o mesmo recorte, e
+              // mostrá-lo apagado diria que nada está selecionado quando tudo
+              // está. Quem traduz é `anosMarcados`, compartilhado com o casco
+              // do aluno: as duas telas filtram o mesmo acervo pela mesma regra.
+              ativo={anosMarcados(filtros.anos, anos).has(ano)}
+              onClick={() => onFiltrar({ anos: alternarAno(filtros.anos, anos, ano) })}
             >
               {ano}
             </Chip>

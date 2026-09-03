@@ -57,7 +57,9 @@ export function QuestaoTelaCheia() {
     {
       materia: q?.materia,
       vestibular: q?.vestibular,
-      ano: q?.ano,
+      // Um ano só, mas o campo é lista desde que o filtro virou múltipla
+      // escolha: aqui o recorte é "a prova desta questão", não uma escolha.
+      anos: q ? [q.ano] : undefined,
       fase: q?.fase,
       porPagina: QUESTOES_POR_PROVA,
     },

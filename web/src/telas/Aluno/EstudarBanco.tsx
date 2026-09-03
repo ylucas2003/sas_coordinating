@@ -41,7 +41,7 @@ const POR_PAGINA = 20;
 /** Os seis recortes removíveis. A busca fica fora: ela mora no campo, sempre
  *  visível, e não vira pílula. A coleção também fica fora — ela é um controle
  *  segmentado próprio, sempre visível, e nunca "nenhuma". */
-const CHAVES_DE_FILTRO = ['materia', 'vestibular', 'ano', 'fase', 'topico'] as const;
+const CHAVES_DE_FILTRO = ['materia', 'vestibular', 'anos', 'fase', 'topico'] as const;
 type ChaveDeFiltro = (typeof CHAVES_DE_FILTRO)[number];
 
 const COLECOES: { id: ColecaoBanco; nome: string; comoE: string }[] = [
@@ -71,6 +71,12 @@ function rotuloDoFiltro(
   filtros: FiltrosBanco,
   rotulos: RotulosDeFiltro,
 ): string {
+  // Uma pílula por RECORTE, não por ano: com sete anos escolhidos, sete
+  // pílulas empurrariam todo o resto da tela para baixo da dobra.
+  if (chave === 'anos') {
+    const n = filtros.anos?.length ?? 0;
+    return n === 1 ? String(filtros.anos?.[0]) : `${n} anos`;
+  }
   if (chave === 'fase') return `Fase ${filtros.fase}`;
   // O código do tópico não se lê sozinho ("7.2"): quem sabe o nome é a
   // taxonomia, e a folha o entrega junto ao aplicar.
@@ -101,8 +107,16 @@ function lerFiltros(params: URLSearchParams): FiltrosBanco {
   const vestibular = VESTIBULARES.find((v) => v === params.get('vestibular'));
   if (vestibular) filtros.vestibular = vestibular;
 
-  const ano = Number(params.get('ano'));
-  if (Number.isInteger(ano) && ano > 1900) filtros.ano = ano;
+  // `?anos=2024,2023`. Vírgula na URL do APP (é o aluno que lê e compartilha);
+  // a repetição que o FastAPI espera é problema do `qs()`, na camada de HTTP.
+  //
+  // ⚠️ Ausente = TODOS, nunca "nenhum". Lista só com lixo também vira todos —
+  // um recorte vazio devolveria tela em branco por causa de um link torto.
+  const anos = (params.get('anos') ?? '')
+    .split(',')
+    .map((n) => Number(n.trim()))
+    .filter((n) => Number.isInteger(n) && n > 1900);
+  if (anos.length > 0) filtros.anos = [...new Set(anos)].sort((a, b) => b - a);
 
   const fase = Number(params.get('fase'));
   if (fase === 1 || fase === 2) filtros.fase = fase;
@@ -270,7 +284,7 @@ export function EstudarBanco() {
     atualizarUrl({
       materia: novos.materia ?? null,
       vestibular: novos.vestibular ?? null,
-      ano: novos.ano != null ? String(novos.ano) : null,
+      anos: novos.anos?.length ? novos.anos.join(',') : null,
       fase: novos.fase != null ? String(novos.fase) : null,
       topico: novos.topico ?? null,
       assunto: novos.topico ? (novosRotulos.topico ?? null) : null,
@@ -565,6 +579,7 @@ export function EstudarBanco() {
           filtros={filtros}
           rotulos={rotulos}
           busca={buscaAdiada}
+          colecao={colecao}
           onFechar={() => setFolhaAberta(false)}
           onAplicar={(novos, novosRotulos) => {
             aplicarRecorte(novos, novosRotulos);
