@@ -428,9 +428,12 @@ respostas já gravadas** passarem a dizer *em que assunto* cada aluno erra.
 | P4 | **Acerto por assunto** — o aluno e a coordenação passam a ver acerto por tópico do edital | M | P2 |
 
 **Pré-voo: ~~nenhum~~ três decisões**, achadas ao medir o banco em 04/09 e
-listadas em [34 §5](34-plano-sprint-6.md) — as 115 questões que só têm imagem,
-onde mora a meia-vida, e se o índice é calculado no servidor ou no front. As
-duas decisões *da proposta* seguem tomadas desde 29/08 — a
+**todas fechadas no mesmo dia** ([34 §5](34-plano-sprint-6.md)): as 115
+questões só-imagem vão de **OCR local** (a amostra mostrou que são a prova
+impressa capturada, não diagrama — o `tesseract` já classifica); o índice é
+calculado no **servidor**; e a meia-vida mora **no banco**, versionada e
+editável pela coordenação, o que sobe a P3 de P para M. As duas decisões *da
+proposta* seguem tomadas desde 29/08 — a
 meia-vida (5 anos, fixa) e a cobertura (só Matemática, Física e Química; a tela
 diz quais matérias cobre). Português, Inglês e Redação ficam de fora, e o
 Inglês eliminatório segue acompanhado só pela nota — é o próximo candidato a

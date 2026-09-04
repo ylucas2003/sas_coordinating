@@ -80,6 +80,9 @@ A meia-vida de 5 anos do índice **é outro parâmetro** com o mesmo valor. Ou o
 dois passam a ler o mesmo lugar, ou daqui a um ano alguém muda um e não o
 outro — o padrão que a Sprint 2 combateu na régua de corte.
 
+→ Resolvido pela [D2](#d2--onde-mora-a-meia-vida-h--fechada-no-banco): os dois
+viram colunas da mesma linha de `parametro_importancia`.
+
 ### 0.4 · Os vocabulários de matéria batem — não há tradutor a escrever
 
 `topico_taxonomia.materia` e `materia.nome` usam **as mesmas strings**:
@@ -228,7 +231,10 @@ e vale consertar antes das outras 1.000.
 
 ## 3 · P3 · Índice de importância
 
-**Tamanho: P** (era M — ver [§0.3](#03--a-p3-está-metade-pronta-e-ninguém-registrou)).
+**Tamanho: M.** O levantamento a tinha derrubado para P — faltam só dois
+passos de aritmética ([§0.3](#03--a-p3-está-metade-pronta-e-ninguém-registrou))
+—, mas a [D2](#d2--onde-mora-a-meia-vida-h--fechada-no-banco) devolveu peso:
+migration do parâmetro, leitura com default, tela de edição e auditoria.
 
 Falta o passo 2 e o passo 3:
 
@@ -253,10 +259,9 @@ quanto estudar; a tendência diz por quê.
 que já produz o numerador e o denominador ([D3](#d3--onde-o-índice-é-calculado--fechada-no-servidor)).
 O front continua desenhando a série; o índice chega pronto.
 
-**Onde `H` mora:** [D2](#d2--onde-mora-a-meia-vida-h--aberta), a única
-decisão ainda aberta. Enquanto ela não vem, a P3 anda: o cálculo é o mesmo nos
-dois caminhos, muda só de onde `H` é lido. Escrever a fórmula lendo de um lugar
-só já satisfaz as duas opções.
+**Onde `H` mora:** em `parametro_importancia`, versionado, com `H = 5` de
+fábrica no código para o índice não sumir se o banco falhar
+([D2](#d2--onde-mora-a-meia-vida-h--fechada-no-banco)).
 
 ⚠️ **O recorte é do índice inteiro, não só do numerador.** É a mesma armadilha
 que a `recorrencia` já documenta: filtrar só o de cima faz "% da prova" de uma
@@ -332,38 +337,69 @@ o mínimo para classificar — entra em `semClassificacao` e é **declarado na
 tela**, que é a regra da casa de qualquer jeito ([22 §1.5](22-plano-banco-questoes.md)).
 Só depois de medir o resíduo real vale discutir visão para ele.
 
-### D2 · Onde mora a meia-vida H — ABERTA
+### D2 · Onde mora a meia-vida H — FECHADA: no banco
 
-O [24 §4.2](24-jornada-do-aluno.md) diz duas coisas que **não cabem juntas**:
-*"parâmetro, não constante espalhada… mora num lugar só"* e *"mudá-lo é decisão
-de coordenação, não deploy"*.
+*Fechada em 04/09.* `H` é o botão que responde *"quanto o passado ainda
+conta"*: com `H = 5`, a prova de 2021 vale metade da de 2026 e a de 2016 vale
+um quarto. Mexer nele **reordena o ranking de assuntos** — e portanto muda o
+que o sistema diz para o aluno estudar primeiro.
 
-`H` é o número que responde *"quanto uma prova antiga ainda conta"*. Com
-`H = 5`, a prova de 2021 vale metade da de 2026, e a de 2016 vale um quarto.
-Mexer nele reordena o ranking de "o que mais cai": `H` alto trata o edital como
-estável e valoriza o histórico inteiro; `H` baixo diz que só os últimos anos
-importam.
+A escolha foi **banco**, não constante: a coordenação gira o botão sem
+depender de deploy, como a régua de corte virou dado na Sprint 2.
 
-| Opção | O que custa | O que dá |
-|---|---|---|
-| **a · Constante em `thresholds.py`** — é calibração, e é onde calibração mora ([api/CLAUDE.md](../api/CLAUDE.md)) | uma linha | mudar exige um dev e um deploy |
-| **b · Linha no banco**, como a régua de corte virou dado na Sprint 2 | migration + tela de edição + auditoria da mudança | a coordenação mexe sozinha |
+#### O que isso obriga, e não é opcional
 
-**A pergunta que decide não é técnica:** *o "quanto o passado conta" é assunto
-que a coordenação vai querer debater e ajustar, ou é uma decisão tomada que
-ninguém pretende mexer?*
+Hoje `thresholds.py` tem **13 números de calibração, todos em código**, e não
+existe tabela de configuração no banco. `H` é o primeiro parâmetro que a
+coordenação edita — então o desenho dele vira precedente. Três travas, todas
+copiadas de `criterios_repo.py`, que já resolveu o mesmo problema:
 
-Se for debatido, (b) desde já — porque o custo de (b) depois é a mesma
-migration mais o retrabalho de tirar a constante de circulação. Se for
-decidido, (a), e (b) quando alguém pedir.
+**1 · Versionado, nunca editado no lugar.** É a regra que o critério já segue:
+*"editar insere `versao + 1` e desativa a anterior; sem isso, mexer numa régua
+mudaria retroativamente os números de quem já a usou — em silêncio, e sem
+ninguém conseguir explicar a diferença depois."* Vale igual aqui, e talvez
+mais: um `H` alterado muda **todo** o ranking de uma vez. Sem versão, o print
+que a coordenação tirou mês passado deixa de ser reproduzível e ninguém sabe
+dizer por quê.
 
-**Recomendo (a)**, pelo mesmo argumento que tirou a P4 do Sprint 4: não
-adiantar trabalho que pode não ser preciso. Mas quem sabe se o Leo vai querer
-girar esse botão é você.
+**2 · Default no código, banco como override.** Mesma razão do arquivo vencer
+para as réguas embutidas: *"banco fora do ar não impede o Painel de
+classificar"*. Se a linha sumir ou o banco não responder, `H = 5` do código
+assume e o índice continua saindo. Um índice que deixa de existir porque uma
+linha de configuração falhou é pior que um índice com o valor de fábrica.
 
-⚠️ Em qualquer das duas, `H` e o `ANOS_DA_JANELA = 5` do front passam a ler o
-**mesmo lugar** — ver [§0.3](#03--a-p3-está-metade-pronta-e-ninguém-registrou).
-Dois cincos independentes com o mesmo valor é a receita de divergirem em um ano.
+**3 · A mudança é auditada.** Quem girou, quando, de quanto para quanto —
+`auditoria.py`. Um número que reordena o que 900 alunos veem não muda anônimo.
+
+#### E ela resolve o aviso da §0.3
+
+A [§0.3](#03--a-p3-está-metade-pronta-e-ninguém-registrou) avisava que `H = 5`
+e o `ANOS_DA_JANELA = 5` do front são **dois cincos independentes com o mesmo
+valor** — receita de divergirem em um ano. Com o parâmetro no banco, os dois
+passam a ser colunas da mesma linha:
+
+```sql
+CREATE TABLE parametro_importancia (
+    id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    versao                integer NOT NULL,
+    meia_vida_anos        numeric(4,2) NOT NULL,   -- H, hoje 5
+    janela_tendencia_anos integer NOT NULL,        -- o ANOS_DA_JANELA do front
+    ativo                 boolean NOT NULL DEFAULT true,
+    criado_em             timestamptz NOT NULL DEFAULT now(),
+    criado_por            text
+);
+```
+
+Tabela **tipada**, não chave/valor: um `config(chave text, valor text)` genérico
+não valida nada e adia o problema. E ela nasce com duas colunas porque são as
+duas que existem — não se inventa mecanismo geral para uma linha.
+
+#### O custo
+
+**A P3 sobe de P para M.** Ganha migration, leitura com default, uma tela de
+edição em `/administracao` e o registro na auditoria. Ainda começa no dia um e
+ainda não depende da classificação — mas não é mais "dois passos de
+aritmética".
 
 ### D3 · Onde o índice é calculado — FECHADA: no servidor
 
