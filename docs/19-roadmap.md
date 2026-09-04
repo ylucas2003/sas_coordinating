@@ -359,10 +359,12 @@ O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já te
 
 ### Sprint 4 · Dado e leitura — *4 partes*
 
-> **Estado: ESCRITA, fora de produção** *(03/09)*. Plano, medição contra
-> produção e decisões em [32-plano-sprint-4.md](32-plano-sprint-4.md); o estado
-> parte a parte está no §5.1 de lá. Localmente verdes: **358 testes** na API e
-> **299** no front, com a `0043` aplicada, revertida e reaplicada.
+> **Estado: EM PRODUÇÃO** *(03/09)*. Plano, medição contra produção e decisões
+> em [32-plano-sprint-4.md](32-plano-sprint-4.md); o estado parte a parte está
+> no §5.1 de lá. Subiu com a `0043`, o backfill (**123 notas** marcadas
+> `todas_em_branco`) e `recalcular_metricas` sobre 255 simulados. Verificado:
+> 2.756 zeros − 123 = 2.633 ainda na conta, e **zero** provas marcadas como não
+> confiáveis — o Problema B segue desligado, esperando o aval prova a prova.
 
 | Parte | O quê | Estado |
 |---|---|---|
@@ -390,7 +392,9 @@ partes propostas já estavam feitas, no todo ou em parte, sem registro em
 documento nenhum. Plano completo em
 [31-plano-sprint-5.md](31-plano-sprint-5.md).
 
-> **Estado: ESCRITA, fora de produção** *(30/08)*. As cinco partes estão
+> **Estado: EM PRODUÇÃO.** *(Escrita em 30/08; conferido em 04/09 que as
+> migrations `0037` e `0038` estão aplicadas em produção — o texto abaixo, que
+> dizia "falta o deploy", ficou para trás.)* As cinco partes estão
 > implementadas e testadas localmente — 279 testes na API, 233 no front,
 > migrations `0037` e `0038` com `up`/`down`/`up` limpos, e o fluxo da P4
 > exercitado contra os 319 alunos do Ciclo 1 · IME. Uma revisão adversarial de
@@ -423,11 +427,22 @@ respostas já gravadas** passarem a dizer *em que assunto* cada aluno erra.
 | P3 | **Índice de importância** — incidência normalizada por ano × **meia-vida de 5 anos, fixa para todos** (decidido 29/08), com a **tendência exposta separada** do índice ([24 §4](24-jornada-do-aluno.md)) | M | — (só o que já está no Postgres) |
 | P4 | **Acerto por assunto** — o aluno e a coordenação passam a ver acerto por tópico do edital | M | P2 |
 
-**Pré-voo: nenhum.** As duas decisões que faltavam foram tomadas em 29/08 — a
+**Pré-voo: ~~nenhum~~ três decisões**, achadas ao medir o banco em 04/09 e
+listadas em [34 §5](34-plano-sprint-6.md) — as 115 questões que só têm imagem,
+onde mora a meia-vida, e se o índice é calculado no servidor ou no front. As
+duas decisões *da proposta* seguem tomadas desde 29/08 — a
 meia-vida (5 anos, fixa) e a cobertura (só Matemática, Física e Química; a tela
 diz quais matérias cobre). Português, Inglês e Redação ficam de fora, e o
 Inglês eliminatório segue acompanhado só pela nota — é o próximo candidato a
 ganhar taxonomia, num sprint futuro.
+
+> 📄 **Plano escrito em 04/09: [34-plano-sprint-6.md](34-plano-sprint-6.md).**
+> O levantamento mudou três coisas da proposta acima — o alvo é **1.030**
+> questões e não 1.031/1.624 (Inglês e Português não têm taxonomia: 594 itens e
+> 34% das respostas ficam fora, medido pela primeira vez); a **P3 está metade
+> pronta** e cai de M para P; e **11% das questões não têm enunciado em texto**,
+> só imagem. Três decisões nasceram daí — o "pré-voo: nenhum" abaixo valia
+> antes de medir.
 
 > ✅ **É o próximo sprint** (decidido em 29/08). Furou a fila na frente do
 > Sprint 3 e do polimento avulso por ser caminho crítico de tudo que vem
@@ -474,8 +489,10 @@ Do mesmo brainstorming, lado coordenação ([25](25-leitura-da-coordenacao.md)).
 Quase tudo que o áudio pediu **já estava planejado** (C.2, C.3, D.1, D.2–D.4);
 o que é novo é pequeno e não depende de nada:
 
-> **Estado: ESCRITO, fora de produção** *(03/09)*. Plano, levantamento e estado
+> **Estado: EM PRODUÇÃO** *(03/09)*. Plano, levantamento e estado
 > item a item em [33-plano-polimento-coordenacao.md](33-plano-polimento-coordenacao.md).
+> A verificação a 360px no browser achou quatro defeitos de layout na faixa de
+> filtros e no dossiê, consertados antes e depois do merge (PRs #34 e #36).
 > O levantamento achou **três coisas que mudaram o desenho da proposta**: a
 > busca global já existia na topbar, o cartão de decisão estava escrito e
 > desligado (`AlertCard` importado por ninguém, e o sino apontando para uma
@@ -535,7 +552,7 @@ de placeholder — a tarja MOCK só aparece em desenvolvimento.
 |---|---|---|
 | **WhatsApp é só lembrete, ou canal completo** (professor anexa o arquivo no WhatsApp e o sistema relaciona ao simulado)? | Sprint 3 inteira: P1 e P4 se desenham diferente | Yan + coordenação |
 | Frequência da cobrança de professores (diária? a cada 3 dias?) | Sprint 3 · P2 | coordenação |
-| Regra de "zero = provável ausência" (limiar) | Sprint 3 · P3 | coordenação |
+| Regra de "zero = provável ausência" — **metade fechada em 03/09**: o Problema A (não marcou nada) está em produção, derivado de evidência direta. Falta só o aval das **8 provas de 2023** do Problema B, prova a prova ([32 §1](32-plano-sprint-4.md)) | Sprint 3 · P3 | coordenação |
 | **Busca é da tela ou global (`⌘K`)?** | Polimento | Yan + coordenação |
 | **Papéis dentro da coordenação** — hoje todo mundo pode tudo, inclusive criar acesso e ler auditoria | Polimento | coordenação |
 | **Servidor MCP do SAS para uso fora da plataforma?** Expõe dado de menor a cliente fora da nossa infra | — | Yan + LGPD |
