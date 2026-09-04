@@ -108,16 +108,39 @@ O enunciado inteiro é um PNG:
 ```
 
 A proposta diz *"aponte o `classificar.py` para o HTML do Quiz Statistics"*.
-Para 915 questões isso basta. Para **115 não há o que ler**, e para boa parte
-das outras 644 com imagem o texto é parcial — a figura carrega o circuito, o
-gráfico ou a geometria.
+Para 915 questões isso basta. Para **115 não há o que ler** no HTML.
 
-Some-se que a URL é **relativa do Canvas** e exige token para buscar. A
-infraestrutura existe (`ClienteCanvas.baixar_bytes`,
-`scripts/canvas_backfill_arquivos.py`), mas é trabalho que a proposta não
-previa.
+A URL é **relativa do Canvas** e exige token. A infraestrutura existe
+(`ClienteCanvas.baixar_bytes`, `scripts/canvas_backfill_arquivos.py`).
 
-→ **Decisão D1**, em [§5](#5--o-que-preciso-que-você-decida).
+### 0.5.1 · E o que essas imagens são: a prova impressa, não um diagrama solto
+
+Baixei quatro delas do Canvas e olhei. **Não são figuras isoladas** — são
+capturas da questão inteira do caderno impresso: enunciado, dados, observações
+e alternativas, tipografados em preto sobre branco. A figura, quando existe,
+acompanha o texto em vez de substituí-lo.
+
+Isso muda o remédio. Rodei `tesseract -l por` nas quatro:
+
+| Amostra | O que o OCR devolveu | Classificável? |
+|---|---|---|
+| Matemática | *"Seja p(x) um polinômio do segundo grau"* | ✅ Polinômios |
+| Física | *"trilhos condutores… capacitor de capacitância C… barra condutora"* | ✅ Indução eletromagnética |
+| Química | *"dependência da constante de velocidade com a temperatura… Equação de Arrhenius"* | ✅ Cinética |
+| Química | *"líquidos voláteis… soluções ideais… pressões de vapor saturante"* | ✅ Soluções |
+
+**As quatro classificam.** O que o OCR erra é justamente o que não decide o
+assunto: notação matemática (`Ir(DI = PG)` para `|p(1)| = |p(3)|`) e rótulo de
+figura (`bora 8 ortogonal ao pianos` para `barra · B ortogonal ao plano`). As
+palavras que nomeiam o tópico saem inteiras.
+
+⚠️ **A distinção que importa:** classificar pede o ASSUNTO, não uma
+reprodução fiel. Um OCR bom demais para nomear o tópico e ruim demais para
+renderizar a questão é exatamente o que serve aqui — e não serviria se o
+objetivo fosse mostrar a questão ao aluno.
+
+→ **D1 fechada** em [§5](#5--as-decisões): OCR local, com o resíduo declarado
+na tela.
 
 ### 0.6 · O `classificar.py` não é automático
 
@@ -190,7 +213,11 @@ respostas; uma de um simulado de 40, destrava 40. Classificar em ordem
 decrescente de impacto significa que **a P4 pode ligar antes da P2 terminar**,
 com cobertura declarada na tela.
 
-**As 115 sem texto** → D1.
+**As 115 sem texto:** OCR local antes de classificar ([D1](#d1--as-115-questões-cujo-enunciado-é-só-imagem--fechada-ocr-local)).
+Buscar o PNG no Canvas, passar `tesseract -l por`, e o texto extraído entra no
+mesmo `listar` das outras. Marcar de onde veio o texto — questão lida por OCR
+tem confiança um degrau abaixo, e é ela que se revisa primeiro se a
+concordância da amostra vier baixa.
 
 **O portão de qualidade:** amostra de 30 questões classificadas duas vezes, de
 forma independente, medindo concordância no bloco (não no tópico). Abaixo de
@@ -222,7 +249,14 @@ acontecido no mundo. A exponencial decai liso e nenhum ano some.
 *"caía em 6% das questões até 2015 · cai em 2% desde 2020 ▼"*. O índice diz
 quanto estudar; a tendência diz por quê.
 
-Onde `H` mora → **D2**. Onde o cálculo roda → **D3**.
+**Onde roda:** no servidor, em `banco/estatisticas.py`, junto da `recorrencia`
+que já produz o numerador e o denominador ([D3](#d3--onde-o-índice-é-calculado--fechada-no-servidor)).
+O front continua desenhando a série; o índice chega pronto.
+
+**Onde `H` mora:** [D2](#d2--onde-mora-a-meia-vida-h--aberta), a única
+decisão ainda aberta. Enquanto ela não vem, a P3 anda: o cálculo é o mesmo nos
+dois caminhos, muda só de onde `H` é lido. Escrever a fórmula lendo de um lugar
+só já satisfaz as duas opções.
 
 ⚠️ **O recorte é do índice inteiro, não só do numerador.** É a mesma armadilha
 que a `recorrencia` já documenta: filtrar só o de cima faz "% da prova" de uma
@@ -267,59 +301,80 @@ quadrante, o interessado lê os eixos, o curioso lê os números.
 
 ---
 
-## 5 · O que preciso que você decida
+## 5 · As decisões
 
-O roadmap dizia **"pré-voo: nenhum"**. Depois do levantamento, são três — e
-nenhuma delas estava visível antes de medir o banco.
+O roadmap dizia **"pré-voo: nenhum"**. Depois de medir o banco, eram três.
+Duas fecharam em 04/09; uma segue aberta.
 
-### D1 · As 115 questões cujo enunciado é só imagem
+### D1 · As 115 questões cujo enunciado é só imagem — FECHADA: OCR local
 
-Onze por cento do alvo, e mais 644 com texto parcial ([§0.5](#05--11-das-questões-não-têm-enunciado-em-texto--ele-está-na-imagem)).
+*Fechada em 04/09.* A proposta original aqui era visão multimodal. **Estava
+superdimensionada**, e a pergunta do Yan — *"não dá pra usar OCR?"* — mandou
+medir em vez de deduzir.
 
-| Opção | O que custa | O que entrega |
+Mediu-se ([§0.5.1](#051--e-o-que-essas-imagens-são-a-prova-impressa-não-um-diagrama-solto)):
+as imagens são a **prova impressa capturada**, texto tipografado, e o
+`tesseract -l por` devolveu texto classificável nas quatro amostras.
+
+| | Visão multimodal | **OCR local** |
 |---|---|---|
-| **a · Visão** — buscar o PNG no Canvas e classificar com modelo multimodal | tokens de visão + o download autenticado | cobertura ~100% |
-| **b · Deixar fora**, declarado na tela como `semClassificacao` | nada | ~89%, com o buraco visível |
-| **c · Passada humana** nas 115 | tempo de alguém que entenda do edital | ~100%, e a mais confiável |
+| Custo | tokens de visão por questão | zero |
+| Dado sai da máquina? | sim | **não** |
+| Já instalado? | — | sim, `tesseract` com pacote `por` |
+| Resolve os 115? | sim | sim, pelo que a amostra mostra |
 
-**Recomendo (a)**, com (b) como rede: o projeto já tem precedente de leitura
-por visão — o piloto ITA 1973, `extraido_por = 'visao'` ([23](23-banco-questoes-historico.md)) — e o
-resíduo que a visão não resolver cai em (b), que é a regra da casa de qualquer
-jeito. Mas o custo é seu para aprovar.
+Não há por que pagar visão para ler texto preto sobre branco.
 
-### D2 · Onde mora a meia-vida `H`
+⚠️ **O que o OCR não resolve**, e por isso a rede continua armada: uma questão
+cujo enunciado seja *só* figura, sem palavra nenhuma. Não apareceu nas quatro
+amostras, mas quatro não são 115. O resíduo — questão cujo OCR renda menos que
+o mínimo para classificar — entra em `semClassificacao` e é **declarado na
+tela**, que é a regra da casa de qualquer jeito ([22 §1.5](22-plano-banco-questoes.md)).
+Só depois de medir o resíduo real vale discutir visão para ele.
+
+### D2 · Onde mora a meia-vida H — ABERTA
 
 O [24 §4.2](24-jornada-do-aluno.md) diz duas coisas que **não cabem juntas**:
 *"parâmetro, não constante espalhada… mora num lugar só"* e *"mudá-lo é decisão
 de coordenação, não deploy"*.
 
-| Opção | Consequência |
-|---|---|
-| **a · `thresholds.py`** — é calibração, e é onde calibração mora ([api/CLAUDE.md](../api/CLAUDE.md)) | mudar exige deploy |
-| **b · Linha no banco**, como a régua de corte virou dado na Sprint 2 | a coordenação muda sozinha; custa uma migration e uma tela |
+`H` é o número que responde *"quanto uma prova antiga ainda conta"*. Com
+`H = 5`, a prova de 2021 vale metade da de 2026, e a de 2016 vale um quarto.
+Mexer nele reordena o ranking de "o que mais cai": `H` alto trata o edital como
+estável e valoriza o histórico inteiro; `H` baixo diz que só os últimos anos
+importam.
 
-**Recomendo (a) agora, (b) quando alguém pedir.** O número foi decidido em
-29/08 e não há sinal de que vá mudar; construir a tela de edição antes do
-primeiro pedido é adiantar trabalho que pode não ser preciso. Mas se a
-intenção é que o Leo mexa nisso, (b) desde já evita retrabalho.
+| Opção | O que custa | O que dá |
+|---|---|---|
+| **a · Constante em `thresholds.py`** — é calibração, e é onde calibração mora ([api/CLAUDE.md](../api/CLAUDE.md)) | uma linha | mudar exige um dev e um deploy |
+| **b · Linha no banco**, como a régua de corte virou dado na Sprint 2 | migration + tela de edição + auditoria da mudança | a coordenação mexe sozinha |
+
+**A pergunta que decide não é técnica:** *o "quanto o passado conta" é assunto
+que a coordenação vai querer debater e ajustar, ou é uma decisão tomada que
+ninguém pretende mexer?*
+
+Se for debatido, (b) desde já — porque o custo de (b) depois é a mesma
+migration mais o retrabalho de tirar a constante de circulação. Se for
+decidido, (a), e (b) quando alguém pedir.
+
+**Recomendo (a)**, pelo mesmo argumento que tirou a P4 do Sprint 4: não
+adiantar trabalho que pode não ser preciso. Mas quem sabe se o Leo vai querer
+girar esse botão é você.
 
 ⚠️ Em qualquer das duas, `H` e o `ANOS_DA_JANELA = 5` do front passam a ler o
-mesmo lugar — ver [§0.3](#03--a-p3-está-metade-pronta-e-ninguém-registrou).
+**mesmo lugar** — ver [§0.3](#03--a-p3-está-metade-pronta-e-ninguém-registrou).
+Dois cincos independentes com o mesmo valor é a receita de divergirem em um ano.
 
-### D3 · O índice é calculado no servidor ou no front?
+### D3 · Onde o índice é calculado — FECHADA: no servidor
 
-Hoje a série e a tendência são **front**, funções puras em
-`dominio/serieDoAssunto.ts`. O índice poderia seguir ali.
+*Decidido em 04/09.* O cálculo vive em `banco/estatisticas.py`, junto da
+`recorrencia` que já produz `porAno` e `questoesPorAno`. O front continua
+desenhando a série; o índice chega pronto.
 
-| Opção | Consequência |
-|---|---|
-| **a · Front**, junto da série | zero ida ao servidor; mas o ranking de 65 tópicos vira trabalho do celular do aluno, e `H` precisa viajar no payload |
-| **b · Servidor**, em `banco/estatisticas.py` | um número só para todo mundo, `H` fica de um lado só; mas duplica a lógica de série que já existe no front |
-
-**Recomendo (b)** — a garantia que o [24 §4.2](24-jornada-do-aluno.md) compra
-com a meia-vida fixa é *"todo mundo vê o mesmo número"*, e ela é mais fácil de
-sustentar com um cálculo só. O front continua desenhando a série; o índice
-chega pronto.
+Sustenta a garantia que a meia-vida fixa compra — *"todo mundo vê o mesmo
+número"* ([24 §4.2](24-jornada-do-aluno.md)) — e mantém `H` de um lado só, o
+que a ressalva da D2 exige. De quebra, o ranking de 65 tópicos deixa de ser
+trabalho do celular do aluno.
 
 ### O que vou decidir sozinho, se você não disser o contrário
 
