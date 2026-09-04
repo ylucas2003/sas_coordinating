@@ -2010,3 +2010,43 @@
   max-width: 70ch;
   margin-top: 8px;
 }
+
+/* ─── Calibração do índice de importância (docs/34 §5 · D2) ─────────────
+   Duas classes próprias e nada mais: o resto da tela usa `.card`,
+   `.data-table` e `.tela-titulo`, que já existem. */
+
+.calibracao__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 18px 0;
+  max-width: 420px;
+}
+
+.calibracao__campo label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-body);
+}
+
+.calibracao__campo input {
+  padding: 9px 12px;
+  border: 1px solid var(--color-shell-border);
+  border-radius: 8px;
+  font-size: 15px;
+  max-width: 160px;
+}
+
+/* A tabela do efeito é uma prévia, não um relatório: estreita, para ficar ao
+   lado do campo em vez de competir com ele. */
+.calibracao__pesos {
+  max-width: 320px;
+  margin-bottom: 18px;
+}
+
+.calibracao__acoes {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}

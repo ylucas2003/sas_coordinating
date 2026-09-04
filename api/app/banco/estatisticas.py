@@ -26,6 +26,7 @@ from typing import Any
 from supabase import Client
 
 from ..schemas.banco import EstatisticasBanco, MateriaBanco, RecorrenciaTopico, VestibularBanco
+from .importancia import carregar_parametro, indice_de_importancia, ranking_0_a_100
 
 
 def recorrencia(
@@ -80,6 +81,26 @@ def recorrencia(
         por_vestibular[codigo][questao["vestibular"]] += 1
         classificadas.add(questao["id"])
 
+    # ── O índice de importância (docs/34 §3) ──
+    #
+    # Calculado AQUI, e não no front, para todo mundo ver o mesmo número: é a
+    # garantia que a meia-vida fixa compra (docs/24 §4.2), e ela é mais fácil de
+    # sustentar com um cálculo só. O front continua desenhando a série.
+    #
+    # ⚠️ O denominador sai deste mesmo recorte. `vestibular` e `fase` já
+    # estreitaram `questoes` lá em cima, então numerador e denominador não têm
+    # como divergir — que é justamente o erro silencioso que o docstring de
+    # `recorrencia` descreve.
+    parametro = carregar_parametro(cliente)
+    questoes_por_ano = dict(sorted(Counter(int(q["ano"]) for q in questoes).items()))
+    importancias = {
+        topico["codigo"]: indice_de_importancia(
+            dict(por_ano[topico["codigo"]]), questoes_por_ano, parametro
+        )
+        for topico in topicos
+    }
+    ranking = ranking_0_a_100(importancias)
+
     recorrencias = [
         RecorrenciaTopico(
             codigo=topico["codigo"],
@@ -89,6 +110,8 @@ def recorrencia(
             porAno=dict(sorted(por_ano[topico["codigo"]].items())),
             porFase=dict(sorted(por_fase[topico["codigo"]].items())),
             porVestibular=dict(sorted(por_vestibular[topico["codigo"]].items())),
+            importancia=importancias[topico["codigo"]],
+            importanciaRanking=ranking[topico["codigo"]],
         )
         for topico in topicos
     ]
@@ -111,11 +134,16 @@ def recorrencia(
         # cada ano deste recorte. Um `Counter` sobre as questões já lidas —
         # não sai da soma dos tópicos, porque questão mista soma nos dois de
         # propósito e a soma passa do total (docs/22 §1.5).
-        questoesPorAno=dict(sorted(Counter(int(q["ano"]) for q in questoes).items())),
+        questoesPorAno=questoes_por_ano,
         totalQuestoes=len(questoes),
         # As 40 sem classificação não podem sumir da tela: o aluno estudaria um
         # recorte incompleto sem saber que é incompleto (docs/22 §8, risco 3).
         semClassificacao=len(questoes) - len(classificadas),
+        # Com que régua o ranking foi feito. Mesma razão de o Painel mostrar
+        # "régua: Tio Leo" ao lado do número: um ranking sem a régua à vista
+        # não é conferível.
+        meiaVidaAnos=parametro.meia_vida_anos,
+        versaoParametro=parametro.versao,
     )
 
 

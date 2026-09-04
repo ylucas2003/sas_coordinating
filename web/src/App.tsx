@@ -13,6 +13,7 @@ import { TreinoResumo } from './telas/Aluno/TreinoResumo';
 import { Painel } from './telas/Painel/Painel';
 import { Importar } from './telas/Importar/Importar';
 import { Auditoria } from './telas/Auditoria/Auditoria';
+import { Calibracao } from './telas/Calibracao/Calibracao';
 import { Banco } from './telas/Banco/Banco';
 import { Administracao } from './telas/Administracao/Administracao';
 import { Integracoes } from './telas/Integracoes/Integracoes';
@@ -77,6 +78,7 @@ function AppCoordenacao() {
         <Route path="/importar" element={<Importar />} />
         <Route path="/banco/*" element={<Banco perfil="coordenacao" />} />
         <Route path="/auditoria" element={<Auditoria />} />
+        <Route path="/calibracao" element={<Calibracao />} />
         <Route path="/administracao" element={<Administracao />} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/integracoes/aulas" element={<SincronizacaoAulas />} />

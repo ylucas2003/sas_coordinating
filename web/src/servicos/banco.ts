@@ -9,7 +9,8 @@
 import { ErroApi, del, get, patch, post, put, qs } from './http';
 import type {
   EstatisticasBanco, EstudoQuestao, FiltrosBanco, Lista, ListaResumo, MateriaBanco,
-  PaginaQuestoes, ProgressoDoAluno, QuestaoVestibular, RemendoEstudo, RemendoLista,
+  PaginaQuestoes, ParametroImportancia, ProgressoDoAluno, QuestaoVestibular,
+  RemendoEstudo, RemendoLista, RemendoParametroImportancia,
   TaxonomiaMateria, VestibularBanco,
 } from '../tipos/banco';
 
@@ -98,3 +99,17 @@ export const atualizarEstudo = (questaoId: string, remendo: RemendoEstudo) =>
  * produto, não economia de payload.
  */
 export const progressoDoBanco = () => get<ProgressoDoAluno>('/banco/progresso');
+
+// ─── A calibração do índice de importância (só coordenação) ──────────────
+
+export const obterParametroDeImportancia = () =>
+  get<ParametroImportancia>('/banco/importancia/parametro');
+
+/**
+ * `PUT` mas NÃO idempotente no sentido usual: cada chamada grava uma versão
+ * nova e desativa a anterior (docs/34 §5 · D2). É o mesmo desenho do critério,
+ * e pelo mesmo motivo — editar no lugar mudaria retroativamente todo ranking
+ * que alguém já leu.
+ */
+export const girarBotaoDeImportancia = (remendo: RemendoParametroImportancia) =>
+  put<RemendoParametroImportancia>('/banco/importancia/parametro', remendo);

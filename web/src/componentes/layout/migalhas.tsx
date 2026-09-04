@@ -118,6 +118,8 @@ export function useMigalhas(): Migalha[] {
         return [{ texto: 'Administração' }];
       case 'auditoria':
         return [ADMIN, { texto: 'Auditoria' }];
+      case 'calibracao':
+        return [ADMIN, { texto: 'Calibração' }];
       case 'importar':
         return [ADMIN, { texto: 'Importar planilha' }];
       case 'integracoes':

@@ -9,7 +9,7 @@ Canvas é outra coisa e mora em `questao` (migration 0010). Ver docs/22 §8.
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 VestibularBanco = Literal["ITA", "IME"]
 MateriaBanco = Literal["Física", "Química", "Matemática"]
@@ -128,6 +128,15 @@ class RecorrenciaTopico(BaseModel):
     porAno: dict[int, int]
     porFase: dict[int, int]
     porVestibular: dict[str, int]
+    # "Esse tópico vale ~4% da prova, hoje" — a fatia média dos anos, pesada
+    # por recência com meia-vida (docs/34 §3). Continua sendo PERCENTUAL, que é
+    # o que se lê sozinho e compara entre matérias; `total` é contagem bruta e
+    # não compara bancas nem anos.
+    importancia: float
+    # O mesmo índice reescalado pelo maior do recorte. SEGUNDA LINHA, nunca a
+    # primeira: ele só ordena. Um "100" de Química não significa o mesmo que um
+    # "100" de Física — significa apenas "o maior daquela lista".
+    importanciaRanking: float
 
 
 class EstatisticasBanco(BaseModel):
@@ -146,6 +155,12 @@ class EstatisticasBanco(BaseModel):
     questoesPorAno: dict[int, int]
     totalQuestoes: int
     semClassificacao: int
+    # A calibração que produziu os `importancia` acima. Vai na resposta para a
+    # tela poder dizer com que régua o ranking foi feito — mesma razão de o
+    # Painel mostrar "régua: Tio Leo" ao lado do número. `versaoParametro` nulo
+    # significa "valor de fábrica, a coordenação nunca girou o botão".
+    meiaVidaAnos: float
+    versaoParametro: int | None
 
 
 # ─── Listas ──────────────────────────────────────────────────────────────
@@ -258,3 +273,19 @@ class AtualizarEstudo(BaseModel):
     # cliente deixaria o acerto a um `curl` de distância de discordar do banco —
     # e é dele que sai a leitura de em que assunto o aluno erra.
     alternativaEscolhida: str | None = None
+
+
+# ─── A calibração do índice de importância (docs/34 §5 · D2) ─────────────
+
+
+class ParametroImportanciaEntrada(BaseModel):
+    """O que a coordenação manda ao girar o botão.
+
+    ⚠️ Sem `versao` de propósito: quem numera é o servidor. Deixar o cliente
+    escolher abriria buraco para duas telas abertas gravarem a mesma versão e
+    uma sobrescrever a outra — e o histórico, que existe justamente para
+    explicar por que o ranking mudou, passaria a mentir.
+    """
+
+    meiaVidaAnos: float = Field(gt=0, le=100)
+    janelaTendenciaAnos: int = Field(ge=1, le=50)

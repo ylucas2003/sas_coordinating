@@ -47,6 +47,7 @@ const ROTAS: Record<string, { tela: string; fichaDe?: EntidadeAberta['tipo'] }> 
   simulados: { tela: 'provas', fichaDe: 'simulado' },
   banco: { tela: 'banco' },
   auditoria: { tela: 'auditoria' },
+  calibracao: { tela: 'calibracao' },
   administracao: { tela: 'administracao' },
   importar: { tela: 'importar' },
   integracoes: { tela: 'integracoes' },

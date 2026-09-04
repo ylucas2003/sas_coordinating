@@ -293,3 +293,30 @@ export interface RemendoEstudo {
    */
   alternativaEscolhida?: string | null;
 }
+
+// ─── A calibração do índice de importância (docs/34 §5 · D2) ─────────────
+
+export interface VersaoDoParametro {
+  versao: number;
+  meia_vida_anos: string | number;
+  janela_tendencia_anos: number;
+  ativo: boolean;
+  criado_em: string;
+  criado_por: string | null;
+}
+
+export interface ParametroImportancia {
+  meiaVidaAnos: number;
+  janelaTendenciaAnos: number;
+  /** `null` = valor de fábrica: a coordenação nunca girou o botão. */
+  versao: number | null;
+  meiaVidaPadrao: number;
+  janelaTendenciaPadrao: number;
+  meiaVidaMaxima: number;
+  historico: VersaoDoParametro[];
+}
+
+export interface RemendoParametroImportancia {
+  meiaVidaAnos: number;
+  janelaTendenciaAnos: number;
+}
