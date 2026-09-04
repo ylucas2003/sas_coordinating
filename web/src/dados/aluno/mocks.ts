@@ -24,6 +24,13 @@
 //   · Termodinâmica lidera o plano porque 0,07 × (1 − 0,41) é o maior produto
 //     da lista, que é a fórmula de docs/24 §4.5. A ordem não foi escolhida.
 //
+// ⚠️ E os CÓDIGOS de tópico daqui são os do edital de verdade, conferidos
+// contra `topico_taxonomia` em 04/09. Era exatamente aqui que morava o bug da
+// missão do dia: o fixture pareava o código `7.2` com o nome "Termodinâmica",
+// e 7.2 é "Ondas e Acústica" (Termodinâmica é 9.1). O código é o ENDEREÇO que
+// `ordenarFilaDeTreino` casa com as questões reais do `/banco/questoes` — um
+// código inventado não pesa nada e ninguém vê erro, só uma ordem sem efeito.
+//
 // Mexer num número aqui é mexer em todos os que dependem dele. O comentário
 // acima é o mapa das dependências.
 
@@ -35,7 +42,6 @@ import type {
   ExtratoXp,
   Liga,
   MateriaContraCorte,
-  MissaoDoDia,
   ProximoSimulado,
   QuestaoVestibular,
   ResumoDoTreino,
@@ -234,10 +240,15 @@ export const CONQUISTAS: Conquista[] = [
 
 export const DEPOIMENTO: Depoimento = {
   titulo: 'De quem já passou',
-  chamada: 'Aprovados do ITM contam como organizaram o estudo entre um simulado e outro',
+  chamada: 'Aprovados do ITA/IME contam como organizaram o estudo entre um simulado e outro',
 };
 
 // ─── Plano de estudo ─────────────────────────────────────────────────────
+//
+// ⚠️ O fixture `MISSAO` saiu em 04/09 (docs/35 §9): a missão do dia virou rota
+// (`GET /missao/hoje`, api/app/banco/missao.py), com o nome e o código saindo
+// da MESMA linha da taxonomia. O que sobrou aqui é o catálogo de importância,
+// que continua mock e serve só de heurística interna da fila de treino.
 
 /**
  * A ordem NÃO foi escolhida: é `importância × (1 − meu acerto)` (docs/24 §4.5),
@@ -250,7 +261,7 @@ export const DEPOIMENTO: Depoimento = {
  */
 export const ASSUNTOS: AssuntoPrioritario[] = [
   {
-    topicoCodigo: '7.2',
+    topicoCodigo: '9.1',
     nome: 'Termodinâmica',
     materia: 'Física',
     importancia: 0.07,
@@ -272,8 +283,8 @@ export const ASSUNTOS: AssuntoPrioritario[] = [
     nQuestoes: 13,
   },
   {
-    topicoCodigo: '5.4',
-    nome: 'Análise combinatória',
+    topicoCodigo: '10.1',
+    nome: 'Análise Combinatória',
     materia: 'Matemática',
     importancia: 0.05,
     meuAcerto: 0.52,
@@ -283,7 +294,7 @@ export const ASSUNTOS: AssuntoPrioritario[] = [
     nQuestoes: 21,
   },
   {
-    topicoCodigo: '4.1',
+    topicoCodigo: '11.1',
     nome: 'Eletrostática',
     materia: 'Física',
     importancia: 0.05,
@@ -294,8 +305,8 @@ export const ASSUNTOS: AssuntoPrioritario[] = [
     nQuestoes: 11,
   },
   {
-    topicoCodigo: '6.3',
-    nome: 'Geometria analítica',
+    topicoCodigo: '7.1',
+    nome: 'Geometria Analítica',
     materia: 'Matemática',
     importancia: 0.04,
     meuAcerto: 0.7,
@@ -305,8 +316,8 @@ export const ASSUNTOS: AssuntoPrioritario[] = [
     nQuestoes: 20,
   },
   {
-    topicoCodigo: '9.5',
-    nome: 'Radioatividade',
+    topicoCodigo: '2.1',
+    nome: 'Química Nuclear',
     materia: 'Química',
     importancia: 0.03,
     meuAcerto: 0.5,
@@ -316,14 +327,6 @@ export const ASSUNTOS: AssuntoPrioritario[] = [
     nQuestoes: 2,
   },
 ];
-
-export const MISSAO: MissaoDoDia = {
-  topicoCodigo: '7.2',
-  nome: 'Termodinâmica',
-  materia: 'Física',
-  quantidade: 12,
-  razao: 'Cai em 7% da prova do ITA. Você acerta 41%.',
-};
 
 /**
  * As questões erradas de todos os simulados. Trinta e quatro no total — é o
@@ -403,14 +406,21 @@ export const RAZAO_DA_FILA: Record<string, string> = {
  * que docs/28 §3 manda fazer no lugar.
  */
 export function ordenarFilaDeTreino(questoes: QuestaoVestibular[]): QuestaoVestibular[] {
-  const pesoDoAssunto = new Map(ASSUNTOS.map((a) => [a.topicoCodigo, a.importancia * (1 - a.meuAcerto)]));
+  // A chave é (matéria, código) e nunca o código sozinho: '9.1' é
+  // "Termodinâmica" em Física e "Equilíbrio Químico Geral" em Química, e '3.1'
+  // é "Estequiometria", "Funções Reais" ou "Estática" conforme a matéria. É a
+  // mesma PK composta da migration 0028 — indexar só pelo código daria a uma
+  // questão de Química o peso de um assunto de Física, calado.
+  const pesoDoAssunto = new Map(
+    ASSUNTOS.map((a) => [`${a.materia}|${a.topicoCodigo}`, a.importancia * (1 - a.meuAcerto)]),
+  );
   const distanciaDoCorte = new Map(
     MATERIAS_CONTRA_CORTE.map((m) => [m.materia, Math.max(0, m.corte - m.nota)]),
   );
 
   const peso = (q: QuestaoVestibular) => {
     const porTopico = q.topicos.reduce(
-      (maior, t) => Math.max(maior, pesoDoAssunto.get(t.codigo) ?? 0),
+      (maior, t) => Math.max(maior, pesoDoAssunto.get(`${q.materia}|${t.codigo}`) ?? 0),
       0,
     );
     return porTopico + (distanciaDoCorte.get(q.materia) ?? 0);
@@ -435,7 +445,6 @@ export const buscarExtratoXp = () => entregar(EXTRATO_XP);
 export const buscarLiga = () => entregar(LIGA);
 export const buscarConquistas = () => entregar(CONQUISTAS);
 export const buscarDepoimento = () => entregar(DEPOIMENTO);
-export const buscarMissao = () => entregar(MISSAO);
 export const buscarErros = () => entregar(ERROS);
 export const buscarCiclosAnteriores = () => entregar(CICLOS_ANTERIORES);
 export const buscarMetaDoCiclo = () =>

@@ -39,6 +39,7 @@ from .routes import (
     email_eventos,
     foto_perfil,
     me,
+    missao,
     notas,
     simulados,
     uploads,
@@ -123,7 +124,7 @@ def create_app() -> FastAPI:
     _dev = settings.app_env in ("dev", "test")
     app = FastAPI(
         title="SAS · API",
-        description="Backend da interface de coordenação ITM do Colégio Ari de Sá.",
+        description="Backend da interface de coordenação ITA/IME do Colégio Ari de Sá.",
         version="0.0.1",
         docs_url="/docs" if _dev else None,
         redoc_url="/redoc" if _dev else None,
@@ -152,6 +153,7 @@ def create_app() -> FastAPI:
     app.include_router(criterios.router)
     app.include_router(auditoria.router)
     app.include_router(banco.router)
+    app.include_router(missao.router)
     app.include_router(administracao.router)
     app.include_router(dimensoes.router)
     app.include_router(uploads.router)

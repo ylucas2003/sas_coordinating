@@ -4,6 +4,13 @@ O aluno só consegue ver os próprios dados: o JWT carrega o aluno_id e os
 handlers repassam para as extrações de stats/aluno_dados.py (compartilhadas
 com as tools do chat do aluno) sem expor o ID na URL nem permitir acesso a
 outros alunos.
+
+⚠️ `GET /simulado/{id}/arquivo` SAIU em 04/09 (docs/35 §8b), junto com o botão
+"Abrir a prova" da ficha do aluno. Não foi só o botão: a rota devolvia uma URL
+assinada de vida curta, e uma porta que ninguém mais abre continua sendo uma
+porta — este projeto já teve uma vulnerabilidade nascida de token de download
+(PR #7). Se a prova em PDF voltar a ser entregue ao aluno, ela volta com a
+decisão inteira refeita, não descomentando uma rota.
 """
 
 from __future__ import annotations
@@ -13,7 +20,6 @@ from pydantic import BaseModel, field_validator
 
 from ..auth import get_current_aluno, hash_senha, verificar_senha
 from ..stats.aluno_dados import (
-    arquivo_do_simulado_do_aluno,
     detalhe_simulado_do_aluno,
     evolucao_do_aluno,
     payload_insight_ciclo,
@@ -22,7 +28,6 @@ from ..stats.aluno_dados import (
     streak_do_aluno,
 )
 from ..stats.insight_aluno import gerar_para_aluno_ciclo
-from ..storage import gerar_url_download_arquivo
 from ..supabase_client import get_supabase
 from .alunos import heatmap_aluno, obter_aluno, trajetoria_aluno
 
@@ -115,18 +120,6 @@ async def me_simulado(simulado_id: str, user: dict = Depends(get_current_aluno))
 async def me_simulado_questoes(simulado_id: str, user: dict = Depends(get_current_aluno)):
     """Resultado questão a questão do aluno num simulado (dados do Canvas)."""
     return _ou_404(questoes_do_aluno_no_simulado(get_supabase(), user["aluno_id"], simulado_id))
-
-
-@router.get("/simulado/{simulado_id}/arquivo")
-async def me_simulado_arquivo(simulado_id: str, user: dict = Depends(get_current_aluno)):
-    """URL assinada (curta duração) pro PDF da prova como foi aplicada."""
-    dados = _ou_404(
-        arquivo_do_simulado_do_aluno(get_supabase(), user["aluno_id"], simulado_id)
-    )
-    url = gerar_url_download_arquivo(
-        dados["caminhoStorage"], nome_download=f"{dados['nomeArquivo']}.pdf"
-    )
-    return {"url": url, "nomeArquivo": dados["nomeArquivo"]}
 
 
 @router.get("/evolucao")

@@ -94,6 +94,9 @@ export interface MateriaContraCorte {
 // ─── Trajetória e mapa de calor ──────────────────────────────────────────
 // Duas rotas prontas desde sempre e sem tela nenhuma até agora (docs/29 §A.5).
 // Os tipos nascem aqui porque `api.ts` as devolvia como `unknown`.
+//
+// ⚠️ `ArquivoDoSimulado` morava aqui e saiu em 04/09 com o botão "Abrir a prova"
+// e com a rota que o servia (docs/35 §8b).
 
 /** Um ponto de `GET /me/trajetoria`, já em escala 0–10. */
 export interface PontoDaTrajetoria {
@@ -122,12 +125,6 @@ export interface HeatmapDoAluno {
   materias: string[];
   simulados: SimuladoDoHeatmap[];
   celulas: Array<{ materia: string; simuladoId: string; pontuacao: number }>;
-}
-
-/** `GET /me/simulado/{id}/arquivo` — a URL expira, então não se guarda. */
-export interface ArquivoDoSimulado {
-  url: string;
-  nomeArquivo: string;
 }
 
 // ─── Agenda ──────────────────────────────────────────────────────────────
@@ -229,13 +226,26 @@ export interface AssuntoPrioritario {
   nQuestoes: number;
 }
 
-/** A missão da aba Hoje. `importância × (1 − meu acerto)`, docs/24 §4.5. */
+/**
+ * A missão da aba Hoje — `GET /missao/hoje`, espelha
+ * `api/app/banco/missao.py::MissaoDoDia`.
+ *
+ * ⚠️ `topicoCodigo` é o ENDEREÇO (a fila de treino o usa para consultar o
+ * acervo) e `nome` é a ETIQUETA que a tela imprime. Os dois vêm da mesma linha
+ * de `topico_taxonomia`, no servidor: pareá-los à mão foi o bug de docs/35 §9.
+ *
+ * Não é personalizada — é o mesmo assunto para toda a turma, sorteado pela data
+ * (docs/35 §9.3). Foi a personalização, `importância × (1 − meu acerto)` de
+ * docs/24 §4.5, que a prendia ao Sprint 6.
+ */
 export interface MissaoDoDia {
   topicoCodigo: string;
   nome: string;
   materia: string;
+  /** Sempre 10 hoje. A tela usa este número para dimensionar a sessão. */
   quantidade: number;
-  /** "Cai em 7% da prova do ITA. Você acerta 41%." */
+  /** Incidência no acervo — nunca acerto do aluno, que num desafio igual para
+   *  todos não existe: "7% das questões objetivas de Física…". */
   razao: string;
 }
 

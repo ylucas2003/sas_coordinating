@@ -4,8 +4,10 @@
 // arquivo é a do prompt de implementação: **nada que tenha endpoint é mockado.**
 // Um mock a mais é uma integração a menos que ninguém percebe que falta.
 //
-// Três rotas entram aqui pela primeira vez, prontas e sem tela desde sempre
-// (docs/29 §A.5): `/me/trajetoria`, `/me/heatmap` e `/me/simulado/{id}/arquivo`.
+// Duas rotas entraram aqui prontas e sem tela desde sempre (docs/29 §A.5):
+// `/me/trajetoria` e `/me/heatmap`. A terceira era `/me/simulado/{id}/arquivo`,
+// e ela SAIU em 04/09 junto com o botão "Abrir a prova" (docs/35 §8b) — a rota
+// foi desligada no backend, não só escondida na tela.
 //
 // ⚠️ `/me/streak` NÃO está aqui, e a ausência é deliberada. A rota existe, mas
 // devolve "ciclos consecutivos acima da média da turma" — métrica relativa, que
@@ -33,7 +35,8 @@ import {
   useSimuladosMe,
 } from '../../hooks/aluno';
 import * as api from '../../servicos/api';
-import type { Aluno, ArquivoDoSimulado, HeatmapDoAluno, PontoDaTrajetoria } from './contratos';
+import { get } from '../../servicos/http';
+import type { Aluno, HeatmapDoAluno, MissaoDoDia, PontoDaTrajetoria } from './contratos';
 
 /** Mesmo raciocínio de `hooks/aluno.ts`: são os dados do próprio aluno, e ele
  *  volta à tela justamente para ver se saiu nota nova. */
@@ -43,7 +46,7 @@ export const chavesAluno = {
   aluno: ['me'] as const,
   trajetoria: ['me', 'trajetoria'] as const,
   heatmap: ['me', 'heatmap'] as const,
-  arquivo: (id: string) => ['me', 'simulado', id, 'arquivo'] as const,
+  missaoDoDia: ['missao', 'hoje'] as const,
 };
 
 export function useAluno() {
@@ -71,19 +74,28 @@ export function useHeatmap() {
 }
 
 /**
- * A URL assinada da prova em PDF.
+ * O desafio de hoje — `GET /missao/hoje`.
  *
- * `enabled` sob demanda: a URL tem vida curta e pedir uma que ninguém vai abrir
- * é gastar assinatura à toa. `gcTime: 0` porque guardar uma URL expirada em
- * cache é pior que não ter nenhuma — o aluno clicaria e receberia 403.
+ * Deixou de ser mock em 04/09 (docs/35 §9). O cartão da Hoje imprimia o NOME de
+ * um fixture e a fila de treino consultava o CÓDIGO dele no banco real: como o
+ * código existia e devolvia questões, nada quebrava — o cartão só dizia
+ * "Termodinâmica" e o treino entregava Ondas e Acústica. Agora as duas coisas
+ * saem da mesma linha da taxonomia, no servidor.
+ *
+ * Não é dado do aluno: é o mesmo assunto para toda a turma, sorteado pela data
+ * em America/Fortaleza. Por isso `staleTime` não é zero — o que muda é a
+ * virada do dia, não uma nota que acabou de sair.
+ *
+ * ⚠️ A chamada vai por `http.get` e não por `servicos/api.ts`, onde moram as
+ * outras rotas de leitura. É pendência de costura desta leva de correções
+ * (docs/35), não um padrão novo: assim que der, esta linha vira mais uma
+ * função de lá.
  */
-export function useArquivoDoSimulado(id: string | undefined, habilitada: boolean) {
+export function useMissaoDoDia() {
   return useQuery({
-    queryKey: chavesAluno.arquivo(id ?? ''),
-    queryFn: () => api.arquivoSimuladoMe(id!) as Promise<ArquivoDoSimulado>,
-    enabled: !!id && habilitada,
-    gcTime: 0,
-    ...semCache,
+    queryKey: chavesAluno.missaoDoDia,
+    queryFn: () => get<MissaoDoDia | null>('/missao/hoje'),
+    staleTime: 30 * 60 * 1000,
   });
 }
 

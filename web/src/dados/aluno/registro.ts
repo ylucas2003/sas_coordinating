@@ -6,9 +6,11 @@
 //   1. `docs/30-estado-da-implementacao.md` é GERADO daqui
 //      (`npm run inventario`), e um teste falha se os dois divergirem. Um
 //      inventário escrito à mão envelhece em silêncio.
-//   2. A tarja MOCK que aparece em desenvolvimento lê o estado daqui
-//      (`pecas/TarjaFonte.tsx`). A tarja não pode mentir sobre o inventário
-//      porque é a mesma linha.
+//   2. A tarja MOCK lê o estado daqui (`pecas/TarjaFonte.tsx`) — e desde
+//      04/09 ela aparece TAMBÉM em produção, para o aluno (docs/35 §10). A
+//      tarja não pode mentir sobre o inventário porque é a mesma linha; o que
+//      mudou é que agora a linha errada mente para 900 pessoas, não para quem
+//      está com o `npm run dev` aberto.
 //   3. `costura.test.ts` exige que todo hook exportado pelo `index.ts` tenha
 //      entrada aqui — fonte nova sem registro não compila o teste.
 //
@@ -99,15 +101,6 @@ export const FONTES: Fonte[] = [
     doc: 'api/app/routes/me.py',
     rotaFutura: 'GET /me/simulado/{id}/questoes',
     telas: ['Ficha do simulado'],
-  },
-  {
-    chave: 'arquivoDoSimulado',
-    estado: 'real',
-    descricao: 'URL assinada do PDF da prova como foi aplicada',
-    doc: 'docs/29 §A.5',
-    rotaFutura: 'GET /me/simulado/{id}/arquivo',
-    telas: ['Ficha do simulado'],
-    observacao: 'Rota pronta desde sempre e sem tela até agora — docs/29 §A.5.',
   },
   {
     chave: 'evolucao',
@@ -220,6 +213,16 @@ export const FONTES: Fonte[] = [
       'O prompt de implementação a listava como sem-rota; o campo JÁ vem no schema (`schemas/banco.py`), então está ligada. O aluno lendo resolução de IA achando que é do professor é o achado mais desconfortável de docs/29 — a tela é obrigada a marcar.',
   },
   {
+    chave: 'missaoDoDia',
+    estado: 'real',
+    descricao: 'O assunto do dia com 10 questões — o herói da aba Hoje, igual para toda a turma',
+    doc: 'docs/35 §9 · api/app/banco/missao.py',
+    rotaFutura: 'GET /missao/hoje',
+    telas: ['Hoje', 'Sessão de treino'],
+    observacao:
+      'Deixou de ser mock em 04/09. O fixture pareava o código `7.2` com o nome "Termodinâmica", e na taxonomia de Física 7.2 é "Ondas e Acústica": o cartão lia a etiqueta e o treino lia o endereço, e como o endereço existia nada quebrava — só mentia. Agora nome e código saem da mesma linha de `topico_taxonomia`. O sorteio é determinístico pela data em America/Fortaleza (em UTC viraria às 21h, para todo mundo junto) e só entra tópico com 10+ questões OBJETIVAS: o `totalQuestoes` da taxonomia conta dissertativa, que a fila de treino descarta. Saiu do Sprint 6 porque "o mesmo desafio para todos" derruba a personalização que dependia de `acertoPorAssunto`.',
+  },
+  {
     chave: 'conversaTioLeo',
     estado: 'real',
     descricao: 'Threads, streaming SSE e as 6 tools do aluno',
@@ -310,16 +313,6 @@ export const FONTES: Fonte[] = [
 
   // ─── MOCK PURO ─────────────────────────────────────────────────────────
   {
-    chave: 'missaoDoDia',
-    estado: 'mock',
-    descricao: 'O que treinar hoje, e por quê — o herói da aba Hoje',
-    doc: 'docs/24 §4.5',
-    depende: 'acertoPorAssunto + importanciaDoAssunto (Sprint 6)',
-    telas: ['Hoje'],
-    esforco: 'M',
-    observacao: 'É `importância × (1 − meu acerto)`. Sem classificar as 1.031 questões de simulado, não tem como escolher assunto.',
-  },
-  {
     chave: 'importanciaDoAssunto',
     estado: 'mock',
     descricao: 'Fatia da prova ponderada por recência (meia-vida 5 anos) e a tendência ao lado',
@@ -328,7 +321,7 @@ export const FONTES: Fonte[] = [
     telas: ['— nenhuma'],
     esforco: 'M',
     observacao:
-      '⚠️ ADIADA POR DECISÃO DE 02/09: a tela de Estatísticas ranqueia por INCIDÊNCIA BRUTA, sem ponderação por recência, e a tendência sai de código puro sobre a mesma série que o gráfico desenha (`dominio/serieDoAssunto.ts`). Sobrevive só como heurística interna da fila de treino (o fixture `ASSUNTOS` em `mocks.ts`, dentro de `ordenarFilaDeTreino`). Independe do Sprint 6 e continua sendo "B pode começar hoje" de docs/24 §8, quando a missão do dia for construída.',
+      '⚠️ ADIADA POR DECISÃO DE 02/09: a tela de Estatísticas ranqueia por INCIDÊNCIA BRUTA, sem ponderação por recência, e a tendência sai de código puro sobre a mesma série que o gráfico desenha (`dominio/serieDoAssunto.ts`). Sobrevive só como heurística interna da fila de treino (o fixture `ASSUNTOS` em `mocks.ts`, dentro de `ordenarFilaDeTreino`). Independe do Sprint 6 e continua sendo "B pode começar hoje" de docs/24 §8 — mas deixou de ser pré-requisito da missão do dia, que foi construída em 04/09 sem ela: um desafio igual para toda a turma não pondera nada por aluno (docs/35 §9).',
   },
   {
     chave: 'acertoPorAssunto',

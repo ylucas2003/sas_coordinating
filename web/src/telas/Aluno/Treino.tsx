@@ -61,7 +61,9 @@ export interface EstadoDoResumo {
  * Quantas questões a sessão tem quando a origem não diz.
  *
  * Não é dado do aluno: é parâmetro de interface. A origem `prioridade` usa
- * `missao.quantidade`, e a `lista` usa o tamanho da lista que ele montou.
+ * `missao.quantidade` — que desde 04/09 vem do servidor e é sempre 10, então
+ * cartão e fila passaram a concordar sozinhos (docs/35 §9) —, e a `lista` usa o
+ * tamanho da lista que ele montou.
  */
 const QUESTOES_POR_SESSAO = 12;
 
@@ -557,9 +559,12 @@ function PorQueEstas({
         {RAZAO_DA_FILA[origem] ?? 'Questões do acervo de provas do ITA e do IME.'}
       </p>
 
+      {/* Sem tarja desde 04/09: a missão virou rota (`GET /missao/hoje`) e o
+          nome que aparece aqui é o mesmo que o servidor usou para escolher as
+          questões — antes o cartão dizia "Termodinâmica" e a fila entregava
+          Ondas e Acústica (docs/35 §9). */}
       {origem === 'prioridade' && nomeDaMissao && (
         <p className="alu-treino__derivado">
-          <TarjaFonte chave="missaoDoDia" />
           {nomeDaMissao}
           {razaoDaMissao ? ` — ${razaoDaMissao}` : ''}
         </p>
