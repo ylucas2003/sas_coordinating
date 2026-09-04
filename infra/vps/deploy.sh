@@ -170,13 +170,12 @@ resumo_e_confirmacao() {
 #                      local por cima apagaria upload de verdade
 #   .env               segredo gerado no servidor; em --exclude também para o
 #                      --delete não o remover
-#   /sas-rea-do-aluno/ bundle de handoff de design (29 MB de PNG), não é fonte
+#   .DS_Store          lixo do Finder; aparece em qualquer pasta aberta no Mac
 CAMINHOS_QUE_O_GITIGNORE_NAO_COBRE=(
     --exclude '.git/'
     --exclude '/dados/'
     --exclude '.env'
     --exclude '.DS_Store'
-    --exclude '/sas-rea-do-aluno/'
 )
 
 enviar_codigo() {
