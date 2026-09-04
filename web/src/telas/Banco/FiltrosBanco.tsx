@@ -213,11 +213,13 @@ export function FiltrosBanco({ filtros, onFiltrar }: Props) {
         anos.length > 0 && {
           chave: 'ano',
           rotulo: 'Ano',
-          // ⚠️ MÚLTIPLA ESCOLHA, e abre com TODOS marcados (decisão de 02/09).
-          // "Sem filtro" e "todos os anos" são o mesmo recorte; mostrá-lo
-          // apagado diria que nada está selecionado, quando tudo está. Quem
-          // traduz é `anosMarcados`, compartilhado com o casco do aluno — as
-          // duas telas filtram o mesmo acervo pela mesma regra.
+          // ⚠️ MÚLTIPLA ESCOLHA, e ADITIVO: abre TODO APAGADO, e tocar 2025
+          // acende só 2025 (decisão de 04/09, docs/35 §4). Até 02/09 abria
+          // tudo aceso, o que desenhava a mesma ausência de filtro de dois
+          // jeitos na mesma faixa — Vestibular e Fase, logo acima, já abrem
+          // apagados significando "todos" — e deixava o gesto subtrativo.
+          // Quem traduz é `anosMarcados`, compartilhado com o casco do aluno:
+          // as duas telas filtram o mesmo acervo pela mesma regra.
           resumo: resumirSelecao(
             new Set(filtros.anos ?? []),
             anos.map((a) => ({ valor: a, label: String(a) })),
@@ -226,7 +228,7 @@ export function FiltrosBanco({ filtros, onFiltrar }: Props) {
           corpo: (
             <Pills
               opcoes={anos.map((ano) => ({ valor: ano, label: String(ano) }))}
-              selecionados={anosMarcados(filtros.anos, anos)}
+              selecionados={anosMarcados(filtros.anos)}
               onToggle={(a) => onFiltrar({ anos: alternarAno(filtros.anos, anos, a) })}
             />
           ),
@@ -365,9 +367,15 @@ function ArvoreTopicos({
       {materia.semClassificacao > 0 && (
         <li className="banco-arvore__ramo">
           {/*
-            As 40 sem classificação têm lugar visível, e não somem do filtro:
-            escondê-las daria ao aluno um recorte incompleto sem aviso
+            As questões sem classificação têm lugar visível, e não somem do
+            filtro: escondê-las daria ao aluno um recorte incompleto sem aviso
             (docs/22 §8, risco 3).
+
+            Quantas são vem de `materia.semClassificacao`, logo abaixo, e nunca
+            de um número escrito aqui: eram 40, viraram 44 quando quatro provas
+            novas entraram sem tag, e a faixa de classificação de docs/35 §3 as
+            leva a zero. Número cravado em comentário envelhece sozinho e passa
+            a mentir para quem lê o código (docs/35 §3.3).
 
             Filtra de verdade — `GET /banco/questoes?topico=sem-assunto` faz a
             diferença de conjuntos no servidor (consultas._ids_sem_classificacao),

@@ -127,9 +127,9 @@ export interface FiltrosBanco {
   /**
    * Anos escolhidos. **Ausente = TODOS**, e não "nenhum".
    *
-   * O filtro é de múltipla escolha e abre com todos ligados (decisão de
-   * 02/09), então "todos" e "sem filtro" são o mesmo recorte. Guardar
-   * `undefined` em vez da lista cheia mantém a URL curta E faz um link
+   * O filtro é de múltipla escolha e ADITIVO: nenhuma pílula acesa quer dizer
+   * "todos os anos" (decisão de 04/09, docs/35 §4 — a de 02/09 abria tudo
+   * aceso). Guardar `undefined` em vez da lista cheia mantém a URL curta E faz um link
    * compartilhado continuar valendo quando o acervo ganhar um ano novo — a
    * lista cheia gravada hoje excluiria 2026 em silêncio.
    *

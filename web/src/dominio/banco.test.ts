@@ -537,37 +537,46 @@ describe('combinarEstatisticas', () => {
 });
 
 describe('o filtro de anos', () => {
-  // Múltipla escolha, começando com TODOS ligados (decisão de 02/09). O que
-  // estes testes travam é a convenção que as duas coisas juntas exigem:
-  // `undefined` significa "todos", e a lista cheia nunca chega à URL.
+  // Múltipla escolha e ADITIVO: nada aceso = todos os anos, e o primeiro toque
+  // acende só aquele ano (decisão de 04/09, docs/35 §4 — reverte a de 02/09,
+  // que abria tudo aceso e tornava o gesto subtrativo). O que estes testes
+  // travam é a convenção da URL, que não mudou: `undefined` significa "todos",
+  // e a lista vazia nunca chega lá.
 
   const ACERVO = [2025, 2024, 2023, 2022];
 
   describe('anosMarcados', () => {
-    it('sem filtro, TODAS as pílulas acendem', () => {
-      // É o requisito de origem: uma fileira apagada diria ao aluno que nada
-      // está selecionado, quando tudo está.
-      expect([...anosMarcados(undefined, ACERVO)].sort()).toEqual([2022, 2023, 2024, 2025]);
+    it('sem filtro, NENHUMA pílula acende', () => {
+      // É o requisito de origem: no mesmo painel, Vestibular e Fase apagados
+      // já significam "todos". Duas pinturas para a mesma ausência de filtro é
+      // o que confundia.
+      expect([...anosMarcados(undefined)]).toEqual([]);
     });
 
     it('com filtro, só os escolhidos', () => {
-      expect([...anosMarcados([2024, 2022], ACERVO)].sort()).toEqual([2022, 2024]);
+      expect([...anosMarcados([2024, 2022])].sort()).toEqual([2022, 2024]);
     });
   });
 
   describe('alternarAno', () => {
-    it('o primeiro toque DESMARCA, porque tudo começa marcado', () => {
-      expect(alternarAno(undefined, ACERVO, 2023)).toEqual([2025, 2024, 2022]);
+    it('o primeiro toque ACENDE só aquele ano', () => {
+      // O recorte mais pedido — "só 2025" — passou a custar um toque, e não a
+      // apagar as outras vinte e sete pílulas.
+      expect(alternarAno(undefined, ACERVO, 2023)).toEqual([2023]);
     });
 
-    it('desmarcar mais um vai tirando da lista', () => {
+    it('o toque seguinte SOMA ao recorte', () => {
+      expect(alternarAno([2023], ACERVO, 2025)).toEqual([2025, 2023]);
+    });
+
+    it('tocar num ano já aceso tira ele da lista', () => {
       expect(alternarAno([2025, 2024, 2022], ACERVO, 2022)).toEqual([2025, 2024]);
     });
 
-    it('marcar de volta o que faltava colapsa para TODOS', () => {
-      // Sem o colapso, a URL carregaria os quatro anos para dizer o mesmo que
-      // dizer nada — e o link deixaria de valer para o ano que entrar depois.
-      expect(alternarAno([2025, 2024, 2023], ACERVO, 2022)).toBeUndefined();
+    it('marcar TODOS na mão mantém aceso, e não colapsa para "todos"', () => {
+      // Decisão de 04/09. Colapsar apagaria à vista as pílulas que o aluno
+      // acabou de acender — a tela desfazendo o trabalho dele.
+      expect(alternarAno([2025, 2024, 2023], ACERVO, 2022)).toEqual([2025, 2024, 2023, 2022]);
     });
 
     it('desmarcar o ÚLTIMO volta para todos, e não para nenhum', () => {
@@ -586,10 +595,11 @@ describe('o filtro de anos', () => {
       expect(alternarAno([1999, 2025], ACERVO, 2024)).toEqual([2025, 2024]);
     });
 
-    it('um ano morto não impede o recorte de virar "todos"', () => {
-      // Os quatro anos do acervo estão marcados; o 1999 pendurado não muda
-      // isso, e o recorte É todos.
-      expect(alternarAno([1999, 2025, 2024, 2023], ACERVO, 2022)).toBeUndefined();
+    it('um ano morto não conta como marca ao desmarcar a última viva', () => {
+      // 1999 saiu do acervo: com ele pendurado, desmarcar 2025 deixaria uma
+      // lista "não vazia" que não seleciona nada — tela em branco sem recorte
+      // visível. A interseção com o acervo é o que devolve "todos".
+      expect(alternarAno([1999, 2025], ACERVO, 2025)).toBeUndefined();
     });
 
     it('acervo vazio não quebra', () => {
