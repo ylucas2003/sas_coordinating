@@ -162,6 +162,26 @@ export interface RecorrenciaTopico {
   porAno: Record<number, number>;
   porFase: Record<number, number>;
   porVestibular: Record<string, number>;
+  /**
+   * "Esse tópico vale ~4% da prova, hoje" — a fatia média dos anos, pesada por
+   * recência com meia-vida (docs/34 §3). Percentual, não contagem: `total` é
+   * bruto e não compara bancas nem anos.
+   *
+   * ⚠️ **OPCIONAL, e o motivo importa.** O servidor sempre manda. Quem NÃO
+   * manda é `combinarEstatisticas`: fundir a resposta do ITA com a do IME soma
+   * contagens, mas o índice é uma média PONDERADA — a média de duas médias não
+   * é a média do conjunto. Carregar o índice do ITA para a visão "Os dois"
+   * seria um número errado com cara de certo, que é o que este projeto
+   * persegue. Ausente significa "esta resposta não carrega índice"; peça um
+   * recorte que o servidor calcule.
+   */
+  importancia?: number;
+  /**
+   * O mesmo índice reescalado pelo maior do recorte. **Segunda linha, nunca a
+   * primeira:** ele só ordena. Um "100" de Química não significa o mesmo que um
+   * "100" de Física — significa "o maior daquela lista".
+   */
+  importanciaRanking?: number;
 }
 
 export interface EstatisticasBanco {
@@ -190,6 +210,20 @@ export interface EstatisticasBanco {
    * percentual sairia menor que a verdade.
    */
   questoesPorAno: Record<number, number>;
+  /**
+   * Quantas daquelas já têm tópico — o denominador do ÍNDICE, que não é o de
+   * "% da prova".
+   *
+   * ⚠️ Contar as não classificadas no índice afirma que elas não são do
+   * tópico, quando a verdade é que não sabemos qual é. Medido em 04/09/2026:
+   * Química · IME tem as provas INTEIRAS de 2022–2025 sem classificar, e a
+   * meia-vida faz esses anos concentrarem 45% do peso — cada tópico saía de
+   * 36% a 62% abaixo da verdade.
+   */
+  questoesClassificadasPorAno: Record<number, number>;
+  /** A régua que produziu os índices — `versaoParametro` nulo = valor de fábrica. */
+  meiaVidaAnos?: number;
+  versaoParametro?: number | null;
   totalQuestoes: number;
   semClassificacao: number;
 }

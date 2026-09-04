@@ -462,6 +462,12 @@ describe('combinarEstatisticas', () => {
       })),
       anos,
       questoesPorAno,
+      // O acervo de brinquedo é todo classificado, exceto o que o parâmetro
+      // `semClassificacao` declara — e como ele não diz de que ano, o
+      // denominador do índice aqui é o mesmo. Os testes desta suíte são sobre
+      // COMBINAR, não sobre o índice; a aritmética dele mora em
+      // `api/tests/test_importancia.py`.
+      questoesClassificadasPorAno: questoesPorAno,
       totalQuestoes: Object.values(questoesPorAno).reduce((s, v) => s + v, 0),
       semClassificacao,
     };
@@ -595,5 +601,41 @@ describe('o filtro de anos', () => {
     it('acervo vazio não quebra', () => {
       expect(alternarAno(undefined, [], 2024)).toBeUndefined();
     });
+  });
+});
+
+
+describe('combinarEstatisticas e o índice de importância', () => {
+  // ⚠️ Contagem soma; média ponderada NÃO. O índice de cada resposta é uma
+  // média pesada por recência sobre o acervo daquela banca — e o ITA começa em
+  // 2008 enquanto o IME começa em 1996 (migration 0031), então nem os anos
+  // coincidem. Se o spread carregasse `importancia` do primeiro argumento, a
+  // visão "Os dois" mostraria o índice do ITA com rótulo de combinado: número
+  // errado com cara de certo, sem nada na tela para desconfiar.
+  const comIndice = (porAno: Record<number, number>) => ({
+    materia: 'Matemática' as const,
+    topicos: [{
+      codigo: '1.1', nome: 'Trigonometria', blocoNome: 'Geometria', total: 3,
+      porAno, porFase: {}, porVestibular: {},
+      importancia: 12.5, importanciaRanking: 100,
+    }],
+    anos: Object.keys(porAno).map(Number),
+    questoesPorAno: porAno,
+    questoesClassificadasPorAno: porAno,
+    totalQuestoes: Object.values(porAno).reduce((s, v) => s + v, 0),
+    semClassificacao: 0,
+  });
+
+  it('não carrega o índice de um dos lados para a visão combinada', () => {
+    const junto = combinarEstatisticas(comIndice({ 2019: 10 }), comIndice({ 1996: 10 }));
+
+    expect(junto.topicos[0].importancia).toBeUndefined();
+    expect(junto.topicos[0].importanciaRanking).toBeUndefined();
+  });
+
+  it('soma o denominador do índice junto com o total', () => {
+    const junto = combinarEstatisticas(comIndice({ 2019: 10 }), comIndice({ 1996: 8 }));
+
+    expect(junto.questoesClassificadasPorAno).toEqual({ 1996: 8, 2019: 10 });
   });
 });

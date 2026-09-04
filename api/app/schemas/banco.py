@@ -153,6 +153,11 @@ class EstatisticasBanco(BaseModel):
     # diferente por ano, e o formato do ITA muda em 2019 —, e é por isso que o
     # eixo Y padrão da ficha do assunto é percentual e não contagem.
     questoesPorAno: dict[int, int]
+    # Quantas daquelas já têm tópico. É o denominador do ÍNDICE, e não o de
+    # "% da prova": contar as não classificadas no índice afirmaria que elas
+    # não são do tópico, quando na verdade não sabemos qual é. Medido em
+    # 04/09/2026, o viés chegava a 62% em Química · IME.
+    questoesClassificadasPorAno: dict[int, int]
     totalQuestoes: int
     semClassificacao: int
     # A calibração que produziu os `importancia` acima. Vai na resposta para a

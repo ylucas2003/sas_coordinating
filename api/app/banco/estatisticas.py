@@ -93,9 +93,38 @@ def recorrencia(
     # `recorrencia` descreve.
     parametro = carregar_parametro(cliente)
     questoes_por_ano = dict(sorted(Counter(int(q["ano"]) for q in questoes).items()))
+
+    # ⚠️ O DENOMINADOR DO ÍNDICE É OUTRO, e a diferença não é sutil.
+    #
+    # `questoes_por_ano` conta TUDO que a banca cobrou — é o denominador certo
+    # para "% da prova" na série, onde cada ano aparece na tela e o leitor vê o
+    # tamanho do acervo. Mas usá-lo no índice afirma, para cada questão sem
+    # classificação, que ela NÃO é daquele tópico. Isso é falso por construção:
+    # não sabemos o assunto dela, e "não sei" não é "não é".
+    #
+    # O estrago foi medido em 04/09/2026 e é grande. Química · IME tem 40
+    # questões sem classificar, e elas não estão espalhadas: são as provas
+    # inteiras de 2022, 2023, 2024 (F1) e 2025 (F2) — justamente os anos que a
+    # meia-vida de 5 anos faz concentrarem 45% do peso. Em 2025 são 10 questões
+    # e ZERO classificadas, então aquele ano contribuía peso com numerador zero
+    # para todos os tópicos. Resultado: cada tópico de Química saía entre 36% e
+    # 62% ABAIXO da verdade, e a comparação entre matérias ficava sem sentido —
+    # Química parecia sistematicamente menos importante que Física.
+    #
+    # Contar só as classificadas assume que as não classificadas se distribuem
+    # como as demais. É suposição, mas é a menos errada das duas: a alternativa
+    # assume que nenhuma delas é do tópico, o que é certamente falso.
+    #
+    # ⚠️ A tela continua OBRIGADA a mostrar `semClassificacao`. Corrigir o
+    # denominador tira o viés; não inventa o dado que falta (docs/22 §8).
+    ano_da_questao = {q["id"]: int(q["ano"]) for q in questoes}
+    classificadas_por_ano = dict(
+        sorted(Counter(ano_da_questao[qid] for qid in classificadas).items())
+    )
+
     importancias = {
         topico["codigo"]: indice_de_importancia(
-            dict(por_ano[topico["codigo"]]), questoes_por_ano, parametro
+            dict(por_ano[topico["codigo"]]), classificadas_por_ano, parametro
         )
         for topico in topicos
     }
@@ -135,6 +164,10 @@ def recorrencia(
         # não sai da soma dos tópicos, porque questão mista soma nos dois de
         # propósito e a soma passa do total (docs/22 §1.5).
         questoesPorAno=questoes_por_ano,
+        # O denominador do ÍNDICE, que não é o mesmo de "% da prova" — ver o
+        # comentário longo acima. Vai na resposta para a tela poder mostrar a
+        # cobertura ano a ano em vez de só o total.
+        questoesClassificadasPorAno=classificadas_por_ano,
         totalQuestoes=len(questoes),
         # As 40 sem classificação não podem sumir da tela: o aluno estudaria um
         # recorte incompleto sem saber que é incompleto (docs/22 §8, risco 3).
