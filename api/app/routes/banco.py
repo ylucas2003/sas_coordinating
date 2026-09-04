@@ -24,11 +24,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from supabase import Client
 
-from ..auth import get_current_aluno, get_current_user
-from ..banco import consultas, estatisticas, listas, progresso
+from ..auditoria import registrar as auditar
+from ..auth import get_current_aluno, get_current_coordenador, get_current_user
+from ..banco import consultas, estatisticas, importancia, listas, progresso
 from ..schemas.banco import (
     AtualizarEstudo,
     AtualizarLista,
@@ -41,6 +42,7 @@ from ..schemas.banco import (
     ListaResumo,
     MateriaBanco,
     PaginaQuestoes,
+    ParametroImportanciaEntrada,
     ProgressoDoAluno,
     QuestaoVestibular,
     TaxonomiaMateria,
@@ -399,3 +401,90 @@ async def atualizar_estudo(
         # Aqui o 404 é o certo, ao contrário das rotas de lista: a questão é o
         # único recurso citado na URL, então não há o que confundir.
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+# ─── A calibração do índice de importância ───────────────────────────────
+#
+# É a única escrita deste router que não é do aluno: quem gira o botão é a
+# coordenação, e o efeito é global — um `H` novo reordena o ranking de assuntos
+# de todo mundo de uma vez (docs/34 §5 · D2).
+
+
+@router.get("/importancia/parametro")
+async def obter_parametro_de_importancia(
+    _coordenador: dict = Depends(get_current_coordenador),
+) -> dict:
+    """O valor em vigor e o histórico de quem já girou o botão."""
+    cliente = get_supabase()
+    atual = importancia.carregar_parametro(cliente)
+    return {
+        "meiaVidaAnos": atual.meia_vida_anos,
+        "janelaTendenciaAnos": atual.janela_tendencia_anos,
+        # Nulo = de fábrica. A tela diz isso em vez de fingir que é a versão 1.
+        "versao": atual.versao,
+        "meiaVidaPadrao": importancia.MEIA_VIDA_PADRAO,
+        "janelaTendenciaPadrao": importancia.JANELA_TENDENCIA_PADRAO,
+        "meiaVidaMaxima": importancia.MEIA_VIDA_MAXIMA,
+        "historico": importancia.historico(cliente),
+    }
+
+
+@router.put("/importancia/parametro")
+async def girar_o_botao_da_importancia(
+    body: ParametroImportanciaEntrada,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> dict:
+    """Grava a versão seguinte. A anterior fica no histórico, inativa."""
+    cliente = get_supabase()
+
+    # ⚠️ Dois "quem", de propósito, e eles não são o mesmo.
+    #
+    # `criado_por` alimenta a coluna "Quem" do histórico na tela, que existe
+    # para responder "por que o ranking mudou?" na conversa do dia a dia — e um
+    # UUID não responde isso. Já a auditoria guarda o `sub`, que é identidade
+    # ESTÁVEL: nome muda, id não, e é por ele que se investiga depois.
+    nome = coordenador.get("nome")
+    id_estavel = coordenador.get("sub")
+
+    # Lido ANTES de gravar: é o valor que sai de vigor, e é metade do "de
+    # quanto para quanto" que a auditoria precisa registrar.
+    saindo = importancia.carregar_parametro(cliente)
+    try:
+        linha = importancia.nova_versao(
+            cliente,
+            body.meiaVidaAnos,
+            body.janelaTendenciaAnos,
+            criado_por=nome,
+        )
+    except importancia.ParametroInvalido as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    auditar(
+        cliente,
+        "importancia_recalibrada",
+        canal="criterio",
+        ator_tipo="coordenador",
+        ator_id=id_estavel,
+        recurso="parametro_importancia",
+        ip=request.client.host if request.client else None,
+        # De quanto PARA quanto, e não só "mudou": sem o valor anterior não dá
+        # para explicar depois por que o ranking de um mês não bate com o do
+        # outro — que é a única razão de este registro existir.
+        detalhe={
+            "versao": linha.get("versao"),
+            "de": {
+                "meiaVidaAnos": saindo.meia_vida_anos,
+                "janelaTendenciaAnos": saindo.janela_tendencia_anos,
+            },
+            "para": {
+                "meiaVidaAnos": body.meiaVidaAnos,
+                "janelaTendenciaAnos": body.janelaTendenciaAnos,
+            },
+        },
+    )
+    return {
+        "versao": linha.get("versao"),
+        "meiaVidaAnos": body.meiaVidaAnos,
+        "janelaTendenciaAnos": body.janelaTendenciaAnos,
+    }

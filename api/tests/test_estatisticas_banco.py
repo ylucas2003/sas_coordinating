@@ -214,3 +214,94 @@ def test_ordem_e_recorrencia_decrescente_com_desempate_pelo_edital(cliente):
     """1.1 tem 3, 1.2 tem 2, 9.9 tem 0 — e o empate desempata pela `ordem`."""
     r = estatisticas.recorrencia(cliente, "Matemática")
     assert [t.codigo for t in r.topicos] == ["1.1", "1.2", "9.9"]
+
+
+# ─── O índice de importância, pelo caminho do endpoint ───────────────────
+#
+# A matemática tem teste próprio em `test_importancia.py`. O que ESTES travam é
+# a fiação: que o índice chega na resposta, que o denominador usado é o do
+# recorte, e que a régua vai junto para a tela poder mostrá-la.
+
+
+def test_o_indice_chega_na_resposta_e_e_percentual(cliente):
+    r = estatisticas.recorrencia(cliente, materia="Matemática")
+
+    # 2019 tem 3 questões; o tópico 1.1 aparece em 2 delas.
+    t11 = next(t for t in r.topicos if t.codigo == "1.1")
+    assert 0 < t11.importancia <= 100, "é percentual da prova, não contagem"
+    assert t11.importanciaRanking > 0
+
+
+def test_o_maior_indice_do_recorte_tem_ranking_100(cliente):
+    r = estatisticas.recorrencia(cliente, materia="Matemática")
+    maior = max(r.topicos, key=lambda t: t.importancia)
+
+    assert maior.importanciaRanking == pytest.approx(100.0)
+
+
+def test_topico_que_nunca_caiu_tem_indice_zero_e_continua_na_lista(cliente):
+    """Mesma regra do `total`: "esse assunto não apareceu em oito anos" é
+    informação de estudo, e some se a lista só trouxer quem teve ocorrência."""
+    r = estatisticas.recorrencia(cliente, materia="Matemática")
+    nunca = [t for t in r.topicos if t.total == 0]
+
+    assert nunca, "a fixture precisa ter um tópico sem ocorrência"
+    assert all(t.importancia == 0.0 for t in nunca)
+
+
+def test_a_regua_do_ranking_vai_na_resposta(cliente):
+    """Mesma razão de o Painel mostrar "régua: Tio Leo" ao lado do número: um
+    ranking sem a régua à vista não é conferível. `versaoParametro` nulo
+    significa "de fábrica, a coordenação nunca girou o botão"."""
+    r = estatisticas.recorrencia(cliente, materia="Matemática")
+
+    assert r.meiaVidaAnos == 5.0
+    assert r.versaoParametro is None
+
+
+def test_o_indice_segue_o_recorte_como_o_resto_da_resposta(cliente):
+    """⚠️ A armadilha que o docstring de `recorrencia` descreve: se o índice
+    usasse o denominador do acervo inteiro enquanto o numerador já foi
+    filtrado, a fatia sairia MENOR que a verdade e sem erro na tela."""
+    largo = estatisticas.recorrencia(cliente, materia="Matemática")
+    estreito = estatisticas.recorrencia(
+        cliente, materia="Matemática", vestibular="ITA"
+    )
+
+    idx = lambda r: {t.codigo: t.importancia for t in r.topicos}  # noqa: E731
+    assert idx(largo) != idx(estreito), "o recorte tem de mover o índice"
+    # E o denominador do estreito é mesmo o do recorte, não o do acervo.
+    assert sum(estreito.questoesPorAno.values()) == estreito.totalQuestoes
+
+
+def test_a_coordenacao_girando_o_botao_muda_o_ranking(cliente):
+    """⚠️ O caminho do override, que é a razão de a D2 ter escolhido o banco.
+
+    Sem este teste, `carregar_parametro` poderia estar sempre caindo no valor
+    de fábrica — os outros testes passariam igual, porque o `FakeCliente` da
+    fixture não tem a tabela, e ninguém veria que a tela de edição não faz nada.
+    """
+    cliente.db["parametro_importancia"] = {
+        "p1": {
+            "id": "p1",
+            "versao": 7,
+            "meia_vida_anos": "1.0",  # só o ano mais recente conta, na prática
+            "janela_tendencia_anos": 3,
+            "ativo": True,
+        }
+    }
+
+    r = estatisticas.recorrencia(cliente, materia="Matemática")
+
+    assert r.meiaVidaAnos == 1.0
+    assert r.versaoParametro == 7, "a tela precisa saber que não é o de fábrica"
+
+    # E o número mudou de verdade: com meia-vida curtíssima, o índice tende à
+    # fatia do ano mais recente, e não à média dos anos.
+    de_fabrica = {t.codigo: t.importancia for t in estatisticas.recorrencia(
+        FakeCliente({k: v for k, v in cliente.db.items() if k != "parametro_importancia"}),
+        materia="Matemática",
+    ).topicos}
+    girado = {t.codigo: t.importancia for t in r.topicos}
+
+    assert girado != de_fabrica, "girar o botão tem de mover o índice"

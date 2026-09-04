@@ -9,7 +9,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import type { QueryClient } from '@tanstack/react-query';
 import * as banco from '../servicos/banco';
 import type {
-  FiltrosBanco, MateriaBanco, RemendoEstudo, RemendoLista, VestibularBanco,
+  FiltrosBanco, MateriaBanco, RemendoEstudo, RemendoLista,
+  RemendoParametroImportancia, VestibularBanco,
 } from '../tipos/banco';
 import type { OpcoesConsulta } from './consultas';
 
@@ -211,5 +212,29 @@ export function useAtualizarEstudo() {
       queryClient.invalidateQueries({ queryKey: chavesBanco.progresso });
       invalidarListas(queryClient);
     },
+  });
+}
+
+// ─── A calibração do índice de importância (docs/34 §5 · D2) ─────────────
+
+/**
+ * ⚠️ Invalida `['banco']` inteiro, e não só a chave do parâmetro: girar o botão
+ * reordena TODO ranking de assunto que estiver na tela. Invalidar só o próprio
+ * parâmetro deixaria a lista antiga à vista sob o valor novo — que é
+ * exatamente o tipo de número errado sem erro que este projeto persegue.
+ */
+export function useParametroDeImportancia() {
+  return useQuery({
+    queryKey: [...chavesBanco.raiz, 'importancia', 'parametro'] as const,
+    queryFn: () => banco.obterParametroDeImportancia(),
+  });
+}
+
+export function useGirarBotaoDeImportancia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (remendo: RemendoParametroImportancia) =>
+      banco.girarBotaoDeImportancia(remendo),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: chavesBanco.raiz }),
   });
 }
