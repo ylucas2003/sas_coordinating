@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Frontend do SAS — coordenação ITM e área do aluno.",
+  "description": "Frontend do SAS — coordenação ITA/IME e área do aluno.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

@@ -137,8 +137,17 @@
 }
 
 /* A cena é escura nos dois temas, então aqui a marca é sempre branca — e por
-   isso ela ignora a troca por tema de `.alu-marca`. */
-.porta .alu-marca {
+   isso ela ignora a troca por tema de `.alu-marca`.
+
+   ⚠️ O `:root[data-tema]` não é enfeite, é o que faz a regra ganhar. Escrita só
+   como `.porta .alu-marca` ela pesa (0,2,0) e PERDE para
+   `:root[data-tema='dia'] .alu-marca` (0,3,0) do aluno-casco.css, que pinta a
+   máscara de navy — e o `data-tema` está sempre cravado no `<html>`, inclusive
+   no login, porque `pecas/tema.ts` estampa o atributo no escopo do módulo e o
+   `App.tsx` importa o casco do aluno sem lazy. Resultado: todo aluno em tema
+   dia via a marca navy sobre o céu escuro do amanhecer. Ordem de import não
+   resolve nada aqui — especificidade vem antes da ordem (docs/35 §8). */
+:root[data-tema] .porta .alu-marca {
   --marca-cor: #ffffff;
 }
 

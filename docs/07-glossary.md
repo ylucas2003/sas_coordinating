@@ -4,8 +4,8 @@ Vocabulário do domínio. Termos usados consistentemente em toda a documentaçã
 
 ## Termos de domínio educacional
 
-**Aluno ITM**
-Aluno matriculado em turma especializada em vestibulares militares e altamente competitivos (ITA, IME, AFA, EsPCEx, EFOMM).
+**Aluno ITA/IME**
+Aluno matriculado em turma especializada em vestibulares militares e altamente competitivos (ITA, IME, AFA, EsPCEx, EFOMM). Chamava-se "aluno ITM" até 04/09/2026, quando a coordenação fechou o nome atual ([35 §7](35-plano-correcoes.md)) — o nome antigo ainda aparece em conversa e em documento velho, mas não no produto. No Canvas, a `section` da turma é `3o ITA AD` / `3o ITA MF` e a `trilha` é `ITA`.
 
 **Simulado**
 Prova aplicada à turma para simular o vestibular-alvo. Pode ser de 1ª fase (objetiva) ou 2ª fase (discursiva).
@@ -14,7 +14,7 @@ Prova aplicada à turma para simular o vestibular-alvo. Pode ser de 1ª fase (ob
 Conjunto de simulados agrupados num período definido. Tipicamente cobre 1ª e 2ª fases de um conjunto temático ou cronológico de provas. Definido pela coordenação no início do ano letivo.
 
 **Coorte**
-Grupo de alunos do mesmo ano letivo na turma ITM. Permite comparações históricas ("a coorte de 2024 nesse mesmo ponto do ano...").
+Grupo de alunos do mesmo ano letivo na turma ITA/IME. Permite comparações históricas ("a coorte de 2024 nesse mesmo ponto do ano...").
 
 **Sede**
 Unidade física ou modalidade de ensino. No Ari de Sá, divide-se em presencial e online.

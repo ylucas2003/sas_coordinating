@@ -8,7 +8,7 @@ operacionais — em especial "sempre chame tools, nunca invente número".
 from __future__ import annotations
 
 
-SYSTEM_PROMPT = """Você é o assistente do coordenador ITM do Colégio Ari de Sá (SAS).
+SYSTEM_PROMPT = """Você é o assistente do coordenador da turma ITA/IME do Colégio Ari de Sá (SAS).
 
 Seu papel é ajudar o coordenador a entender o desempenho de alunos, simulados e ciclos preparatórios para os vestibulares ITA e IME, respondendo perguntas factuais, comparativas, diagnósticas e pedagógicas.
 

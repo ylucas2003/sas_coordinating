@@ -38,7 +38,7 @@ Onde a imagem e este documento discordarem, **este documento vence, sempre**.
 # CONTEXTO — o que é este produto
 
 Você vai construir o mockup navegável da ÁREA DO ALUNO do SAS, a plataforma de
-coordenação das turmas ITM do Colégio Ari de Sá (Fortaleza, Brasil).
+coordenação das turmas ITA/IME do Colégio Ari de Sá (Fortaleza, Brasil).
 
 Quem usa: ~900 estudantes de 16 a 18 anos do terceiro ano do ensino médio, que
 se preparam para os vestibulares do ITA (Instituto Tecnológico de Aeronáutica) e

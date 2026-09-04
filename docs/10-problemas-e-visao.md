@@ -603,7 +603,7 @@ lembrar, acompanhar prazo.
 implícita: ⚠️ *coordenar um simulado* é exatamente o tipo de função que o README
 tentou excluir ao dizer "não ERP escolar". Duas leituras possíveis:
 
-- **(a) O posicionamento se amplia:** o SAS é a central de operação do ITM —
+- **(a) O posicionamento se amplia:** o SAS é a central de operação da turma ITA/IME —
   analisa *e* executa. O argumento a favor: quem analisa o resultado é quem
   monta a prova; separar as duas coisas em ferramentas diferentes é artificial.
 - **(b) O posicionamento se mantém, e a operação é um módulo lateral** que serve

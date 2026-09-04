@@ -2,7 +2,7 @@
 
 ## Problema que estamos resolvendo
 
-A coordenação das turmas ITM do Colégio Ari de Sá analisa hoje o desempenho dos alunos cruzando planilhas Excel manualmente. Esse processo tem três limitações graves:
+A coordenação das turmas ITA/IME do Colégio Ari de Sá analisa hoje o desempenho dos alunos cruzando planilhas Excel manualmente. Esse processo tem três limitações graves:
 
 1. **Trabalho braçal alto.** Cada análise envolve abrir múltiplas planilhas, cruzar referências e fazer cálculos repetitivos.
 2. **Visão reativa, não proativa.** O coordenador só descobre que um aluno está em risco se for procurar especificamente — não existe nada que o alerte.

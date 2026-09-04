@@ -64,7 +64,13 @@
    seis papéis, e é de propósito.
 
    O asset é nosso e é servido da nossa origem: nada de CDN (regra 6 do
-   CLAUDE.md, dados de menores de idade). */
+   CLAUDE.md, dados de menores de idade).
+
+   ⚠️ Há UMA exceção à troca por tema: dentro de `.porta` (o login) a marca é
+   sempre branca, porque a cena do amanhecer é escura nos dois temas. Quem
+   manda lá é `aluno-login.css`, e a regra de lá precisa de mais peso que as
+   três abaixo para vencer — mexer na especificidade destas quebra o login
+   (docs/35 §8). */
 .alu-marca {
   --marca-cor: #1b3f8b;
   width: 62px;

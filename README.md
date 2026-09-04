@@ -1,6 +1,6 @@
-## SAS — Interface de coordenação ITM · Colégio Ari de Sá
+## SAS — Interface de coordenação ITA/IME · Colégio Ari de Sá
 
-Ferramenta web para a coordenação analisar o desempenho dos alunos das turmas ITM (turmas voltadas a vestibulares militares e altamente competitivos como ITA e IME) em simulados e ciclos de provas.
+Ferramenta web para a coordenação analisar o desempenho dos alunos das turmas ITA/IME (turmas voltadas a vestibulares militares e altamente competitivos — ITA, IME, AFA, EsPCEx, EFOMM) em simulados e ciclos de provas.
 
 Substitui o cruzamento manual de planilhas que a coordenação faz hoje, e — mais importante — **sinaliza proativamente o que merece atenção**, em vez de obrigar o coordenador a saber o que procurar.
 

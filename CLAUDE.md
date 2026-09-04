@@ -1,6 +1,6 @@
 # SAS — contexto para o Claude Code
 
-Interface de coordenação das turmas ITM do Colégio Ari de Sá: acompanha o
+Interface de coordenação das turmas ITA/IME do Colégio Ari de Sá: acompanha o
 desempenho de ~900 alunos em simulados e ciclos de provas voltados a ITA e IME,
 e **sinaliza o que merece atenção** em vez de esperar que o coordenador saiba o
 que procurar. Tem também área do aluno, com chat mentor.

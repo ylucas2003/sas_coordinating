@@ -72,7 +72,7 @@ congelado — senão o pódio muda depois de anunciado.
 ### B.2 A virada de ano letivo
 
 Em janeiro, o que acontece com XP, sequência, esquadrilha e conquistas? Zera,
-arquiva ou carrega? Um aluno que faz dois anos de ITM tem duas temporadas ou uma.
+arquiva ou carrega? Um aluno que faz dois anos de turma ITA/IME tem duas temporadas ou uma.
 
 Recomendação: **temporada por ano letivo.** XP e liga zeram; conquistas e recorde
 de sequência ficam. É o que preserva a história sem tornar o veterano
