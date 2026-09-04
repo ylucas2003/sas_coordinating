@@ -12,8 +12,16 @@
 # Artefatos de auditoria mobile (capturas, relatório do Lighthouse). Ver docs/19.
 .auditoria-mobile/
 
-# Vídeos de aula gravados pelo serviço `gravador` (gravador-aulas/) — binários
-# grandes, nunca versionados.
+# ⚠️ Vídeo de aula: são MENORES DE IDADE, e o `deploy.sh` faz rsync da árvore
+# de trabalho filtrada por este arquivo — o que não estiver aqui vai para o
+# servidor. Uma aula tem centenas de MB.
+#
+# `gravacao/` é a saída padrão de `api/scripts/puxar_gravacao.py` (a escotilha
+# manual, para quando o cron falhou e a gravação expira em ~7 dias).
+gravacao/
+# Legado: era do serviço `gravador` (gravador-aulas/), que não existe mais —
+# hoje quem baixa é `api/app/gravacoes_aula/`. Fica pela cópia de trabalho de
+# quem tiver o diretório antigo em disco.
 gravacoes_baixadas/
 
 # Pipeline do banco de questões (docs/22). Entra no git só o que é fonte da
@@ -52,3 +60,11 @@ Provas Resolvidas ITA/
 # continuam versionados — são a fonte da verdade do piloto, não regeneráveis.
 banco-questoes/piloto-1973/recortes/
 banco-questoes/piloto-1973/*.png
+
+# Handoff de design do Claude Design (protótipo HTML + mockups PNG, 24 MB).
+# Material de entrada, consumido uma vez; o resultado dele é o código em
+# web/src/telas/Aluno/. Fica fora do git porque um `git add -A` de rotina já o
+# varreu para dentro de um commit uma vez (03/09/2026) — e fora do git é
+# também fora do rsync do deploy, que filtra a árvore de trabalho por este
+# arquivo.
+sas-rea-do-aluno/
