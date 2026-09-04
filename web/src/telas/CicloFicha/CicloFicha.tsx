@@ -671,7 +671,48 @@ function MiniBadge({
  * acima dele na árvore. Assim o documento herda a narrativa da tela em vez de
  * inventar rótulos que divergiriam no primeiro ajuste de layout.
  */
+/**
+ * O rótulo da própria peça, quando ela tem um — hoje "Fase 1" / "Fase 2" dos
+ * mini-histogramas por matéria.
+ *
+ * ⚠️ Ele mora num `<div>` IRMÃO do `<svg>` (ver `MiniHistogramaFase`), e o
+ * dossiê converte só o `<svg>`. Sem isto, uma matéria com duas fases vira dois
+ * `<h2>Física</h2>` seguidos, com gráficos DIFERENTES e nada que diga qual é
+ * qual. Na tela ninguém nota — o rótulo está logo acima do desenho; no papel
+ * não há hover nem rolagem para conferir. Achado verificando o dossiê gerado.
+ */
+function rotuloDaPeca(svg: SVGSVGElement): string {
+  const caixa = svg.closest('.ciclo-materia__hist, .ciclo-materia__hist-vazio');
+  const rotulo = caixa?.querySelector('.ciclo-materia__hist-label');
+  // Só o primeiro nó de texto: o `n = 287` vem num <span> ao lado e é ruído
+  // num título — ele já aparece dentro do próprio gráfico.
+  return rotulo?.firstChild?.textContent?.trim() ?? '';
+}
+
 function tituloDoGrafico(svg: SVGSVGElement): string {
+  const secao = secaoDoGrafico(svg);
+  const peca = rotuloDaPeca(svg);
+  if (!peca) return secao;
+  return secao === 'Gráfico' ? peca : `${secao} · ${peca}`;
+}
+
+/**
+ * ⚠️ `textContent` COLA os filhos: um `<h2>Inglês<span>ELIMINATÓRIA</span></h2>`
+ * — o selo de matéria que elimina sozinho — virava o título "InglêsELIMINATÓRIA"
+ * no dossiê impresso. Juntar nó a nó com espaço e colapsar o resto resolve sem
+ * depender de o cabeçalho ter uma estrutura específica.
+ */
+function textoDoCabecalho(titulo: Element | null | undefined): string {
+  if (!titulo) return '';
+  return Array.from(titulo.childNodes)
+    .map((no) => no.textContent?.trim() ?? '')
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function secaoDoGrafico(svg: SVGSVGElement): string {
   let no: Element | null = svg;
   while (no) {
     const anterior: Element | null = no.previousElementSibling;
@@ -679,7 +720,8 @@ function tituloDoGrafico(svg: SVGSVGElement): string {
       const titulo = anterior.matches('h1, h2, h3, .section__title, .camadas__titulo')
         ? anterior
         : anterior.querySelector('h1, h2, h3, .section__title, .camadas__titulo');
-      if (titulo?.textContent?.trim()) return titulo.textContent.trim();
+      const texto = textoDoCabecalho(titulo);
+      if (texto) return texto;
     }
     no = no.parentElement;
     if (no?.classList.contains('ciclo-ficha')) break;
