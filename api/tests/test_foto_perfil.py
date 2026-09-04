@@ -298,84 +298,60 @@ class TestFotoDoCoordenadorPelaAdministracao:
         assert asyncio.run(administracao.foto_do_coordenador("c1")) == {"fotoDataUrl": None}
 
 
-# ─── temFoto no login e no primeiro acesso ─────────────────────────────────
+# ─── temFoto no login ──────────────────────────────────────────────────────
+# Os três testes de aluno que ficavam aqui (login por matrícula, e o
+# `/primeiro-acesso` devolvendo `temFoto` de quem já tinha conta) saíram em
+# 04/09: a senha de aluno e a rota de primeiro acesso deixaram de existir
+# (docs/35 §11.5). O `temFoto` do aluno continua sendo entregue — pelo token do
+# SSO, montado em `routes/auth_canvas.py::_sessao_para` — e é lá que ele se
+# prova agora.
 
 
 class TestTemFotoNoLogin:
-    def test_aluno_com_foto_recebe_temfoto_true(self, monkeypatch):
+    def _conta(self, foto):
         from app import auth as auth_core
 
-        db = {
-            "aluno": {
-                "a1": {
-                    "id": "a1", "nome": "Ana", "ativo": True, "matricula": "12345",
-                    "senha_hash": auth_core.hash_senha("senhaSegura1"),
-                    "foto_perfil_storage": "fotos-perfil/aluno/a1.jpg",
-                }
-            }
-        }
-        monkeypatch.setattr(auth, "get_supabase", lambda: FakeCliente(db))
-        auth._tentativas_por_chave.clear()
-        resposta = asyncio.run(auth.login(
-            auth.LoginBody(tipo="aluno", usuario="12345", senha="senhaSegura1"), _FakeRequest()
-        ))
-        assert resposta["temFoto"] is True
-
-    def test_aluno_sem_foto_recebe_temfoto_false(self, monkeypatch):
-        from app import auth as auth_core
-
-        db = {
-            "aluno": {
-                "a1": {
-                    "id": "a1", "nome": "Ana", "ativo": True, "matricula": "12345",
-                    "senha_hash": auth_core.hash_senha("senhaSegura1"),
-                    "foto_perfil_storage": None,
-                }
-            }
-        }
-        monkeypatch.setattr(auth, "get_supabase", lambda: FakeCliente(db))
-        auth._tentativas_por_chave.clear()
-        resposta = asyncio.run(auth.login(
-            auth.LoginBody(tipo="aluno", usuario="12345", senha="senhaSegura1"), _FakeRequest()
-        ))
-        assert resposta["temFoto"] is False
-
-    def test_coordenador_com_foto_recebe_temfoto_true(self, monkeypatch):
-        from app import auth as auth_core
-
-        db = {
+        return {
             "usuario_coordenacao": {
                 "c1": {
                     "id": "c1", "nome": "Leo", "ativo": True, "email": "leo@exemplo.com",
+                    "papel": "coordenador",
                     "senha_hash": auth_core.hash_senha("senhaSegura1"),
-                    "foto_perfil_storage": "fotos-perfil/coordenador/c1.jpg",
+                    "foto_perfil_storage": foto,
                 }
             }
         }
+
+    def _login(self, monkeypatch, db):
         monkeypatch.setattr(auth, "get_supabase", lambda: FakeCliente(db))
         auth._tentativas_por_chave.clear()
-        resposta = asyncio.run(auth.login(
+        return asyncio.run(auth.login(
             auth.LoginBody(tipo="coordenador", usuario="leo@exemplo.com", senha="senhaSegura1"),
             _FakeRequest(),
         ))
+
+    def test_coordenador_com_foto_recebe_temfoto_true(self, monkeypatch):
+        resposta = self._login(monkeypatch, self._conta("fotos-perfil/coordenador/c1.jpg"))
         assert resposta["temFoto"] is True
 
-    def test_primeiro_acesso_reporta_temfoto_de_quem_ja_tinha_conta(self, monkeypatch):
-        """`/primeiro-acesso` também serve de "esqueci minha senha" — quem já
-        tinha foto e só está redefinindo a senha não pode voltar temFoto=False."""
-        db = {
-            "aluno": {
-                "a1": {
-                    "id": "a1", "nome": "Ana", "ativo": True, "matricula": "12345",
-                    "email": "ana@exemplo.com", "foto_perfil_storage": "fotos-perfil/aluno/a1.jpg",
-                }
-            }
-        }
-        monkeypatch.setattr(auth, "get_supabase", lambda: FakeCliente(db))
-        monkeypatch.setattr(auth, "get_settings", lambda: type("S", (), {"primeiro_acesso_autosservico": True})())
-        auth._tentativas_por_chave.clear()
-        resposta = asyncio.run(auth.primeiro_acesso(
-            auth.PrimeiroAcessoBody(matricula="12345", email="ana@exemplo.com", senha_nova="outraSenh4"),
-            _FakeRequest(),
-        ))
-        assert resposta["temFoto"] is True
+    def test_coordenador_sem_foto_recebe_temfoto_false(self, monkeypatch):
+        resposta = self._login(monkeypatch, self._conta(None))
+        assert resposta["temFoto"] is False
+
+    def test_aluno_do_sso_leva_temfoto_no_token(self, monkeypatch):
+        """O que substituiu o login por matrícula: o `temFoto` do aluno viaja
+        no JWT que o callback do Canvas devolve (o front o lê do fragmento)."""
+        from jose import jwt
+
+        from app import config
+        from app.auth import ALGORITHM
+        from app.routes import auth_canvas
+
+        db = {"aluno": {"a1": {
+            "id": "a1", "nome": "Ana", "ativo": True, "canvas_user_id": "300",
+            "foto_perfil_storage": "fotos-perfil/aluno/a1.jpg",
+        }}}
+        token, tipo = auth_canvas._sessao_para(FakeCliente(db), "300")
+        assert tipo == "aluno"
+        payload = jwt.decode(token, config.get_settings().jwt_secret_key, algorithms=[ALGORITHM])
+        assert payload["temFoto"] is True and payload["aluno_id"] == "a1"

@@ -8,19 +8,33 @@ import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { useAcessosDeAlunos, useCoordenadores } from '../../hooks/consultas';
 import {
-  useCriarCoordenador, useEditarCoordenador, useLigarCoordenadorAoCanvas, useRedefinirSenhaCoordenador,
+  useCriarCoordenador, useEditarCoordenador, useRedefinirSenhaCoordenador,
 } from '../../hooks/mutacoes';
 import * as sessao from '../../servicos/sessao';
 import type { AcessoAluno, UsuarioCoordenacao } from '../../tipos/dominio';
 import { normalizar } from '../../util/formato';
 
-// Painel de administrador (docs/18 §4.6): quem pode entrar.
+// Painel de administrador (docs/18 §4.6, docs/35 §11): quem pode entrar.
 //
-// Duas metades. Em cima, as contas da coordenação — criar, renomear,
-// desativar, redefinir senha; nunca apagar, porque a conta é autora na
-// trilha de auditoria. Embaixo, os alunos: quem já fez primeiro acesso, quem
-// nunca entrou — "quando o aluno faz isso, aparece na tela de gerenciamento
-// do coordenador" (21/08, 19h15).
+// Duas metades, e desde 04/09 elas têm PERMISSÕES DIFERENTES — é por isso que
+// a divisão aparece na tela e não só no backend:
+//
+//   * em cima, as contas da coordenação. Ver é de qualquer coordenador; criar,
+//     renomear, desativar e redefinir senha é só do administrador, e o que ele
+//     não pode nem aparece — botão que existe para dar 403 ensina a pessoa a
+//     desconfiar da tela;
+//   * embaixo, os alunos. Trabalho diário de coordenação, e continua de todo
+//     mundo — "quando o aluno faz isso, aparece na tela de gerenciamento do
+//     coordenador" (21/08, 19h15).
+//
+// ⚠️ A coluna "Canvas" das contas saiu. Ela dizia se a conta entrava pelo SSO,
+// e a coordenação não entra mais por lá (docs/35 §11.6). O dado continua no
+// banco; só deixou de significar alguma coisa aqui.
+//
+// ⚠️ A pergunta da metade de baixo mudou junto. Era "quem já criou senha"; sem
+// senha de aluno, esse número congelou em 04/09. O que decide hoje é ter conta
+// ligada ao Canvas — quem não tem, não entra, e é essa a lista que a
+// coordenação precisa enxergar.
 
 function fmtQuando(iso: string | null | undefined): string {
   if (!iso) return 'nunca';
@@ -32,6 +46,8 @@ type FiltroAcesso = 'com' | 'sem';
 export function Administracao() {
   const { data: coordenadores = [] } = useCoordenadores();
   const { data: acessos } = useAcessosDeAlunos();
+  // Lido uma vez: o papel vem do login e não muda no meio da sessão.
+  const souAdministrador = sessao.ehAdministrador();
   const [filtros, setFiltros] = useState<ReadonlySet<string>>(new Set());
   const [busca, setBusca] = useState('');
   const [criando, setCriando] = useState(false);
@@ -43,8 +59,8 @@ export function Administracao() {
     const lista = acessos?.alunos ?? [];
     const q = normalizar(busca.trim());
     return lista.filter((a) => {
-      if (filtros.has('com') && !a.primeiroAcessoFeito) return false;
-      if (filtros.has('sem') && a.primeiroAcessoFeito) return false;
+      if (filtros.has('com') && !a.temCanvas) return false;
+      if (filtros.has('sem') && a.temCanvas) return false;
       if (q && !normalizar(a.nome).includes(q) && !(a.matricula ?? '').includes(q)) return false;
       return true;
     });
@@ -78,27 +94,39 @@ export function Administracao() {
             QUEM é; o SAS decide quem ENTRA".
           */}
           <p className="tela-subtitulo admin__explicacao">
-            <b>Criar um acesso aqui não cria nada no Canvas.</b> A conta passa a existir só no
-            SAS, e funciona inteira com e-mail e senha. Se você usar <b>o mesmo e-mail que a
-            pessoa tem no Canvas</b>, ela também poderá entrar pelo botão do Canvas — na hora,
-            pelo botão “Ligar ao Canvas”, ou sozinho no primeiro login. E o caminho contrário
-            não existe: <b>ser admin no Canvas não dá acesso ao SAS</b> enquanto alguém não
-            criar a conta por aqui.
+            <b>Criar um acesso aqui não cria nada no Canvas</b>, e o contrário também não vale:
+            <b> ser admin no Canvas não dá acesso ao SAS</b>. A conta existe só aqui e entra só
+            por e-mail e senha — a coordenação não usa o botão do Canvas, que é o caminho do
+            aluno.
           </p>
+          {!souAdministrador && (
+            <p className="tela-subtitulo admin__explicacao">
+              Você vê as contas, mas criar, renomear, desativar e redefinir senha é do
+              administrador do SAS. Procure-o para qualquer uma dessas.
+            </p>
+          )}
         </div>
-        <button className="btn btn-primary" onClick={() => setCriando(true)}>Nova conta</button>
+        {souAdministrador && (
+          <button className="btn btn-primary" onClick={() => setCriando(true)}>Nova conta</button>
+        )}
       </div>
 
       <section className="card">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Nome</th><th>E-mail</th><th>Canvas</th><th>Último login</th><th>Situação</th><th />
+              <th>Nome</th><th>E-mail</th><th>Papel</th><th>Último login</th><th>Situação</th>
+              {souAdministrador && <th />}
             </tr>
           </thead>
           <tbody>
             {coordenadores.map((u) => (
-              <LinhaCoordenador key={u.id} usuario={u} onSenha={(senha) => setSenhaRevelada({ email: u.email, senha })} />
+              <LinhaCoordenador
+                key={u.id}
+                usuario={u}
+                souAdministrador={souAdministrador}
+                onSenha={(senha) => setSenhaRevelada({ email: u.email, senha })}
+              />
             ))}
           </tbody>
         </table>
@@ -107,15 +135,18 @@ export function Administracao() {
       <div className="tela-cabecalho">
         <div>
           <h2 className="tela-titulo">Acesso dos alunos</h2>
-          <p className="tela-subtitulo">Quem já criou a senha e quem nunca entrou. Para liberar de novo, use a ficha do aluno.</p>
+          <p className="tela-subtitulo">
+            O aluno entra com a conta do Canvas, e só com ela. Quem não tem conta ligada ao
+            Canvas não consegue entrar — e é no Canvas, não aqui, que isso se resolve.
+          </p>
         </div>
       </div>
 
       {acessos && (
         <div className="kpi-grid kpi-grid--cartoes">
           <Kpi rotulo="Alunos ativos" valor={acessos.total} />
-          <Kpi rotulo="Já fizeram primeiro acesso" valor={acessos.comAcesso} sufixo={` de ${acessos.total}`} tone="tone-verde" />
-          <Kpi rotulo="Nunca entraram" valor={acessos.total - acessos.comAcesso} tone={acessos.total - acessos.comAcesso > 0 ? 'tone-ambar' : ''} />
+          <Kpi rotulo="Conseguem entrar" valor={acessos.comCanvas} sufixo={` de ${acessos.total}`} tone="tone-verde" />
+          <Kpi rotulo="Sem conta no Canvas" valor={acessos.total - acessos.comCanvas} tone={acessos.total - acessos.comCanvas > 0 ? 'tone-ambar' : ''} />
         </div>
       )}
 
@@ -125,20 +156,20 @@ export function Administracao() {
         onLimpar={() => { setFiltros(new Set()); setBusca(''); }}
         grupos={[
           {
-            chave: 'acesso', rotulo: 'Primeiro acesso',
+            chave: 'acesso', rotulo: 'Acesso',
             resumo: resumirSelecao(
               filtros,
               [
-                { valor: 'com', label: 'já fez o primeiro acesso' },
-                { valor: 'sem', label: 'nunca entrou' },
+                { valor: 'com', label: 'conseguem entrar' },
+                { valor: 'sem', label: 'sem conta no Canvas' },
               ],
               'situação', 'situações',
             ),
             corpo: (
               <Pills
                 opcoes={[
-                  { valor: 'com' satisfies FiltroAcesso, label: 'Já fez' },
-                  { valor: 'sem' satisfies FiltroAcesso, label: 'Nunca entrou' },
+                  { valor: 'com' satisfies FiltroAcesso, label: 'Conseguem entrar' },
+                  { valor: 'sem' satisfies FiltroAcesso, label: 'Sem Canvas' },
                 ]}
                 selecionados={filtros}
                 onToggle={alternar}
@@ -163,7 +194,7 @@ export function Administracao() {
       <section className="card">
         <table className="data-table">
           <thead>
-            <tr><th>Aluno</th><th>Matrícula</th><th>E-mail</th><th>Primeiro acesso</th><th>Último login</th></tr>
+            <tr><th>Aluno</th><th>Matrícula</th><th>E-mail</th><th>Entra pelo Canvas</th><th>Último login</th></tr>
           </thead>
           <tbody>
             {alunos.slice(0, 300).map((a) => <LinhaAluno key={a.id} aluno={a} />)}
@@ -198,7 +229,7 @@ export function Administracao() {
           </p>
           <p className="section__subtitle">
             Ela vale <b>só no SAS</b>: não é a senha do Canvas, e redefinir aqui não mexe em nada
-            lá. Quem entrar pelo botão do Canvas nem chega a usá-la.
+            lá. É também o único jeito de a coordenação entrar — o botão do Canvas é do aluno.
           </p>
           <code className="agendar__preview-nome" style={{ fontSize: 18, userSelect: 'all' }}>{senhaRevelada.senha}</code>
         </Dialogo>
@@ -207,12 +238,16 @@ export function Administracao() {
   );
 }
 
-function LinhaCoordenador({ usuario: u, onSenha }: { usuario: UsuarioCoordenacao; onSenha: (senha: string) => void }) {
+function LinhaCoordenador({
+  usuario: u, souAdministrador, onSenha,
+}: {
+  usuario: UsuarioCoordenacao;
+  souAdministrador: boolean;
+  onSenha: (senha: string) => void;
+}) {
   const editar = useEditarCoordenador();
   const redefinir = useRedefinirSenhaCoordenador();
-  const ligar = useLigarCoordenadorAoCanvas();
   const souEu = u.nome === sessao.nome();
-  const [erroCanvas, setErroCanvas] = useState('');
 
   async function alternarAtivo() {
     const acao = u.ativo ? 'Desativar' : 'Reativar';
@@ -226,22 +261,6 @@ function LinhaCoordenador({ usuario: u, onSenha }: { usuario: UsuarioCoordenacao
     await editar.mutateAsync({ id: u.id, corpo: { nome: nome.trim() } });
   }
 
-  // O SAS procura o id do Canvas pelo e-mail da conta — a pessoa não digita
-  // número nenhum. Se o e-mail não existir lá, o erro diz isso.
-  async function ligarCanvas() {
-    setErroCanvas('');
-    try {
-      await ligar.mutateAsync(u.id);
-    } catch (e) {
-      setErroCanvas((e as Error).message || 'Não achei no Canvas.');
-    }
-  }
-
-  async function desligarCanvas() {
-    if (!window.confirm(`Desligar o login pelo Canvas de ${u.nome}? A conta volta a entrar só por senha.`)) return;
-    await editar.mutateAsync({ id: u.id, corpo: { canvas_user_id: '' } });
-  }
-
   async function novaSenha() {
     if (!window.confirm(`Redefinir a senha de ${u.nome}? A atual deixa de valer na hora.`)) return;
     const r = await redefinir.mutateAsync(u.id);
@@ -253,23 +272,24 @@ function LinhaCoordenador({ usuario: u, onSenha }: { usuario: UsuarioCoordenacao
       <td>{u.nome}{souEu && <span className="sim-selo-ok" style={{ marginLeft: 8 }}>você</span>}</td>
       <td>{u.email}</td>
       <td>
-        {u.canvas_user_id
-          ? <span className="sim-selo-ok" title={`id no Canvas: ${u.canvas_user_id}`}>entra pelo Canvas</span>
-          : <span className="sim-selo-canvas" title="Liga sozinho no primeiro login pelo Canvas, se o e-mail for o mesmo.">só senha</span>}
-        {erroCanvas && <div className="agendar__erro" style={{ marginTop: 4 }}>{erroCanvas}</div>}
+        {u.papel === 'administrador'
+          ? <span className="sim-selo-ok" title="Cria logins e altera nota pelo painel.">administrador</span>
+          : <span className="sim-selo-canvas">coordenador</span>}
       </td>
       <td>{fmtQuando(u.ultimo_login_em)}</td>
       <td>{u.ativo ? <span className="sim-selo-ok">ativa</span> : <span className="sim-selo-canvas">desativada</span>}</td>
-      <td>
-        <button className="btn-editar" onClick={renomear}>Renomear</button>
-        {u.canvas_user_id
-          ? <button className="btn-editar" onClick={desligarCanvas}>Desligar Canvas</button>
-          : <button className="btn-editar" disabled={ligar.isPending} onClick={ligarCanvas}>{ligar.isPending ? 'Procurando…' : 'Ligar ao Canvas'}</button>}
-        <button className="btn-editar" onClick={novaSenha}>Nova senha</button>
-        {!souEu && (
-          <button className="btn-editar" onClick={alternarAtivo}>{u.ativo ? 'Desativar' : 'Reativar'}</button>
-        )}
-      </td>
+      {/* Nada de botão desabilitado para quem não é administrador: a coluna
+          inteira some, e o cabeçalho junto. Botão cinza convida a clicar e
+          ensina a pessoa a esperar recusa da tela. */}
+      {souAdministrador && (
+        <td>
+          <button className="btn-editar" onClick={renomear}>Renomear</button>
+          <button className="btn-editar" onClick={novaSenha}>Nova senha</button>
+          {!souEu && (
+            <button className="btn-editar" onClick={alternarAtivo}>{u.ativo ? 'Desativar' : 'Reativar'}</button>
+          )}
+        </td>
+      )}
     </tr>
   );
 }
@@ -280,7 +300,7 @@ function LinhaAluno({ aluno: a }: { aluno: AcessoAluno }) {
       <td><Link to={`/alunos/${a.id}`}>{a.nome}</Link></td>
       <td>{a.matricula || '—'}</td>
       <td>{a.email || <span className="sim-selo-canvas">sem e-mail</span>}</td>
-      <td>{a.primeiroAcessoFeito ? <span className="sim-selo-ok">feito</span> : <span className="sim-selo-divergente">nunca entrou</span>}</td>
+      <td>{a.temCanvas ? <span className="sim-selo-ok">sim</span> : <span className="sim-selo-divergente">sem conta no Canvas</span>}</td>
       <td>{fmtQuando(a.ultimoLoginEm)}</td>
     </tr>
   );
@@ -325,9 +345,9 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
         </Campo>
       </Linha2>
       <p className="agendar__ajuda">
-        Use o mesmo e-mail do Canvas: o SAS liga o login pelo Canvas sozinho — agora, ou na
-        primeira vez que a pessoa entrar por ele. Com outro e-mail a conta funciona igual, só
-        entra por senha.
+        A conta nasce <b>coordenadora</b> e entra por e-mail e senha. Promover alguém a
+        administrador — quem cria logins e altera nota pelo painel — é passo de operação, feito
+        com a coordenação junto, e não um menu aqui (docs/35 §11.2).
       </p>
       {erro && <div className="agendar__erro">{erro}</div>}
     </Dialogo>

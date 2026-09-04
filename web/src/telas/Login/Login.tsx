@@ -6,21 +6,31 @@ import { ErroApi } from '../../servicos/http';
 import * as sessao from '../../servicos/sessao';
 import { PainelDireito } from './PainelDireito';
 import { PortaDoAluno } from '../Aluno/PortaDoAluno';
-import { MODOS } from './modos';
+import { ROTULOS_COORDENACAO } from './modos';
 import type { Modo } from './modos';
 
-// Tela de login. Dois modos (aluno / coordenação) que trocam o texto da
-// coluna esquerda e o alvo da autenticação, e um formulário de primeiro
-// acesso, em que o aluno cria a própria senha validando matrícula + e-mail
-// do Canvas.
-
-type Formulario = 'login' | 'primeiro-acesso';
+// Tela de login: duas portas, uma delas com formulário.
+//
+// 'aluno' devolve a `PortaDoAluno` inteira — hoje só o botão do Canvas.
+// 'coordenador' desenha o `.lp` institucional com e-mail + senha, e é por onde
+// entram coordenador E administrador: a porta é a mesma, o que muda é o
+// `papel` que volta do servidor (docs/35 §11).
+//
+// ⚠️ O formulário de "primeiro acesso" saiu daqui em 04/09, junto com o do
+// aluno na porta: ele criava/redefinia a senha do aluno, e a senha do aluno
+// deixou de existir (docs/35 §11.5).
+//
+// ⚠️ O botão "Entrar com o Canvas" também saiu DESTE lado. Ele continua na
+// porta do aluno, mas a coordenação não entra mais por lá — clicar levaria ao
+// `?canvas=sem-conta`, que é uma recusa correta explicada de um jeito que não
+// serviria para quem tem conta (docs/35 §11.6).
 
 export function Login() {
   const navegar = useNavigate();
   const [params] = useSearchParams();
-  // Canvas como identidade (docs/18 §4.2). O botão só existe se o servidor
-  // tiver a Developer Key; sem ela, a tela é a de sempre.
+  // Canvas como identidade (docs/18 §4.2). O botão da porta do aluno só existe
+  // se o servidor tiver a Developer Key; sem ela, ninguém entra por lá — e a
+  // porta diz isso, em vez de ficar sem nada.
   const [ssoCanvas, setSsoCanvas] = useState(false);
   useEffect(() => {
     api.ssoCanvasDisponivel().then((r) => setSsoCanvas(r.disponivel)).catch(() => setSsoCanvas(false));
@@ -36,7 +46,8 @@ export function Login() {
   const avisoCanvas = {
     cancelado: null,
     recusado: `O Canvas recusou o login: ${MOTIVO_CANVAS[motivo] ?? motivo}`,
-    falhou: 'O Canvas não confirmou o login. Tente de novo, ou entre com matrícula e senha.',
+    // Sem "ou entre com matrícula e senha": essa saída não existe mais.
+    falhou: 'O Canvas não confirmou o login. Tente de novo em alguns instantes.',
     // A recusa certa (o SAS decide quem entra), dita de um jeito que ensina o
     // que fazer. A versão anterior — "Procure a coordenação" — mandava a
     // pessoa embora sem dizer o que pedir (docs/33 §6).
@@ -50,11 +61,10 @@ export function Login() {
       + 'acesso ao SAS é criado aqui dentro.',
   }[params.get('canvas') ?? ''] ?? null;
   const [modo, setModo] = useState<Modo>('aluno');
-  const [formulario, setFormulario] = useState<Formulario>('login');
   // Chave de animação: mudar de modo reinicia a transição de entrada do texto.
   const [geracao, setGeracao] = useState(0);
 
-  const m = MODOS[modo];
+  const m = ROTULOS_COORDENACAO;
 
   function trocarModo(novo: Modo) {
     if (novo === modo) return;
@@ -62,16 +72,8 @@ export function Login() {
     setGeracao((g) => g + 1);
   }
 
-  function abrirPrimeiroAcesso() {
-    setFormulario('primeiro-acesso');
-    // O primeiro acesso é do aluno; entrar por ele no modo coordenação
-    // deixaria o texto da esquerda contradizendo o formulário.
-    if (modo !== 'aluno') trocarModo('aluno');
-  }
-
-  /** Login e primeiro acesso devolvem o mesmo shape — a sessão nasce igual. */
   function entrar(dados: {
-    access_token: string; tipo: string; nome: string; aluno_id?: string; temFoto: boolean;
+    access_token: string; tipo: string; papel?: string; nome: string; aluno_id?: string; temFoto: boolean;
   }) {
     sessao.iniciar(dados);
     navegar('/', { replace: true });
@@ -79,14 +81,10 @@ export function Login() {
 
   // ⚠️ A PORTA DO ALUNO SUBSTITUI O LOGIN INTEIRO, não só a coluna da direita.
   // São ~900 alunos contra uma dúzia de coordenadores: o padrão é a porta, e a
-  // travessia para o outro lado é um link discreto no rodapé dela. O `.lp`
-  // institucional abaixo continua servindo a coordenação sem uma linha
-  // alterada — inclusive o `FormularioLogin`, que a porta não reusa porque
-  // veste `.lp-*` e o desenho do aluno é outro (docs/24 §7.1).
-  if (modo === 'aluno' && formulario === 'login') {
+  // travessia para o outro lado é um link discreto no rodapé dela.
+  if (modo === 'aluno') {
     return (
       <PortaDoAluno
-        onEntrar={entrar}
         ssoCanvas={ssoCanvas}
         avisoCanvas={avisoCanvas}
         onIrParaCoordenacao={() => trocarModo('coordenador')}
@@ -117,60 +115,33 @@ export function Login() {
 
           <div className="lp-toggle">
             <button
-              className={`lp-toggle__btn${modo === 'aluno' ? ' is-active' : ''}`}
+              className="lp-toggle__btn"
               onClick={() => trocarModo('aluno')}
             >
               <IconePessoa />
               Sou aluno
             </button>
-            <button
-              className={`lp-toggle__btn${modo === 'coordenador' ? ' is-active' : ''}`}
-              onClick={() => trocarModo('coordenador')}
-            >
+            <button className="lp-toggle__btn is-active">
               <IconeEscudo />
               Sou coordenador
             </button>
           </div>
 
-          {formulario === 'login' ? (
-            <>
-              {ssoCanvas && (
-                <div className="lp-sso">
-                  {/* Link, não fetch: o browser precisa navegar até o Canvas e
-                      voltar. É o que faz "já logado entra direto" funcionar. */}
-                  <a className="lp-sso__btn" href="/api/auth/canvas/iniciar?proximo=/">
-                    Entrar com o Canvas
-                  </a>
-                  <span className="lp-sso__ou">ou</span>
-                </div>
-              )}
-              {avisoCanvas && <div className="lp-error">{avisoCanvas}</div>}
-              <FormularioLogin modo={modo} rotulos={m} onEntrar={entrar} />
-              <p className="lp-first-access">
-                {'Primeiro acesso? '}
-                <a href="#" className="lp-link" onClick={(e) => { e.preventDefault(); abrirPrimeiroAcesso(); }}>
-                  Criar minha senha
-                </a>
-              </p>
-            </>
-          ) : (
-            <FormularioPrimeiroAcesso onEntrar={entrar} onVoltar={() => setFormulario('login')} />
-          )}
+          <FormularioLogin rotulos={m} onEntrar={entrar} />
         </div>
       </div>
 
-      <PainelDireito modo={modo} geracao={geracao} />
+      <PainelDireito geracao={geracao} />
     </div>
     </div>
   );
 }
 
 function FormularioLogin({
-  modo, rotulos, onEntrar,
+  rotulos, onEntrar,
 }: {
-  modo: Modo;
-  rotulos: (typeof MODOS)[Modo];
-  onEntrar: (dados: { access_token: string; tipo: string; nome: string; aluno_id?: string; temFoto: boolean }) => void;
+  rotulos: typeof ROTULOS_COORDENACAO;
+  onEntrar: (dados: { access_token: string; tipo: string; papel?: string; nome: string; aluno_id?: string; temFoto: boolean }) => void;
 }) {
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
@@ -185,7 +156,8 @@ function FormularioLogin({
     setEnviando(true);
     setErro('');
     try {
-      onEntrar(await api.login({ tipo: modo, usuario: usuario.trim(), senha }));
+      // `tipo` fixo: é o único que `/auth/login` ainda aceita.
+      onEntrar(await api.login({ tipo: 'coordenador', usuario: usuario.trim(), senha }));
     } catch (e) {
       setErro(mensagemDeErro(e, 'Credenciais inválidas. Verifique seus dados e tente novamente.'));
       setTremor((t) => t + 1);
@@ -244,79 +216,12 @@ function FormularioLogin({
         <span>{rotulos.submitText}</span>
         <IconeSeta />
       </button>
-    </form>
-  );
-}
 
-function FormularioPrimeiroAcesso({
-  onEntrar, onVoltar,
-}: {
-  onEntrar: (dados: { access_token: string; tipo: string; nome: string; aluno_id?: string; temFoto: boolean }) => void;
-  onVoltar: () => void;
-}) {
-  const [matricula, setMatricula] = useState('');
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [confirmar, setConfirmar] = useState('');
-  const [erro, setErro] = useState('');
-  const [enviando, setEnviando] = useState(false);
-
-  async function enviar(ev: React.FormEvent) {
-    ev.preventDefault();
-    setErro('');
-
-    if (!matricula.trim() || !email.trim()) return setErro('Preencha matrícula e e-mail.');
-    if (senha.length < 8) return setErro('A senha precisa ter pelo menos 8 caracteres.');
-    if (senha !== confirmar) return setErro('As senhas não conferem.');
-
-    setEnviando(true);
-    try {
-      onEntrar(await api.primeiroAcesso({
-        matricula: matricula.trim(),
-        email: email.trim(),
-        senha_nova: senha,
-      }));
-    } catch (e) {
-      setErro(mensagemDeErro(e, 'Não foi possível validar seus dados.'));
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  return (
-    <form className="lp-form" noValidate onSubmit={enviar}>
-      <Campo
-        rotulo="Matrícula" icone={<IconePessoa pequeno />} tipo="text"
-        placeholder="sua matrícula" autoComplete="username"
-        valor={matricula} onChange={setMatricula}
-      />
-      <Campo
-        rotulo="E-mail cadastrado no Canvas" icone={<IconeEnvelope />} tipo="email"
-        placeholder="seu e-mail institucional" autoComplete="email"
-        valor={email} onChange={setEmail}
-      />
-      <Campo
-        rotulo="Nova senha" icone={<IconeCadeado />} tipo="password"
-        placeholder="mínimo 8 caracteres" autoComplete="new-password"
-        valor={senha} onChange={setSenha}
-      />
-      <Campo
-        rotulo="Confirmar nova senha" icone={<IconeCadeado />} tipo="password"
-        placeholder="repita a nova senha" autoComplete="new-password"
-        valor={confirmar} onChange={setConfirmar}
-      />
-
-      {erro && <div className="lp-error">{erro}</div>}
-
-      <button type="submit" className="lp-submit" disabled={enviando}>
-        <span>Criar senha e entrar</span>
-        <IconeSeta />
-      </button>
-
-      <p className="lp-first-access" style={{ marginTop: 14 }}>
-        <a href="#" className="lp-link" onClick={(e) => { e.preventDefault(); onVoltar(); }}>
-          Voltar ao login
-        </a>
+      {/* Não há "primeiro acesso" nem "esqueci a senha" aqui: a senha da
+          coordenação é redefinida pelo administrador, no painel
+          /administracao, e entregue pelo canal do colégio (docs/35 §11.7). */}
+      <p className="lp-first-access">
+        Esqueceu a senha? Peça ao administrador do SAS para redefinir.
       </p>
     </form>
   );
@@ -393,15 +298,6 @@ function IconeCadeado() {
     <svg className="lp-field__icon" width="15" height="15" viewBox="0 0 24 24" strokeWidth="2" {...traco}>
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
-
-function IconeEnvelope() {
-  return (
-    <svg className="lp-field__icon" width="15" height="15" viewBox="0 0 24 24" strokeWidth="2" {...traco}>
-      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-      <polyline points="22,6 12,13 2,6" />
     </svg>
   );
 }

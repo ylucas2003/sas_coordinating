@@ -2,17 +2,25 @@
 """Cria ou atualiza um usuário da coordenação (docs/15 §Etapa 7, item 7.1).
 
 Substitui a credencial única de COORDENADOR_EMAIL/COORDENADOR_SENHA por uma
-conta por pessoa, na tabela `usuario_coordenacao` (migration 0021).
+conta por pessoa, na tabela `usuario_coordenacao` (migration 0021), com o
+`papel` da 0045 dizendo o que ela pode a mais (docs/35 §11).
 
 Uso (a partir de api/):
     python -m scripts.criar_coordenador --listar
     python -m scripts.criar_coordenador --email leo@aridesa.com --nome "Leonardo"
     python -m scripts.criar_coordenador --email leo@aridesa.com --nome "Leonardo" --senha "..."
+    python -m scripts.criar_coordenador --email leo@aridesa.com --nome "Leonardo" --papel administrador
     python -m scripts.criar_coordenador --email leo@aridesa.com --desativar
 
 Sem --senha, uma é sorteada. Ela NÃO vai para o stdout: num Job de cluster o
 stdout é capturado pelo coletor de logs e retido pela política padrão. Vai para
 um arquivo com chmod 600, que quem provisiona lê e apaga.
+
+⚠️ **Quando o e-mail já existe, este script ATUALIZA a linha e mantém o `id`.**
+Isso não é conveniência: `evento_auditoria.ator_id` aponta para esse id, e uma
+conta nova deixaria a trilha inteira da pessoa órfã (docs/35 §11.2). É por isso
+que promover o administrador é `--papel administrador` na conta que já existe,
+e nunca criar outra.
 """
 
 from __future__ import annotations
@@ -31,7 +39,9 @@ load_dotenv()
 from app.auth import hash_senha          # noqa: E402
 from app.supabase_client import get_supabase  # noqa: E402
 
-SENHA_MINIMA = 12   # mais exigente que a de aluno (8): esta conta lê a base toda
+SENHA_MINIMA = 12   # esta conta lê a base toda — e a de administrador também escreve nota
+
+PAPEIS = ("coordenador", "administrador")
 
 
 def _destino_da_senha(nome_arquivo: str) -> pathlib.Path:
@@ -61,7 +71,7 @@ def _mascarar_email(email: str) -> str:
 def _listar(cliente) -> int:
     linhas = (
         cliente.table("usuario_coordenacao")
-        .select("email, nome, ativo, criado_em, ultimo_login_em")
+        .select("email, nome, ativo, papel, criado_em, ultimo_login_em")
         .order("nome")
         .execute()
         .data
@@ -71,10 +81,11 @@ def _listar(cliente) -> int:
         print("Nenhum usuário de coordenação. O login da coordenação NÃO vai funcionar.")
         print("Crie o primeiro com --email e --nome.")
         return 0
-    print(f"{'ATIVO':<6} {'NOME':<28} {'E-MAIL':<28} ÚLTIMO LOGIN")
+    print(f"{'ATIVO':<6} {'PAPEL':<14} {'NOME':<28} {'E-MAIL':<28} ÚLTIMO LOGIN")
     for u in linhas:
         print(
             f"{('sim' if u.get('ativo') else 'não'):<6} "
+            f"{(u.get('papel') or 'coordenador'):<14} "
             f"{(u.get('nome') or '')[:28]:<28} "
             f"{_mascarar_email(u.get('email')):<28} "
             f"{(u.get('ultimo_login_em') or '—')[:19]}"
@@ -83,11 +94,13 @@ def _listar(cliente) -> int:
     return 0
 
 
-def _gravar(cliente, email: str, nome: str, senha: str | None, desativar: bool) -> int:
+def _gravar(
+    cliente, email: str, nome: str, senha: str | None, desativar: bool, papel: str | None
+) -> int:
     email = email.strip().lower()
     existente = (
         cliente.table("usuario_coordenacao")
-        .select("id, nome")
+        .select("id, nome, papel")
         .eq("email", email)
         .limit(1)
         .execute()
@@ -115,14 +128,24 @@ def _gravar(cliente, email: str, nome: str, senha: str | None, desativar: bool) 
 
     dados = {"email": email, "nome": nome, "senha_hash": hash_senha(senha), "ativo": True}
     if existente:
+        # `papel` só entra no UPDATE quando foi PEDIDO. Mandar o default junto
+        # rebaixaria o administrador a coordenador toda vez que alguém rodasse
+        # o script para trocar a senha dele — silenciosamente, e o sintoma
+        # apareceria só quando a pessoa clicasse em algo e levasse 403.
+        if papel is not None:
+            dados["papel"] = papel
         cliente.table("usuario_coordenacao").update(dados).eq("id", existente[0]["id"]).execute()
         acao = "atualizado"
+        papel_final = papel or existente[0].get("papel") or "coordenador"
     else:
+        # Na criação o default vale: conta nova nasce coordenador.
+        dados["papel"] = papel or "coordenador"
         cliente.table("usuario_coordenacao").insert(dados).execute()
         acao = "criado"
+        papel_final = dados["papel"]
 
     destino.write_text(f"{email}\t{senha}\n", encoding="utf-8")
-    print(f"Usuário {acao}: {nome} <{email}>")
+    print(f"Usuário {acao}: {nome} <{email}> — papel: {papel_final}")
     print(f"Senha gravada em {destino} (chmod 600).")
     print("Entregue pelo canal do colégio e APAGUE o arquivo.")
     return 0
@@ -134,6 +157,11 @@ def main() -> int:
     p.add_argument("--email")
     p.add_argument("--nome")
     p.add_argument("--senha")
+    # Sem default no argparse de propósito: `None` significa "não mexa no
+    # papel", e é o que distingue criar (nasce coordenador) de atualizar
+    # (mantém o que era). Ver o comentário em _gravar.
+    p.add_argument("--papel", choices=PAPEIS, default=None,
+                   help="coordenador (padrão ao criar) ou administrador")
     p.add_argument("--desativar", action="store_true")
     args = p.parse_args()
 
@@ -144,7 +172,7 @@ def main() -> int:
         p.error("informe --listar ou --email")
     if not args.nome and not args.desativar:
         p.error("--nome é obrigatório ao criar ou atualizar")
-    return _gravar(cliente, args.email, args.nome or "", args.senha, args.desativar)
+    return _gravar(cliente, args.email, args.nome or "", args.senha, args.desativar, args.papel)
 
 
 if __name__ == "__main__":

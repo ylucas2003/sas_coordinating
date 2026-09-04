@@ -1,8 +1,26 @@
 """Utilitários de autenticação JWT.
 
-- Alunos: autenticados por matrícula + senha (PBKDF2-HMAC-SHA256, formato versionado).
-- Coordenadores: autenticados por e-mail + senha configurada via env.
-- Scheduler (AWS EventBridge): segredo compartilhado no header X-Scheduler-Secret.
+Quem entra, e por onde (docs/35 §11):
+
+- **Aluno**: só pelo Canvas (`routes/auth_canvas.py`). Não existe mais senha de
+  aluno no SAS — o ramo `tipo == "aluno"` de `/auth/login` e a rota
+  `/auth/primeiro-acesso` saíram em 04/09. `verificar_senha` continua aqui
+  porque a coordenação usa, e `aluno.senha_hash` continua na tabela com os
+  hashes que já existiam: apagar coluna perde dado sem ganhar nada.
+- **Coordenação**: e-mail + senha na tabela `usuario_coordenacao` (0021), com
+  o `papel` da 0045 dizendo o que a conta pode a mais.
+- **Scheduler** (hoje o cron do VPS; o nome EventBridge é resíduo da migração):
+  segredo compartilhado no header X-Scheduler-Secret, não JWT.
+
+⚠️ **`tipo` e `papel` são coisas diferentes, e confundir os dois derruba
+acesso.** `tipo` diz QUE TIPO DE SESSÃO é — aluno ou coordenação — e é o que
+`chat/rotas.py`, `routes/foto_perfil.py` e o casco do front leem para escolher
+namespace, tabela e tela. `papel` diz o que uma sessão de COORDENAÇÃO pode a
+mais. Por isso o administrador tem `tipo: "coordenador"` e `papel:
+"administrador"`, e não um `tipo` próprio: um `tipo: "administrador"` faria o
+admin cair no `else` de cada um daqueles três lugares e perder o chat, a foto e
+as 39 rotas de coordenação de uma vez — o oposto do que foi pedido (docs/35
+§11.3).
 """
 
 import hashlib
@@ -28,6 +46,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 horas
 # qualquer aluno. Assinatura válida não é identidade válida; o `tipo` é que diz
 # para que o token serve.
 TIPOS_DE_SESSAO = frozenset({"aluno", "coordenador"})
+
+# Os papéis de uma sessão de COORDENAÇÃO (coluna `papel`, migration 0045).
+# Administrador não é um `tipo` — ver o ⚠️ do docstring do módulo.
+PAPEIS_DE_COORDENACAO = frozenset({"coordenador", "administrador"})
 
 # Hash de senha: pbkdf2_sha256$<iteracoes>$<salt_hex>$<hash_hex>.
 # O prefixo identifica algoritmo+parâmetros gravados no próprio hash, então
@@ -122,11 +144,51 @@ async def get_current_aluno(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
-async def get_current_coordenador(user: dict = Depends(get_current_user)) -> dict:
+def papel_da_sessao(user: dict) -> str | None:
+    """O papel de uma sessão de coordenação, ou None se não for uma.
+
+    Um token de coordenação SEM `papel` vale como coordenador. Não é
+    tolerância a dado ruim: os tokens valem 8 horas, então na virada da chave
+    há sessões em circulação emitidas antes da 0045 — e a alternativa
+    (recusar) deslogaria a coordenação inteira no meio do expediente. Cair
+    para o papel MENOS poderoso é o lado seguro: um token velho não vira
+    administrador, só continua coordenador.
+    """
     if user.get("tipo") != "coordenador":
+        return None
+    papel = user.get("papel")
+    return papel if papel in PAPEIS_DE_COORDENACAO else "coordenador"
+
+
+async def get_current_coordenador(user: dict = Depends(get_current_user)) -> dict:
+    """Guard de TODA tela de coordenação — 39 usos em 10 arquivos de rota.
+
+    Aceita os DOIS papéis de propósito: administrador é coordenador com mais
+    poderes, não outro cargo. Exigir `papel == "coordenador"` aqui trancaria o
+    administrador fora de tudo que ele já usa todo dia (docs/35 §11.3).
+    """
+    if papel_da_sessao(user) is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito à coordenação",
+        )
+    return user
+
+
+async def get_current_administrador(
+    user: dict = Depends(get_current_coordenador),
+) -> dict:
+    """O que só o administrador pode: criar/editar conta de login e alterar
+    nota pelo painel (docs/35 §11.7).
+
+    Depende de `get_current_coordenador` para a recusa vir na ordem certa —
+    quem não é da coordenação leva o 403 genérico, e não uma mensagem que
+    revela a existência de um papel de administrador.
+    """
+    if papel_da_sessao(user) != "administrador":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta ação é restrita ao administrador do SAS.",
         )
     return user
 
