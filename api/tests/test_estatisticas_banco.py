@@ -305,3 +305,84 @@ def test_a_coordenacao_girando_o_botao_muda_o_ranking(cliente):
     girado = {t.codigo: t.importancia for t in r.topicos}
 
     assert girado != de_fabrica, "girar o botão tem de mover o índice"
+
+
+# ─── O denominador do índice não é o de "% da prova" ─────────────────────
+#
+# ⚠️ Estes testes existem por causa de um defeito REAL, achado em 04/09/2026
+# cruzando o índice recém-escrito com as questões sem classificação que o
+# docs/35 mediu — e ele não quebrou teste nenhum quando foi introduzido.
+#
+# `questoesPorAno` conta tudo que a banca cobrou. Usá-lo no índice afirma, para
+# cada questão sem tópico, que ela NÃO é daquele tópico — o que é falso por
+# construção: não sabemos o assunto dela.
+#
+# Em produção o estrago era grande e concentrado: Química · IME tem as provas
+# INTEIRAS de 2022, 2023, 2024 e 2025 sem classificar, e a meia-vida de 5 anos
+# faz esses quatro anos concentrarem 45% do peso. Cada tópico saía de 36% a 62%
+# abaixo da verdade, e Química parecia sistematicamente menos importante que
+# Física — comparação entre matérias sem sentido, e sem erro na tela.
+#
+# O acervo de brinquedo tem a mesma forma: 2021 é o ano MAIS RECENTE (peso
+# máximo) e sua única questão não tem ligação nenhuma.
+
+
+def test_o_indice_ignora_ano_inteiramente_sem_classificacao(cliente):
+    """2021 tem 1 questão e 0 classificadas: ele não pode entrar no índice.
+
+    Entrando, todo tópico recebe `p = 0` no ano de MAIOR peso — e o índice
+    inteiro desce junto, sem nada na tela indicando por quê.
+    """
+    r = estatisticas.recorrencia(cliente, materia="Matemática")
+
+    assert r.questoesPorAno == {1996: 1, 2019: 3, 2021: 1}, "o total conta tudo"
+    assert r.questoesClassificadasPorAno == {1996: 1, 2019: 3}, "o índice, só as com tópico"
+
+
+def test_a_questao_sem_topico_nao_derruba_o_indice_de_quem_tem(cliente):
+    """A trava direta: acrescentar uma questão SEM classificação num ano novo
+    não pode mexer no índice de nenhum tópico. Antes do conserto, mexia — e
+    para baixo, porque o ano entrava no denominador com numerador zero."""
+    antes = {t.codigo: t.importancia for t in
+             estatisticas.recorrencia(cliente, materia="Matemática").topicos}
+
+    cliente.db["questao_vestibular"]["ita_2024_f1_q99"] = {
+        "id": "ita_2024_f1_q99", "materia": "Matemática",
+        "ano": 2024, "fase": 1, "vestibular": "ITA",
+    }
+    depois = {t.codigo: t.importancia for t in
+              estatisticas.recorrencia(cliente, materia="Matemática").topicos}
+
+    assert antes == depois
+
+
+def test_a_cobertura_continua_visivel_apesar_do_conserto(cliente):
+    """⚠️ Corrigir o viés NÃO inventa o dado que falta.
+
+    O risco de mudar o denominador é o número passar a parecer completo. Por
+    isso `semClassificacao` continua na resposta, e a tela segue obrigada a
+    mostrá-lo (docs/22 §8): o aluno estudaria um recorte incompleto sem saber
+    que é incompleto.
+    """
+    r = estatisticas.recorrencia(cliente, materia="Matemática")
+
+    assert r.semClassificacao == 1
+    assert sum(r.questoesClassificadasPorAno.values()) + r.semClassificacao == r.totalQuestoes
+
+
+def test_o_indice_sobe_quando_a_classificacao_chega(cliente):
+    """O outro lado da moeda, e a razão de a P2 do Sprint 6 valer a pena:
+    classificar uma questão faz o índice do tópico dela SUBIR, porque o ano
+    passa a existir para o índice."""
+    antes = next(t.importancia for t in
+                 estatisticas.recorrencia(cliente, materia="Matemática").topicos
+                 if t.codigo == "1.1")
+
+    cliente.db["questao_vestibular_topico"][99] = {
+        "questao_id": "ita_2021_f1_q04", "materia": "Matemática", "topico_codigo": "1.1",
+    }
+    depois = next(t.importancia for t in
+                  estatisticas.recorrencia(cliente, materia="Matemática").topicos
+                  if t.codigo == "1.1")
+
+    assert depois > antes

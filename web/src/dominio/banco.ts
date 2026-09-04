@@ -262,8 +262,21 @@ export function combinarEstatisticas(
       .map((topico) => {
         const outro = deB.get(topico.codigo);
         if (!outro) return topico;
+        // ⚠️ `importancia` e `importanciaRanking` saem de propósito.
+        //
+        // Contagem soma; média ponderada NÃO. O índice de cada resposta é uma
+        // média pesada por recência sobre o acervo DAQUELA banca — a média de
+        // duas médias não é a média do conjunto, e o ITA e o IME nem têm os
+        // mesmos anos (2008 contra 1996, migration 0031). Deixar o spread
+        // carregar o índice do ITA para a visão "Os dois" daria um número
+        // errado com cara de certo.
+        //
+        // Quem precisa do índice do conjunto pede ao servidor o recorte sem
+        // vestibular: é lá que ele é calculado, uma vez, para todo mundo ver o
+        // mesmo número (docs/34 §5 · D3).
+        const { importancia: _i, importanciaRanking: _r, ...semIndice } = topico;
         return {
-          ...topico,
+          ...semIndice,
           total: topico.total + outro.total,
           porAno: somarContagens(topico.porAno, outro.porAno),
           porFase: somarContagens(topico.porFase, outro.porFase),
@@ -275,6 +288,10 @@ export function combinarEstatisticas(
     // anos diferentes (migration 0031).
     anos: [...new Set([...a.anos, ...b.anos])].sort((x, y) => x - y),
     questoesPorAno: somarContagens(a.questoesPorAno, b.questoesPorAno),
+    questoesClassificadasPorAno: somarContagens(
+      a.questoesClassificadasPorAno,
+      b.questoesClassificadasPorAno,
+    ),
     totalQuestoes: a.totalQuestoes + b.totalQuestoes,
     semClassificacao: a.semClassificacao + b.semClassificacao,
   };
