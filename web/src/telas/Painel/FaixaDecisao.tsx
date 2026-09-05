@@ -41,6 +41,11 @@ export function FaixaDecisao({
   const [verTodos, setVerTodos] = useState(false);
 
   const contagem = contarDecisoes(alunosNoRecorte, classificacao);
+  // Os NÚMEROS desta faixa subiram para a fileira de KPIs: eles e os KPIs
+  // diziam a mesma coisa em duas alturas, e o olho passava por quatro estratos
+  // antes de chegar à tabela. O que sobra aqui é o que a tabela não responde —
+  // os cartões de alerta. A contagem continua sendo lida para decidir se há
+  // algo a mostrar.
   const { visiveis, ocultos } = alertasDoRecorte(alertas, alunosNoRecorte, recorteAtivo);
   const mostrados = verTodos ? visiveis : visiveis.slice(0, VISIVEIS_POR_PADRAO);
 
@@ -52,24 +57,6 @@ export function FaixaDecisao({
       <div className="faixa-decisao__topo">
         <h2 className="faixa-decisao__titulo">O que merece atenção</h2>
         {nomeCriterio && <span className="faixa-decisao__regua">{`régua: ${nomeCriterio}`}</span>}
-      </div>
-
-      <div className="faixa-decisao__numeros">
-        <Numero
-          valor={contagem.cortados}
-          rotulo="abaixo do corte"
-          tom={contagem.cortados > 0 ? 'tone-vermelho' : ''}
-        />
-        <Numero
-          valor={contagem.noLimite}
-          rotulo="passaram, mas perto do corte"
-          tom={contagem.noLimite > 0 ? 'tone-ambar' : ''}
-        />
-        {/* Sem nota não é desempenho ruim — é ausência de dado, e some da
-            faixa quando não há nenhum, para não virar ruído fixo. */}
-        {contagem.semNota > 0 && (
-          <Numero valor={contagem.semNota} rotulo="sem nota no ciclo" tom="" />
-        )}
       </div>
 
       {semNada ? (
@@ -110,11 +97,3 @@ export function FaixaDecisao({
   );
 }
 
-function Numero({ valor, rotulo, tom }: { valor: number; rotulo: string; tom: string }) {
-  return (
-    <div className="faixa-decisao__numero">
-      <span className={`faixa-decisao__valor ${tom}`}>{valor}</span>
-      <span className="faixa-decisao__rotulo">{rotulo}</span>
-    </div>
-  );
-}

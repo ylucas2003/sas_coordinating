@@ -145,3 +145,39 @@ export function EloQuieto({ para, texto, contagem, semContagem = false }: PropsE
     </Link>
   );
 }
+
+interface PropsEntrada {
+  olho: string;
+  /** A pergunta, numa linha só. */
+  titulo: string;
+  /** Uma linha de números vivos. `null` enquanto carrega ou quando não há. */
+  numeros: string | null;
+  para: string;
+}
+
+/**
+ * O CARD DE ENTRADA — a versão baixa do card de campo, de ~110px.
+ *
+ * Existe para a faixa de entrada do Painel, e a diferença de altura é a
+ * decisão: o Painel NÃO vira um hub de campos. Na aba do aluno nenhum dos três
+ * campos domina; aqui um domina esmagadoramente — a varredura. Virar hub
+ * cobraria um clique a mais na tarefa mais frequente do dia, todo dia
+ * (docs/brief-claude-design-coordenacao.md §Onde ele entra).
+ *
+ * ⚠️ A faixa ROLA PARA FORA — não é sticky. Você a vê ao chegar e ela some
+ * assim que o trabalho começa. É assim que o Painel ganha os cards sem cobrar
+ * espaço permanente da tarefa dominante.
+ */
+export function CartaoDeEntrada({ olho, titulo, numeros, para }: PropsEntrada) {
+  return (
+    <Link className="campo-entrada" to={para}>
+      <span className="campo-entrada__olho">{olho}</span>
+      <span className="campo-entrada__titulo">{titulo}</span>
+      {numeros ? (
+        <span className="campo-entrada__numeros">{numeros}</span>
+      ) : (
+        <span className="campo-entrada__esqueleto" aria-hidden="true" />
+      )}
+    </Link>
+  );
+}

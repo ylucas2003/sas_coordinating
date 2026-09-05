@@ -613,30 +613,6 @@
   color: var(--color-text-tertiary);
 }
 
-.faixa-decisao__numeros {
-  display: flex;
-  gap: 28px;
-  flex-wrap: wrap;
-}
-
-.faixa-decisao__numero {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-}
-
-.faixa-decisao__valor {
-  font-size: 22px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-body);
-}
-
-.faixa-decisao__rotulo {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
 .faixa-decisao__alertas {
   display: flex;
   flex-direction: column;
@@ -686,10 +662,6 @@
 
   /* No celular os números viram coluna: lado a lado, "passaram, mas perto do
      corte" quebra em três linhas e o número perde o rótulo de vista. */
-  .faixa-decisao__numeros {
-    gap: 10px;
-    flex-direction: column;
-  }
 }
 
 

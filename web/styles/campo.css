@@ -202,3 +202,68 @@
     font-size: 22px;
   }
 }
+
+
+/* ─── A faixa de entrada do Painel ───────────────────────────────────────
+   Três cards baixos, de 110px, acima do estrato de recorte.
+
+   ⚠️ Ela ROLA PARA FORA. Nada de `position: sticky` aqui: o Painel é a tela
+   de varrer 900 pessoas, e a faixa existe para ser vista na chegada, não para
+   cobrar espaço permanente da tarefa dominante. Baixa o bastante para o
+   cabeçalho da tabela ainda aparecer a 900px de altura.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.campo-faixa-entrada {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.campo-entrada {
+  height: 110px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-surface);
+  border: var(--color-border-largura) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 150ms;
+}
+
+.campo-entrada:hover {
+  border-color: var(--color-dado);
+  text-decoration: none;
+}
+
+.campo-entrada__olho {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--color-text-tertiary);
+}
+
+.campo-entrada__titulo {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-magnitude);
+}
+
+.campo-entrada__numeros {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.campo-entrada__esqueleto {
+  height: 11px;
+  width: 70%;
+  border-radius: 4px;
+  background: var(--color-surface-inset);
+}
