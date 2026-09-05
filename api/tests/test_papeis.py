@@ -22,8 +22,15 @@ E há um quarto, que não é de papel mas cai no mesmo lugar: `/auth/login`
 morrendo quando a coluna `papel` não existe na base (G7). Os três últimos
 testes cobrem isso.
 
-Chamamos as dependências direto, com um dict de sessão: são funções puras
-sobre o payload do token, e passar por HTTP só acrescentaria ruído. A cadeia
+Desde 05/09 o papel também MUDA pela tela (`PATCH .../coordenadores/{id}/papel`),
+e isso trouxe um risco novo, na direção contrária: rebaixar sem efeito. O
+`papel` viaja num token de 8 h, então um ex-administrador com sessão aberta
+poderia criar outra conta de administrador e desfazer a própria queda. Por
+isso o guard passou a reler a tabela, e por isso todo teste daqui roda contra
+um `FakeCliente` — o guard deixou de ser função pura sobre o payload.
+
+Chamamos as dependências direto, com um dict de sessão, e o handler da rota de
+papel do mesmo jeito: passar por HTTP só acrescentaria ruído. A cadeia
 real (`get_current_administrador` depende de `get_current_coordenador`) é
 reproduzida à mão em `_pela_cadeia_de_administrador`, e há um teste separado
 garantindo que ela continua sendo essa.
@@ -42,6 +49,7 @@ from pydantic import ValidationError
 from app import auth
 from app.routes import administracao, notas
 from app.routes import auth as rotas_auth
+from tests.fake_postgrest import FakeCliente
 
 SEGREDO = "segredo-de-teste-com-mais-de-32-caracteres"
 
@@ -50,6 +58,45 @@ ADMINISTRADOR = {"sub": "u-1", "tipo": "coordenador", "papel": "administrador"}
 COORDENADOR = {"sub": "u-2", "tipo": "coordenador", "papel": "coordenador"}
 COORDENADOR_LEGADO = {"sub": "u-3", "tipo": "coordenador"}  # token emitido antes da 0045
 ALUNO = {"sub": "a-1", "tipo": "aluno", "aluno_id": "a-1"}
+
+
+def _contas() -> dict:
+    """As mesmas quatro sessões acima, agora como linhas da tabela.
+
+    O guard de administrador deixou de decidir só pelo token: ele reconfere o
+    papel em `usuario_coordenacao` (`auth.conta_ainda_e_administradora`), para
+    que rebaixar valha na hora e não quando o token vencer.
+    """
+    return {
+        "usuario_coordenacao": {
+            "u-1": {"id": "u-1", "nome": "Admin", "email": "admin@ari.com.br",
+                    "papel": "administrador", "ativo": True},
+            "u-2": {"id": "u-2", "nome": "Coord", "email": "coord@ari.com.br",
+                    "papel": "coordenador", "ativo": True},
+            "u-3": {"id": "u-3", "nome": "Legado", "email": "legado@ari.com.br",
+                    "papel": "coordenador", "ativo": True},
+        },
+        "evento_auditoria": {},
+    }
+
+
+@pytest.fixture(autouse=True)
+def banco(monkeypatch) -> dict:
+    """O banco falso de TODO teste deste arquivo — autouse, e pedível por nome.
+
+    Autouse porque nenhum teste daqui pode falar com Postgres de verdade: o
+    guard de administrador tentaria abrir conexão, cairia no fail-closed do
+    `except` e o teste passaria (ou falharia) pelo motivo errado — que é
+    justamente o tipo de coisa que este arquivo existe para não deixar passar.
+
+    `auth` E `administracao` recebem o MESMO cliente: é o que permite chamar a
+    rota de rebaixamento e, na sequência, o guard, e ver o segundo enxergar o
+    que a primeira escreveu.
+    """
+    db = _contas()
+    monkeypatch.setattr(auth, "get_supabase", lambda: FakeCliente(db))
+    monkeypatch.setattr(administracao, "get_supabase", lambda: FakeCliente(db))
+    return db
 
 
 def _como_coordenador(sessao: dict) -> dict:
@@ -75,8 +122,8 @@ def _pela_cadeia_de_administrador(sessao: dict) -> dict:
 
 
 def test_administrador_passa_pelo_guard_de_coordenacao():
-    """A armadilha 1. Se este teste cair, o administrador perde as 49 rotas de
-    coordenação — as 45 do piso comum E as 4 que são só dele, porque
+    """A armadilha 1. Se este teste cair, o administrador perde as 50 rotas de
+    coordenação — as 45 do piso comum E as 5 que são só dele, porque
     `get_current_administrador` passa por este guard primeiro."""
     assert _como_coordenador(ADMINISTRADOR) is ADMINISTRADOR
     assert auth.papel_da_sessao(ADMINISTRADOR) == "administrador"
@@ -173,6 +220,7 @@ PISO_ESPERADO = {
     ("GET", "/administracao/coordenadores"): "coordenador",
     ("POST", "/administracao/coordenadores"): "administrador",
     ("PATCH", "/administracao/coordenadores/{usuario_id}"): "administrador",
+    ("PATCH", "/administracao/coordenadores/{usuario_id}/papel"): "administrador",
     ("POST", "/administracao/coordenadores/{usuario_id}/redefinir-senha"): "administrador",
     ("GET", "/administracao/alunos-acesso"): "coordenador",
     ("GET", "/administracao/coordenadores/{usuario_id}/foto"): "coordenador",
@@ -215,6 +263,138 @@ def test_nenhuma_rota_de_administracao_fica_sem_guard():
     """O router inteiro tem piso de coordenação — nada aqui é público, e nada
     aqui é de aluno."""
     assert "SEM GUARD" not in set(_matriz(administracao.router).values())
+
+
+# ─── Promover e rebaixar (docs/35 §11.7, 05/09) ───────────────────────────
+#
+# A decisão original era que papel só mudava por `scripts/criar_coordenador.py
+# --papel`, na linha de comando do VPS. Na prática isso queria dizer que
+# REBAIXAR não acontecia — e rebaixar é a metade que tem hora marcada. A troca
+# passou a existir pela tela, com quatro travas, e são elas que estes testes
+# guardam: rota separada, papel validado, ninguém mexe no próprio papel, e o
+# token do rebaixado deixa de valer na hora.
+
+
+class _Pedido:
+    """Só o que o handler lê de `Request`."""
+
+    def __init__(self, ip: str | None = "203.0.113.7"):
+        self.client = type("C", (), {"host": ip})()
+
+
+def _mudar_papel(usuario_id: str, papel: str, sessao: dict = ADMINISTRADOR) -> dict:
+    return asyncio.run(
+        administracao.alterar_papel_do_coordenador(
+            usuario_id=usuario_id,
+            body=administracao.PapelDoCoordenadorBody(papel=papel),
+            request=_Pedido(),
+            administrador=sessao,
+        )
+    )
+
+
+def test_promover_coordenador_a_administrador(banco):
+    resposta = _mudar_papel("u-2", "administrador")
+    assert resposta["papel"] == "administrador"
+    assert banco["usuario_coordenacao"]["u-2"]["papel"] == "administrador"
+
+
+def test_rebaixar_administrador_a_coordenador(banco):
+    banco["usuario_coordenacao"]["u-2"]["papel"] = "administrador"
+    assert _mudar_papel("u-2", "coordenador")["papel"] == "coordenador"
+    assert banco["usuario_coordenacao"]["u-2"]["papel"] == "coordenador"
+
+
+def test_a_troca_de_papel_vira_evento_proprio_na_auditoria(banco):
+    _mudar_papel("u-2", "administrador")
+    eventos = list(banco["evento_auditoria"].values())
+    assert [e["acao"] for e in eventos] == ["papel_alterado"]
+    evento = eventos[0]
+    # O par que a tela de auditoria já desenha como "antes → depois". Sem ele,
+    # promover e rebaixar viram duas linhas idênticas na trilha.
+    assert evento["detalhe"]["valor_antes"] == "coordenador"
+    assert evento["detalhe"]["valor_depois"] == "administrador"
+    assert evento["ator_id"] == "u-1"
+    assert evento["recurso"] == "coordenador/u-2"
+
+
+def test_ninguem_muda_o_proprio_papel(banco):
+    """A trava que garante que sempre reste um administrador: quem chama já é
+    um, e sai daqui continuando um. Sem ela o último administrador se rebaixa e
+    a casa fica sem quem cria login — nem para desfazer."""
+    with pytest.raises(HTTPException) as erro:
+        _mudar_papel("u-1", "coordenador")
+    assert erro.value.status_code == 422
+    assert banco["usuario_coordenacao"]["u-1"]["papel"] == "administrador"
+
+
+def test_trocar_para_o_papel_que_a_conta_ja_tem_e_recusado():
+    with pytest.raises(HTTPException) as erro:
+        _mudar_papel("u-2", "coordenador")
+    assert erro.value.status_code == 422
+
+
+def test_conta_inexistente_da_404():
+    with pytest.raises(HTTPException) as erro:
+        _mudar_papel("u-404", "administrador")
+    assert erro.value.status_code == 404
+
+
+def test_papel_inventado_nao_entra_pela_rota_de_papel():
+    """Barrado aqui, como em `CriarCoordenadorBody`, E no CHECK da 0045."""
+    with pytest.raises(ValidationError):
+        administracao.PapelDoCoordenadorBody(papel="superadmin")
+    assert administracao.PapelDoCoordenadorBody(papel=" ADMINISTRADOR ").papel == "administrador"
+
+
+def test_papel_nao_entra_de_carona_pelo_corpo_de_editar():
+    """Rota separada não é preciosismo: é o que impede um `{nome, papel}` mal
+    montado de promover alguém enquanto renomeia."""
+    assert "papel" not in administracao.EditarCoordenadorBody.model_fields
+
+
+# ─── O token do rebaixado para de valer NA HORA ───────────────────────────
+
+
+def test_rebaixado_perde_o_guard_de_administrador_sem_esperar_o_token_vencer(banco):
+    """O ponto todo do rebaixamento. Sem a releitura na tabela, o rebaixado
+    continuaria administrador por até 8 h — e poderia, nessa janela, criar
+    OUTRA conta de administrador e desfazer a decisão."""
+    banco["usuario_coordenacao"]["u-2"]["papel"] = "administrador"
+    sessao_do_rebaixado = {"sub": "u-2", "tipo": "coordenador", "papel": "administrador"}
+    assert _pela_cadeia_de_administrador(sessao_do_rebaixado) is sessao_do_rebaixado
+
+    _mudar_papel("u-2", "coordenador")
+
+    with pytest.raises(HTTPException) as erro:
+        _pela_cadeia_de_administrador(sessao_do_rebaixado)
+    assert erro.value.status_code == 403
+    # Mas continua coordenador: rebaixar tira poder, não tira o trabalho.
+    assert _como_coordenador(sessao_do_rebaixado) is sessao_do_rebaixado
+
+
+def test_conta_desativada_perde_o_guard_de_administrador_na_hora(banco):
+    """Mesma releitura, mesma razão: desativar a conta de um administrador tem
+    que fechar a porta agora, não no fim do expediente."""
+    banco["usuario_coordenacao"]["u-1"]["ativo"] = False
+    with pytest.raises(HTTPException):
+        _pela_cadeia_de_administrador(ADMINISTRADOR)
+
+
+def test_conta_que_sumiu_da_tabela_nao_e_administradora():
+    assert auth.conta_ainda_e_administradora("u-999") is False
+    assert auth.conta_ainda_e_administradora(None) is False
+
+
+def test_erro_de_leitura_recusa_em_vez_de_liberar(monkeypatch):
+    """Fail-closed: banco fora do ar não promove ninguém a administrador."""
+
+    class _Explode:
+        def table(self, _nome):
+            raise RuntimeError("sem banco")
+
+    monkeypatch.setattr(auth, "get_supabase", lambda: _Explode())
+    assert auth.conta_ainda_e_administradora("u-1") is False
 
 
 def test_editar_nota_exige_administrador():

@@ -394,6 +394,12 @@ export interface PaginaAuditoria {
 
 // ─── Administração ───────────────────────────────────────────────────────
 
+/**
+ * O que uma conta de coordenação pode a mais (migration 0045). NÃO é o mesmo
+ * que `TipoSessao` — ver o ⚠️ de `servicos/sessao.ts`.
+ */
+export type PapelCoordenacao = 'coordenador' | 'administrador';
+
 export interface UsuarioCoordenacao {
   id: string;
   email: string;
@@ -401,8 +407,7 @@ export interface UsuarioCoordenacao {
   ativo: boolean;
   criado_em?: string;
   ultimo_login_em: string | null;
-  /** 'coordenador' ou 'administrador' (migration 0045). */
-  papel: string;
+  papel: PapelCoordenacao;
   temFoto: boolean;
 }
 

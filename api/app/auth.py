@@ -37,6 +37,7 @@ as 39 rotas de coordenação de uma vez — o oposto do que foi pedido (docs/35
 
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -45,6 +46,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
 from .config import get_settings
+from .supabase_client import get_supabase
+
+log = logging.getLogger("sas.auth")
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 horas
@@ -197,20 +201,77 @@ async def get_current_coordenador(user: dict = Depends(get_current_user)) -> dic
     return user
 
 
+def conta_ainda_e_administradora(usuario_id: str | None) -> bool:
+    """Reconfere o papel na TABELA, e não só no claim do token.
+
+    Existe porque o `papel` viaja num token de 8 horas. Sem esta releitura,
+    rebaixar um administrador (`PATCH /administracao/coordenadores/{id}/papel`)
+    não tiraria poder nenhum até o token dele vencer — e, dentro dessa janela,
+    o rebaixado ainda poderia criar OUTRA conta de administrador e desfazer a
+    decisão. Rebaixamento que só vale daqui a 8 horas não é rebaixamento.
+
+    Só as rotas de ADMINISTRADOR pagam esta leitura. As de coordenação
+    continuam decidindo pelo token sozinho, de propósito: quem foi rebaixado
+    **continua coordenador**, e derrubar a sessão dele por inteiro seria punir
+    um trabalho que ele segue tendo direito de fazer.
+
+    `ativo` entra na mesma pergunta pelo mesmo motivo: desativar a conta de um
+    administrador tem que fechar a porta agora, não no fim do expediente.
+
+    Fail-closed em tudo — linha ausente, conta desativada, papel trocado ou
+    erro de leitura recusam. Numa base sem a migration 0045 ninguém chega até
+    aqui: sem a coluna, `/auth/login` não emite token de administrador
+    (`routes/auth.py:_buscar_conta`).
+    """
+    if not usuario_id:
+        return False
+    try:
+        linhas = (
+            get_supabase()
+            .table("usuario_coordenacao")
+            .select("papel, ativo")
+            .eq("id", usuario_id)
+            .limit(1)
+            .execute()
+            .data
+        ) or []
+    except Exception:
+        log.warning("nao consegui reconferir o papel da conta", exc_info=True)
+        return False
+    if not linhas:
+        return False
+    return linhas[0].get("ativo") is True and linhas[0].get("papel") == "administrador"
+
+
 async def get_current_administrador(
     user: dict = Depends(get_current_coordenador),
 ) -> dict:
-    """O que só o administrador pode: criar/editar conta de login e alterar
-    nota pelo painel (docs/35 §11.7).
+    """O que só o administrador pode: criar/editar conta de login, mudar o
+    papel de outra conta e alterar nota pelo painel (docs/35 §11.7).
 
     Depende de `get_current_coordenador` para a recusa vir na ordem certa —
     quem não é da coordenação leva o 403 genérico, e não uma mensagem que
     revela a existência de um papel de administrador.
+
+    São DUAS perguntas, e as duas precisam ser feitas: o token diz que a
+    sessão foi aberta como administrador, e a tabela diz se ela ainda é —
+    ver `conta_ainda_e_administradora`.
     """
     if papel_da_sessao(user) != "administrador":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Esta ação é restrita ao administrador do SAS.",
+        )
+    if not conta_ainda_e_administradora(user.get("sub")):
+        # Mensagem diferente da de cima de propósito: quem lê esta já era
+        # administrador quando entrou, e precisa saber que a sessão é que
+        # está velha — senão fica achando que a tela quebrou.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Sua conta não é mais administradora do SAS. "
+                "Saia e entre de novo para atualizar o acesso."
+            ),
         )
     return user
 

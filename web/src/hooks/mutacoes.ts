@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import * as api from '../servicos/api';
 import type { CorpoAgendamento } from '../servicos/api';
+import type { PapelCoordenacao } from '../tipos/dominio';
 import { chaves } from './consultas';
 
 /**
@@ -110,6 +111,15 @@ export function useLigarCoordenadorAoCanvas() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.ligarCoordenadorAoCanvas(id),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+export function useAlterarPapelCoordenador() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, papel }: { id: string; papel: PapelCoordenacao }) =>
+      api.alterarPapelDoCoordenador(id, papel),
     onSuccess: () => invalidarAdministracao(queryClient),
   });
 }

@@ -9,8 +9,8 @@ import type { ContextoDaTela } from '../dominio/contextoDaTela';
 import type { EventoSSE } from './http';
 import type {
   Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria,
-  PainelAcessos, PainelGravacoes, PendenciasCanvas, ResultadoLoteCanvas, Sede, Simulado, Turma,
-  UsuarioCoordenacao,
+  PainelAcessos, PainelGravacoes, PapelCoordenacao, PendenciasCanvas, ResultadoLoteCanvas, Sede,
+  Simulado, Turma, UsuarioCoordenacao,
 } from '../tipos/dominio';
 import type {
   CantinaAdmin, CantinaDoAluno, Cardapio, ContaDeCantina, ContagemDeOpcao, DiaDoCalendario,
@@ -335,6 +335,17 @@ export const editarCoordenador = (id: string, corpo: { nome?: string; ativo?: bo
 /** O SAS procura o id do Canvas pelo e-mail da conta — ninguém digita número. */
 export const ligarCoordenadorAoCanvas = (id: string) =>
   post<{ id: string; canvas_user_id: string }>(`/administracao/coordenadores/${enc(id)}/ligar-canvas`, {});
+/**
+ * Promover a administrador ou rebaixar a coordenador.
+ *
+ * Rota SEPARADA do `editarCoordenador` de propósito: é a ação mais cara da
+ * tela — administrador cria login e altera nota —, e um `papel` perdido num
+ * corpo de "renomear" não pode promover ninguém de lado.
+ */
+export const alterarPapelDoCoordenador = (id: string, papel: PapelCoordenacao) =>
+  patch<Pick<UsuarioCoordenacao, 'id' | 'email' | 'nome' | 'ativo' | 'papel'>>(
+    `/administracao/coordenadores/${enc(id)}/papel`, { papel },
+  );
 export const redefinirSenhaCoordenador = (id: string) =>
   post<{ id: string; senha_nova: string }>(`/administracao/coordenadores/${enc(id)}/redefinir-senha`, {});
 export const acessosDeAlunos = () => get<PainelAcessos>('/administracao/alunos-acesso');

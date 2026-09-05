@@ -59,6 +59,13 @@ coordenação pode a mais.** Confundir os dois derruba acesso — o docstring de
 `app/auth.py` explica por que o administrador é `tipo: "coordenador"` +
 `papel: "administrador"`, e não um `tipo` próprio.
 
+⚠️ **`get_current_administrador` é o único guard que vai ao BANCO.** Ele
+reconfere `papel` e `ativo` em `usuario_coordenacao`, porque o papel viaja num
+token de 8 h e rebaixar (ou desativar) alguém precisa valer na hora — senão o
+rebaixado cria outra conta de administrador dentro da janela e desfaz a
+própria queda. São 5 rotas; `get_current_coordenador` continua decidindo só
+pelo token, de propósito.
+
 - **Aluno**: SÓ pelo Canvas (`routes/auth_canvas.py`). A senha de aluno saiu em
   04/09 (docs/35 §11.5) e `aluno.senha_hash` virou fóssil — nenhuma rota
   autentica por ela. O caminho de acesso do aluno é o `canvas_user_id`.

@@ -8,10 +8,11 @@ import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { useAcessosDeAlunos, useCoordenadores } from '../../hooks/consultas';
 import {
-  useCriarCoordenador, useEditarCoordenador, useRedefinirSenhaCoordenador,
+  useAlterarPapelCoordenador, useCriarCoordenador, useEditarCoordenador,
+  useRedefinirSenhaCoordenador,
 } from '../../hooks/mutacoes';
 import * as sessao from '../../servicos/sessao';
-import type { AcessoAluno, UsuarioCoordenacao } from '../../tipos/dominio';
+import type { AcessoAluno, PapelCoordenacao, UsuarioCoordenacao } from '../../tipos/dominio';
 import { normalizar } from '../../util/formato';
 
 // Painel de administrador (docs/18 §4.6, docs/35 §11): quem pode entrar.
@@ -20,9 +21,9 @@ import { normalizar } from '../../util/formato';
 // a divisão aparece na tela e não só no backend:
 //
 //   * em cima, as contas da coordenação. Ver é de qualquer coordenador; criar,
-//     renomear, desativar e redefinir senha é só do administrador, e o que ele
-//     não pode nem aparece — botão que existe para dar 403 ensina a pessoa a
-//     desconfiar da tela;
+//     renomear, desativar, redefinir senha e trocar o papel é só do
+//     administrador, e o que ele não pode nem aparece — botão que existe para
+//     dar 403 ensina a pessoa a desconfiar da tela;
 //   * embaixo, os alunos. Trabalho diário de coordenação, e continua de todo
 //     mundo — "quando o aluno faz isso, aparece na tela de gerenciamento do
 //     coordenador" (21/08, 19h15).
@@ -100,8 +101,8 @@ export function Contas() {
           </p>
           {!souAdministrador && (
             <p className="tela-subtitulo admin__explicacao">
-              Você vê as contas, mas criar, renomear, desativar e redefinir senha é do
-              administrador do SAS. Procure-o para qualquer uma dessas.
+              Você vê as contas, mas criar, renomear, desativar, redefinir senha e mudar o
+              papel de alguém é do administrador do SAS. Procure-o para qualquer uma dessas.
             </p>
           )}
         </div>
@@ -246,7 +247,11 @@ function LinhaCoordenador({
 }) {
   const editar = useEditarCoordenador();
   const redefinir = useRedefinirSenhaCoordenador();
+  const alterarPapel = useAlterarPapelCoordenador();
+  // O servidor é quem recusa mexer na própria conta (422); isto aqui é só
+  // para não oferecer um botão que nunca funciona.
   const souEu = u.nome === sessao.nome();
+  const ehAdministrador = u.papel === 'administrador';
 
   async function alternarAtivo() {
     const acao = u.ativo ? 'Desativar' : 'Reativar';
@@ -260,6 +265,18 @@ function LinhaCoordenador({
     await editar.mutateAsync({ id: u.id, corpo: { nome: nome.trim() } });
   }
 
+  async function trocarPapel() {
+    const destino: PapelCoordenacao = ehAdministrador ? 'coordenador' : 'administrador';
+    // O texto diz o que a pessoa GANHA ou PERDE, não o nome do papel: quem
+    // clica precisa saber que está entregando (ou tirando) o poder de criar
+    // login e de alterar nota — inclusive sobre a própria conta de quem clica.
+    const pergunta = ehAdministrador
+      ? `Rebaixar ${u.nome} a coordenador?\n\nEle perde na hora — sem esperar a sessão dele acabar — o poder de criar, renomear e desativar contas, redefinir senha, mudar papel e alterar nota pelo painel. Continua entrando no SAS como coordenador.`
+      : `Tornar ${u.nome} administrador do SAS?\n\nPassa a criar, renomear e desativar contas de coordenação, redefinir senha, mudar o papel de outras contas — a sua inclusive — e alterar nota pelo painel.`;
+    if (!window.confirm(pergunta)) return;
+    await alterarPapel.mutateAsync({ id: u.id, papel: destino });
+  }
+
   async function novaSenha() {
     if (!window.confirm(`Redefinir a senha de ${u.nome}? A atual deixa de valer na hora.`)) return;
     const r = await redefinir.mutateAsync(u.id);
@@ -271,7 +288,7 @@ function LinhaCoordenador({
       <td>{u.nome}{souEu && <span className="sim-selo-ok" style={{ marginLeft: 8 }}>você</span>}</td>
       <td>{u.email}</td>
       <td>
-        {u.papel === 'administrador'
+        {ehAdministrador
           ? <span className="sim-selo-ok" title="Cria logins e altera nota pelo painel.">administrador</span>
           : <span className="sim-selo-canvas">coordenador</span>}
       </td>
@@ -284,8 +301,23 @@ function LinhaCoordenador({
         <td>
           <button className="btn-editar" onClick={renomear}>Renomear</button>
           <button className="btn-editar" onClick={novaSenha}>Nova senha</button>
+          {/* As duas ações que mexem em PODER ficam juntas, e nenhuma delas
+              vale para a própria conta: o último administrador se rebaixando
+              (ou se desativando) deixaria a casa sem quem cria login — nem
+              para desfazer, porque desfazer também é dele. */}
           {!souEu && (
-            <button className="btn-editar" onClick={alternarAtivo}>{u.ativo ? 'Desativar' : 'Reativar'}</button>
+            <>
+              <button
+                className="btn-editar"
+                onClick={trocarPapel}
+                title={ehAdministrador
+                  ? 'Tira o poder de criar login e de alterar nota.'
+                  : 'Dá o poder de criar login e de alterar nota.'}
+              >
+                {ehAdministrador ? 'Rebaixar' : 'Promover'}
+              </button>
+              <button className="btn-editar" onClick={alternarAtivo}>{u.ativo ? 'Desativar' : 'Reativar'}</button>
+            </>
           )}
         </td>
       )}
@@ -347,9 +379,10 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
         </Campo>
       </Linha2>
       <p className="agendar__ajuda">
-        A conta nasce <b>coordenadora</b> e entra por e-mail e senha. Promover alguém a
-        administrador — quem cria logins e altera nota pelo painel — é passo de operação, feito
-        com a coordenação junto, e não um menu aqui (docs/35 §11.2).
+        A conta nasce <b>coordenadora</b> e entra por e-mail e senha. Se ela precisar criar
+        logins e alterar nota pelo painel, promova depois pelo botão <b>Promover</b> na linha
+        dela — em dois passos de propósito, para ninguém virar administrador por distração ao
+        preencher um cadastro.
       </p>
       {erro && <div className="agendar__erro">{erro}</div>}
     </Dialogo>
