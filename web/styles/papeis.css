@@ -9,6 +9,12 @@
      ALERTA      só a etiqueta de distância e a falha operacional
      MAGNITUDE   todo numeral grande
 
+   Dois papéis têm um segundo tom, e pelo mesmo motivo os dois: a cor de
+   TRAÇO não passa em contraste quando vira LETRA. `--sas-valor-texto` é o
+   ouro escurecido, `--sas-alerta-texto` é o vermelho escurecido — use-os em
+   texto, e o de traço em traço. `--sas-fio-forte` é o fio de tabela um
+   degrau acima, para separar GRUPO de linha.
+
    Cinco desses seis são idênticos aos da área do aluno. A troca é uma só:
    onde o aluno tem SEQUENCIA (a chama, a corrente de simulados), a
    coordenação tem REFERENCIA — o aluno precisa de hábito, o coordenador
@@ -22,8 +28,15 @@
    fazia.
 
    ⚠️ Este arquivo é o ÚNICO lugar onde o tema é decidido. São três blocos e
-   a ordem entre eles importa; está explicada em cada um. Quem consome são os
-   aliases — nenhuma tela lê `--sas-*` direto enquanto a migração não terminar.
+   a ordem entre eles importa; está explicada em cada um.
+
+   Quem consome é a tela, DIRETO. O alias da coordenação — `tokens.css`, com
+   os nomes `navy`, `gold`, `red`, `green` — morreu na fase 0 do docs/39: era a
+   tradução que segurava as ~7.200 linhas de CSS escritas antes do sistema, e
+   depois de 1.067 substituições não sobrou nada para ele traduzir. Os nomes
+   dele também já mentiam: `green` apontava para DADO e `navy` para AÇÃO, que
+   à noite é ouro. A área do aluno mantém `--alu-*`, e esse continua sendo
+   alias de verdade: nomeia SEQUENCIA onde a coordenação nomeia REFERENCIA.
    ─────────────────────────────────────────────────────────────────────── */
 
 /* ── O mapeamento padrão é o DIA ──────────────────────────────────────── */
@@ -33,6 +46,7 @@
   --sas-superficie-2: var(--dia-superficie-2);
   --sas-borda: var(--dia-borda);
   --sas-fio: var(--dia-fio);
+  --sas-fio-forte: var(--dia-fio-forte);
   --sas-acao: var(--dia-acao);
   --sas-acao-base: var(--dia-acao-base);
   --sas-acao-texto: var(--dia-acao-texto);
@@ -46,6 +60,7 @@
   --sas-referencia-fraca: var(--dia-referencia-fraca);
   --sas-sequencia: var(--dia-sequencia);
   --sas-alerta: var(--dia-alerta);
+  --sas-alerta-texto: var(--dia-alerta-texto);
   --sas-magnitude: var(--dia-magnitude);
   --sas-texto: var(--dia-texto);
   --sas-texto-2: var(--dia-texto-2);
@@ -73,6 +88,7 @@
     --sas-superficie-2: var(--noite-superficie-2);
     --sas-borda: var(--noite-borda);
     --sas-fio: var(--noite-fio);
+    --sas-fio-forte: var(--noite-fio-forte);
     --sas-acao: var(--noite-acao);
     --sas-acao-base: var(--noite-acao-base);
     --sas-acao-texto: var(--noite-acao-texto);
@@ -86,6 +102,7 @@
     --sas-referencia-fraca: var(--noite-referencia-fraca);
     --sas-sequencia: var(--noite-sequencia);
     --sas-alerta: var(--noite-alerta);
+    --sas-alerta-texto: var(--noite-alerta-texto);
     --sas-magnitude: var(--noite-magnitude);
     --sas-texto: var(--noite-texto);
     --sas-texto-2: var(--noite-texto-2);
@@ -104,6 +121,7 @@
   --sas-superficie-2: var(--noite-superficie-2);
   --sas-borda: var(--noite-borda);
   --sas-fio: var(--noite-fio);
+  --sas-fio-forte: var(--noite-fio-forte);
   --sas-acao: var(--noite-acao);
   --sas-acao-base: var(--noite-acao-base);
   --sas-acao-texto: var(--noite-acao-texto);
@@ -117,6 +135,7 @@
   --sas-referencia-fraca: var(--noite-referencia-fraca);
   --sas-sequencia: var(--noite-sequencia);
   --sas-alerta: var(--noite-alerta);
+  --sas-alerta-texto: var(--noite-alerta-texto);
   --sas-magnitude: var(--noite-magnitude);
   --sas-texto: var(--noite-texto);
   --sas-texto-2: var(--noite-texto-2);
@@ -132,6 +151,7 @@
   --sas-superficie-2: var(--dia-superficie-2);
   --sas-borda: var(--dia-borda);
   --sas-fio: var(--dia-fio);
+  --sas-fio-forte: var(--dia-fio-forte);
   --sas-acao: var(--dia-acao);
   --sas-acao-base: var(--dia-acao-base);
   --sas-acao-texto: var(--dia-acao-texto);
@@ -145,6 +165,7 @@
   --sas-referencia-fraca: var(--dia-referencia-fraca);
   --sas-sequencia: var(--dia-sequencia);
   --sas-alerta: var(--dia-alerta);
+  --sas-alerta-texto: var(--dia-alerta-texto);
   --sas-magnitude: var(--dia-magnitude);
   --sas-texto: var(--dia-texto);
   --sas-texto-2: var(--dia-texto-2);

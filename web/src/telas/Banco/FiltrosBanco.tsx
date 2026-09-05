@@ -24,8 +24,8 @@ import type {
 //
 // ⚠️ **Esta tela serve os DOIS cascos.** `Banco.tsx` recebe `perfil`, e a
 // mesma árvore roda dentro do casco do aluno, onde `.tela` é um bloco da
-// coluna de `.alu-body__inner`. O tema não é o risco (banco.css sempre leu
-// `--color-*`, não `--alu-*`); o layout é.
+// coluna de `.alu-body__inner`. O tema não é o risco (banco.css lê os papéis
+// direto, não `--alu-*`, e papel responde a tema); o layout é.
 //
 // ⚠️ **O que a coluna fazia e a faixa não faz:** grudar e rolar sozinha acima
 // de 880px (`position: sticky`, `max-height: 100dvh`). Com uma árvore de 65

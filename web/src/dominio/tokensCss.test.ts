@@ -4,7 +4,11 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-// Integridade da pilha de cor: paleta → papéis → alias.
+// Integridade da pilha de cor: paleta → papéis → alias do aluno.
+//
+// A pilha tinha um quarto degrau, `tokens.css`, que traduzia os papéis para um
+// alias próprio da coordenação. Ele morreu na fase 0 do docs/39 — a coordenação
+// passou a ler o papel direto — e o que este teste cobre agora é o que sobrou.
 //
 // Este teste existe por um erro real. Ao aposentar sete entradas de
 // `--coord-*`, um `*/` foi junto e comentou o bloco seguinte — sete tokens
@@ -18,7 +22,7 @@ import { describe, expect, it } from 'vitest';
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const ESTILOS = join(AQUI, '..', '..', 'styles');
 
-const ARQUIVOS = ['paleta.css', 'papeis.css', 'tokens.css', 'aluno-tokens.css', 'documento.css'];
+const ARQUIVOS = ['paleta.css', 'papeis.css', 'aluno-tokens.css', 'documento.css'];
 
 /**
  * Remove blocos `@media` inteiros, contando chaves.
@@ -84,11 +88,14 @@ function resolver(nome: string, escopo: Map<string, string>, vistos = new Set<st
 describe('a pilha de tokens de cor', () => {
   const escopo = declaracoes();
   const alias = [...escopo.keys()].filter(
-    (n) => n.startsWith('--color-') || n.startsWith('--alu-') || n.startsWith('--sas-'),
+    (n) => n.startsWith('--alu-') || n.startsWith('--sas-'),
   );
 
-  it('declara alias para os três prefixos', () => {
-    expect(alias.length).toBeGreaterThan(60);
+  it('declara os papéis e o alias do aluno', () => {
+    // 26 papéis e 29 nomes do aluno. O piso é frouxo de propósito: o que ele
+    // pega é o bloco inteiro sumir por um comentário mal fechado, que foi o
+    // erro real que fez este arquivo existir.
+    expect(alias.length).toBeGreaterThan(50);
   });
 
   it('não deixa nenhum alias apontando para token inexistente', () => {
@@ -105,24 +112,34 @@ describe('a pilha de tokens de cor', () => {
     expect(ciclos).toEqual([]);
   });
 
-  it('liga `--color-*` aos papéis, para a coordenação seguir o tema', () => {
-    // O inverso do que este teste exigia antes do tema escuro, e a troca foi
-    // deliberada: enquanto a coordenação não tinha seletor, `--color-*`
-    // apontando para papel a escureceria sem aviso, porque `data-tema` já está
-    // estampado na raiz em todo boot (`servicos/tema.ts`, escopo de módulo).
-    // Agora o acoplamento é o objetivo, e o que o teste trava é ele não se
-    // desfazer por acidente numa edição futura.
-    const superficies = ['--color-bg', '--color-surface', '--color-text-primary', '--color-border'];
-    for (const nome of superficies) {
-      expect(escopo.get(nome), nome).toMatch(/var\(--sas-/);
+  it('liga cada papel à paleta, para a coordenação seguir o tema', () => {
+    // O bloco padrão de `papeis.css` é o DIA, e é o único que este escopo lê
+    // (as media queries saem em `semMediaQueries`). O que o teste trava é o
+    // acoplamento não se desfazer por acidente: um papel que passasse a ter
+    // hexadecimal próprio aqui deixaria de responder ao seletor de tema.
+    const papeis = ['--sas-fundo', '--sas-superficie', '--sas-texto', '--sas-borda'];
+    for (const nome of papeis) {
+      expect(escopo.get(nome), nome).toMatch(/var\(--dia-/);
     }
   });
 
-  it('não deixa `--color-*` apontando direto para a paleta crua', () => {
+  it('declara os dois tons de letra e o fio forte nos dois temas', () => {
+    // `--sas-valor-texto` e `--sas-alerta-texto` existem porque a cor de TRAÇO
+    // reprova em AA quando vira letra sobre fundo claro. Se um deles sumir de
+    // um dos temas, o `var()` é descartado em silêncio e o texto herda a cor
+    // de quem está em volta — que é justamente o que ninguém percebe.
+    const comMedia = declaracoes(true);
+    for (const nome of ['--sas-valor-texto', '--sas-alerta-texto', '--sas-fio-forte']) {
+      expect(resolver(nome, escopo), `${nome} · dia`).toMatch(/^#|^rgba?\(/);
+      expect(resolver(nome, comMedia), `${nome} · noite`).toMatch(/^#|^rgba?\(/);
+    }
+  });
+
+  it('não deixa o alias do aluno apontando direto para a paleta crua', () => {
     // Apontar para `--dia-*` congela o token no tema claro. Quem precisa disso
     // é `--doc-*`, que é paleta de documento e vive em `documento.css`.
     const congelados = [...escopo.entries()].filter(
-      ([nome, valor]) => nome.startsWith('--color-') && /var\(--(dia|noite|coord)-/.test(valor),
+      ([nome, valor]) => nome.startsWith('--alu-') && /var\(--(dia|noite|coord)-/.test(valor),
     );
     expect(congelados).toEqual([]);
   });
@@ -132,8 +149,18 @@ describe('a pilha de tokens de cor', () => {
     // tema. Dois caminhos de exportação herdam o CSS da página viva — o PDF da
     // ficha e o `.panorama` —, então sem este remapeamento quem trabalha à
     // noite mandaria para a impressora um dossiê preto, sem erro e sem aviso.
+    //
+    // Depois que o alias da coordenação morreu, a lista de baixo é a ÚNICA
+    // proteção: o que a tela lê no papel é papel, e papel responde a tema.
     const print = declaracoesDeImpressao();
-    for (const nome of ['--color-bg', '--color-surface', '--color-text-primary', '--sas-fundo']) {
+    // Duas exceções, cada uma por um motivo. `--sas-borda-l` é LARGURA, não
+    // cor — o bloco de impressão a fixa em 1px e está certo. `--sas-hachura`
+    // é um `repeating-linear-gradient` e nunca foi remapeado: a dívida é
+    // anterior a este trabalho e o traço da hachura no papel sai no tom do
+    // tema em vigor.
+    const foraDaRegra = new Set(['--sas-borda-l', '--sas-hachura']);
+    const papeis = [...escopo.keys()].filter((n) => n.startsWith('--sas-') && !foraDaRegra.has(n));
+    for (const nome of papeis) {
       expect(print.get(nome), nome).toMatch(/var\(--doc-|^#|^rgba?\(|^transparent$/);
     }
     // E nada no bloco de impressão pode voltar a apontar para papel.

@@ -14,9 +14,9 @@ import { useCallback, useSyncExternalStore } from 'react';
 //      "Minha conta", e o `useEffect` dela removia `data-tema` no desmonte —
 //      então fechar a folha desfazia o que o aluno acabara de escolher. O
 //      cleanup existia para não deixar o atributo cravado ao sair da área do
-//      aluno. ⚠️ A justificativa de então — "a coordenação lê `--color-*` e não
-//      é alcançada por `--alu-*`" — DEIXOU DE VALER: `--color-*` agora aponta
-//      para os mesmos papéis, e este atributo governa os dois produtos.
+//      aluno. ⚠️ A justificativa de então — "a coordenação tem alias próprio e
+//      não é alcançada por `--alu-*`" — DEIXOU DE VALER: aquele alias morreu e
+//      a coordenação lê os mesmos papéis, que este atributo governa nos dois.
 //   2. Com três opções, duas delas podiam parecer a mesma coisa na tela
 //      ("sistema" e "noite" num aparelho escuro), e o aluno tocava sem ver
 //      nada mudar.

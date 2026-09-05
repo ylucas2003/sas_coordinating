@@ -19,7 +19,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 .sim-filtros__linha {
@@ -35,15 +35,15 @@
   font-weight: 500;
   letter-spacing: 0.4px;
   text-transform: none;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   flex-shrink: 0;
 }
 
 .sim-chip {
   padding: 4px 12px;
   border-radius: var(--radius-pill);
-  background: var(--color-surface-inset);
-  color: var(--color-text-secondary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-texto-2);
   font-size: 12px;
   font-weight: 500;
   border: 1px solid transparent;
@@ -52,20 +52,20 @@
 }
 
 .sim-chip:hover {
-  border-color: var(--color-border-strong);
-  color: var(--color-text-primary);
+  border-color: var(--sas-borda);
+  color: var(--sas-texto);
 }
 
 .sim-chip.is-active {
-  background: var(--color-navy);
-  color: var(--color-navy-texto);
+  background: var(--sas-acao);
+  color: var(--sas-acao-texto);
 }
 
 .sim-chip__contagem {
   margin-left: 6px;
   font-weight: 400;
   font-size: 11px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .sim-chip.is-active .sim-chip__contagem {
@@ -75,17 +75,17 @@
 .sim-filtros__reset {
   margin-left: auto;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   background: transparent;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .sim-filtros__reset:hover {
-  color: var(--color-text-primary);
-  border-color: var(--color-border-strong);
+  color: var(--sas-texto);
+  border-color: var(--sas-borda);
 }
 
 .sim-filtros__reset[disabled] {
@@ -95,7 +95,7 @@
 
 .sim-filtros__vazio {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-style: italic;
 }
 
@@ -109,39 +109,39 @@
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-secondary);
-  background: var(--color-surface-inset);
-  border: 1px solid var(--color-border);
+  color: var(--sas-texto-2);
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: color 120ms, background 120ms, border-color 120ms;
 }
 
 .sim-calendario-toggle:hover {
-  color: var(--color-text-primary);
-  border-color: var(--color-border-strong);
+  color: var(--sas-texto);
+  border-color: var(--sas-borda);
 }
 
 .sim-calendario-toggle.is-aberto {
-  color: var(--color-navy);
-  background: color-mix(in srgb, var(--color-dado) 6%, transparent);
-  border-color: color-mix(in srgb, var(--color-dado) 18%, transparent);
+  color: var(--sas-acao);
+  background: color-mix(in srgb, var(--sas-dado) 6%, transparent);
+  border-color: color-mix(in srgb, var(--sas-dado) 18%, transparent);
 }
 
 .sim-calendario-toggle__seta {
   font-size: 10px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .sim-calendario-toggle.is-aberto .sim-calendario-toggle__seta {
-  color: var(--color-navy);
+  color: var(--sas-acao);
 }
 
 /* ─── Calendário anual ─────────────────────────────────────────────────── */
 
 .calendario {
   padding: 16px 24px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 .calendario__cabecalho {
@@ -154,12 +154,12 @@
 .calendario__titulo {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .calendario__resumo {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .calendario__grid {
@@ -171,7 +171,7 @@
   padding-bottom: 6px;   /* respiro pra scrollbar */
   /* Custom scrollbar (webkit) — discreta e harmônica */
   scrollbar-width: thin;
-  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-color: var(--sas-borda) transparent;
 }
 
 .calendario__grid::-webkit-scrollbar {
@@ -179,7 +179,7 @@
 }
 
 .calendario__grid::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
+  background: var(--sas-borda);
   border-radius: 3px;
 }
 
@@ -201,7 +201,7 @@
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0.5px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-align: center;
 }
 
@@ -213,7 +213,7 @@
 
 .calendario__dia-semana {
   font-size: 9px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-align: center;
   padding: 1px 0;
 }
@@ -221,9 +221,9 @@
 .calendario__dia {
   aspect-ratio: 1;
   border-radius: 3px;
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   font-size: 9px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   display: grid;
   place-items: center;
   border: 1px solid transparent;
@@ -236,25 +236,25 @@
 }
 
 .calendario__dia--com-simulado {
-  background: color-mix(in srgb, var(--color-dado) 18%, transparent);
-  color: var(--color-navy);
+  background: color-mix(in srgb, var(--sas-dado) 18%, transparent);
+  color: var(--sas-acao);
   cursor: pointer;
   font-weight: 500;
 }
 
 .calendario__dia--com-simulado:hover {
-  background: color-mix(in srgb, var(--color-dado) 32%, transparent);
+  background: color-mix(in srgb, var(--sas-dado) 32%, transparent);
   transform: scale(1.06);
 }
 
 .calendario__dia.is-selecionada {
-  background: var(--color-navy);
-  color: var(--color-navy-texto);
-  border-color: var(--color-navy-deep);
+  background: var(--sas-acao);
+  color: var(--sas-acao-texto);
+  border-color: var(--sas-acao-base);
 }
 
 .calendario__dia.is-hoje {
-  outline: 1px solid var(--color-gold-deep);
+  outline: 1px solid var(--sas-valor-texto);
   outline-offset: 1px;
 }
 
@@ -270,17 +270,17 @@
 
 .sim-tabela__pn {
   font-weight: 500;
-  color: var(--color-navy-deep);
+  color: var(--sas-acao-base);
 }
 
 .sim-tabela__data {
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   white-space: nowrap;
 }
 
 .sim-tabela__vazio {
   padding: 56px 24px;
   text-align: center;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   font-size: 14px;
 }

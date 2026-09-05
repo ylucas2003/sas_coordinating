@@ -11,12 +11,16 @@ import { App } from './App';
 import '../styles/fontes.css';
 // A pilha de cor, e a ordem dela é obrigatória: os hexadecimais crus
 // (`paleta.css`), depois os seis papéis com os três blocos de tema
-// (`papeis.css`), e só então os aliases — `tokens.css` para a coordenação e
-// `aluno-tokens.css` lá embaixo para o aluno. Alias antes de papel resolveria
-// para vazio. Ver o cabeçalho de cada um.
+// (`papeis.css`), e só então o alias que sobrou — `aluno-tokens.css`, lá
+// embaixo. Alias antes de papel resolveria para vazio. Ver o cabeçalho de cada
+// um. O alias da coordenação (`tokens.css`) morreu na fase 0 do docs/39: a
+// coordenação lê o papel direto.
+//
+// `forma.css` é o que restou de `tokens.css` e não era cor — raio, casco e
+// família tipográfica. Fora da pilha porque não responde a tema.
 import '../styles/paleta.css';
 import '../styles/papeis.css';
-import '../styles/tokens.css';
+import '../styles/forma.css';
 import '../styles/base.css';
 // KaTeX vem antes do nosso `markdown.css`, que ajusta corpo e margem do que ele
 // desenha. As fontes vêm no próprio pacote npm e o Vite as emite como asset do
@@ -31,6 +35,10 @@ import '../styles/painel.css';
 import '../styles/aluno-ficha.css';
 import '../styles/filtros.css';
 import '../styles/campo.css';
+// A tarja de procedência, que substitui os quatro dialetos de "de onde veio
+// este número?" (docs/39, fase 1). Global como `campo.css`: ela é peça de
+// vocabulário e aparece em tela de qualquer casco.
+import '../styles/procedencia.css';
 import '../styles/chat.css';
 import '../styles/edicao.css';
 // Área do aluno: tokens primeiro (os `--alu-*` dos dois temas), depois o casco,

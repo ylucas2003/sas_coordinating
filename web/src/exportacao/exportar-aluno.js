@@ -56,18 +56,24 @@ export function exportarPNGGrafico(svgElement, aluno) {
 
   // Resolve variáveis CSS comuns substituindo pelo valor real.
   //
-  // ⚠️ A borda vinha de `getPropertyValue('--color-border')` — a ÚNICA leitura
+  // ⚠️ A borda vinha de `getPropertyValue('--sas-borda')` — a ÚNICA leitura
   // de token em tempo de execução em toda a exportação, e por isso a única por
   // onde o tema da tela entraria no arquivo salvo. Agora lê `--doc-*`, que é
   // paleta clara fixa (documento.css). Documento impresso não tem tema.
+  //
+  // ⚠️ As CHAVES são o texto literal que os componentes escrevem no atributo
+  // do SVG, casado por `split`/`join`. Renomeou token em `componentes/ui/`?
+  // Renomeie aqui na mesma passada — quem não bate não é substituído, e o
+  // `var(...)` sobrevive na string serializada: o navegador descarta a
+  // propriedade e o traço some do PNG, sem erro nenhum (docs/39 §0).
   const doc = (nome, alternativa) =>
     getComputedStyle(document.documentElement).getPropertyValue(nome).trim() || alternativa;
   const variaveisResolvidas = {
-    'var(--color-border)': doc('--doc-png-borda', '#e0e3eb'),
-    'var(--color-text-tertiary)': doc('--doc-png-grafico-texto-3', '#73757d'),
-    'var(--color-text-secondary)': doc('--doc-png-grafico-texto-2', '#5a5d65'),
-    'var(--color-navy)': doc('--doc-navy', '#1b3f8b'),
-    'var(--color-red, #c44)': doc('--doc-red', '#d9354a'),
+    'var(--sas-borda)': doc('--doc-png-borda', '#e0e3eb'),
+    'var(--sas-referencia)': doc('--doc-png-grafico-texto-3', '#73757d'),
+    'var(--sas-texto-2)': doc('--doc-png-grafico-texto-2', '#5a5d65'),
+    'var(--sas-acao)': doc('--doc-navy', '#1b3f8b'),
+    'var(--sas-alerta, #c44)': doc('--doc-red', '#d9354a'),
   };
   let svgStr = new XMLSerializer().serializeToString(clone);
   for (const [from, to] of Object.entries(variaveisResolvidas)) {
@@ -257,18 +263,23 @@ function _embarcarEstilosPanorama(no) {
   // divergente que este caminho sempre teve — declarada lá, com o motivo.
   const v = (nome, alternativa) =>
     getComputedStyle(document.documentElement).getPropertyValue(nome).trim() || alternativa;
+  //
+  // Três nomes do alias antigo colapsaram sobre o mesmo papel na fase 0 do
+  // docs/39, e a lista encolheu junto: `border` e `border-strong` são os dois
+  // `--sas-borda`, e aqui fica a borda FORTE, como em `documento.css`; e o
+  // verde do semáforo virou DADO, com o mesmo #2e6be6 que o bloco `@media
+  // print` de lá crava — no PNG, o que era tag verde sai azul.
   const cores = {
-    '--color-text-primary': v('--doc-png-texto', '#1a1d24'),
-    '--color-text-secondary': v('--doc-png-texto-2', 'rgba(26, 29, 36, 0.65)'),
-    '--color-text-tertiary': v('--doc-png-texto-3', 'rgba(26, 29, 36, 0.45)'),
-    '--color-navy': v('--doc-navy', '#1b3f8b'),
-    '--color-bg': v('--doc-png-bg', '#eef1f7'),
-    '--color-surface-inset': v('--doc-png-superficie-inset', '#f5f7fb'),
-    '--color-border': v('--doc-png-borda', 'rgba(20, 30, 80, 0.06)'),
-    '--color-border-strong': v('--doc-png-borda-forte', 'rgba(20, 30, 80, 0.12)'),
-    '--color-red': v('--doc-red', '#d9354a'),
-    '--color-green': v('--doc-green', '#2e8c5a'),
-    '--color-amber': v('--doc-png-amber', '#e89b2a'),
+    '--sas-texto': v('--doc-png-texto', '#1a1d24'),
+    '--sas-texto-2': v('--doc-png-texto-2', 'rgba(26, 29, 36, 0.65)'),
+    '--sas-referencia': v('--doc-png-texto-3', 'rgba(26, 29, 36, 0.45)'),
+    '--sas-acao': v('--doc-navy', '#1b3f8b'),
+    '--sas-fundo': v('--doc-png-bg', '#eef1f7'),
+    '--sas-superficie-2': v('--doc-png-superficie-inset', '#f5f7fb'),
+    '--sas-borda': v('--doc-png-borda-forte', 'rgba(20, 30, 80, 0.12)'),
+    '--sas-alerta': v('--doc-red', '#d9354a'),
+    '--sas-dado': v('--doc-png-dado', '#2e6be6'),
+    '--sas-valor': v('--doc-png-amber', '#e89b2a'),
   };
   const style = Object.entries(cores).map(([k, v]) => `${k}:${v}`).join(';');
   no.setAttribute('style', `${no.getAttribute('style') || ''};${style}`);

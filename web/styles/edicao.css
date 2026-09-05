@@ -22,12 +22,12 @@
 }
 
 .dialog {
-  background: var(--color-surface);
+  background: var(--sas-superficie);
   /* BORDA, nunca sombra — inclusive no diálogo. A sombra de 40px de blur era
      a última sobrevivente da regra: ela não vinha de `--shadow-float` (esse
      token morreu), estava escrita literalmente aqui. Quem separa o diálogo do
      que está atrás é a borda mais o véu (`.dialog-overlay`). */
-  border: var(--color-border-largura) solid var(--color-border);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 420px;
@@ -48,7 +48,7 @@
 
 .dialog__header {
   padding: 20px 24px 14px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 /* Título de diálogo é título de SEÇÃO (16/600), não texto corrente: 15/500
@@ -57,13 +57,13 @@
   font-size: 16px;
   font-weight: 600;
   line-height: 1.3;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
   margin: 0 0 3px;
 }
 
 .dialog__subtitulo {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 /* ─── Corpo do form ───────────────────────────────────────────────────── */
@@ -84,7 +84,7 @@
 .dialog__label {
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-transform: none;
   letter-spacing: 0.05em;
 }
@@ -92,33 +92,33 @@
 .dialog__input {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
   font-family: var(--font-family);
   font-size: 14px;
-  color: var(--color-text-primary);
-  /* `--color-bg`, não `--color-surface`: o diálogo JÁ é superfície, e o campo
+  color: var(--sas-texto);
+  /* `--sas-fundo`, não `--sas-superficie`: o diálogo JÁ é superfície, e o campo
      com o mesmo fundo dela desaparecia — sobrava só o fio de 1px para dizer
      onde se digita. */
-  background: var(--color-bg);
+  background: var(--sas-fundo);
   box-sizing: border-box;
   outline: none;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 
 .dialog__input:focus {
-  border-color: var(--color-dado);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-dado) 16%, transparent);
+  border-color: var(--sas-dado);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sas-dado) 16%, transparent);
 }
 
 .dialog__input--erro {
-  border-color: var(--color-red) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-red) 14%, transparent) !important;
+  border-color: var(--sas-alerta) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sas-alerta) 14%, transparent) !important;
 }
 
 .dialog__input:disabled {
-  background: var(--color-surface-inset);
-  color: var(--color-text-tertiary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-referencia);
   cursor: not-allowed;
 }
 
@@ -134,17 +134,17 @@
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--color-navy);
+  accent-color: var(--sas-acao);
 }
 
 .dialog__checkbox-label {
   font-size: 14px;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 .dialog__hint {
   font-size: 11px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 /* ─── Step de confirmação ─────────────────────────────────────────────── */
@@ -157,12 +157,12 @@
 
 .dialog__confirmacao-titulo {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .dialog__diff {
-  background: var(--color-surface-inset);
-  border: 1px solid var(--color-border);
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   display: flex;
@@ -180,23 +180,23 @@
 .dialog__diff-campo {
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-transform: none;
   letter-spacing: 0.04em;
   min-width: 80px;
 }
 
 .dialog__diff-de {
-  color: var(--color-red);
+  color: var(--sas-alerta);
   text-decoration: line-through;
 }
 
 .dialog__diff-seta {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .dialog__diff-para {
-  color: var(--color-green);
+  color: var(--sas-dado);
   font-weight: 500;
 }
 
@@ -207,7 +207,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--sas-borda);
 }
 
 /* Os botões (`.btn`, `.btn--primary`, `.btn--ghost`) vivem em layout.css.
@@ -220,9 +220,9 @@
   font-size: 11px;
   padding: 3px 9px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--sas-borda);
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   cursor: pointer;
   font-family: var(--font-family);
   font-weight: 500;
@@ -232,9 +232,9 @@
 }
 
 .btn-editar:hover {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  color: var(--color-navy-texto);
+  background: var(--sas-acao);
+  border-color: var(--sas-acao);
+  color: var(--sas-acao-texto);
 }
 
 /* Botão de editar no header do simulado */
@@ -242,9 +242,9 @@
   font-size: 12px;
   padding: 5px 14px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--sas-borda);
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   cursor: pointer;
   font-family: var(--font-family);
   font-weight: 500;
@@ -252,8 +252,8 @@
 }
 
 .btn-editar-sim:hover {
-  background: var(--color-surface-inset);
-  color: var(--color-text-primary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-texto);
 }
 
 /* ─── Grid de KPIs de comparação (ficha de nota) ─────────────────────── */
@@ -269,7 +269,7 @@
 }
 
 .dialog__kpi {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   border-radius: var(--radius-sm);
   padding: 8px 12px 10px;
   display: flex;
@@ -280,7 +280,7 @@
 .dialog__kpi-rotulo {
   font-size: 10px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-transform: none;
   letter-spacing: 0.05em;
 }
@@ -288,29 +288,29 @@
 .dialog__kpi-valor {
   font-size: 19px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
 
-.dialog__kpi-valor.tone-verde    { color: var(--color-green); }
-.dialog__kpi-valor.tone-ambar    { color: var(--color-amber); }
-.dialog__kpi-valor.tone-vermelho { color: var(--color-red); }
+.dialog__kpi-valor.tone-verde    { color: var(--sas-dado); }
+.dialog__kpi-valor.tone-ambar    { color: var(--sas-valor); }
+.dialog__kpi-valor.tone-vermelho { color: var(--sas-alerta); }
 
 .dialog__hint--ambar {
-  color: var(--color-amber);
+  color: var(--sas-valor);
 }
 
 .dialog__sep {
   border: none;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--sas-borda);
   margin: 4px 0 2px;
 }
 
 /* Tag "Anulado" */
 .tag.tone-anulado {
-  background: var(--color-red-soft);
-  color: var(--color-red);
+  background: color-mix(in srgb, var(--sas-alerta) 14%, transparent);
+  color: var(--sas-alerta);
 }
 
 /* ─── Agendamento (P1 — novo simulado / novo ciclo) ──────────────────── */
@@ -341,18 +341,18 @@
 .agendar__preview-nome {
   display: block;
   padding: 8px 10px;
-  background: var(--color-bg);
-  border: 1px dashed var(--color-border-strong);
+  background: var(--sas-fundo);
+  border: 1px dashed var(--sas-borda);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono, monospace);
   font-size: 12px;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   overflow-x: auto;
   white-space: nowrap;
 }
 
 .agendar__erro {
-  color: var(--color-red);
+  color: var(--sas-alerta);
   font-size: 12px;
   min-height: 16px;
 }
@@ -365,7 +365,7 @@
   height: 100%;
   padding-top: 18px;
   font-size: 13px;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   cursor: pointer;
   user-select: none;
 }
@@ -380,7 +380,7 @@
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 /* Selo de estado Canvas: só o limbo ganha cor — estado normal não ganha pixel
@@ -390,8 +390,8 @@
   margin-left: 8px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--color-amber-soft);
-  color: var(--color-amber);
+  background: color-mix(in srgb, var(--sas-valor) 16%, transparent);
+  color: var(--sas-valor);
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
@@ -403,8 +403,8 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--color-navy-soft, #e6eaf4);
-  color: var(--color-navy, #1f3a7a);
+  background: color-mix(in srgb, var(--sas-dado) 12%, transparent);
+  color: var(--sas-acao, #1f3a7a);
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
@@ -414,8 +414,8 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--color-green-soft, #e2f4e6);
-  color: var(--color-green, #2e9e4f);
+  background: color-mix(in srgb, var(--sas-dado) 14%, transparent);
+  color: var(--sas-dado, #2e9e4f);
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
@@ -429,19 +429,19 @@
 .dialog__canvas {
   margin: 14px 0 0;
   padding: 10px 14px 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-md);
 }
 
 .dialog__canvas--perigo {
-  border-color: var(--color-red);
+  border-color: var(--sas-alerta);
 }
 
 .dialog__canvas-titulo {
   padding: 0 6px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .dialog__canvas-opcao {
@@ -458,14 +458,14 @@
 }
 
 .dialog__canvas-aviso {
-  color: var(--color-red);
+  color: var(--sas-alerta);
   font-style: normal;
   font-weight: 600;
 }
 
 .btn--perigo {
-  background: var(--color-red);
-  border-color: var(--color-red);
+  background: var(--sas-alerta);
+  border-color: var(--sas-alerta);
 }
 
 /* ─── Régua de corte do coordenador (docs/31 §P4) ────────────────────────
@@ -477,7 +477,7 @@
   margin-top: 4px;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 11px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .criterio__combinador {
@@ -493,14 +493,14 @@
   /* 36px de alvo de toque (docs/20 §1.2) mesmo com o texto em duas linhas. */
   min-height: 36px;
   padding: 6px 8px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-md);
   cursor: pointer;
 }
 
 .criterio__opcao:has(input:checked) {
-  border-color: var(--color-navy-light);
-  background: var(--color-bg);
+  border-color: var(--sas-dado-claro);
+  background: var(--sas-fundo);
 }
 
 .criterio__opcao span { display: flex; flex-direction: column; }
@@ -508,7 +508,7 @@
 .criterio__opcao em {
   font-size: 12px;
   font-style: normal;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .criterio__requisitos {
@@ -531,16 +531,16 @@
   min-height: 36px;
   font-size: 18px;
   line-height: 1;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   background: transparent;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-md);
   cursor: pointer;
 }
 
 .criterio__remover:hover {
-  color: var(--color-red);
-  border-color: var(--color-red);
+  color: var(--sas-alerta);
+  border-color: var(--sas-alerta);
 }
 
 /* As opções de edital ocupam a linha inteira, abaixo do requisito a que
@@ -552,8 +552,8 @@
   gap: 12px;
   padding: 6px 8px;
   font-size: 12px;
-  color: var(--color-text-secondary);
-  background: var(--color-bg);
+  color: var(--sas-texto-2);
+  background: var(--sas-fundo);
   border-radius: var(--radius-md);
 }
 
@@ -583,8 +583,8 @@
   margin-top: 14px;
   padding: 12px 14px;
   font-size: 13px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border-strong);
+  background: var(--sas-fundo);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-md);
 }
 
@@ -592,12 +592,12 @@
 
 .criterio__previa--vazia,
 .criterio__previa--erro {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .criterio__previa--erro {
-  color: var(--color-red);
-  border-color: var(--color-red);
+  color: var(--sas-alerta);
+  border-color: var(--sas-alerta);
 }
 
 .criterio__previa-numero b {
@@ -609,7 +609,7 @@
 .criterio__previa-lista {
   margin: 8px 0 0;
   padding-left: 18px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 @media (max-width: 480px) {

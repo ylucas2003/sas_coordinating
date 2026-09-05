@@ -105,17 +105,26 @@ Não "modernize" essa pasta.
 - **Classes compartilhadas ficam globais** (`.card`, `.tone-*`, `.nota-badge`,
   `.btn`); só o CSS de prefixo próprio da tela vira módulo. Extração ao
   contrário trava.
-- **A cor tem uma pilha de cinco arquivos, e a ordem é obrigatória**
-  (docs/37): `paleta.css` (os hexadecimais, uma vez cada) → `papeis.css` (os
-  seis papéis e os três blocos de tema) → `tokens.css` (`--color-*`) e
-  `aluno-tokens.css` (`--alu-*`), que são só alias → `documento.css`
-  (`--doc-*`), **por último**, porque o `@media print` dele remapeia a paleta e
-  blocos `:root` têm a mesma especificidade.
+- **A cor tem uma pilha de quatro arquivos, e a ordem é obrigatória**
+  (docs/37, docs/39 §0): `paleta.css` (os hexadecimais, uma vez cada) →
+  `papeis.css` (os seis papéis e os três blocos de tema) → `aluno-tokens.css`
+  (`--alu-*`, que é alias) → `documento.css` (`--doc-*`), **por último**,
+  porque o `@media print` dele remapeia a paleta e blocos `:root` têm a mesma
+  especificidade.
+
+  Eram cinco: `tokens.css` traduzia os papéis para um alias da coordenação
+  (`--color-navy`, `--color-gold`, `--color-red`…) e morreu na fase 0 do
+  docs/39, com as 1.067 leituras dele trocadas pelo papel. **A coordenação lê
+  `--sas-*` direto.** Os nomes que não eram cor — raio, largura do rail, altura
+  da topbar, `--font-family` — foram para `styles/forma.css`, fora da pilha,
+  porque não respondem a tema.
 
   ⚠️ Nenhuma tela lê `--dia-*`, `--noite-*` direto: eles são matéria-prima.
   `dominio/tokensCss.test.ts` trava isso — e existe porque um `*/` perdido já
   comentou sete tokens sem o build reclamar: `var()` indefinido é descartado em
-  silêncio.
+  silêncio. Ele também trava a cobertura do `@media print`: papel que a tela lê
+  e o bloco de impressão não congela é **folha preta** para quem trabalha à
+  noite, sem erro e sem aviso.
 - **O semáforo não existe mais.** Acima do corte é preenchido, abaixo é vazado,
   a intensidade carrega a distância, e o vermelho fica só na etiqueta e na
   falha operacional. `dominio/selo.ts` faz a tradução; o backend continua
@@ -136,9 +145,10 @@ Não "modernize" essa pasta.
   Vale registrar como custou: a falta de espinha comum fez o mesmo produto ser
   construído duas vezes. A razão declarada da duplicação era que a tela da
   coordenação é toda em tokens da coordenação e não sobreviveria ao tema
-  escuro do aluno — e **essa razão morreu em 05/09/2026**, quando `--color-*`
-  passou a apontar para os mesmos papéis que `--alu-*` (docs/37 §7.3).
-  Reunificá-las voltou a ser possível, e é trabalho próprio.
+  escuro do aluno — e **essa razão morreu em 05/09/2026**, quando o alias da
+  coordenação passou a apontar para os mesmos papéis que `--alu-*` (docs/37
+  §7.3) e, na fase 0 do docs/39, deixou de existir. Reunificá-las voltou a ser
+  possível, e é trabalho próprio.
 
 ## Ferramentas
 

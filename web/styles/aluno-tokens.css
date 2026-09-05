@@ -13,7 +13,7 @@
    SEQUENCIA (a chama, a corrente de simulados), a coordenação tem
    REFERENCIA.
 
-   ⚠️ Escopo: só `--alu-*`. A coordenação lê `--color-*` (tokens.css).
+   ⚠️ Escopo: só `--alu-*`. A coordenação lê o papel direto (`papeis.css`).
    ─────────────────────────────────────────────────────────────────────── */
 
 :root {

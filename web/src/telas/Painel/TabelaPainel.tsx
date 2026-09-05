@@ -261,7 +261,7 @@ export function TabelaPainel({
                 })}
                 <td className="painel-tabela__td-traj">
                   {aluno.sparkline?.length ? (
-                    <Sparkline valores={aluno.sparkline} cor="var(--color-dado)" />
+                    <Sparkline valores={aluno.sparkline} cor="var(--sas-dado)" />
                   ) : (
                     <span className="painel-tabela__traj-vazia" title="sem histórico suficiente">—</span>
                   )}

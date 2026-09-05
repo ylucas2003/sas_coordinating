@@ -42,8 +42,8 @@ textarea {
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-text-primary);
+  background: var(--sas-fundo);
+  color: var(--sas-texto);
   font-family: var(--font-family);
   font-weight: 400;
   line-height: 1.7;
@@ -67,7 +67,7 @@ p {
 }
 
 a {
-  color: var(--color-navy);
+  color: var(--sas-acao);
   text-decoration: none;
 }
 
@@ -85,7 +85,7 @@ button {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-dado) 18%, transparent);
+  background: color-mix(in srgb, var(--sas-dado) 18%, transparent);
 }
 
 [hidden] {

@@ -1,6 +1,6 @@
 /* A CANTINA — o casco próprio e as telas dela, mais o que a coordenação lê.
  *
- * Usa os tokens da COORDENAÇÃO (`--color-*`), e não os do aluno: quem trabalha
+ * Lê os papéis direto (`--sas-*`), e não os apelidos do aluno: quem trabalha
  * aqui é adulto, no desktop, o dia inteiro — a mesma densidade e a mesma escala
  * tipográfica das telas de trabalho. A área do aluno tem folha própria
  * (`aluno-cantina.css`).
@@ -14,8 +14,8 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg);
-  color: var(--color-text-primary);
+  background: var(--sas-fundo);
+  color: var(--sas-texto);
 }
 
 /* ─── Topo ───────────────────────────────────────────────────────────── */
@@ -25,13 +25,13 @@
   align-items: center;
   gap: 20px;
   padding: 10px 20px;
-  border-bottom: var(--sas-borda-l, 1px) solid var(--color-border, var(--sas-borda));
-  background: var(--color-surface);
+  border-bottom: var(--sas-borda-l, 1px) solid var(--sas-borda, var(--sas-borda));
+  background: var(--sas-superficie);
 }
 
 .cant-marca { display: flex; align-items: center; gap: 10px; }
 .cant-marca__texto { display: flex; flex-direction: column; line-height: 1.15; }
-.cant-marca__sub { font-size: 12px; color: var(--color-text-secondary); }
+.cant-marca__sub { font-size: 12px; color: var(--sas-texto-2); }
 
 .cant-nav { display: flex; gap: 4px; margin-left: auto; }
 
@@ -43,15 +43,15 @@
   align-items: center;
   padding: 0 14px;
   border-radius: 999px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   text-decoration: none;
 }
 
 .cant-nav__link.active,
-.cant-nav__link:hover { background: var(--color-navy-tint); color: var(--color-text-primary); }
+.cant-nav__link:hover { background: color-mix(in srgb, var(--sas-dado) 10%, transparent); color: var(--sas-texto); }
 
 .cant-topo__conta { display: flex; align-items: center; gap: 12px; }
-.cant-topo__nome { font-size: 13px; color: var(--color-text-secondary); }
+.cant-topo__nome { font-size: 13px; color: var(--sas-texto-2); }
 
 .cant-main { flex: 1; padding: 20px; }
 .cant-tela { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
@@ -67,7 +67,7 @@
 }
 
 .cant-titulo { font-size: 22px; margin: 0; }
-.cant-sub { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 13px; }
+.cant-sub { margin: 4px 0 0; color: var(--sas-texto-2); font-size: 13px; }
 
 /* O chevron de volta na MESMA linha do título — a regra C4 do padrão de campo. */
 .cant-voltar {
@@ -77,7 +77,7 @@
   width: 44px; height: 44px;
   margin-left: -12px;
   font-size: 24px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   text-decoration: none;
 }
 
@@ -91,14 +91,14 @@
   padding: 0 14px;
   border: 1px solid var(--sas-borda);
   border-radius: 10px;
-  background: var(--color-surface);
-  color: var(--color-text-primary);
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
   cursor: pointer;
 }
 
-.cant-tecla:hover:not(:disabled) { background: var(--color-surface-inset); }
+.cant-tecla:hover:not(:disabled) { background: var(--sas-superficie-2); }
 .cant-tecla:disabled { opacity: 0.5; cursor: not-allowed; }
-.cant-tecla--principal { background: var(--color-navy); color: var(--color-navy-texto); border-color: transparent; }
+.cant-tecla--principal { background: var(--sas-acao); color: var(--sas-acao-texto); border-color: transparent; }
 .cant-tecla--fina { min-height: 32px; padding: 0 10px; font-size: 12px; }
 
 /* ─── O calendário ───────────────────────────────────────────────────── */
@@ -113,7 +113,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   padding-bottom: 4px;
 }
 
@@ -122,7 +122,7 @@
   padding: 6px;
   border: 1px solid var(--sas-borda);
   border-radius: 12px;
-  background: var(--color-surface);
+  background: var(--sas-superficie);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -132,8 +132,8 @@
 /* Hoje é marcado pela BORDA, não por preenchimento: o preenchimento das
    células já significa outra coisa, e dois significados na mesma tinta é
    exatamente o que o fim do semáforo veio resolver. */
-.cant-dia--hoje { border-color: var(--color-navy); border-width: 2px; }
-.cant-dia__numero { font-size: 12px; color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.cant-dia--hoje { border-color: var(--sas-acao); border-width: 2px; }
+.cant-dia__numero { font-size: 12px; color: var(--sas-referencia); font-variant-numeric: tabular-nums; }
 
 .cant-celula {
   display: flex;
@@ -149,22 +149,22 @@
   justify-content: center;
 }
 
-.cant-celula:hover { border-color: var(--color-navy); }
+.cant-celula:hover { border-color: var(--sas-acao); }
 .cant-celula--inerte { opacity: 0.55; cursor: default; }
 .cant-celula__refeicao { font-weight: 600; }
-.cant-celula__estado { color: var(--color-text-secondary); }
-.cant-celula__pedidos { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.cant-celula__estado { color: var(--sas-texto-2); }
+.cant-celula__pedidos { color: var(--sas-texto); font-variant-numeric: tabular-nums; }
 
 /* Os cinco estados. Vazado → preenchido acompanha "não existe → existe →
    contado", que é a mesma gramática de intensidade do resto do produto: acima
    do corte é preenchido, abaixo é vazado. */
-.cant-celula--sem-cardapio { border-style: dashed; color: var(--color-text-tertiary); }
-.cant-celula--rascunho { background: var(--color-neutral-soft); }
-.cant-celula--aberto { background: var(--color-navy-soft); border-color: var(--color-navy); }
-.cant-celula--fechado { background: var(--color-navy); color: var(--color-navy-texto); border-color: transparent; }
+.cant-celula--sem-cardapio { border-style: dashed; color: var(--sas-referencia); }
+.cant-celula--rascunho { background: var(--sas-superficie-2); }
+.cant-celula--aberto { background: color-mix(in srgb, var(--sas-dado) 12%, transparent); border-color: var(--sas-acao); }
+.cant-celula--fechado { background: var(--sas-acao); color: var(--sas-acao-texto); border-color: transparent; }
 .cant-celula--fechado .cant-celula__estado,
 .cant-celula--fechado .cant-celula__pedidos { color: inherit; opacity: 0.85; }
-.cant-celula--sem-refeicao { background: var(--color-hachura); color: var(--color-text-tertiary); }
+.cant-celula--sem-refeicao { background: var(--sas-hachura); color: var(--sas-referencia); }
 
 /* ─── O editor ───────────────────────────────────────────────────────── */
 
@@ -174,24 +174,24 @@
   padding: 16px;
   border: 1px solid var(--sas-borda);
   border-radius: 14px;
-  background: var(--color-surface);
+  background: var(--sas-superficie);
 }
 
 .cant-secao__titulo { margin: 0; font-size: 15px; }
-.cant-secao__ajuda { margin: 0; font-size: 12px; color: var(--color-text-secondary); }
+.cant-secao__ajuda { margin: 0; font-size: 12px; color: var(--sas-texto-2); }
 .cant-copiar { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .cant-campo { display: grid; gap: 4px; max-width: 420px; }
-.cant-campo__rotulo { font-size: 12px; color: var(--color-text-secondary); }
-.cant-campo__ajuda { font-size: 12px; color: var(--color-text-tertiary); }
+.cant-campo__rotulo { font-size: 12px; color: var(--sas-texto-2); }
+.cant-campo__ajuda { font-size: 12px; color: var(--sas-referencia); }
 
 .cant-input {
   min-height: var(--alu-toque, 44px);
   padding: 0 10px;
   border: 1px solid var(--sas-borda);
   border-radius: 10px;
-  background: var(--color-surface);
-  color: var(--color-text-primary);
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
   font: inherit;
   width: 100%;
 }
@@ -206,16 +206,16 @@
   padding: 14px;
   border: 1px solid var(--sas-borda);
   border-radius: 14px;
-  background: var(--color-surface);
+  background: var(--sas-superficie);
   display: grid;
   gap: 10px;
 }
 
-.cant-bloco--leitura { background: var(--color-surface-inset); }
+.cant-bloco--leitura { background: var(--sas-superficie-2); }
 .cant-bloco__cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .cant-bloco__titulo { margin: 0; font-size: 14px; display: flex; gap: 10px; align-items: baseline; }
-.cant-bloco__instrucao { margin: 0; font-size: 12px; color: var(--color-text-secondary); font-weight: 400; }
-.cant-mini { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-text-secondary); }
+.cant-bloco__instrucao { margin: 0; font-size: 12px; color: var(--sas-texto-2); font-weight: 400; }
+.cant-mini { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--sas-texto-2); }
 
 .cant-opcoes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .cant-opcao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -232,12 +232,12 @@
   font-size: 13px;
 }
 
-.cant-aviso { background: var(--color-amber-soft); color: var(--color-text-primary); }
+.cant-aviso { background: color-mix(in srgb, var(--sas-valor) 16%, transparent); color: var(--sas-texto); }
 /* Vermelho SÓ em falha operacional — é o que sobrou dele depois do fim do
    semáforo (docs/37). */
-.cant-erro { background: var(--color-red-soft); color: var(--color-text-primary); }
+.cant-erro { background: color-mix(in srgb, var(--sas-alerta) 14%, transparent); color: var(--sas-texto); }
 
-.cant-vazio { color: var(--color-text-secondary); text-align: center; padding: 24px; }
+.cant-vazio { color: var(--sas-texto-2); text-align: center; padding: 24px; }
 
 /* ─── Pedidos ────────────────────────────────────────────────────────── */
 
@@ -249,11 +249,11 @@
   border: 1px solid var(--sas-borda);
   border-radius: 999px;
   background: none;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   cursor: pointer;
 }
 
-.cant-aba--ativa { background: var(--color-navy); color: var(--color-navy-texto); border-color: transparent; }
+.cant-aba--ativa { background: var(--sas-acao); color: var(--sas-acao-texto); border-color: transparent; }
 
 .cant-contagem,
 .cant-colunas { display: grid; gap: 16px; }
@@ -275,13 +275,13 @@
 
 .cant-contagem__linha--fora { opacity: 0.55; }
 .cant-contagem__nome { display: flex; gap: 8px; align-items: baseline; }
-.cant-contagem__bloco { font-size: 11px; color: var(--color-text-tertiary); }
+.cant-contagem__bloco { font-size: 11px; color: var(--sas-referencia); }
 
 /* O número em magnitude: é o que se lê de longe, com a mão na panela. */
 .cant-contagem__numero {
   font-size: 26px;
   font-variant-numeric: tabular-nums;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
 }
 
 .cant-tarja {
@@ -291,8 +291,8 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background: var(--color-neutral-soft);
-  color: var(--color-text-secondary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-texto-2);
 }
 
 .cant-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -303,12 +303,12 @@
   padding: 10px 12px;
   border: 1px solid var(--sas-borda);
   border-radius: 12px;
-  background: var(--color-surface);
+  background: var(--sas-superficie);
 }
 
 .cant-lista__aluno { display: flex; gap: 8px; align-items: baseline; }
-.cant-lista__turma { font-size: 12px; color: var(--color-text-tertiary); }
-.cant-lista__escolhas { font-size: 13px; color: var(--color-text-secondary); }
+.cant-lista__turma { font-size: 12px; color: var(--sas-referencia); }
+.cant-lista__escolhas { font-size: 13px; color: var(--sas-texto-2); }
 
 /* A restrição é a informação que muda o que sai do balcão: ela tem destaque
    próprio, e não uma coluna qualquer. */
@@ -316,7 +316,7 @@
   font-size: 13px;
   padding: 4px 8px;
   border-radius: 8px;
-  background: var(--color-amber-soft);
+  background: color-mix(in srgb, var(--sas-valor) 16%, transparent);
   justify-self: start;
 }
 
@@ -333,7 +333,7 @@
   gap: 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   font-size: 13px;
   margin-bottom: 10px;
 }

@@ -1,0 +1,42 @@
+/* ─── Forma, medida e tipo ───────────────────────────────────────────────
+   O que sobrou de `tokens.css` quando ele morreu na fase 0 do docs/39: nada
+   aqui é cor, e por isso nada aqui responde a tema. Um raio de 18px é 18px de
+   dia e de noite.
+
+   Ficou num arquivo próprio, e não em `papeis.css`, porque aquele arquivo é o
+   ÚNICO lugar onde o tema é decidido — misturar medida com papel obrigaria a
+   repetir cada raio nos quatro blocos de tema para provar que ele não muda.
+
+   A área do aluno tem as suas em `aluno-tokens.css` (`--alu-raio`,
+   `--alu-tecla`, `--alu-toque`…), com valores próprios: a densidade das duas
+   áreas não é a mesma, e é ISSO que os dois conjuntos declaram.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Raios · TRÊS valores ───────────────────────────────────────────────
+     Eram quatro (10, 14, 16, 18) e ninguém sabia qual usar. O sistema tem
+     três: 18 em superfície, 12 em elemento pequeno, 999 em pílula.
+
+     Os quatro NOMES continuam existindo e colapsam sobre três valores, de
+     propósito: renomear os 95 usos no mesmo commit em que a forma muda
+     tiraria a chance de ver o que a forma fez. Os nomes redundantes saem na
+     limpeza. */
+  --radius-sm: 12px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 18px;
+  --radius-pill: 999px;
+
+  /* ── Casco ────────────────────────────────────────────────────────────
+     Lidos só por `casco.css`. O rail abre por `:has(.rail:hover)`, não por
+     estado de React — por isso a largura aberta é token e não prop. */
+  --rail-w: 88px;
+  --rail-w-aberto: 228px;
+  --topbar-h: 72px;
+
+  /* ── Tipografia ───────────────────────────────────────────────────────
+     A família serve as duas áreas. As faces vêm de `fontes.css`, servidas do
+     nosso domínio: nada de Google Fonts nem de qualquer CDN, porque os dados
+     são de menores de idade (CLAUDE.md, armadilha 6). */
+  --font-family: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
+}

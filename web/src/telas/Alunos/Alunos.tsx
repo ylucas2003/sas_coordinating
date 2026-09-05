@@ -232,7 +232,7 @@ export function Alunos() {
                     <span className={`tag ${ZONA_TONE[a.zona]}`}>{ZONA_LABEL[a.zona]}</span>
                   </td>
                   <td>
-                    <Sparkline valores={a.sparkline ?? []} cor="var(--color-navy)" />
+                    <Sparkline valores={a.sparkline ?? []} cor="var(--sas-acao)" />
                   </td>
                   <td>
                     <Link to={`/alunos/${a.id}`} onClick={(ev) => ev.stopPropagation()}>

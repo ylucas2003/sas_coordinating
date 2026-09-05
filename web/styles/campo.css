@@ -2,9 +2,16 @@
    Os cards-que-abrem-tela, a cabeça com chevron e o elo quieto. Comentário
    das regras C1–C5 em `componentes/ui/Campo.tsx`.
 
-   A anatomia vem do canvas: olho em caixa alta, título de 27px em peso 800
-   com tracking negativo, subtítulo de 14px em REFERENCIA, e o glifo de 70×70
-   em traço 1.4 na cor DADO, alinhado ao canto inferior direito.
+   A anatomia vem da prancheta: olho em caixa alta, título de 27px em peso 800
+   com tracking negativo, subtítulo de 14px em texto secundário, e o glifo de
+   70×70 em traço 1.4 na cor DADO, alinhado ao canto inferior direito.
+
+   ⚠️ O olho era DADO e virou texto secundário na fase 1 do docs/39. Azul aqui
+   é o valor MEDIDO (R3/R7: uma escala semântica por tela) — um rótulo de
+   seção não é medida, e pintá-lo de azul tirava do dado a única cor que o
+   distingue. O mesmo vale para o subtítulo, que lia REFERENCIA: aquele cinza
+   é o da marca de gráfico, e a 14px sobre superfície clara ele não passa em
+   contraste. Quem serve texto é `--sas-texto-2`.
    ─────────────────────────────────────────────────────────────────────── */
 
 .campo-grade {
@@ -19,42 +26,69 @@
   gap: 12px;
   min-height: 186px;
   padding: 24px;
-  background: var(--color-surface);
-  border: var(--color-border-largura) solid var(--color-border);
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   border-radius: var(--radius-lg);
   color: inherit;
   text-decoration: none;
   transition: border-color 150ms, transform 80ms ease-out;
 }
 
-.campo-cartao:hover {
-  border-color: var(--color-dado);
+.campo-cartao:not(.campo-cartao--inerte):hover {
+  border-color: var(--sas-dado);
   text-decoration: none;
 }
 
 /* Afunda 2px, e não os 3px da tecla do botão primário: um bloco do tamanho de
    um cartão inteiro descendo 3px parece solto. */
-.campo-cartao:active {
+.campo-cartao:not(.campo-cartao--inerte):active {
   transform: translateY(2px);
 }
 
 .campo-cartao__texto {
   flex: 1;
   min-width: 0;
+  /* Estica na vertical para que o `margin-top: auto` da magnitude e do aviso
+     tenha contra o que empurrar — sem isto a coluna de texto tem a altura do
+     conteúdo e o numeral não desce até a base do card. */
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-/* O olho é DADO, exatamente como `.alu-olho` do aluno — não cinza. É a marca
-   tipográfica do sistema, e ela é azul nos dois produtos. */
+/* O olho divide a linha com a marca, quando ela existe. */
+.campo-cartao__topo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
 .campo-cartao__olho {
+  flex: 1;
+  min-width: 0;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1.4;
-  color: var(--color-dado);
+  color: var(--sas-texto-2);
+}
+
+/* A marca é um selo, não um alerta: pílula de contorno, sem preenchimento e
+   sem cor própria. "PENDENTE" e "SEM DESTINO" descrevem o estado do atalho,
+   e estado de atalho não é falha operacional (R4). */
+.campo-cartao__marca {
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--sas-texto-2);
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  padding: 5px 8px;
 }
 
 .campo-cartao__titulo {
@@ -62,37 +96,158 @@
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.05;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
 }
 
 .campo-cartao__sub {
   font-size: 14px;
   line-height: 1.5;
-  color: var(--color-text-tertiary);
+  color: var(--sas-texto-2);
   font-variant-numeric: tabular-nums;
 }
 
+/* ── A magnitude ─────────────────────────────────────────────────────────
+   O numeral que decide se vale abrir o card hoje. Desce até a base do card:
+   é o último degrau da leitura, depois da pergunta do título. Um por tela.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.campo-cartao__magnitude {
+  margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.campo-cartao__magnitude-numero {
+  font-size: 66px;
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.035em;
+  color: var(--sas-magnitude);
+  font-variant-numeric: tabular-nums;
+}
+
+.campo-cartao__magnitude-legenda {
+  font-size: 16px;
+  line-height: 1.3;
+  max-width: 180px;
+  color: var(--sas-texto-2);
+}
+
+/* O card com magnitude é o que domina a tela; o título dele sobe de 27 para
+   30px para não empatar com os pequenos que ficam ao lado. */
+.campo-cartao--magnitude .campo-cartao__titulo {
+  font-size: 30px;
+}
+
+/* ── O aviso ─────────────────────────────────────────────────────────────
+   A linha que confessa que o atalho envelheceu. Fica ABAIXO do subtítulo e
+   separada por fio, porque não é o dado: é a ressalva sobre ele.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.campo-cartao__aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--sas-texto-2);
+  border-top: 1px solid var(--sas-fio);
+  padding-top: 10px;
+}
+
+.campo-cartao__aviso svg {
+  flex: none;
+}
+
+/* ── O card inerte ───────────────────────────────────────────────────────
+   ⚠️ Inerte não é desabilitado: um card desabilitado diz "você não pode", o
+   inerte diz "não há". Contorno tracejado e fundo transparente para ele não
+   parecer clicável; sem cinza-de-desabilitado no texto para ele não parecer
+   defeito. Quem diz o motivo é o subtítulo — ver `Campo.tsx`.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.campo-cartao--inerte {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--sas-fio-forte);
+  cursor: default;
+}
+
+.campo-cartao--inerte .campo-cartao__titulo {
+  color: var(--sas-texto-2);
+}
+
+.campo-cartao--inerte .campo-cartao__glifo {
+  color: var(--sas-fio-forte);
+}
+
+/* ── O card compacto ─────────────────────────────────────────────────────
+   A metade da grade do Painel: dois deles empilhados fecham a borda inferior
+   com o card de magnitude ao lado (148 + 148 + 16 de gap = as duas linhas
+   dele). Por isso a altura mínima é a da linha da grade, não uma medida nova.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.campo-cartao--compacto {
+  min-height: 148px;
+  padding: 18px;
+}
+
+.campo-cartao--compacto .campo-cartao__titulo {
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.campo-cartao--compacto .campo-cartao__sub {
+  font-size: 13px;
+}
+
+.campo-cartao--compacto .campo-cartao__glifo {
+  width: 44px;
+  height: 44px;
+}
+
 /* Carregando: esqueleto, nunca spinner — e nunca um número chutado, que
-   envelhece calado (C2). */
+   envelhece calado (C2). São duas barras porque são duas linhas de dado; no
+   card com magnitude a primeira cresce para o tamanho do numeral, senão a
+   grade pula quando o número chega. */
 .campo-cartao__esqueleto {
-  height: 13px;
-  width: 62%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.campo-cartao__esqueleto-bloco {
+  height: 14px;
+  width: 60%;
   border-radius: 4px;
-  background: var(--color-surface-inset);
+  background: var(--sas-referencia-fraca);
+}
+
+.campo-cartao__esqueleto-linha {
+  height: 12px;
+  width: 78%;
+  border-radius: 4px;
+  background: var(--sas-referencia-fraca);
+}
+
+.campo-cartao--magnitude .campo-cartao__esqueleto-bloco {
+  height: 52px;
+  border-radius: 6px;
 }
 
 .campo-cartao__glifo {
   flex: none;
   align-self: flex-end;
   margin-top: auto;
-  color: var(--color-dado);
+  color: var(--sas-dado);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .campo-cartao {
     transition: border-color 150ms;
   }
-  .campo-cartao:active {
+  .campo-cartao:not(.campo-cartao--inerte):active {
     transform: none;
   }
 }
@@ -116,16 +271,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
   background: transparent;
   transition: background 150ms, border-color 150ms;
 }
 
 .campo-cabeca__voltar:hover {
-  background: var(--color-surface-inset);
-  border-color: var(--color-dado);
+  background: var(--sas-superficie-2);
+  border-color: var(--sas-dado);
   text-decoration: none;
 }
 
@@ -140,7 +295,7 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
 }
 
 .campo-cabeca__acoes {
@@ -161,19 +316,19 @@
   gap: 7px;
   white-space: nowrap;
   font-size: 14px;
-  color: var(--color-dado);
+  color: var(--sas-dado);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
 .campo-elo__contagem {
-  color: var(--color-text-tertiary);
+  color: var(--sas-texto-2);
   font-variant-numeric: tabular-nums;
 }
 
 .campo-elo-nota {
   font-size: 13px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-texto-2);
 }
 
 .campo-elos {
@@ -190,13 +345,25 @@
     grid-template-columns: 1fr;
   }
 
-  .campo-cartao {
+  .campo-cartao,
+  .campo-cartao--compacto {
     min-height: 0;
     padding: 16px;
   }
 
-  .campo-cartao__titulo {
+  .campo-cartao__titulo,
+  .campo-cartao--magnitude .campo-cartao__titulo {
     font-size: 22px;
+  }
+
+  /* O numeral encolhe junto: a 66px ele sozinho come a dobra do celular, e o
+     que faz o card decidir é o número, não o corpo dele. */
+  .campo-cartao__magnitude-numero {
+    font-size: 48px;
+  }
+
+  .campo-cartao__magnitude-legenda {
+    font-size: 14px;
   }
 
   .campo-cartao__glifo {
@@ -231,9 +398,9 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 8px;
-  background: var(--color-surface);
-  border: var(--color-border-largura) solid var(--color-border);
+  gap: 9px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   border-radius: var(--radius-lg);
   color: inherit;
   text-decoration: none;
@@ -241,7 +408,7 @@
 }
 
 .campo-entrada:hover {
-  border-color: var(--color-dado);
+  border-color: var(--sas-dado);
   text-decoration: none;
 }
 
@@ -251,19 +418,19 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1;
-  color: var(--color-dado);
+  color: var(--sas-texto-2);
 }
 
 .campo-entrada__titulo {
   font-size: 18px;
   font-weight: 700;
   line-height: 1.1;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
 }
 
 .campo-entrada__numeros {
   font-size: 13px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-texto-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -271,5 +438,5 @@
   height: 11px;
   width: 70%;
   border-radius: 4px;
-  background: var(--color-surface-inset);
+  background: var(--sas-referencia-fraca);
 }

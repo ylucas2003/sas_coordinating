@@ -19,30 +19,30 @@
 .painel-tabela__th-aluno {
   position: sticky;
   left: 48px;
-  background: var(--color-surface);
+  background: var(--sas-superficie);
   z-index: 3;
   text-align: left;
   padding: 14px 20px;
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-transform: none;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--color-border-strong);
+  border-bottom: 1px solid var(--sas-borda);
   width: 180px;
   white-space: nowrap;
 }
 
 /* ⚠️ Cabeçalho de tabela é CINZA (brief §Tipografia). Era
-   `--color-text-primary`, tão escuro quanto o dado abaixo dele — e cabeçalho
+   `--sas-texto`, tão escuro quanto o dado abaixo dele — e cabeçalho
    competindo com dado é o que faz uma tabela de 900 linhas cansar. */
 .painel-tabela__th-col {
   text-align: center;
   padding: 14px 10px 6px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
-  border-bottom: 1px solid var(--color-border);
+  color: var(--sas-referencia);
+  border-bottom: 1px solid var(--sas-borda);
   white-space: nowrap;
   min-width: 92px;
 }
@@ -54,10 +54,10 @@
   padding: 4px 10px 10px;
   font-size: 10px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-transform: none;
   letter-spacing: 0.07em;
-  border-bottom: 2px solid var(--color-border-strong);
+  border-bottom: 2px solid var(--sas-borda);
 }
 
 /* ── Separador entre F1 e F2 removido das células de dados ─── */
@@ -66,32 +66,32 @@
 
 .painel-tabela__th-col.col-destaque,
 .painel-tabela__th-fase.col-destaque {
-  background: color-mix(in srgb, var(--color-dado) 5%, transparent);
-  color: var(--color-navy);
+  background: color-mix(in srgb, var(--sas-dado) 5%, transparent);
+  color: var(--sas-acao);
 }
 
 .painel-tabela__td-nota.col-destaque {
-  background: color-mix(in srgb, var(--color-dado) 3%, transparent);
+  background: color-mix(in srgb, var(--sas-dado) 3%, transparent);
 }
 
 /* ── Linha de média da turma ────────────────────────── */
 
 .painel-tabela__tr-media {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
 }
 
 .painel-tabela__tr-media .painel-tabela__td-aluno {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-transform: none;
   letter-spacing: 0.05em;
-  border-bottom: 2px solid var(--color-border-strong);
+  border-bottom: 2px solid var(--sas-borda);
 }
 
 .painel-tabela__tr-media .painel-tabela__td-nota {
-  border-bottom: 2px solid var(--color-border-strong);
+  border-bottom: 2px solid var(--sas-borda);
 }
 
 /* ── Coluna de posição ──────────────────────────────── */
@@ -99,29 +99,29 @@
 .painel-tabela__th-pos {
   position: sticky;
   left: 0;
-  background: var(--color-surface);
+  background: var(--sas-superficie);
   z-index: 3;
   width: 48px;
   min-width: 48px;
   text-align: center;
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   letter-spacing: 0.06em;
-  border-bottom: 1px solid var(--color-border-strong);
+  border-bottom: 1px solid var(--sas-borda);
   padding: 14px 4px;
 }
 
 .painel-tabela__td-pos {
   position: sticky;
   left: 0;
-  background: var(--color-surface);
+  background: var(--sas-superficie);
   z-index: 1;
   width: 48px;
   min-width: 48px;
   text-align: center;
   padding: 5px 4px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 /* ── Badge de posição ─────────────────────────────── */
@@ -136,9 +136,9 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 1;
-  background: color-mix(in srgb, var(--color-dado) 8%, transparent);
-  color: var(--color-navy);
-  border: 1.5px solid color-mix(in srgb, var(--color-dado) 20%, transparent);
+  background: color-mix(in srgb, var(--sas-dado) 8%, transparent);
+  color: var(--sas-acao);
+  border: 1.5px solid color-mix(in srgb, var(--sas-dado) 20%, transparent);
 }
 
 /* ── Coluna de aluno (sticky) ───────────────────────── */
@@ -146,17 +146,17 @@
 .painel-tabela__td-aluno {
   position: sticky;
   left: 48px;
-  background: var(--color-surface);
+  background: var(--sas-superficie);
   z-index: 1;
   padding: 7px 16px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-primary);
-  border-bottom: 1px solid var(--color-border);
+  color: var(--sas-texto);
+  border-bottom: 1px solid var(--sas-borda);
   white-space: nowrap;
   /* A coluna congelada se separa do que passa por baixo com uma BORDA, não com
      um degradê de sombra — mesma regra do resto do sistema. */
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid var(--sas-borda);
   width: 180px;
   max-width: 180px;
 }
@@ -166,24 +166,24 @@
 .painel-tabela__td-nota {
   text-align: center;
   padding: 5px 6px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 /* ── Hover ──────────────────────────────────────────── */
 
 .painel-tabela tbody tr:not(.painel-tabela__tr-media):hover td {
-  background: color-mix(in srgb, var(--color-dado) 3%, transparent);
+  background: color-mix(in srgb, var(--sas-dado) 3%, transparent);
 }
 
 .painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-aluno,
 .painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-pos {
   /* Sólido, para não vazar as notas por baixo ao rolar na horizontal — e por
      token, senão a coluna congelada continuaria azul-clara no tema escuro. */
-  background: var(--color-surface);
+  background: var(--sas-superficie);
 }
 
 .painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-nota.col-destaque {
-  background: color-mix(in srgb, var(--color-dado) 6%, transparent);
+  background: color-mix(in srgb, var(--sas-dado) 6%, transparent);
 }
 
 /* ── Célula editável (clique abre dialog de edição) ─── */
@@ -193,7 +193,7 @@
 }
 
 .painel-tabela__td-nota.is-editavel:hover {
-  background: color-mix(in srgb, var(--color-dado) 8%, transparent) !important;
+  background: color-mix(in srgb, var(--sas-dado) 8%, transparent) !important;
 }
 
 /* ── Link do aluno ──────────────────────────────────── */
@@ -204,13 +204,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   text-decoration: none;
   font-weight: 500;
 }
 
 .painel-tabela__aluno-link:hover {
-  color: var(--color-navy);
+  color: var(--sas-acao);
   text-decoration: underline;
 }
 
@@ -243,8 +243,8 @@
   text-align: center;
   font-variant-numeric: tabular-nums;
   background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
+  border: 1px solid var(--sas-borda);
+  color: var(--sas-texto-2);
 }
 
 /* Os nomes que o servidor manda (`verde`/`ambar`/`vermelho`) não carregam
@@ -266,25 +266,25 @@
 .nota-badge.tone-ambar {
   background: color-mix(
     in srgb,
-    var(--color-dado) calc((22 + var(--nota-intensidade) * 78) * 1%),
+    var(--sas-dado) calc((22 + var(--nota-intensidade) * 78) * 1%),
     transparent
   );
   border-color: transparent;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
 }
 
 /* Passado da metade da escala o preenchimento fica escuro demais para texto
    escuro em cima. */
 .nota-badge--acima-forte {
-  color: var(--color-dado-texto-forte);
+  color: var(--sas-dado-texto-forte);
 }
 
 /* NO CORTE · preenchido no mínimo. Está no corte, então passou — o corte é o
    mínimo que a régua exige, e 4,0 contra 4,0 não está abaixo de nada. */
 .nota-badge--no-corte {
-  background: color-mix(in srgb, var(--color-dado) 22%, transparent);
+  background: color-mix(in srgb, var(--sas-dado) 22%, transparent);
   border-color: transparent;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
 }
 
 /* ABAIXO · vazado. O contorno engrossa e escurece com a distância, e é o
@@ -297,17 +297,17 @@
   border-width: calc(1px + var(--nota-intensidade) * 1.6px);
   border-color: color-mix(
     in srgb,
-    var(--color-magnitude) calc((30 + var(--nota-intensidade) * 55) * 1%),
+    var(--sas-magnitude) calc((30 + var(--nota-intensidade) * 55) * 1%),
     transparent
   );
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
 }
 
 /* SEM NOTA · hachura diagonal. Não é zero, e não pode parecer zero. */
 .nota-badge--vazia {
-  background: var(--color-hachura);
+  background: var(--sas-hachura);
   border-style: dashed;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   min-width: 0;
 }
 
@@ -320,7 +320,7 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
-  color: var(--color-red);
+  color: var(--sas-alerta);
   vertical-align: middle;
 }
 
@@ -331,7 +331,7 @@
   font-weight: 600;
   background: transparent;
   border-color: transparent;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 /* A nota que a média não somou (docs/32 §1.4).
@@ -341,7 +341,7 @@
    componente carrega o motivo. */
 .nota-badge--ignorada {
   background: transparent;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
   cursor: help;
@@ -368,7 +368,7 @@
 .painel-busca-wrap > svg {
   position: absolute;
   left: 14px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   pointer-events: none;
   width: 14px;
   height: 14px;
@@ -376,22 +376,22 @@
 
 .painel-busca {
   padding: 8px 14px 8px 34px;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-pill);
   font-size: 13px;
-  color: var(--color-text-body);
-  background: var(--color-surface);
+  color: var(--sas-texto);
+  background: var(--sas-superficie);
   width: 220px;
   outline: none;
   transition: border-color 0.15s;
 }
 
 .painel-busca::placeholder {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .painel-busca:focus {
-  border-color: var(--color-navy-light);
+  border-color: var(--sas-dado-claro);
 }
 
 /* ─── Critério de classificação ─────────────────────────────────────────
@@ -403,16 +403,16 @@
   padding: 0 30px 0 16px;
   font: inherit;
   font-size: 13px;
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
+  color: var(--sas-texto-2);
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
 .painel-criterio:focus {
   outline: none;
-  border-color: var(--color-navy-light);
+  border-color: var(--sas-dado-claro);
 }
 
 /* ─── Top N ─────────────────────────────────────────────────────────────── */
@@ -442,7 +442,7 @@
    não matiz. */
 .painel-tabela__aluno-link.is-cortado,
 .painel-tabela__aluno-link.is-aprovado {
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 /* ─── Linha separadora de ranking (Top 10 / 50 / 100) ───────────────────── */
@@ -456,13 +456,13 @@
   align-items: center;
   gap: 8px;
   padding: 2px 16px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--sas-borda);
 }
 
 .painel-corte__tag {
   font-size: 10px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   letter-spacing: 0.04em;
   opacity: 0.6;
   flex-shrink: 0;
@@ -481,11 +481,11 @@
 }
 
 .painel-corte-row:hover .painel-corte__btn {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .painel-corte__btn:hover {
-  color: var(--color-navy) !important;
+  color: var(--sas-acao) !important;
 }
 
 /* ─── Botão de ajuda (?) e tooltip ──────────────────────────────────────── */
@@ -498,9 +498,9 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 1.5px solid var(--color-border-strong);
-  background: var(--color-surface);
-  color: var(--color-text-tertiary);
+  border: 1.5px solid var(--sas-borda);
+  background: var(--sas-superficie);
+  color: var(--sas-referencia);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -510,8 +510,8 @@
 }
 
 .painel-help-btn:hover {
-  border-color: var(--color-navy-light);
-  color: var(--color-navy);
+  border-color: var(--sas-dado-claro);
+  color: var(--sas-acao);
 }
 
 .painel-help-tooltip {
@@ -519,8 +519,8 @@
   top: calc(100% + 8px);
   right: 0;
   width: 300px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-lg);
   padding: 16px;
   z-index: 100;
@@ -529,7 +529,7 @@
 .painel-help-titulo {
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   text-transform: none;
   letter-spacing: 0.06em;
   margin-bottom: 10px;
@@ -542,13 +542,13 @@
 
 .painel-help-lista li {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   margin-bottom: 5px;
   line-height: 1.45;
 }
 
 .painel-help-sep {
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--sas-borda);
   margin: 10px 0;
 }
 
@@ -557,7 +557,7 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   margin-bottom: 6px;
 }
 
@@ -572,21 +572,21 @@
 }
 
 .painel-help-amostra--acima {
-  background: color-mix(in srgb, var(--color-dado) 85%, transparent);
+  background: color-mix(in srgb, var(--sas-dado) 85%, transparent);
 }
 
 .painel-help-amostra--margem {
-  background: color-mix(in srgb, var(--color-dado) 25%, transparent);
+  background: color-mix(in srgb, var(--sas-dado) 25%, transparent);
 }
 
 .painel-help-amostra--abaixo {
   background: transparent;
-  border: 2px solid color-mix(in srgb, var(--color-magnitude) 60%, transparent);
+  border: 2px solid color-mix(in srgb, var(--sas-magnitude) 60%, transparent);
 }
 
 .painel-help-amostra--sem-nota {
-  background: var(--color-hachura);
-  border: 1px dashed var(--color-border);
+  background: var(--sas-hachura);
+  border: 1px dashed var(--sas-borda);
 }
 
 
@@ -595,8 +595,8 @@
    comparar — e a tabela do Painel existe para varrer 900 pessoas. */
 
 .faixa-decisao {
-  background: var(--color-surface);
-  border: var(--color-border-largura) solid var(--color-border);
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   border-radius: var(--radius-md);
   padding: 18px 22px;
   display: flex;
@@ -619,12 +619,12 @@
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: var(--color-text-body);
+  color: var(--sas-texto);
 }
 
 .faixa-decisao__regua {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .faixa-decisao__alertas {
@@ -636,7 +636,7 @@
 .faixa-decisao__vazio {
   margin: 0;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .faixa-decisao__rodape {
@@ -649,7 +649,7 @@
 
 .faixa-decisao__mais {
   font-size: 13px;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   padding: 6px 12px;
   border-radius: var(--radius-pill);
   background: none;
@@ -658,14 +658,14 @@
 }
 
 .faixa-decisao__mais:hover {
-  background: var(--color-navy-tint);
+  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
 }
 
 /* O que o recorte escondeu. Discreto, mas presente — esconder em silêncio é
    a armadilha que esta linha existe para não cometer. */
 .faixa-decisao__ocultos {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   margin-left: auto;
 }
 
@@ -690,13 +690,13 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 .painel-tabela-ordem__total {
   flex: 1;
   font-size: 13px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-variant-numeric: tabular-nums;
 }
 
@@ -705,15 +705,15 @@
   align-items: center;
   gap: 7px;
   padding: 9px 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 .painel-tabela-ordem__pilula svg {
-  color: var(--color-dado);
+  color: var(--sas-dado);
   flex: none;
 }
 
@@ -731,11 +731,11 @@
 .painel-tabela__th-traj {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .painel-tabela__traj-vazia {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-size: 13px;
 }
 
@@ -746,7 +746,7 @@
   white-space: nowrap;
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .painel-tabela__td-dist {
@@ -758,16 +758,16 @@
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 /* Só a distância NEGATIVA é alerta — é a etiqueta da R4, aqui em coluna. */
 .painel-tabela__dist--abaixo {
-  color: var(--color-red);
+  color: var(--sas-alerta);
 }
 
 .painel-tabela__dist--vazia {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-weight: 400;
 }
 
@@ -778,6 +778,6 @@
    disso (R4/R7). */
 .ciclo-regua__motivo {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   max-width: 42ch;
 }

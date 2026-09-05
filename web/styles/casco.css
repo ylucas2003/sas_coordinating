@@ -1,9 +1,22 @@
 /* ─── Casco da coordenação ───────────────────────────────────────────────
-   Rail de ícones à esquerda + topbar com migalhas + área de conteúdo.
+   Rail de destinos à esquerda + topbar com migalhas + área de conteúdo.
 
    Substituiu a topbar horizontal de 7 abas: com Ciclos e Simulados fundidos
    em "Provas", sobraram 5 destinos — poucos o bastante para caber num rail
    vertical, que devolve a largura inteira da janela para as tabelas.
+
+   ⚠️ O RAIL NÃO ABRE MAIS. Ele tinha 88px e virava 228px no `:hover`, por
+   `:has()` e `:focus-within`, e a decisão 7 do docs/39 o fixou em 252px. Com
+   isso saíram daqui: a `transition` da coluna, as duas regras de `:has()`, e
+   as três de `opacity` que escondiam rótulo, marca e logo enquanto fechado.
+   O custo está registrado e é aceito — 164px a menos em toda tela, o tempo
+   todo, inclusive na tabela de 900 linhas. O que se compra é o rótulo legível
+   sem depender de hover, que em toque não existe.
+
+   Os tokens `--rail-w` e `--rail-w-aberto` de `forma.css` ficaram órfãos: a
+   largura aberta não existe mais, e a fechada era o valor deste arquivo. A
+   medida está escrita aqui porque é UMA, e um token de valor único que só um
+   arquivo lê é indireção sem ganho.
    ─────────────────────────────────────────────────────────────────────── */
 
 /* A GRADE DE FUNDO. Quadrada, de 24px, quase imperceptível, sob o conteúdo
@@ -12,147 +25,142 @@
    fachada do login, em outra escala: não são duas decisões
    (docs/brief-claude-design-coordenacao.md §Forma).
 
-   O fundo é `--color-bg`, branco desde a inversão de superfícies deste PR;
-   era `--color-surface-inset`, cinza, de quando o card é que era branco. */
+   O fundo é `--sas-fundo`, branco desde a inversão de superfícies deste PR;
+   era `--sas-superficie-2`, cinza, de quando o card é que era branco. */
 .casco {
   display: grid;
-  grid-template-columns: var(--rail-w) 1fr;
+  grid-template-columns: 252px 1fr;
   min-height: 100dvh;
-  background-color: var(--color-bg);
+  background-color: var(--sas-fundo);
   background-image:
-    linear-gradient(to right, var(--color-grade) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--color-grade) 1px, transparent 1px);
+    linear-gradient(to right, var(--sas-grade) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--sas-grade) 1px, transparent 1px);
   background-size: 24px 24px;
-  transition: grid-template-columns 180ms ease;
-}
-
-/* Um rail de ícones sem rótulo é adivinhação. Ele abre no hover e também no
-   foco de teclado — senão quem navega por Tab nunca vê o nome do destino. */
-.casco:has(.rail:hover),
-.casco:has(.rail:focus-within) {
-  grid-template-columns: var(--rail-w-aberto) 1fr;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .casco {
-    transition: none;
-  }
 }
 
 /* ─── Rail ──────────────────────────────────────────────────────────────── */
 
-/* ⚠️ TRANSPARENTE e SEM BORDA, como o rail do aluno. Era `--color-surface`
-   com fio à direita, e o resultado era uma faixa clara colada num fundo claro
-   — dois planos quase idênticos separados por um fio, que é exatamente o que
-   a regra "borda, nunca sombra" existe para evitar quando os dois planos são
-   o mesmo. Sem fundo próprio, a grade de 24px passa por baixo do rail e a
-   tela vira UMA superfície, como no aluno. */
+/* TRANSPARENTE, para a grade de 24px passar por baixo e a tela seguir sendo
+   UMA superfície — era `--sas-superficie` com fio, e o resultado eram dois
+   planos quase idênticos separados por um traço.
+
+   O fio à direita voltou, e a prancheta é quem o desenha: com 252px o rail
+   deixou de ser margem e virou coluna, e uma coluna precisa de aresta para o
+   conteúdo ao lado não flutuar. É o mesmo plano, com uma borda — não um
+   segundo plano. */
 .rail {
   background: transparent;
+  border-right: var(--sas-borda-l) solid var(--sas-borda);
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
-  padding: 22px 12px;
-  overflow: hidden;
+  gap: 4px;
+  padding: 22px 14px 18px;
   position: sticky;
   top: 0;
   height: 100dvh;
 }
 
 .rail__marca {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 40px;
   flex: none;
-  margin-bottom: 14px;
-  color: var(--color-navy);
-  text-decoration: none;
-}
-
-.rail__marca:hover {
-  text-decoration: none;
-}
-
-.rail__logo {
-  width: 44px;
-  height: 40px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Some com o rail fechado, como o rótulo dos destinos e o logo do Ari — foi o
-   único dos três que ficou sem a regra. Fechado sobram 63px de área útil
-   (88 de coluna − 1 de borda − 24 de padding) e o logo come 44 + 12 de gap:
-   o texto começa em x=68 e o `overflow:hidden` do rail corta em x=87, então
-   vazavam ~19px, o bastante para se ler "SA" e "COO" ao lado do asterisco.
-   `opacity` e não `display:none` para o leitor de tela continuar anunciando a
-   marca no link do topo. */
-.rail__marca-texto {
   display: flex;
   flex-direction: column;
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 120ms ease;
+  gap: 9px;
+  padding: 0 14px;
+  margin-bottom: 20px;
 }
 
-.rail__marca-nome {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.3px;
-  color: var(--color-navy-deep);
+/* MÁSCARA e não `<img>`: o PNG do Ari é azul, e no tema noite azul sobre
+   azul-escuro some. A prancheta resolve com um `filter: invert(1)
+   brightness(.35)…` — uma cor aproximada, chegada por tentativa. Aqui vale o
+   que a área do aluno já resolveu em `aluno-casco.css`: a alfa do arquivo
+   vira recorte e a cor é declarada, com um asset só e sem filtro aproximado.
+
+   ⚠️ O navy é LITERAL, e não `--sas-acao`: no tema noite a AÇÃO vira ouro, e
+   um logotipo institucional dourado não é a marca do colégio. Cor de marca
+   não é papel de interface — é a única cor deste arquivo que não vem dos seis
+   papéis, e é de propósito.
+
+   O asset é nosso e é servido da nossa origem: nada de CDN (regra 6 do
+   CLAUDE.md, dados de menores de idade). A largura é a altura de 34px vezes a
+   proporção do arquivo (382×139). */
+.rail__logo {
+  --marca-cor: #1b3f8b;
+  width: 93px;
+  height: 34px;
+  flex: none;
+  background-color: var(--marca-cor);
+  -webkit-mask: url(../assets/ari-logo.png) left center / contain no-repeat;
+  mask: url(../assets/ari-logo.png) left center / contain no-repeat;
 }
 
-.rail__marca-sub {
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='dia']) .rail__logo {
+    --marca-cor: #ffffff;
+  }
+}
+
+:root[data-tema='noite'] .rail__logo {
+  --marca-cor: #ffffff;
+}
+
+:root[data-tema='dia'] .rail__logo {
+  --marca-cor: #1b3f8b;
+}
+
+/* O olho: 10px em caixa alta, o mesmo rótulo miúdo que abre KPI e card de
+   campo. A caixa alta é da CSS e não do texto, para o leitor de tela não
+   soletrar. */
+.rail__olho {
   font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  line-height: 1.2;
-  color: var(--color-text-tertiary);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
 }
 
-/* Mesma medida do item de navegação do aluno: raio 12, peso 700, 15px.
-   Era raio 13 e peso herdado — perto, mas "perto" em duas telas do mesmo
-   produto é o que faz uma parecer cópia da outra. */
 .rail__item {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 47px;
+  height: 48px;
   flex: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sas-texto-2);
   text-decoration: none;
   transition: background 150ms, color 150ms;
 }
 
+/* O hover mexe só na tinta. O PREENCHIMENTO é do item ativo e de mais
+   ninguém: se o hover também pintasse, "onde eu estou" e "onde o mouse está"
+   seriam a mesma marca. */
 .rail__item:hover {
-  background: var(--color-navy-tint);
-  color: var(--color-dado);
+  color: var(--sas-texto);
   text-decoration: none;
 }
 
-/* Ativo em DADO, não em ACAO: é o que o aluno usa, e faz sentido — o item
-   ativo diz ONDE VOCÊ ESTÁ (um valor), não o que apertar. */
+/* Ativo em REALCE, não em DADO. O item ativo diz ONDE VOCÊ ESTÁ, e onde você
+   está não é um valor medido — pintá-lo de DADO gastava o papel do dado num
+   lugar onde não há dado nenhum (R7: uma escala semântica por tela). O peso
+   sobe junto com a tinta, porque 6% de alfa sozinho é pouca diferença. */
 .rail__item.is-active {
-  background: var(--color-dado);
-  color: var(--color-dado-texto-forte);
+  background: var(--sas-realce);
+  color: var(--sas-magnitude);
+  font-weight: 700;
 }
 
 .rail__item:focus-visible {
-  outline: 2px solid var(--color-navy-light);
+  outline: 2px solid var(--sas-dado-claro);
   outline-offset: 2px;
 }
 
 .rail__icone {
-  width: 44px;
-  height: 44px;
+  width: 20px;
+  height: 20px;
   flex: none;
   display: flex;
   align-items: center;
@@ -161,47 +169,81 @@
 }
 
 .rail__label {
-  font-size: 14px;
   color: inherit;
   white-space: nowrap;
-}
-
-/* O rótulo só existe quando o rail está aberto. `opacity` em vez de
-   `display:none` para o leitor de tela continuar anunciando o destino. */
-.rail__label {
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.rail:hover .rail__label,
-.rail:focus-within .rail__label {
-  opacity: 1;
-}
-
-.rail:hover .rail__marca-texto,
-.rail:focus-within .rail__marca-texto {
-  opacity: 1;
 }
 
 .rail__espaco {
   flex: 1;
 }
 
-/* Fica no pé do rail e só some quando ele fecha: espremido em 44px o logo
-   viraria borrão. */
-.rail__ari {
-  width: 100%;
-  max-width: 96px;
-  height: auto;
+/* ─── Rodapé do rail: a conta ───────────────────────────────────────────── */
+
+/* Separado por um fio, porque não é destino: é quem está usando o sistema. */
+.rail__usuario {
   flex: none;
-  align-self: center;
-  opacity: 0;
-  transition: opacity 120ms ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 16px 4px 0;
+  border-top: 1px solid var(--sas-borda);
 }
 
-.rail:hover .rail__ari,
-.rail:focus-within .rail__ari {
-  opacity: 1;
+/* Nome próprio, não `.topbar__avatar` nem `.avatar`: as duas medidas de
+   `foto-perfil.css` são outras e aquela folha carrega DEPOIS desta, então
+   reaproveitar o nome faria o tamanho ser decidido lá. A `<img>` da foto
+   continua vindo de lá (`.avatar__img`), que é genérica. */
+.rail__avatar {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--sas-borda);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.rail__usuario-nome {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--sas-texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 36px de caixa desenhada, 44px de alvo de toque: o `::after` de −4px em
+   volta concilia a medida da prancheta com o mínimo do projeto sem inflar o
+   retângulo pintado. */
+.rail__sair {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--sas-borda);
+  background: transparent;
+  color: var(--sas-texto-2);
+  display: grid;
+  place-items: center;
+  transition: background 150ms, color 150ms;
+}
+
+.rail__sair::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
+.rail__sair:hover {
+  background: var(--sas-realce);
+  color: var(--sas-texto);
 }
 
 /* ─── Coluna de conteúdo ────────────────────────────────────────────────── */
@@ -212,99 +254,134 @@
   min-width: 0;
 }
 
+/* O fundo é `--sas-fundo` e não `--sas-superficie`: a topbar é o mesmo plano
+   da página, separado por um fio. Opaco, e não transparente como na
+   prancheta, porque prancheta não rola — grudada no topo, translúcida, ela
+   deixaria a tabela passar por baixo das migalhas. O preço é a grade de 24px
+   não aparecer nestes 72px. */
 .topbar {
   height: var(--topbar-h);
   flex: none;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-shell-border);
+  background: var(--sas-fundo);
+  border-bottom: var(--sas-borda-l) solid var(--sas-borda);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 0 28px;
+  gap: 14px;
+  padding: 0 24px;
   position: sticky;
   top: 0;
   z-index: 40;
 }
 
 .topbar__migalhas {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
+  overflow: hidden;
+}
+
+/* Os degraus do meio são CAMINHO, não destino: 15px/400 em texto-2, atrás. */
+.topbar__migalha {
+  flex: none;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--sas-texto-2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topbar__migalha--link:hover {
+  color: var(--sas-texto);
+  text-decoration: none;
+}
+
+/* O último degrau é o TÍTULO da tela — a única coisa aqui que se lê para
+   saber onde se está, e por isso 19px/700 em magnitude. O teto de 320px com
+   reticências existe porque o nome de um ciclo pode ser longo, e sem ele a
+   migalha empurraria o tema e a identidade para fora. */
+.topbar__migalha--atual {
   min-width: 0;
   font-size: 19px;
   font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.topbar__migalha {
-  color: var(--color-text-primary);
-  text-decoration: none;
-  white-space: nowrap;
+  color: var(--sas-magnitude);
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.topbar__migalha--link {
-  color: var(--color-navy);
-}
-
-.topbar__migalha--link:hover {
-  color: var(--color-navy-deep);
-  text-decoration: none;
-}
-
 .topbar__separador {
-  color: var(--color-text-tertiary);
+  flex: none;
   font-size: 15px;
   font-weight: 400;
-  flex: none;
+  color: var(--sas-texto-2);
 }
 
 .topbar__acoes {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   flex: none;
-  color: var(--color-text-secondary);
 }
 
-.topbar__icone-btn {
-  width: 38px;
-  height: 38px;
+/* 40px desenhados, 44px de alvo — mesma conciliação do `.rail__sair`. */
+.topbar__tema {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--sas-borda);
+  background: transparent;
+  color: var(--sas-texto);
+  display: grid;
+  place-items: center;
+  transition: background 150ms;
+}
+
+.topbar__tema::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+}
+
+.topbar__tema:hover {
+  background: var(--sas-realce);
+}
+
+/* Pílula de contorno, sem preenchimento: é PLACA e não botão. O que se
+   apertava aqui — o sair — desceu para o rodapé do rail. */
+.topbar__identidade {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  flex: none;
+  padding: 0 12px;
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-pill);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-secondary);
-  transition: background 150ms, color 150ms;
 }
 
-.topbar__icone-btn:hover {
-  background: var(--color-navy-tint);
-  color: var(--color-navy);
-}
-
-.topbar__avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--color-navy-soft);
-  color: var(--color-navy);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 500;
+.topbar__identidade-avatar {
+  width: 24px;
+  height: 24px;
   flex: none;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--sas-borda);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--sas-texto);
 }
 
-.topbar__ari {
-  height: 26px;
-  width: auto;
-  padding-right: 16px;
-  margin-right: 2px;
-  border-right: 1px solid var(--color-shell-border);
+.topbar__identidade-papel {
+  font-size: 12px;
+  color: var(--sas-texto-2);
+  white-space: nowrap;
 }
 
 .casco__main {
@@ -316,104 +393,10 @@
   gap: 20px;
 }
 
-/* ─── Busca global ──────────────────────────────────────────────────────── */
-
-.busca {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 16px;
-  width: 280px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
-  color: var(--color-text-tertiary);
-  transition: border-color 150ms;
-}
-
-.busca:focus-within {
-  border-color: var(--color-navy-light);
-}
-
-.busca__input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: none;
-  outline: none;
-  font: inherit;
-  font-size: 14px;
-  color: var(--color-text-body);
-}
-
-.busca__input::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.busca__atalho {
-  font-size: 11px;
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  color: var(--color-text-tertiary);
-  flex: none;
-}
-
-.busca__resultados {
-  display: none;
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  min-width: 280px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 6px;
-  z-index: 60;
-  max-height: 340px;
-  overflow-y: auto;
-}
-
-.busca__resultados.is-aberto {
-  display: block;
-}
-
-.busca__item {
-  display: flex;
-  flex-direction: column;
-  padding: 9px 12px;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-body);
-  text-decoration: none;
-}
-
-.busca__item:hover,
-.busca__item.is-ativo {
-  background: var(--color-surface-inset);
-  text-decoration: none;
-}
-
-.busca__item-nome {
-  font-size: 14px;
-}
-
-.busca__item-sub {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-}
-
-.busca__vazio {
-  padding: 12px;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-}
-
 /* ─── Celular: o rail vira barra inferior ───────────────────────────────── */
 
 @media (max-width: 760px) {
-  .casco,
-  .casco:has(.rail:hover),
-  .casco:has(.rail:focus-within) {
+  .casco {
     grid-template-columns: 1fr;
   }
 
@@ -425,58 +408,75 @@
     top: auto;
     height: auto;
     flex-direction: row;
-    justify-content: space-around;
-    gap: 0;
+    align-items: center;
+    gap: 2px;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: var(--sas-fundo);
     border-right: none;
-    border-top: 1px solid var(--color-shell-border);
+    border-top: 1px solid var(--sas-borda);
     z-index: 50;
   }
 
   .rail__marca,
-  .rail__espaco,
-  .rail__ari,
+  .rail__espaco {
+    display: none;
+  }
+
+  /* Aqui o rótulo importa MAIS que no desktop, não menos: em toque não há
+     hover nem `title` para consultar. Ele desce para baixo do ícone —
+     era `display:none`, de quando o rail abria e o celular herdava o estado
+     fechado. */
+  .rail__item {
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    height: 52px;
+    padding: 0 2px;
+  }
+
   .rail__label {
+    max-width: 100%;
+    font-size: 10px;
+    letter-spacing: -0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* A conta encolhe para o botão: o nome e o avatar não cabem numa barra de
+     seis alvos, e perder a saída no celular não é opção. */
+  .rail__usuario {
+    margin: 0;
+    padding: 0;
+    border-top: none;
+  }
+
+  .rail__avatar,
+  .rail__usuario-nome {
     display: none;
   }
 
   .casco__main {
-    padding: 18px 16px calc(80px + env(safe-area-inset-bottom));
+    padding: 18px 16px calc(78px + env(safe-area-inset-bottom));
   }
 
   .topbar {
     padding: 0 16px;
-    gap: 12px;
+    gap: 10px;
   }
 
-  .topbar__migalhas {
+  .topbar__migalha--atual {
     font-size: 17px;
+    max-width: 180px;
   }
 
-  .busca {
-    width: 44px;
-    padding: 9px;
-    border-color: transparent;
+  /* Sobra o avatar: o papel escrito por extenso comeria a migalha. */
+  .topbar__identidade {
+    padding: 0 7px;
   }
 
-  .busca__input,
-  .busca__atalho,
-  .topbar__ari {
+  .topbar__identidade-papel {
     display: none;
-  }
-
-  .busca:focus-within {
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    top: 17px;
-    width: auto;
-    background: var(--color-surface);
-    border-color: var(--color-navy-light);
-    z-index: 61;
-  }
-
-  .busca:focus-within .busca__input {
-    display: block;
   }
 }

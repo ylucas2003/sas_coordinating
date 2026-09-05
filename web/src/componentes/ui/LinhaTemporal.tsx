@@ -110,8 +110,8 @@ export function LinhaTemporal({
       <svg className="linha-temporal" width={largura} height={altura} viewBox={`0 0 ${largura} ${altura}`}>
         <defs>
           <linearGradient id={idGradiente} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--color-navy)" stopOpacity="0.16" />
-            <stop offset="100%" stopColor="var(--color-navy)" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--sas-acao)" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="var(--sas-acao)" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -122,12 +122,12 @@ export function LinhaTemporal({
             <g key={t}>
               <line
                 x1={padLeft} x2={padLeft + plotW} y1={y.toFixed(1)} y2={y.toFixed(1)}
-                stroke="var(--color-border)" strokeWidth="1"
+                stroke="var(--sas-borda)" strokeWidth="1"
                 strokeDasharray={t !== 0 ? '2,3' : undefined}
               />
               <text
                 x={padLeft - 6} y={(y + 3).toFixed(1)}
-                textAnchor="end" fontSize="10" fill="var(--color-text-tertiary)"
+                textAnchor="end" fontSize="10" fill="var(--sas-referencia)"
               >
                 {t}
               </text>
@@ -139,7 +139,7 @@ export function LinhaTemporal({
           <line
             x1={padLeft} x2={padLeft + plotW}
             y1={yDe(corte.valor).toFixed(1)} y2={yDe(corte.valor).toFixed(1)}
-            stroke={'var(--color-gold)'}
+            stroke={'var(--sas-valor)'}
             strokeWidth="1.5" strokeDasharray="6,3"
           >
             <title>{`Corte: ${um(corte.valor)}${corte.eliminatoria ? ' (eliminatória)' : ''}`}</title>
@@ -149,7 +149,7 @@ export function LinhaTemporal({
         {pontosAnterior.length >= 2 && (
           <path
             d={caminhoSuave(pontosAnterior)}
-            fill="none" stroke="var(--color-text-tertiary)"
+            fill="none" stroke="var(--sas-referencia)"
             strokeWidth="1.5" strokeDasharray="4,3" opacity="0.7"
           />
         )}
@@ -160,7 +160,7 @@ export function LinhaTemporal({
         />
         <path
           d={caminho}
-          fill="none" stroke="var(--color-navy)" strokeWidth="2"
+          fill="none" stroke="var(--sas-acao)" strokeWidth="2"
           strokeLinejoin="round" strokeLinecap="round"
         />
 
@@ -187,7 +187,7 @@ export function LinhaTemporal({
             >
               <circle
                 cx={x.toFixed(1)} cy={y.toFixed(1)} r="4"
-                fill="var(--color-surface)" stroke="var(--color-navy)" strokeWidth="2"
+                fill="var(--sas-superficie)" stroke="var(--sas-acao)" strokeWidth="2"
               />
               <title>{tooltip}</title>
             </g>
@@ -200,7 +200,7 @@ export function LinhaTemporal({
             <g key={`rot-${i}`}>
               <text
                 x={xDe(i).toFixed(1)} y={(padTop + plotH + 16).toFixed(1)}
-                textAnchor="middle" fontSize="10" fill="var(--color-text-tertiary)"
+                textAnchor="middle" fontSize="10" fill="var(--sas-referencia)"
               >
                 {p.rotuloCurto || dataCurta(p.data)}
               </text>
@@ -208,7 +208,7 @@ export function LinhaTemporal({
               {p.rotuloCurto && p.data && (
                 <text
                   x={xDe(i).toFixed(1)} y={(padTop + plotH + 28).toFixed(1)}
-                  textAnchor="middle" fontSize="9" fill="var(--color-text-tertiary)" opacity="0.7"
+                  textAnchor="middle" fontSize="9" fill="var(--sas-referencia)" opacity="0.7"
                 >
                   {dataCurta(p.data)}
                 </text>
@@ -219,11 +219,11 @@ export function LinhaTemporal({
       </svg>
 
       <div className="linha-temporal__legenda">
-        <ItemLegenda cor="var(--color-navy)" texto={rotuloSerie} />
-        {temAnterior && <ItemLegenda cor="var(--color-text-tertiary)" texto="Ciclo anterior" tracejado />}
+        <ItemLegenda cor="var(--sas-acao)" texto={rotuloSerie} />
+        {temAnterior && <ItemLegenda cor="var(--sas-referencia)" texto="Ciclo anterior" tracejado />}
         {corte?.valor != null && (
           <ItemLegenda
-            cor={'var(--color-gold)'}
+            cor={'var(--sas-valor)'}
             texto={`Corte ${um(corte.valor)}${corte.eliminatoria ? ' (eliminatória)' : ''}`}
             tracejado
           />
