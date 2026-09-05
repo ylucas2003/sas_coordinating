@@ -12,6 +12,10 @@ import type {
   PainelAcessos, PainelGravacoes, PendenciasCanvas, ResultadoLoteCanvas, Sede, Simulado, Turma,
   UsuarioCoordenacao,
 } from '../tipos/dominio';
+import type {
+  CantinaAdmin, CantinaDoAluno, Cardapio, ContaDeCantina, ContagemDeOpcao, DiaDoCalendario,
+  PainelDeDireitos, PedidoDeAluno, Refeicao,
+} from '../tipos/cantina';
 
 const enc = encodeURIComponent;
 
@@ -19,15 +23,23 @@ const enc = encodeURIComponent;
 
 export interface RespostaAutenticacao {
   access_token: string;
+  /** 'aluno' | 'coordenador' | 'cantina' — o tipo da SESSÃO. */
   tipo: string;
+  /** Só do login da coordenação: 'coordenador' ou 'administrador' (0045). */
+  papel?: string | null;
   nome: string;
-  aluno_id?: string;
+  aluno_id?: string | null;
   temFoto: boolean;
+  /** Só do login da cantina: o nome do estabelecimento, para o casco exibir. */
+  cantina?: string | null;
 }
 
 /** O SSO pelo Canvas só aparece na tela se o servidor tiver a Developer Key. */
 export const ssoCanvasDisponivel = () => get<{ disponivel: boolean }>('/auth/canvas/disponivel');
 
+/** `tipo` decide contra qual tabela o servidor autentica: 'coordenador' →
+    `usuario_coordenacao` (0021), 'cantina' → `usuario_cantina` (0047). 'aluno'
+    é recusado com uma mensagem que manda para o Canvas. */
 export const login = (corpo: { tipo: string; usuario: string; senha: string }) =>
   post<RespostaAutenticacao>('/auth/login', corpo);
 
@@ -328,6 +340,86 @@ export const redefinirSenhaCoordenador = (id: string) =>
 export const acessosDeAlunos = () => get<PainelAcessos>('/administracao/alunos-acesso');
 export const fotoDeCoordenador = (id: string) =>
   get<RespostaFoto>(`/administracao/coordenadores/${enc(id)}/foto`);
+
+// ─── Cantina (docs/38) ───────────────────────────────────────────────────
+//
+// Três públicos, três blocos, e a separação espelha a dos routers no servidor:
+// quem chama o quê é a primeira coisa que se quer saber ao ler isto.
+
+// A cantina — sessão `tipo: "cantina"`, casco próprio.
+export const calendarioDaCantina = (de: string, ate: string) =>
+  get<DiaDoCalendario[]>(`/cantina/calendario${qs({ de, ate })}`);
+export const obterCardapio = (id: string) => get<Cardapio>(`/cantina/cardapios/${enc(id)}`);
+export const criarCardapio = (corpo: { data: string; refeicao: Refeicao }) =>
+  post<Cardapio>('/cantina/cardapios', corpo);
+export const salvarCardapio = (id: string, corpo: CorpoCardapio) =>
+  put<Cardapio>(`/cantina/cardapios/${enc(id)}`, corpo);
+export const publicarCardapio = (id: string) =>
+  post<Cardapio>(`/cantina/cardapios/${enc(id)}/publicar`, {});
+/** ⚠️ Não leva o prazo junto: o servidor recalcula pela regra da casa para a
+    data nova, senão a terça nasceria com o prazo vencido da segunda. */
+export const copiarCardapio = (id: string, origemId: string) =>
+  post<Cardapio>(`/cantina/cardapios/${enc(id)}/copiar-de`, { origem_id: origemId });
+export const contagemDoCardapio = (id: string) =>
+  get<ContagemDeOpcao[]>(`/cantina/cardapios/${enc(id)}/contagem`);
+export const pedidosDoCardapio = (id: string) =>
+  get<PedidoDeAluno[]>(`/cantina/cardapios/${enc(id)}/pedidos`);
+
+export interface CorpoCardapio {
+  pedidos_ate: string | null;
+  sem_refeicao: boolean;
+  /** O estado FINAL: o que tem `id` é atualizado, o que não tem é criado, e o
+      que sumiu é apagado. A ordem da lista vira a coluna `ordem`. */
+  blocos: Array<{
+    id?: string;
+    nome: string;
+    escolhas_minimas: number;
+    escolhas_maximas: number;
+    opcoes: Array<{ id?: string; nome: string; disponivel: boolean }>;
+  }>;
+}
+
+// O aluno — rotas /me, com o `aluno_id` saindo do JWT.
+export const cantinaDoAluno = () => get<CantinaDoAluno>('/me/cantina');
+export const salvarPedido = (cardapioId: string, opcaoIds: string[]) =>
+  put<{ cardapioId: string; opcaoIds: string[] }>(`/me/cantina/pedidos/${enc(cardapioId)}`, {
+    opcao_ids: opcaoIds,
+  });
+export const cancelarPedido = (cardapioId: string) =>
+  del<{ cardapioId: string }>(`/me/cantina/pedidos/${enc(cardapioId)}`);
+
+// A coordenação — leitura do cardápio, e a administração do direito e das
+// contas. As de escrita são todas do administrador; o 403 vem do servidor, e a
+// tela esconde o botão antes disso.
+export const calendarioNaCoordenacao = (de: string, ate: string) =>
+  get<DiaDoCalendario[]>(`/administracao/cantina/calendario${qs({ de, ate })}`);
+export const cardapioNaCoordenacao = (id: string) =>
+  get<Cardapio & { contagem: ContagemDeOpcao[]; pedidos: PedidoDeAluno[] }>(
+    `/administracao/cantina/cardapios/${enc(id)}`,
+  );
+export const listarDireitos = () => get<PainelDeDireitos>('/administracao/direito-refeicao');
+/** Um aluno ou oitenta, pela mesma rota — a concessão em lote existe porque só
+    o administrador concede (docs/38 §3.4). */
+export const conceberDireito = (corpo: { aluno_ids: string[]; refeicao: Refeicao; conceder: boolean }) =>
+  post<{ alterados: number }>('/administracao/direito-refeicao', corpo);
+export const salvarRestricaoAlimentar = (alunoId: string, restricao: string | null) =>
+  put<{ id: string; restricaoAlimentar: string | null }>(
+    `/administracao/alunos/${enc(alunoId)}/restricao-alimentar`,
+    { restricao },
+  );
+export const listarCantinas = () => get<CantinaAdmin[]>('/administracao/cantinas');
+export const criarCantina = (corpo: { nome: string }) =>
+  post<CantinaAdmin>('/administracao/cantinas', corpo);
+export const editarCantina = (
+  id: string,
+  corpo: { nome?: string; ativo?: boolean; prazo_padrao_dias_antes?: number; prazo_padrao_hora?: string },
+) => patch<CantinaAdmin>(`/administracao/cantinas/${enc(id)}`, corpo);
+export const criarContaDeCantina = (corpo: { cantina_id: string; email: string; nome: string }) =>
+  post<ContaDeCantina & { senha_inicial: string }>('/administracao/usuarios-cantina', corpo);
+export const editarContaDeCantina = (id: string, corpo: { nome?: string; ativo?: boolean }) =>
+  patch<ContaDeCantina>(`/administracao/usuarios-cantina/${enc(id)}`, corpo);
+export const redefinirSenhaDeCantina = (id: string) =>
+  post<{ id: string; senha_nova: string }>(`/administracao/usuarios-cantina/${enc(id)}/redefinir-senha`, {});
 
 // ─── Integrações · gravações de aula ─────────────────────────────────────
 

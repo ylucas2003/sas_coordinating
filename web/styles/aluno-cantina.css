@@ -1,0 +1,118 @@
+/* A CANTINA na área do aluno — o card em Hoje e a tela `/cantina`.
+ *
+ * Tokens do ALUNO (`--alu-*`), porque é a área dele: mesma escala, mesmos
+ * raios, mesmo alvo de 44px, e os dois temas de graça.
+ *
+ * ⚠️ **Nenhuma cor de alerta e nenhum XP** perto disto. É o único elemento da
+ * área do aluno que não fala de estudo, e puxá-lo para o vocabulário do jogo
+ * confundiria o que o produto premia (docs/26 §1, docs/38 §4). O prazo se faz
+ * notar por TAMANHO, não por vermelho. */
+
+.alu-cantina { display: grid; gap: 16px; }
+.alu-cantina__dia { display: grid; gap: 14px; }
+
+/* ─── O prazo ────────────────────────────────────────────────────────── */
+
+.alu-cantina__prazo {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+}
+
+.alu-cantina__prazo--fechado { text-decoration: line-through; }
+
+/* No card, o prazo é a MAGNITUDE: perder este prazo custa a refeição, não um
+   lembrete — e não há lembrete (docs/38 §7). */
+.alu-cantina__prazo-grande {
+  margin: 2px 0 0;
+  font-size: 30px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-magnitude);
+}
+
+.alu-cantina__chamada { margin: 0; font-size: 15px; }
+
+/* ─── Blocos e opções ────────────────────────────────────────────────── */
+
+.alu-cantina__bloco { display: grid; gap: 8px; }
+
+.alu-cantina__bloco-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.alu-cantina__bloco-nome { margin: 0; font-size: 14px; }
+.alu-cantina__instrucao { font-size: 12px; color: var(--alu-texto-2); }
+
+.alu-cantina__opcoes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.alu-cantina__opcao {
+  /* 44px de alvo: a escolha do almoço acontece no celular, andando. */
+  min-height: var(--alu-toque);
+  padding: 0 14px;
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio-pilula);
+  background: var(--alu-superficie);
+  color: var(--alu-texto);
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Vazado → preenchido é a MESMA gramática do resto do produto (acima do corte
+   é preenchido, abaixo é vazado). Não escolhida não é "ruim": é só não
+   escolhida — daí nenhuma cor de estado aqui. */
+.alu-cantina__opcao--marcada {
+  background: var(--alu-acao);
+  color: var(--alu-acao-texto);
+  border-color: transparent;
+}
+
+.alu-cantina__opcao:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.alu-cantina__acabou {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+/* ─── Ações e leitura ────────────────────────────────────────────────── */
+
+.alu-cantina__acoes { display: grid; gap: 8px; }
+
+/* A pendência vem ANTES do botão: o aluno lê o que falta sem ter de clicar
+   para descobrir. */
+.alu-cantina__pendencia { margin: 0; font-size: 13px; color: var(--alu-texto-2); }
+
+.alu-cantina__erro {
+  margin: 0;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: var(--alu-raio-pequeno);
+  background: color-mix(in srgb, var(--alu-alerta) 14%, transparent);
+}
+
+.alu-cantina__aviso { margin: 0; font-size: 13px; color: var(--alu-texto-2); }
+
+/* O terceiro e o quarto estado do card: linha quieta, factual, sem moldura.
+   Não é cobrança — é para o aluno não caminhar até o balcão à toa. */
+.alu-cantina__linha-quieta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--alu-texto-2);
+  padding: 2px 0;
+}

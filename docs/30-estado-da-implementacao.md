@@ -16,10 +16,11 @@
      `npm test` falha se esta seção divergir do registro. Para mudar,
      mude o registro e rode `npm run inventario` dentro de web/. -->
 
-## 1 · LIGADO — 28 fontes
+## 1 · LIGADO — 29 fontes
 
 O endpoint existe e a tela consome de verdade. Nada aqui é mock.
 
+- **`cantina`** — Só existe para quem tem `direito_refeicao_aluno` — o card em Hoje se apaga sozinho para os outros ~800 alunos. Traz TODOS os dias publicados de hoje em diante, com teto de 30 dias (docs/38 §8.0.6). É a única fonte da área do aluno que revalida sozinha: `refetchOnWindowFocus` ligado contra o default do app, mais polling de 60 s que se autodesliga — o dado muda porque OUTRA pessoa publicou (docs/38 §9).
 - **`simulados`** — Filtra `presente = true` POR DEFAULT e descarta a falta; `?incluirFaltas=true` traz a ausência junto, e é o que alimenta `presencaNosSimulados`. O default não mudou de propósito: Hoje, Provas e Jornada calculam média e delta sobre esta lista, e ligar a falta para todo mundo mudaria número em tela sem ninguém ter pedido.
 - **`trajetoria`** — Rota pronta e sem tela até agora — docs/29 §A.5.
 - **`heatmap`** — Rota pronta e sem tela até agora — docs/29 §A.5.
@@ -42,6 +43,7 @@ O endpoint existe e a tela consome de verdade. Nada aqui é mock.
 |---|---|---|---|
 | `aluno` | Nome, turma, e-mail e foto do aluno logado | `GET /me` | casco, Jornada |
 | `fotoDePerfil` | Foto de perfil do aluno, por rota autenticada | `GET/PUT/DELETE /me/foto` | casco |
+| `cantina` | Cardápios publicados que servem o aluno, o pedido dele e o prazo de cada dia | `GET/PUT/DELETE /me/cantina` | Hoje, Cantina |
 | `simulados` | Simulados do aluno com nota, delta contra o próprio padrão e média da turma | `GET /me/simulados` | Hoje, Provas, Jornada |
 | `simulado` | Ficha de um simulado: posição, percentil e comparação com grupos | `GET /me/simulado/{id}` | Hoje, Provas, Ficha do simulado |
 | `questoesDoSimulado` | Resultado questão a questão: certas, erradas e em branco | `GET /me/simulado/{id}/questoes` | Ficha do simulado |

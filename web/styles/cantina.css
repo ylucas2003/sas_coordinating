@@ -1,0 +1,343 @@
+/* A CANTINA — o casco próprio e as telas dela, mais o que a coordenação lê.
+ *
+ * Usa os tokens da COORDENAÇÃO (`--color-*`), e não os do aluno: quem trabalha
+ * aqui é adulto, no desktop, o dia inteiro — a mesma densidade e a mesma escala
+ * tipográfica das telas de trabalho. A área do aluno tem folha própria
+ * (`aluno-cantina.css`).
+ *
+ * ⚠️ Nenhuma sombra flutuante, e nenhuma cor carregando estado sozinha: os
+ * cinco estados do calendário aparecem por preenchimento E por rótulo escrito
+ * (brief §Restrições, docs/37). Quem lê "Contagem final" não precisa saber o
+ * que a cor quer dizer. */
+
+.cant-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+/* ─── Topo ───────────────────────────────────────────────────────────── */
+
+.cant-topo {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 20px;
+  border-bottom: var(--sas-borda-l, 1px) solid var(--color-border, var(--sas-borda));
+  background: var(--color-surface);
+}
+
+.cant-marca { display: flex; align-items: center; gap: 10px; }
+.cant-marca__texto { display: flex; flex-direction: column; line-height: 1.15; }
+.cant-marca__sub { font-size: 12px; color: var(--color-text-secondary); }
+
+.cant-nav { display: flex; gap: 4px; margin-left: auto; }
+
+.cant-nav__link {
+  /* 44px de alvo: é a régua de toque do projeto, e a cantina usa isto num
+     tablet no balcão tanto quanto num desktop na cozinha. */
+  min-height: var(--alu-toque, 44px);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.cant-nav__link.active,
+.cant-nav__link:hover { background: var(--color-navy-tint); color: var(--color-text-primary); }
+
+.cant-topo__conta { display: flex; align-items: center; gap: 12px; }
+.cant-topo__nome { font-size: 13px; color: var(--color-text-secondary); }
+
+.cant-main { flex: 1; padding: 20px; }
+.cant-tela { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
+
+/* ─── Cabeçalho de tela ──────────────────────────────────────────────── */
+
+.cant-cabeca {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cant-titulo { font-size: 22px; margin: 0; }
+.cant-sub { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 13px; }
+
+/* O chevron de volta na MESMA linha do título — a regra C4 do padrão de campo. */
+.cant-voltar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px; height: 44px;
+  margin-left: -12px;
+  font-size: 24px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.cant-meses { display: flex; align-items: center; gap: 8px; }
+.cant-mes { min-width: 150px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* ─── Teclas ─────────────────────────────────────────────────────────── */
+
+.cant-tecla {
+  min-height: var(--alu-toque, 44px);
+  padding: 0 14px;
+  border: 1px solid var(--sas-borda);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.cant-tecla:hover:not(:disabled) { background: var(--color-surface-inset); }
+.cant-tecla:disabled { opacity: 0.5; cursor: not-allowed; }
+.cant-tecla--principal { background: var(--color-navy); color: var(--color-navy-texto); border-color: transparent; }
+.cant-tecla--fina { min-height: 32px; padding: 0 10px; font-size: 12px; }
+
+/* ─── O calendário ───────────────────────────────────────────────────── */
+
+.cant-grade {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cant-grade__cabeca {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-tertiary);
+  padding-bottom: 4px;
+}
+
+.cant-dia {
+  min-height: 118px;
+  padding: 6px;
+  border: 1px solid var(--sas-borda);
+  border-radius: 12px;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cant-dia--vazio { border-color: transparent; background: none; }
+/* Hoje é marcado pela BORDA, não por preenchimento: o preenchimento das
+   células já significa outra coisa, e dois significados na mesma tinta é
+   exatamente o que o fim do semáforo veio resolver. */
+.cant-dia--hoje { border-color: var(--color-navy); border-width: 2px; }
+.cant-dia__numero { font-size: 12px; color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+
+.cant-celula {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 7px;
+  border-radius: 8px;
+  border: 1px solid var(--sas-borda);
+  text-decoration: none;
+  color: inherit;
+  font-size: 11px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.cant-celula:hover { border-color: var(--color-navy); }
+.cant-celula--inerte { opacity: 0.55; cursor: default; }
+.cant-celula__refeicao { font-weight: 600; }
+.cant-celula__estado { color: var(--color-text-secondary); }
+.cant-celula__pedidos { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+
+/* Os cinco estados. Vazado → preenchido acompanha "não existe → existe →
+   contado", que é a mesma gramática de intensidade do resto do produto: acima
+   do corte é preenchido, abaixo é vazado. */
+.cant-celula--sem-cardapio { border-style: dashed; color: var(--color-text-tertiary); }
+.cant-celula--rascunho { background: var(--color-neutral-soft); }
+.cant-celula--aberto { background: var(--color-navy-soft); border-color: var(--color-navy); }
+.cant-celula--fechado { background: var(--color-navy); color: var(--color-navy-texto); border-color: transparent; }
+.cant-celula--fechado .cant-celula__estado,
+.cant-celula--fechado .cant-celula__pedidos { color: inherit; opacity: 0.85; }
+.cant-celula--sem-refeicao { background: var(--color-hachura); color: var(--color-text-tertiary); }
+
+/* ─── O editor ───────────────────────────────────────────────────────── */
+
+.cant-secao {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--sas-borda);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.cant-secao__titulo { margin: 0; font-size: 15px; }
+.cant-secao__ajuda { margin: 0; font-size: 12px; color: var(--color-text-secondary); }
+.cant-copiar { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.cant-campo { display: grid; gap: 4px; max-width: 420px; }
+.cant-campo__rotulo { font-size: 12px; color: var(--color-text-secondary); }
+.cant-campo__ajuda { font-size: 12px; color: var(--color-text-tertiary); }
+
+.cant-input {
+  min-height: var(--alu-toque, 44px);
+  padding: 0 10px;
+  border: 1px solid var(--sas-borda);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  width: 100%;
+}
+
+.cant-input--titulo { font-weight: 600; max-width: 260px; }
+.cant-input--numero { width: 68px; min-height: 36px; text-align: center; }
+.cant-checkbox { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+
+.cant-blocos { display: grid; gap: 14px; }
+
+.cant-bloco {
+  padding: 14px;
+  border: 1px solid var(--sas-borda);
+  border-radius: 14px;
+  background: var(--color-surface);
+  display: grid;
+  gap: 10px;
+}
+
+.cant-bloco--leitura { background: var(--color-surface-inset); }
+.cant-bloco__cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cant-bloco__titulo { margin: 0; font-size: 14px; display: flex; gap: 10px; align-items: baseline; }
+.cant-bloco__instrucao { margin: 0; font-size: 12px; color: var(--color-text-secondary); font-weight: 400; }
+.cant-mini { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-text-secondary); }
+
+.cant-opcoes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cant-opcao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cant-opcao .cant-input { max-width: 320px; }
+.cant-opcoes--leitura { gap: 4px; padding-left: 2px; }
+
+.cant-acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.cant-aviso,
+.cant-erro {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.cant-aviso { background: var(--color-amber-soft); color: var(--color-text-primary); }
+/* Vermelho SÓ em falha operacional — é o que sobrou dele depois do fim do
+   semáforo (docs/37). */
+.cant-erro { background: var(--color-red-soft); color: var(--color-text-primary); }
+
+.cant-vazio { color: var(--color-text-secondary); text-align: center; padding: 24px; }
+
+/* ─── Pedidos ────────────────────────────────────────────────────────── */
+
+.cant-abas { display: flex; gap: 4px; }
+
+.cant-aba {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--sas-borda);
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.cant-aba--ativa { background: var(--color-navy); color: var(--color-navy-texto); border-color: transparent; }
+
+.cant-contagem,
+.cant-colunas { display: grid; gap: 16px; }
+@media (min-width: 900px) {
+  .cant-contagem { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .cant-colunas { grid-template-columns: 1fr 1fr; }
+}
+
+.cant-contagem__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+
+.cant-contagem__linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--sas-borda);
+}
+
+.cant-contagem__linha--fora { opacity: 0.55; }
+.cant-contagem__nome { display: flex; gap: 8px; align-items: baseline; }
+.cant-contagem__bloco { font-size: 11px; color: var(--color-text-tertiary); }
+
+/* O número em magnitude: é o que se lê de longe, com a mão na panela. */
+.cant-contagem__numero {
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-magnitude);
+}
+
+.cant-tarja {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--color-neutral-soft);
+  color: var(--color-text-secondary);
+}
+
+.cant-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+.cant-lista__linha {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--sas-borda);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.cant-lista__aluno { display: flex; gap: 8px; align-items: baseline; }
+.cant-lista__turma { font-size: 12px; color: var(--color-text-tertiary); }
+.cant-lista__escolhas { font-size: 13px; color: var(--color-text-secondary); }
+
+/* A restrição é a informação que muda o que sai do balcão: ela tem destaque
+   próprio, e não uma coluna qualquer. */
+.cant-lista__restricao {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--color-amber-soft);
+  justify-self: start;
+}
+
+/* ─── Administração (dentro do casco da coordenação) ─────────────────── */
+
+.cant-admin__cantina { padding: 12px 0; border-top: 1px solid var(--sas-borda); }
+.cant-admin__cantina:first-of-type { border-top: none; }
+.cant-admin__nome { margin: 0; font-size: 15px; display: flex; gap: 8px; align-items: baseline; }
+
+.cant-admin__lote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-surface-inset);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.cant-admin__par { display: inline-flex; gap: 4px; }
+.cant-senha { font-family: ui-monospace, monospace; font-size: 18px; letter-spacing: 0.04em; }
+.linha--inativa { opacity: 0.55; }

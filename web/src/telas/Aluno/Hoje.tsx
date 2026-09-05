@@ -12,6 +12,7 @@ import {
   useSimulados,
   useZona,
 } from '../../dados/aluno';
+import { BlocoDaCantina } from './Cantina';
 import { BarraCorte } from './pecas/BarraCorte';
 import { Bloco } from './pecas/Bloco';
 import { ContagemRegressiva } from './pecas/ContagemRegressiva';
@@ -26,6 +27,7 @@ import { AVISO_DE_COBERTURA, fmt, fmtDataCurta, fmtDelta } from './pecas/formato
 // dados (docs/24 §7.1):
 //
 //   1. a missão   o que fazer nos próximos vinte minutos
+//   1b. a cantina o que EXPIRA hoje — só para quem tem direito
 //   2. sequência  o que já foi construído e não se quer perder
 //   3. contagem   quando é a próxima corrida
 //   4. o corte    onde estou contra a régua
@@ -52,6 +54,14 @@ export function Hoje({ nome }: { nome: string }) {
       <h1 className="alu-titulo-tela alu-hoje__saudacao">Olá, {nome}</h1>
 
       <MissaoDeHoje />
+
+      {/* Depois da missão e antes da sequência, e a posição é a resposta a "o
+          que eu faço agora": escolher o almoço é a ÚNICA coisa desta tela que
+          EXPIRA. Fica abaixo da missão porque a missão é o herói.
+
+          O bloco se apaga sozinho para quem não tem direito a refeição — que é
+          a maioria —, então ele não custa nada a quem não usa (docs/38 §4). */}
+      <BlocoDaCantina />
 
       {/* ⚠️ Sequência e contagem regressiva também estão na coluna direita do
           desktop (CascoAluno.tsx), e a repetição é deliberada: a lateral é o

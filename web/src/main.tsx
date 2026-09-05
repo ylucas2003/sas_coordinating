@@ -49,6 +49,7 @@ import '../styles/aluno-treino.css';
 import '../styles/aluno-provas.css';
 import '../styles/aluno-jornada.css';
 import '../styles/aluno-tioleo.css';
+import '../styles/aluno-cantina.css';
 // A PORTA — o login das duas entradas. O `.lp` institucional foi apagado em
 // 05/09: eram dois desenhos de login, e clicar em "Sou da coordenação" trocava
 // a página inteira em vez de revelar o formulário.
@@ -56,6 +57,9 @@ import '../styles/porta.css';
 import '../styles/banco.css';
 import '../styles/foto-perfil.css';
 import '../styles/integracoes.css';
+// A cantina tem casco próprio (o terceiro do produto) e usa os tokens da
+// coordenação — a folha do lado do ALUNO é `aluno-cantina.css`, lá em cima.
+import '../styles/cantina.css';
 // Por ÚLTIMO, e é obrigatório: o `@media print` de `documento.css` remapeia a
 // paleta inteira para `--doc-*`, e blocos `:root` têm a mesma especificidade —
 // quem vem depois vence. Importado antes daqui, o documento voltaria a herdar

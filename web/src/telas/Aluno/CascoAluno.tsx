@@ -10,6 +10,7 @@ import { EstudarEstatisticas } from './EstudarEstatisticas';
 import { EstudarProgresso } from './EstudarProgresso';
 import { EstudarLista } from './EstudarLista';
 import { EstudarListas } from './EstudarListas';
+import { CantinaDoAluno } from './Cantina';
 import { Hoje } from './Hoje';
 import { Jornada } from './Jornada';
 import { LigaTela } from './Liga';
@@ -146,6 +147,10 @@ export function CascoAluno() {
             <Route path="/provas/:id" element={<ProvaFicha />} />
             <Route path="/provas/:id/extrato" element={<ExtratoXpTela />} />
             <Route path="/jornada" element={<Jornada />} />
+            {/* Dentro do casco, e NÃO na barra de quatro destinos: um garfo ao
+                lado de "Jornada" diria que comer e estudar pesam igual no
+                produto (docs/38 §4). Chega-se aqui pelo card em Hoje. */}
+            <Route path="/cantina" element={<CantinaDoAluno />} />
             <Route path="/liga" element={<LigaTela />} />
             {/* Os caminhos antigos do casco do aluno seguem valendo: estão em
                 link salvo e no e-mail de lembrete da Sprint 1. */}
