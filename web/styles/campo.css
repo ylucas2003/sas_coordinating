@@ -18,7 +18,7 @@
   align-items: flex-start;
   gap: 12px;
   min-height: 186px;
-  padding: 20px;
+  padding: 24px;
   background: var(--color-surface);
   border: var(--color-border-largura) solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -46,13 +46,15 @@
   gap: 10px;
 }
 
+/* O olho é DADO, exatamente como `.alu-olho` do aluno — não cinza. É a marca
+   tipográfica do sistema, e ela é azul nos dois produtos. */
 .campo-cartao__olho {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1.4;
-  color: var(--color-text-tertiary);
+  color: var(--color-dado);
 }
 
 .campo-cartao__titulo {
@@ -245,7 +247,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1;
-  color: var(--color-text-tertiary);
+  color: var(--color-dado);
 }
 
 .campo-entrada__titulo {

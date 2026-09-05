@@ -406,10 +406,11 @@
 }
 
 .screen-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
-  letter-spacing: -0.3px;
-  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--color-magnitude);
 }
 
 .screen-subtitle {
@@ -592,9 +593,14 @@
   border-top: 1px solid var(--color-border);
 }
 
+/* Título de seção: 600, não 500. O 500 é o peso da "ênfase pontual" do corpo
+   — usá-lo em título deixava a seção com o mesmo peso do texto dela, e é
+   parte do porquê a tela lia como um campo pálido só. */
 .section__title {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-magnitude);
   margin-bottom: 10px;
 }
 
@@ -643,7 +649,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1.4;
-  color: var(--color-text-tertiary);
+  color: var(--color-dado);
 }
 
 /* MAGNITUDE. O 800 com tracking negativo é a aproximação da grotesca
@@ -1914,11 +1920,16 @@
   flex-wrap: wrap;
 }
 
+/* Título de tela: 28px em 700, na cor MAGNITUDE — a mesma do numeral grande,
+   mais escura que o texto corrente. Era `--color-text-primary` com
+   `letter-spacing` em PX, que não acompanha o tamanho quando a fonte muda
+   (docs/brief-claude-design-coordenacao.md §Tipografia). */
 .tela-titulo {
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.4px;
-  color: var(--color-text-primary);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--color-magnitude);
 }
 
 .tela-subtitulo {

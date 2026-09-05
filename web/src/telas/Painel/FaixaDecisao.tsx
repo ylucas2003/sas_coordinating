@@ -59,9 +59,24 @@ export function FaixaDecisao({
         {nomeCriterio && <span className="faixa-decisao__regua">{`régua: ${nomeCriterio}`}</span>}
       </div>
 
-      {semNada ? (
+      {/* ⚠️ A condição é sobre haver ALERTA, não sobre haver problema.
+          Enquanto os números de cortados viviam aqui, eles preenchiam o
+          cartão e o caso "há cortados mas nenhum alerta" nunca aparecia
+          vazio. Quando os números subiram para os KPIs, esse caso virou uma
+          caixa pálida sem nada dentro — que é como a tela estava em
+          05/09/2026, com 156 cortados e zero alertas.
+
+          Um cartão vazio não é neutro: ele diz "aqui deveria ter algo" e
+          quebra a leitura da tela inteira. */}
+      {visiveis.length === 0 ? (
         <p className="faixa-decisao__vazio">
-          Nada exigindo ação neste recorte. A tabela abaixo continua sendo o lugar de comparar.
+          {semNada
+            ? 'Nada exigindo ação neste recorte. A tabela abaixo continua sendo o lugar de comparar.'
+            : `Nenhum alerta aberto neste recorte. ${
+                contagem.cortados === 1
+                  ? 'O aluno abaixo do corte está'
+                  : `Os ${contagem.cortados} alunos abaixo do corte estão`
+              } na tabela, ordenados pelo pior.`}
         </p>
       ) : (
         <div className="faixa-decisao__alertas">

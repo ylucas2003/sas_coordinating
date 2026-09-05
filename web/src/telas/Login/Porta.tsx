@@ -1,4 +1,6 @@
-// A PORTA DO ALUNO — a tela de login inteira, não só uma ilustração.
+import type { ReactNode } from 'react';
+
+// A PORTA — a tela de login inteira, das DUAS entradas, não só uma ilustração.
 //
 // É a ÚNICA tela do produto que pode ser ilustrada, e o motivo da ilustração é
 // um só: **a linha dourada no horizonte É a linha de corte de todas as outras
@@ -10,20 +12,32 @@
 // A grade quadrada do céu é o MESMO motivo do cobogó da fachada, em outra
 // escala — não são duas decisões (brief §Restrições).
 //
-// ⚠️ ESTA TELA SUBSTITUI O LOGIN INTEIRO quando o modo é 'aluno'. O modo
-// 'coordenador' segue renderizando o `.lp` institucional de `Login.tsx` — são
-// ~900 alunos contra uma dúzia de coordenadores, e por isso o padrão é esta
-// porta, com a passagem para o outro lado num link discreto no rodapé.
+// ⚠️ ESTA TELA É O LOGIN INTEIRO, nos DOIS modos, e só o PAINEL da direita
+// troca de conteúdo. Até 05/09/2026 "Sou da coordenação" trocava a página
+// inteira por outro desenho — o `.lp` institucional, com coluna dupla, logos e
+// selo —, e o resultado era que a coordenação parecia outro produto a um
+// clique de distância. Aquele front foi apagado: `PainelDireito.tsx`,
+// `modos.ts` e as 625 linhas de `login.css`.
 //
-// ⚠️ NÃO HÁ MAIS FORMULÁRIO AQUI (docs/35 §11.5). Saíram os dois: o de
+// A cena, a marca e a manchete são as mesmas nas duas portas. A ilustração já
+// carrega o cobogó e a linha de corte, então a coordenação passou a herdar de
+// graça a fachada que o brief pedia que ela tivesse.
+//
+// São ~900 alunos contra uma dúzia de coordenadores: o padrão é a porta do
+// aluno, e a travessia é um link discreto no rodapé do painel, nos dois
+// sentidos — nunca uma aba, que sugeriria duas coisas de peso igual.
+//
+// ⚠️ NÃO HÁ FORMULÁRIO DE ALUNO (docs/35 §11.5). Saíram os dois: o de
 // matrícula + senha e o de "primeiro acesso / esqueci a senha". O aluno entra
 // só pelo Canvas, com a conta que ele já usa nas aulas — não existe mais senha
-// de aluno no SAS para digitar, criar ou redefinir.
+// de aluno no SAS para digitar, criar ou redefinir. O formulário que existe
+// aqui é o da COORDENAÇÃO, e entra como slot: a porta é só o casco e não
+// conhece a sessão nem a API.
 //
-// O que sobrou tem de PARECER UMA PORTA, e não o resto de uma tela que tinha
-// mais coisa. É por isso que o painel não é só um botão solto: ele diz de qual
-// conta se trata (a mesma do Canvas), o que fazer quando o Canvas recusa, e
-// quem procurar. O texto ocupa o lugar que os campos ocupavam — de propósito.
+// O painel do aluno tem de PARECER UMA PORTA, e não o resto de uma tela que
+// tinha mais coisa. É por isso que ele não é só um botão solto: diz de qual
+// conta se trata, o que fazer quando o Canvas recusa, e quem procurar. O texto
+// ocupa o lugar que os campos ocupavam — de propósito.
 //
 // ⚠️ Consequência que veio junto e não tem contorno: Canvas fora do ar =
 // ninguém entra. É o que o `else` do botão precisa dizer com todas as letras,
@@ -40,15 +54,25 @@
 // "2.693 questões"): não vêm de dado nenhum, e a régua do brief é explícita —
 // nenhum número institucional inventado.
 
+/** Qual das duas portas está aberta. Não diz quem a pessoa é. */
+export type Modo = 'aluno' | 'coordenador';
+
 interface Props {
+  modo: Modo;
   /** O botão do Canvas só existe se o servidor tiver a Developer Key. */
   ssoCanvas: boolean;
   /** Aviso de volta do SSO ("o Canvas recusou o login…"), quando houver. */
   avisoCanvas: string | null;
-  onIrParaCoordenacao: () => void;
+  onTrocarModo: (modo: Modo) => void;
+  /** O formulário de e-mail e senha. Entra como slot para a porta não precisar
+      conhecer a sessão nem a API — ela é só o casco. */
+  formularioCoordenacao: ReactNode;
 }
 
-export function PortaDoAluno({ ssoCanvas, avisoCanvas, onIrParaCoordenacao }: Props) {
+export function Porta({
+  modo, ssoCanvas, avisoCanvas, onTrocarModo, formularioCoordenacao,
+}: Props) {
+  const coordenacao = modo === 'coordenador';
   return (
     <div className="porta">
       <div className="porta__cena-caixa">
@@ -71,47 +95,72 @@ export function PortaDoAluno({ ssoCanvas, avisoCanvas, onIrParaCoordenacao }: Pr
         </h1>
       </div>
 
+      {/* ⚠️ Só o PAINEL troca. A cena, a marca e a manchete são as mesmas nas
+          duas portas — é isso que faz a coordenação parar de parecer outro
+          produto ao clicar em "Sou da coordenação". */}
       <div className="porta__painel">
         <div className="porta__painel-interno">
-          {avisoCanvas && (
+          {avisoCanvas && !coordenacao && (
             <p className="porta__erro" role="alert">
               {avisoCanvas}
             </p>
           )}
 
           <div className="porta__cabecalho">
-            <h2 className="porta__titulo">Entrar</h2>
+            <h2 className="porta__titulo">{coordenacao ? 'Entrar na coordenação' : 'Entrar'}</h2>
             <p className="porta__ajuda">
-              Você entra com a <b>mesma conta do Canvas</b> que usa nas aulas. Não há senha
-              separada aqui — se já estiver logado no Canvas, a porta abre direto.
+              {coordenacao ? (
+                <>
+                  A coordenação entra com <b>e-mail e senha</b>. O botão do Canvas é a porta do
+                  aluno — esta conta existe só aqui.
+                </>
+              ) : (
+                <>
+                  Você entra com a <b>mesma conta do Canvas</b> que usa nas aulas. Não há senha
+                  separada aqui — se já estiver logado no Canvas, a porta abre direto.
+                </>
+              )}
             </p>
           </div>
 
-          {ssoCanvas ? (
-            /* Link, e não `fetch`: o browser precisa NAVEGAR até o Canvas e
-               voltar. É o que faz "quem já está logado no Canvas entra
-               direto" funcionar. */
-            <a className="alu-tecla alu-tecla--larga" href="/api/auth/canvas/iniciar?proximo=/">
-              Entrar com o Canvas
-            </a>
+          {coordenacao ? (
+            formularioCoordenacao
           ) : (
-            <p className="porta__erro" role="alert">
-              O login pelo Canvas está fora do ar no momento, e ele é o único caminho de entrada
-              do aluno. Tente de novo em alguns minutos.
-            </p>
+            <>
+              {ssoCanvas ? (
+                /* Link, e não `fetch`: o browser precisa NAVEGAR até o Canvas e
+                   voltar. É o que faz "quem já está logado no Canvas entra
+                   direto" funcionar. */
+                <a className="alu-tecla alu-tecla--larga" href="/api/auth/canvas/iniciar?proximo=/">
+                  Entrar com o Canvas
+                </a>
+              ) : (
+                <p className="porta__erro" role="alert">
+                  O login pelo Canvas está fora do ar no momento, e ele é o único caminho de
+                  entrada do aluno. Tente de novo em alguns minutos.
+                </p>
+              )}
+
+              {/* O acesso do aluno não é "liberado" por ninguém aqui dentro nem
+                  casado por e-mail — ele nasce da matrícula no curso de
+                  simulados, que o sync lê do Canvas a cada 5 min. */}
+              <p className="porta__ajuda">
+                Se o Canvas disser que você não tem acesso ao SAS, confira com a coordenação a
+                sua matrícula no curso de simulados do ITA/IME — é dela que sai a lista de
+                alunos daqui.
+              </p>
+            </>
           )}
 
-          {/* Mesma correção do texto de `?canvas=sem-conta` no Login: o acesso
-              do aluno não é "liberado" por ninguém aqui dentro nem casado por
-              e-mail — ele nasce da matrícula no curso de simulados, que o sync
-              lê do Canvas a cada 5 min (05/09/2026). */}
-          <p className="porta__ajuda">
-            Se o Canvas disser que você não tem acesso ao SAS, confira com a coordenação a sua
-            matrícula no curso de simulados do ITA/IME — é dela que sai a lista de alunos daqui.
-          </p>
-
-          <button type="button" className="porta__coordenacao" onClick={onIrParaCoordenacao}>
-            Sou da coordenação
+          {/* A travessia para a outra porta, discreta, no rodapé do painel.
+              São ~900 alunos contra uma dúzia de coordenadores: o padrão é a
+              porta do aluno, e a volta é um link, não uma aba. */}
+          <button
+            type="button"
+            className="porta__coordenacao"
+            onClick={() => onTrocarModo(coordenacao ? 'aluno' : 'coordenador')}
+          >
+            {coordenacao ? 'Sou aluno' : 'Sou da coordenação'}
           </button>
         </div>
       </div>
