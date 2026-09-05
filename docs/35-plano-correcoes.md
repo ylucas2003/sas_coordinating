@@ -688,11 +688,17 @@ ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
 ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
   python -m scripts.recalcular_resolucao_url --aplicar </dev/null'
 
-# 2 · as 44 classificações
-ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
-  python -m scripts.aplicar_patches_de_classificacao </dev/null'   # relatório
-ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
-  python -m scripts.aplicar_patches_de_classificacao --aplicar </dev/null'
+# 2 · as 44 classificações. O `-v` e o `--patches` NÃO são opcionais:
+#     `banco-questoes/` não entra na imagem, então o diretório precisa ser
+#     montado e apontado (o script avisa isso se você esquecer).
+ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T \
+  -v /opt/sas/banco-questoes:/patches api \
+  python -m scripts.aplicar_patches_de_classificacao \
+  --patches /patches/patches </dev/null'                            # relatório
+ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T \
+  -v /opt/sas/banco-questoes:/patches api \
+  python -m scripts.aplicar_patches_de_classificacao \
+  --patches /patches/patches --aplicar </dev/null'
 ```
 
 Os dois são idempotentes e abrem em modo relatório: **rode sem a flag primeiro**
