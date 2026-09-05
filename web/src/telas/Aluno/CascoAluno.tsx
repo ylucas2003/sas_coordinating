@@ -230,11 +230,16 @@ function ColunaLateral() {
         {xp && <p className="alu-widget__sub">+{fmtInteiro(xp.ciclo)} neste ciclo</p>}
       </div>
 
-      <div className="alu-widget">
-        <TarjaFonte chave="proximoSimulado" />
-        <span className="alu-olho">Próximo simulado</span>
-        <ContagemRegressiva proximo={proximo ?? null} compacta />
-      </div>
+      {/* Mesma regra do bloco da Hoje: sem simulado marcado, o widget SOME
+          (docs/36 §1.2). A coluna já sabe encolher — a Liga logo abaixo usa o
+          mesmo `&&` desde sempre. */}
+      {proximo && (
+        <div className="alu-widget">
+          <TarjaFonte chave="proximoSimulado" />
+          <span className="alu-olho">Próximo simulado</span>
+          <ContagemRegressiva proximo={proximo} compacta />
+        </div>
+      )}
 
       {liga && (
         <div className="alu-widget">

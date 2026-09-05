@@ -131,8 +131,7 @@
 }
 
 /* Fórmula que o modelo escreveu no meio do texto: rola dentro do próprio
-   bloco em vez de empurrar a folha (docs/27 §8). Ver `.alu-tioleo__formula`
-   para o porquê de ela não ser renderizada de verdade. */
+   bloco em vez de empurrar a folha (docs/27 §8). */
 .alu-tioleo .chat-msg__corpo code,
 .alu-tioleo .chat-msg__corpo pre {
   display: block;
@@ -772,18 +771,19 @@
    tem repertório para desconfiar de uma derivação bem apresentada. Enquanto a
    mitigação (mostrar a resolução oficial em vez de derivar do zero) não estiver
    no prompt, o monoespaçado cru é o estado honesto: ele parece rascunho. */
+/* Passou a envolver um <Markdown>, que renderiza a fórmula com KaTeX
+   (docs/36 §3.1) — antes era um <pre> com o LaTeX cru, e por isso tinha
+   monospace e `white-space: pre`. Os dois saíram: fórmula desenhada tem
+   tipografia própria, e `pre` quebraria o espaçamento do KaTeX. */
 .alu-tioleo__formula {
   margin: 0;
   padding: 12px;
   border-radius: var(--alu-raio-pequeno);
   background: var(--alu-superficie-2);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 14px;
   line-height: 1.6;
   /* Rola sozinha na horizontal, dentro do próprio bloco, sem empurrar a folha. */
   max-width: 100%;
   overflow-x: auto;
-  white-space: pre;
 }
 
 .alu-tioleo__formula-aviso {

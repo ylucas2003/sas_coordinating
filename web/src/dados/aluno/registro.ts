@@ -76,7 +76,7 @@ export const FONTES: Fonte[] = [
     rotaFutura: 'GET /me/simulados',
     telas: ['Hoje', 'Provas', 'Jornada'],
     observacao:
-      'Filtra `presente = true` e descarta a falta — ver a fonte `presencaNosSimulados`.',
+      'Filtra `presente = true` POR DEFAULT e descarta a falta; `?incluirFaltas=true` traz a ausência junto, e é o que alimenta `presencaNosSimulados`. O default não mudou de propósito: Hoje, Provas e Jornada calculam média e delta sobre esta lista, e ligar a falta para todo mundo mudaria número em tela sem ninguém ter pedido.',
   },
   {
     chave: 'simulado',
@@ -238,61 +238,53 @@ export const FONTES: Fonte[] = [
   // ─── SEM-ROTA · o servidor já sabe a resposta ──────────────────────────
   {
     chave: 'presencaNosSimulados',
-    estado: 'sem-rota',
+    estado: 'real',
     descricao: 'Os simulados em que o aluno faltou — os quadrados vazados da corrente',
-    doc: 'docs/29 §A.2',
-    origemDoDado: '`nota.presente`, hoje filtrado fora por `simulados_do_aluno`',
-    rotaFutura: 'GET /me/simulados?incluirFaltas=true (ou um /me/presenca)',
+    doc: 'docs/36 §2.1',
+    rotaFutura: 'GET /me/simulados?incluirFaltas=true',
     telas: ['Hoje', 'Jornada'],
-    esforco: 'P',
     observacao:
-      'Do lado do aluno a falta é invisível hoje. Sem ela a corrente perde justamente o que dá peso à sequência.',
+      '⚠️ A regra de QUEM pode ser chamado de falta é o produto desta fonte, não o filtro. Medindo em 05/09: 58,7% das notas são `presente = false` e 440 alunos de 1.229 têm 100% de falta — o número bruto mistura ausência com "esta prova nunca foi minha". Vale falta só com matrícula ativa e só a partir de `matricula_turma.ativo_desde` (docs/36 §1.1). A trilha NÃO entra: `INDEFINIDA` são 664 alunos reais cuja section o parser não entendeu (commit 59cc7ce), e excluí-los seria punir o aluno por defeito de ingest. O default da rota continua sem faltas — as telas que já a consomem calculam média sobre a lista.',
   },
   {
     chave: 'sequencia',
-    estado: 'sem-rota',
+    estado: 'real',
     descricao: 'Simulados consecutivos sem faltar, corrente e recorde',
     doc: 'docs/26 §4',
-    origemDoDado: '`nota.presente` — o mesmo dado de `presencaNosSimulados`',
-    rotaFutura: 'GET /me/jogo (docs/26 §9)',
+    rotaFutura: 'GET /me/jogo',
     telas: ['Hoje', 'casco (coluna direita)', 'Login'],
-    esforco: 'P',
     observacao:
-      '⚠️ `/me/streak` EXISTE, mas com a semântica ANTIGA — "ciclos consecutivos acima da média da turma", que é relativa e premia posição, não progresso (docs/24 §1.1). Não foi ligada de propósito: ligar a rota errada seria pior que mockar.',
+      'As duas janelas são diferentes de propósito (docs/36 §1.3): a FITA cobre o ciclo corrente, porque é o que cabe no cartão da Hoje; os dois NÚMEROS cobrem o ano inteiro, porque recorde que zera na virada de ciclo não é recorde. ⚠️ `/me/streak` SAIU no mesmo commit — ela media "ciclos acima da média da turma", relativa, que premia posição e não progresso (docs/24 §1.1). O tool `meu_streak` do Tio Léo foi repontado para cá: o nome ficou, a resposta mudou.',
   },
   {
     chave: 'proximoSimulado',
-    estado: 'sem-rota',
+    estado: 'real',
     descricao: 'Data do próximo simulado, para a contagem regressiva',
-    doc: 'docs/29 §A.1',
-    origemDoDado: '`evento_agenda`, que já dispara e-mail ao aluno na véspera desde a Sprint 1',
+    doc: 'docs/36 §2.2',
     rotaFutura: 'GET /me/agenda',
     telas: ['Hoje', 'casco (coluna direita)'],
-    esforco: 'P',
     observacao:
-      'O e-mail sabe do simulado; a tela não. É o gancho diário do produto inteiro (docs/26 §2) e não tem fonte.',
+      '⚠️ `null` é resposta legítima e COMUM, não erro: em 05/09 havia 1 evento futuro no banco inteiro e 1 simulado com `evento_agenda_id`. A tela ESCONDE o bloco nesse caso (docs/36 §1.2) — vazio permanente ensina o aluno a ignorar aquele espaço. `vestibular` e `fase` saem do simulado ligado ao evento, porque `evento_agenda` não tem nenhum dos dois; `fase` vem de `simulado.tipo`, já que a coluna `simulado.fase` saiu na migration 0003. Evento sem simulado não alcança ninguém — é a mesma regra de audiência do motor de lembretes.',
   },
   {
     chave: 'zonaEDistancia',
-    estado: 'sem-rota',
+    estado: 'real',
     descricao: 'Zona do aluno, distância até a próxima e o nome da régua que produziu o veredito',
-    doc: 'docs/29 §A.4',
-    origemDoDado: '`classificacao_aluno.zona` + o avaliador de critérios (migration 0023)',
+    doc: 'docs/36 §2.5',
     rotaFutura: 'GET /me/zona',
     telas: ['Hoje', 'Jornada'],
-    esforco: 'M',
     observacao:
-      'A régua é obrigatória junto do rótulo (docs/24 §2): "risco" sem contra qual corte é só a má notícia.',
+      'A régua é obrigatória junto do rótulo (docs/24 §2): "risco" sem contra qual corte é só a má notícia. A régua é a do vestibular alvo do aluno, e quem mira ITA e IME é avaliado contra os dois valendo o PIOR veredito. NÃO lê `classificacao_aluno`: a tabela é cache de lote e cobre 568 dos 1.229 alunos com nota — devolver 404 aos outros 661 seria transformar "o job ainda não passou por você" em "você não existe". Calcula com o mesmo avaliador de `criterios.py`, nunca uma cópia da regra: foi a segunda cópia que a migration 0037 matou.',
   },
   {
     chave: 'cortePorMateria',
-    estado: 'sem-rota',
+    estado: 'real',
     descricao: 'A nota de corte de cada matéria — 4,0, e 5,0 no Inglês eliminatório do ITA F1',
     doc: 'docs/24 §2',
-    origemDoDado: '`criterio_classificacao` (0023), a mesma régua que a coordenação já lê',
     rotaFutura: 'GET /me/zona (mesma rota da zona)',
     telas: ['Hoje', 'Provas', 'Jornada', 'Extrato de XP'],
-    esforco: 'M',
+    observacao:
+      'Vem na MESMA resposta de `zonaEDistancia`, e `useMateriasContraCorte` a recorta da mesma `queryKey`. Separar as duas em chaves diferentes faria duas chamadas e — pior — abriria a porta para a tela mostrar a barra de uma régua e o rótulo de outra.',
   },
   {
     chave: 'meusErros',
@@ -304,7 +296,7 @@ export const FONTES: Fonte[] = [
     telas: ['Estudar (o elo quieto)', 'Sessão de treino (origem `erros`)'],
     esforco: 'P',
     observacao:
-      'O material de estudo mais óbvio que temos, enterrado atrás de uma navegação.',
+      '⚠️ FICOU DE FORA da leva de 05/09 de propósito (docs/36 §4), e não por esforço: `questao.assunto` está 100% VAZIO no banco (0 de 1.079), então a rota nasceria devolvendo `assunto: null` em toda linha e a tela prometeria "estude por assunto" sem saber o assunto. São ~200 questões erradas por aluno, pior caso 676 — o que também pede uma decisão de teto, já que não há paginação. Volta no Sprint 6 com `questao_topico`, e aí nasce já útil.',
   },
 
   // ─── MOCK PURO ─────────────────────────────────────────────────────────
@@ -375,14 +367,13 @@ export const FONTES: Fonte[] = [
   },
   {
     chave: 'metaDoCiclo',
-    estado: 'mock',
+    estado: 'real',
     descricao: 'O alvo do ciclo — substituiu a meta semanal, que o dado não sustentava',
-    doc: 'docs/24 §7.3',
-    depende: 'a decisão aberta "quem define a meta, aluno ou sistema" (docs/24 §9.1)',
-    telas: ['— nenhuma'],
-    esforco: 'P',
+    doc: 'docs/36 §1.5',
+    rotaFutura: 'GET /me/meta',
+    telas: ['Hoje'],
     observacao:
-      '⚠️ NÃO foi construída. O hook existe e nenhuma tela o consome: a contagem regressiva ocupou o lugar que a meta teria na Hoje, e enquanto a decisão de quem define o alvo estiver aberta, um bloco de meta seria inventar produto.',
+      'Quem define é o SISTEMA e a meta é PRESENÇA (docs/36 §1.5) — foi assim que a decisão aberta de docs/24 §9.1 caiu sem inventar produto: dá para verificar com `nota.presente`, não depende do XP (travado no backtest de docs/29 §H) e não pede tela de coordenação. ⚠️ `alvo` sai do CALENDÁRIO do ciclo, não do que o aluno fez: contar só o que ele já viu faria a meta andar junto com ele e parecer sempre cumprida.',
   },
   {
     chave: 'liga',
@@ -451,14 +442,13 @@ export const FONTES: Fonte[] = [
   },
   {
     chave: 'formulaMatematica',
-    estado: 'mock',
+    estado: 'real',
     descricao: 'Renderização de fórmula na resposta do Tio Léo',
-    doc: 'docs/27 §12',
-    depende: 'a decisão aberta entre KaTeX empacotado e MathML via Temml',
+    doc: 'docs/36 §3.1',
+    rotaFutura: 'componentes/ui/Markdown.tsx (KaTeX) — renderização no cliente, sem rota',
     telas: ['Tio Léo'],
-    esforco: 'M',
     observacao:
-      'Renderizada como TEXTO SIMPLES de propósito: nenhuma dependência entra antes da decisão. E o risco de docs/27 §10 segue de pé — fórmula bonita e errada aumenta a confiança do aluno numa resposta falsa.',
+      '⚠️ A decisão de docs/27 §12 ("KaTeX ou Temml?") JÁ ESTAVA FECHADA no código — o documento é que não sabia. `componentes/ui/Markdown.tsx` usa KaTeX desde 01/09, com macros pt-BR (`\\sen`, `\\tg`, `\\cotg`) e fontes servidas do nosso domínio, e já desenha as resoluções do banco e as questões do treino. Não entrou dependência nova: o artefato do Tio Léo passou a usar o mesmo componente. Um segundo motor de fórmula seria a dívida que este projeto vive consertando. ⚠️ O risco de docs/27 §10 NÃO é resolvido por renderizar e segue de pé: fórmula bonita e errada aumenta a confiança do aluno numa resposta falsa.',
   },
 ];
 

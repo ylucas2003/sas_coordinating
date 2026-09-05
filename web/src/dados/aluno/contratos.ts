@@ -23,7 +23,6 @@ export type {
   QuestoesDoSimulado,
   ResultadoQuestao,
   SimuladoDoAluno,
-  Streak,
 } from '../../tipos/aluno';
 
 export type {
@@ -67,14 +66,31 @@ export interface ZonaEDistancia {
   zona: Zona;
   /** Média recente do aluno, na mesma escala do corte. */
   media: number;
-  /** A nota que separa a zona atual da próxima. */
-  corteProximaZona: number;
-  /** `corteProximaZona − media`, já positivo. */
-  distancia: number;
+  /**
+   * A nota que separa a zona atual da próxima, e `null` em `top`.
+   *
+   * ⚠️ `top` é TERMINAL: não existe zona acima, e inventar um alvo além do topo
+   * seria inventar régua. A tela mostra o corte que ele já passou (docs/36 §1.4).
+   */
+  corteProximaZona: number | null;
+  /**
+   * O corte que o aluno JÁ cruzou, e `null` em `risco` — onde não cruzou
+   * nenhum. É o que a escada usa para medir FOLGA em vez de falta quando ele
+   * está no topo: lá não há próxima fronteira, mas há a que ficou para trás.
+   */
+  corteAtual: number | null;
+  /** `corteProximaZona − media`, já positivo. `null` em `top`, junto do corte. */
+  distancia: number | null;
   /** Onde a distância se fecha mais barato — "Química". */
   materiaMaisCurta: string | null;
-  /** O nome da régua: "Tio Leo", "ITA F1"… (`criterio_classificacao`, 0023). */
+  /** O nome da régua: "Tio Leo", "ITA — Fase 1"… (`criterio_classificacao`, 0023). */
   regua: string;
+  /**
+   * As matérias contra o corte DESTA régua — a mesma resposta traz as duas
+   * fontes (`zonaEDistancia` e `cortePorMateria`) porque separá-las convidaria
+   * duas réguas diferentes na mesma tela.
+   */
+  materias: MateriaContraCorte[];
 }
 
 /**
@@ -156,6 +172,18 @@ export interface EloDaCorrente {
    * aconteceu (quadrado anelado).
    */
   presente: boolean | null;
+}
+
+/**
+ * Um ciclo da corrente, com os elos que ele teve.
+ *
+ * ⚠️ Era `presencas: boolean[]` enquanto foi mock, e a Jornada tinha de
+ * inventar o rótulo pela POSIÇÃO ("P1", "P2"…). Com dado real cada elo traz o
+ * próprio rótulo e a própria data: o quadrado passa a saber que prova ele é.
+ */
+export interface CicloDePresenca {
+  ciclo: string;
+  elos: EloDaCorrente[];
 }
 
 /**
@@ -338,6 +366,21 @@ export interface Conquista {
   /** 0..1, só nas travadas. */
   progresso?: number;
   progressoRotulo?: string;
+}
+
+/**
+ * O alvo do ciclo. Quem define é o SISTEMA e a meta é PRESENÇA (docs/36 §1.5) —
+ * é o que fecha a decisão aberta de docs/24 §9.1 sem inventar produto: dá para
+ * verificar com `nota.presente`, e não depende do XP, que está travado no
+ * backtest de docs/29 §H.
+ *
+ * `alvo` sai do CALENDÁRIO do ciclo, não do que o aluno fez: contar só o que
+ * ele já viu faria a meta andar junto com ele e parecer sempre cumprida.
+ */
+export interface MetaDoCiclo {
+  alvo: number;
+  feitos: number;
+  rotulo: string;
 }
 
 /** O cartão "de quem já passou". Nunca citação inventada — só a afordância. */

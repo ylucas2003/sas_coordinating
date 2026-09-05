@@ -7,6 +7,7 @@ import { SimuladoFicha } from './telas/SimuladoFicha/SimuladoFicha';
 import { CicloFicha } from './telas/CicloFicha/CicloFicha';
 import { AlunoFicha } from './telas/AlunoFicha/AlunoFicha';
 import { CascoAluno } from './telas/Aluno/CascoAluno';
+import { PortaoDoOnboarding } from './telas/Aluno/Onboarding';
 import { QuestaoTelaCheia } from './telas/Aluno/QuestaoTelaCheia';
 import { Treino } from './telas/Aluno/Treino';
 import { TreinoResumo } from './telas/Aluno/TreinoResumo';
@@ -51,12 +52,18 @@ import * as sessao from './servicos/sessao';
  */
 function AppAluno() {
   return (
-    <Routes>
-      <Route path="/treino/:origem/resumo" element={<TreinoResumo />} />
-      <Route path="/treino/:origem/*" element={<Treino />} />
-      <Route path="/questao/:id" element={<QuestaoTelaCheia />} />
-      <Route path="*" element={<CascoAluno />} />
-    </Routes>
+    // O portão envolve TUDO, inclusive treino e questão em tela cheia: elas
+    // ficam fora do casco mas não fora do produto, e um link direto para
+    // `/treino/prioridade` não pode ser a porta dos fundos de um onboarding
+    // obrigatório (docs/36 §1.4).
+    <PortaoDoOnboarding>
+      <Routes>
+        <Route path="/treino/:origem/resumo" element={<TreinoResumo />} />
+        <Route path="/treino/:origem/*" element={<Treino />} />
+        <Route path="/questao/:id" element={<QuestaoTelaCheia />} />
+        <Route path="*" element={<CascoAluno />} />
+      </Routes>
+    </PortaoDoOnboarding>
   );
 }
 

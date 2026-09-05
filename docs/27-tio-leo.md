@@ -198,7 +198,7 @@ a mesma dureza com que hoje manda *"nunca invente notas"*.
 
 | Decisão | Trava |
 |---|---|
-| **KaTeX empacotado ou MathML via Temml?** Peso contra qualidade tipográfica | §4 |
+| ~~**KaTeX empacotado ou MathML via Temml?**~~ **FECHADA — e já estava.** Venceu o KaTeX, empacotado, com as fontes servidas do nosso domínio. Não foi decidido em reunião: `componentes/ui/Markdown.tsx` já o usava desde 01/09, com macros pt-BR (`\sen`, `\tg`, `\cotg`) e uma medição de 58 fórmulas que falhavam, e este documento é que não sabia. O artefato de fórmula do Tio Léo passou a usar o mesmo componente em 05/09, sem dependência nova (docs/36 §3.1 e §6.1) | — |
 | **Link externo entra na gramática?** Hoje proibido | §9, regra 2 |
 | **Estruturas químicas, num sprint futuro?** Fora por ora | §5 |
 | O modelo do aluno continua `gpt-4o-mini` com respostas mais ricas? | custo do chat, [14 §6.4](14-plano-producao.md) |

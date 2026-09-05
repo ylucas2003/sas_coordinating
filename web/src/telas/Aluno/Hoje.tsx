@@ -201,6 +201,13 @@ function BlocoDaSequencia() {
 function BlocoDaContagem() {
   const { data: proximo, isPending } = useProximoSimulado();
 
+  // ⚠️ SEM PRÓXIMO SIMULADO, O BLOCO SOME — não vira estado vazio (docs/36 §1.2).
+  // Medindo o banco em 05/09 havia UM evento futuro no ano inteiro: o vazio
+  // seria o que quase todo aluno veria quase sempre, e um espaço que nunca tem
+  // nada ensina a pessoa a passar o olho por cima dele. Quando a coordenação
+  // marcar o simulado, o bloco acende sozinho.
+  if (!isPending && !proximo) return null;
+
   return (
     <Bloco fonte="proximoSimulado" olho="Próximo simulado">
       {isPending ? (
@@ -209,7 +216,7 @@ function BlocoDaContagem() {
           <span className="alu-hoje__osso alu-hoje__osso--curta" />
         </div>
       ) : (
-        <ContagemRegressiva proximo={proximo ?? null} />
+        <ContagemRegressiva proximo={proximo} />
       )}
     </Bloco>
   );
@@ -218,16 +225,10 @@ function BlocoDaContagem() {
 // ─── 4 · Onde você está ──────────────────────────────────────────────────
 
 /**
- * ⚠️ Metade deste bloco é DADO REAL, e a divisão importa.
- *
- * O que não tem rota é o CORTE — a régua de `criterio_classificacao`, que só a
- * coordenação lê hoje (docs/29 §A.4). A NOTA de cada matéria tem: é o que
- * `GET /me/evolucao` já devolve, aluno contra turma, ciclo a ciclo. Mockar as
- * duas juntas esconderia uma integração que existe desde sempre, e o inventário
- * já diz que `evolucao` aparece nesta tela.
- *
- * Por isso a tarja do bloco continua SEM ROTA: o corte e a lista de matérias
- * ainda vêm de lá.
+ * O corte deixou de ser mock em 05/09: `GET /me/zona` devolve a régua do
+ * vestibular alvo do aluno junto com a zona, na mesma resposta (docs/36 §2.5).
+ * A NOTA de cada matéria já vinha de `GET /me/evolucao`, aluno contra turma —
+ * o bloco era metade real desde sempre, e agora é inteiro.
  */
 function OndeVoceEsta() {
   const { data: cortes, isPending: cortesPendentes } = useMateriasContraCorte();

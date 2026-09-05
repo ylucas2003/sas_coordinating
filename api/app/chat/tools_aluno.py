@@ -10,7 +10,8 @@ read-only, retornos JSON-serializáveis, erros como {"erro": "..."}.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from supabase import Client
 
@@ -20,10 +21,9 @@ from ..stats.aluno_dados import (
     payload_insight_ciclo,
     questoes_do_aluno_no_simulado,
     simulados_do_aluno,
-    streak_do_aluno,
 )
+from ..stats.aluno_jornada import sequencia_do_aluno
 from ..stats.insight_aluno import gerar_para_aluno_ciclo
-
 
 # ─── minhas_notas ─────────────────────────────────────────────────────────
 
@@ -90,13 +90,26 @@ _SCHEMA_MINHA_EVOLUCAO = {
 # ─── meu_streak ───────────────────────────────────────────────────────────
 
 def meu_streak(cliente: Client, *, aluno_id: str) -> dict:
-    """Ciclos consecutivos acima da média da turma."""
-    return streak_do_aluno(cliente, aluno_id)
+    """Simulados consecutivos sem faltar — a sequência de GET /me/jogo.
+
+    ⚠️ Mudou de significado em 05/09 (docs/36 §4). Antes eram "ciclos acima da
+    média da turma", métrica relativa que premia posição e não progresso
+    (docs/24 §1.1). O nome da tool ficou: renomeá-la quebraria as conversas em
+    andamento, e o que o aluno pergunta ("qual minha sequência?") não mudou —
+    mudou a resposta certa. A descrição abaixo é o que o LLM lê, e ela conta a
+    métrica nova.
+    """
+    return sequencia_do_aluno(cliente, aluno_id)
 
 
 _SCHEMA_MEU_STREAK = {
     "name": "meu_streak",
-    "description": "Quantos ciclos consecutivos o aluno fechou acima da média da turma.",
+    "description": (
+        "A sequência do aluno: quantos simulados seguidos ele fez sem faltar "
+        "(`simulados`), o recorde dele no ano (`melhor`) e a corrente do ciclo "
+        "atual (`corrente`, um elo por simulado — presente=false é falta, "
+        "presente=null é simulado que ainda vai acontecer)."
+    ),
     "parameters": {"type": "object", "properties": {}, "required": []},
 }
 
@@ -177,7 +190,7 @@ _SCHEMA_MEU_INSIGHT = {
     "name": "meu_insight_do_ciclo",
     "description": (
         "Resumo de IA do ciclo mais recente do aluno (bullets) + as estatísticas "
-        "individuais do ciclo (média própria vs turma, por matéria, streak)."
+        "individuais do ciclo (média própria vs turma, por matéria)."
     ),
     "parameters": {"type": "object", "properties": {}, "required": []},
 }
@@ -216,5 +229,5 @@ def executar_para_aluno(nome: str, cliente, args: dict, *, aluno_id: str) -> dic
         return fn(cliente, aluno_id=aluno_id, **args)
     except TypeError as e:
         return {"erro": f"argumentos inválidos para '{nome}': {e}"}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"erro": f"erro ao executar '{nome}': {type(e).__name__}: {e}"}

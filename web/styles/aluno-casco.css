@@ -997,3 +997,131 @@
   outline: 3px solid var(--alu-dado);
   outline-offset: 2px;
 }
+
+/* ─── O portão do primeiro acesso ────────────────────────────────────────
+   Uma pergunta só, em tela cheia, porque ela é obrigatória e bloqueia o app
+   (docs/36 §1.4). Cartão centrado e não folha: folha se arrasta para baixo, e
+   este anteparo não se dispensa.
+
+   ⚠️ `min-height: 100dvh` e não `100vh`: no Safari do iPhone a barra de
+   endereço come 100vh e o botão "Continuar" nasce abaixo da dobra, num fluxo
+   que não rola. É a mesma correção que o resto do casco do aluno já usa.
+   ─────────────────────────────────────────────────────────────────────── */
+.alu-onboarding {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  /* Respeita o notch e a barra de gestos — o cartão é a única coisa na tela. */
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  background: var(--alu-fundo);
+}
+
+.alu-onboarding__cartao {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  border-radius: var(--alu-raio);
+  border: 1px solid var(--alu-borda);
+  background: var(--alu-superficie);
+}
+
+.alu-onboarding__titulo {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--alu-texto);
+}
+
+.alu-onboarding__texto {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--alu-texto-2);
+}
+
+.alu-onboarding__alvos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* Alvo do toque em 44px de piso, e aqui sobra: o cartão inteiro é o alvo.
+   `text-align: left` porque o nome e a expansão empilham. */
+.alu-onboarding__alvo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 76px;
+  padding: 12px 14px;
+  text-align: left;
+  border-radius: var(--alu-raio-pequeno);
+  /* Fio de 2px já no estado apagado: trocar a LARGURA da borda ao selecionar
+     mexeria no layout e faria o cartão pular 1px. Muda só a cor. */
+  border: 2px solid var(--alu-borda);
+  background: var(--alu-superficie-2);
+  color: var(--alu-texto);
+  cursor: pointer;
+}
+
+.alu-onboarding__alvo.is-ativo {
+  border-color: var(--alu-acao);
+  /* A seleção NÃO é só a cor da borda: quem enxerga mal distingue pouco
+     matiz, e `aria-pressed` já diz o estado a quem usa leitor. O peso do nome
+     dá o terceiro canal. */
+  background: var(--alu-superficie);
+}
+
+.alu-onboarding__alvo.is-ativo .alu-onboarding__alvo-nome {
+  color: var(--alu-acao);
+}
+
+.alu-onboarding__alvo-nome {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.alu-onboarding__alvo-como {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--alu-texto-2);
+}
+
+.alu-onboarding__dica,
+.alu-onboarding__erro {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.alu-onboarding__dica {
+  color: var(--alu-texto-2);
+}
+
+.alu-onboarding__erro {
+  color: var(--alu-alerta);
+}
+
+/* A largura e o preenchimento vêm de `.alu-tecla--larga` e da própria
+   `.alu-tecla`, que já É a tecla de ação (fundo `--alu-acao`). Aqui só a
+   respiração contra o bloco de cima. */
+.alu-onboarding__seguir {
+  margin-top: 6px;
+}
+
+/* Uma coluna abaixo de 380px: dois cartões de 76px lado a lado espremem o
+   nome do instituto em três linhas. */
+@media (max-width: 379px) {
+  .alu-onboarding__alvos {
+    grid-template-columns: 1fr;
+  }
+}

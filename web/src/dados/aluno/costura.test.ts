@@ -109,13 +109,17 @@ describe('a costura', () => {
     // incidência bruta, sem ponderação por recência, e a tela que a consumia
     // ("O que mais cai") foi apagada. Ela sobrevive só como heurística interna
     // da fila de treino, sem hook.
+    //
+    // `formulaMatematica` SAIU em 05/09: virou real sem ganhar hook, porque não
+    // é leitura de servidor — é renderização no cliente, pelo `<Markdown>` que
+    // já usava KaTeX desde 01/09 (docs/36 §3.1). Ela deixa esta lista por virar
+    // `real`, não por passar a ser consumida por um hook.
     expect(naoConsumidas.sort()).toEqual(
       [
         'acertoPorAssunto',
         'artefatosDoTioLeo',
         'escolhaDaFilaDeTreino',
         'esquadrilha',
-        'formulaMatematica',
         'ganchoDeRetorno',
         'importanciaDoAssunto',
       ].sort(),
