@@ -613,21 +613,43 @@
 .kpi {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
+/* O OLHO substitui o rótulo. Era 14px em caixa normal, cinza — o mesmo peso
+   visual de qualquer legenda da tela. Vira maiúscula pequena espaçada de
+   10px, que é a marca tipográfica do sistema e o que faz o numeral abaixo
+   dele parecer grande sem precisar crescer
+   (docs/brief-claude-design-coordenacao.md §Tipografia).
+
+   É a mudança mais barata do trabalho inteiro: a Plus Jakarta Sans já é
+   variável na faixa 200–800 e já está servida localmente (fontes.css).
+   Nenhum asset novo — e nenhum poderia entrar, os dados são de menores de
+   idade (CLAUDE.md, armadilha 6). */
 .kpi__rotulo {
-  font-size: 14px;
-  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: var(--color-text-tertiary);
 }
 
-/* Navy por padrão: o número é o protagonista do cartão, e o tom semântico
-   (verde/âmbar/vermelho) fica reservado para quando ele significa algo. */
+/* MAGNITUDE. O 800 com tracking negativo é a aproximação da grotesca
+   condensada que o desenho pedia; o `line-height` abaixo de 1 é o que tira a
+   folga que fazia o número flutuar dentro do cartão.
+
+   Era 34px em peso 700 — o MESMO peso do título ao lado, então a coisa mais
+   importante da tela não tinha hierarquia nenhuma.
+
+   Tabular não é detalhe: nota, média e contagem vivem em coluna, e sem isso
+   os dígitos dançam de linha para linha. */
 .kpi__valor {
-  font-size: 34px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--color-navy);
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  color: var(--color-magnitude);
   font-variant-numeric: tabular-nums;
 }
 
@@ -637,10 +659,11 @@
 .kpi__valor.tone-navy { color: var(--color-navy); }
 
 .kpi__sufixo {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  margin-left: 4px;
+  font-size: 15px;
+  color: var(--color-text-tertiary);
+  margin-left: 6px;
   font-weight: 400;
+  letter-spacing: 0;
 }
 
 .kpi-grid {

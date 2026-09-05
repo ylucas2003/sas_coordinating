@@ -87,6 +87,10 @@
   --color-surface-muted: var(--dia-superficie-2);
 
   /* ── Texto ────────────────────────────────────────────────────────────── */
+  /* MAGNITUDE: todo numeral grande. Mais escuro que o texto corrente, de
+     propósito — o número é o herói do cartão, e quem dá a ele o peso não é
+     cor semântica, é tamanho, peso 800 e tracking negativo. */
+  --color-magnitude: var(--dia-magnitude);
   --color-text-body: var(--coord-texto-body);
   --color-text-faint: var(--coord-texto-faint);
 
