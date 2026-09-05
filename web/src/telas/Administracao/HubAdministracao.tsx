@@ -186,10 +186,14 @@ export function HubAdministracao() {
       </div>
 
       <div className="campo-grade">
+        {/* Vai para o CALENDÁRIO, e não para a tela de contas: a resposta à
+            pergunta do card é o mês lançado, não a lista de quem lança. As
+            contas e o direito ficam a um link de lá — e o caminho existe nos
+            dois sentidos, senão uma das duas telas fica órfã. */}
         <CartaoDeCampo
           olho="Cantina"
           titulo="A cantina está em dia?"
-          para="/administracao/cantina"
+          para="/cantina"
           carregando={cantina.carregando}
           subtitulo={cantina.texto}
           vazio="Nenhuma cantina cadastrada ainda."

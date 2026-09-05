@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { Campo, Dialogo } from '../../componentes/dialogos/Dialogo';
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
@@ -85,7 +86,12 @@ export function AdministracaoCantina() {
 
   return (
     <div className="tela">
-      <CabecaDeCampo titulo="A cantina" para="/administracao" destino="Administração" />
+      <CabecaDeCampo
+        titulo="A cantina"
+        para="/cantina"
+        destino="os cardápios"
+        acoes={<Link className="btn btn--fino" to="/administracao">Administração</Link>}
+      />
 
       {/* ─── Metade 1 · as contas ─────────────────────────────────────── */}
       <section className="card">

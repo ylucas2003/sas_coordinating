@@ -490,6 +490,15 @@ seguindo as cinco regras do padrão de campo — a pergunta que ele responde é
 (cardápio de amanhã em branco às 18h de hoje) aparece na tela de entrada, que é
 onde falha precisa aparecer.
 
+⚠️ **O card leva ao CALENDÁRIO (`/cantina`), não à tela de contas.** A resposta
+à pergunta "a cantina está em dia?" é o mês lançado, não a lista de quem lança.
+Foi o contrário na primeira escrita, e o efeito foi um defeito de navegação
+real: `/cantina` ficou **órfã** — nenhum link do casco da coordenação apontava
+para ela, porque a decisão de não pôr a cantina no rail (§8.1.4) estava certa
+mas não tinha caminho substituto. Agora as duas telas levam uma à outra, e é
+por isso que o link existe nos dois sentidos: com um card só apontando para uma
+delas, a outra volta a ser alcançável só digitando a URL.
+
 Destino `/administracao/cantina`, tela inteira (C3), com duas metades no
 desenho de [Contas.tsx](../web/src/telas/Administracao/Contas.tsx): em cima as
 contas da cantina; embaixo a lista de alunos com o direito, com busca, filtro

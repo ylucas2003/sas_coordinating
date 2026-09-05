@@ -51,7 +51,15 @@ export function CantinaCoordenacao() {
                   + (rascunhos ? ` · ${rascunhos} dia(s) em rascunho` : '')}
           </p>
         </div>
-        <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />
+        <div className="cant-cabeca__acoes">
+          {/* O outro lado da cantina na coordenação. Sem este link, a tela de
+              contas e direitos só seria alcançável digitando a URL — ela saiu
+              do hub quando o card passou a apontar para cá. */}
+          <Link className="cant-tecla" to="/administracao/cantina">
+            Contas e quem tem direito
+          </Link>
+          <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />
+        </div>
       </header>
 
       <GradeDeCardapios

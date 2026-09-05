@@ -341,3 +341,10 @@
 .cant-admin__par { display: inline-flex; gap: 4px; }
 .cant-senha { font-family: ui-monospace, monospace; font-size: 18px; letter-spacing: 0.04em; }
 .linha--inativa { opacity: 0.55; }
+
+/* A faixa de ações do cabeçalho: o mês e a travessia para o outro lado da
+   cantina. Ela existe porque as DUAS telas da coordenação — o calendário e as
+   contas — precisam levar uma à outra: o card do hub aponta para uma só, e a
+   que ficasse sem link seria alcançável só digitando a URL. */
+.cant-cabeca__acoes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cant-cabeca__acoes .cant-tecla { text-decoration: none; display: inline-flex; align-items: center; }
