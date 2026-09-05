@@ -132,7 +132,7 @@ export function Login() {
             </button>
           </div>
 
-          <FormularioLogin rotulos={m} onEntrar={entrar} />
+          <FormularioLogin rotulos={m} onEntrar={entrar} onTrocarModo={trocarModo} />
         </div>
       </div>
 
@@ -143,10 +143,12 @@ export function Login() {
 }
 
 function FormularioLogin({
-  rotulos, onEntrar,
+  rotulos, onEntrar, onTrocarModo,
 }: {
   rotulos: typeof ROTULOS_COORDENACAO;
   onEntrar: (dados: { access_token: string; tipo: string; papel?: string; nome: string; aluno_id?: string; temFoto: boolean }) => void;
+  /** Para mandar quem errou de porta para a certa. */
+  onTrocarModo: (modo: Modo) => void;
 }) {
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
@@ -215,7 +217,22 @@ function FormularioLogin({
         </label>
       </div>
 
-      {erro && <div className="lp-error">{erro}</div>}
+      {erro && (
+        <div className="lp-error">
+          {erro}
+          {/* DUAS PORTAS, e elas são diferentes: a coordenação entra por
+              e-mail e senha; o aluno entra SÓ pelo Canvas, e não tem senha
+              aqui desde 04/09 (docs/35 §11.5). Quem errar de porta precisa
+              saber para onde ir — senão tenta a mesma senha três vezes e
+              conclui que a conta foi bloqueada.
+
+              O aviso só aparece depois de uma falha: antes dela seria ruído
+              na porta certa. */}
+          <button type="button" className="lp-error__saida" onClick={() => onTrocarModo('aluno')}>
+            É aluno? A entrada de aluno é pelo Canvas, aqui do lado.
+          </button>
+        </div>
+      )}
 
       <button type="submit" className="lp-submit" disabled={enviando}>
         <span>{rotulos.submitText}</span>

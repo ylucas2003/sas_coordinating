@@ -24,12 +24,21 @@ export function PainelDireito({ geracao }: { geracao: number }) {
 
   return (
     <div className="lp-right">
-      <div className="lp-arcs" aria-hidden="true">
-        <span className="lp-arc lp-arc--1" />
-        <span className="lp-arc lp-arc--2" />
-        <span className="lp-arc lp-arc--3" />
-        <span className="lp-arc lp-arc--4" />
-      </div>
+      {/* A FACHADA DE COBOGÓ — a mesma treliça do login do aluno, noutro
+          ângulo, e no mesmo ritmo de 24px da grade de fundo do casco. Não são
+          duas decisões: é a peça que amarra as duas portas do produto na
+          primeira olhada (docs/brief-claude-design-coordenacao.md §8).
+
+          Substituiu quatro arcos concêntricos, que eram a marca de que esta
+          tela vinha de outro sistema visual. */}
+      <svg className="lp-cobogo" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id="login-cobogo" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M24 0H0v24" fill="none" stroke="currentColor" strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#login-cobogo)" />
+      </svg>
 
       <div className="lp-right__header">
         <img src={ariLogo} alt="Colégio Ari de Sá Cavalcante" className="lp-logo-ari" />
