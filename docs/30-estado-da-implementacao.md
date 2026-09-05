@@ -16,11 +16,11 @@
      `npm test` falha se esta seção divergir do registro. Para mudar,
      mude o registro e rode `npm run inventario` dentro de web/. -->
 
-## 1 · LIGADO — 21 fontes
+## 1 · LIGADO — 28 fontes
 
 O endpoint existe e a tela consome de verdade. Nada aqui é mock.
 
-- **`simulados`** — Filtra `presente = true` e descarta a falta — ver a fonte `presencaNosSimulados`.
+- **`simulados`** — Filtra `presente = true` POR DEFAULT e descarta a falta; `?incluirFaltas=true` traz a ausência junto, e é o que alimenta `presencaNosSimulados`. O default não mudou de propósito: Hoje, Provas e Jornada calculam média e delta sobre esta lista, e ligar a falta para todo mundo mudaria número em tela sem ninguém ter pedido.
 - **`trajetoria`** — Rota pronta e sem tela até agora — docs/29 §A.5.
 - **`heatmap`** — Rota pronta e sem tela até agora — docs/29 §A.5.
 - **`questoesDoBanco`** — Filtrar por tópico exige matéria: a rota devolve 400 sem ela, e a folha de filtros impede a combinação. Em 02/09 ganhou `colecao=recentes\|arquivo`, traduzida para `extraido_por` na camada de consulta — o aluno e a URL não precisam do nome da coluna. O Arquivo é a página INTEIRA do caderno (0033) e o cartão de lá leva tarja dizendo qual número procurar.
@@ -29,7 +29,14 @@ O endpoint existe e a tela consome de verdade. Nada aqui é mock.
 - **`progressoDoBanco`** — Agrega no servidor de propósito: `GET /banco/estudo` devolve as linhas cruas, sem atributo de questão, e montar a tela com ela obrigaria o celular a baixar as ~2.700 questões para cruzar no navegador. Devolve SEMPRE o par (feitas, total) — contagem sem denominador é bug de produto. Usa `get_current_aluno`: é dado pessoal de menor, e o id sai do token.
 - **`origemDaResolucao`** — O prompt de implementação a listava como sem-rota; o campo JÁ vem no schema (`schemas/banco.py`), então está ligada. O aluno lendo resolução de IA achando que é do professor é o achado mais desconfortável de docs/29 — a tela é obrigada a marcar.
 - **`missaoDoDia`** — Deixou de ser mock em 04/09. O fixture pareava o código `7.2` com o nome "Termodinâmica", e na taxonomia de Física 7.2 é "Ondas e Acústica": o cartão lia a etiqueta e o treino lia o endereço, e como o endereço existia nada quebrava — só mentia. Agora nome e código saem da mesma linha de `topico_taxonomia`. O sorteio é determinístico pela data em America/Fortaleza (em UTC viraria às 21h, para todo mundo junto) e só entra tópico com 10+ questões OBJETIVAS: o `totalQuestoes` da taxonomia conta dissertativa, que a fila de treino descarta. Saiu do Sprint 6 porque "o mesmo desafio para todos" derruba a personalização que dependia de `acertoPorAssunto`.
+- **`presencaNosSimulados`** — ⚠️ A regra de QUEM pode ser chamado de falta é o produto desta fonte, não o filtro. Medindo em 05/09: 58,7% das notas são `presente = false` e 440 alunos de 1.229 têm 100% de falta — o número bruto mistura ausência com "esta prova nunca foi minha". Vale falta só com matrícula ativa e só a partir de `matricula_turma.ativo_desde` (docs/36 §1.1). A trilha NÃO entra: `INDEFINIDA` são 664 alunos reais cuja section o parser não entendeu (commit 59cc7ce), e excluí-los seria punir o aluno por defeito de ingest. O default da rota continua sem faltas — as telas que já a consomem calculam média sobre a lista.
+- **`sequencia`** — As duas janelas são diferentes de propósito (docs/36 §1.3): a FITA cobre o ciclo corrente, porque é o que cabe no cartão da Hoje; os dois NÚMEROS cobrem o ano inteiro, porque recorde que zera na virada de ciclo não é recorde. ⚠️ `/me/streak` SAIU no mesmo commit — ela media "ciclos acima da média da turma", relativa, que premia posição e não progresso (docs/24 §1.1). O tool `meu_streak` do Tio Léo foi repontado para cá: o nome ficou, a resposta mudou.
+- **`proximoSimulado`** — ⚠️ `null` é resposta legítima e COMUM, não erro: em 05/09 havia 1 evento futuro no banco inteiro e 1 simulado com `evento_agenda_id`. A tela ESCONDE o bloco nesse caso (docs/36 §1.2) — vazio permanente ensina o aluno a ignorar aquele espaço. `vestibular` e `fase` saem do simulado ligado ao evento, porque `evento_agenda` não tem nenhum dos dois; `fase` vem de `simulado.tipo`, já que a coluna `simulado.fase` saiu na migration 0003. Evento sem simulado não alcança ninguém — é a mesma regra de audiência do motor de lembretes.
+- **`zonaEDistancia`** — A régua é obrigatória junto do rótulo (docs/24 §2): "risco" sem contra qual corte é só a má notícia. A régua é a do vestibular alvo do aluno, e quem mira ITA e IME é avaliado contra os dois valendo o PIOR veredito. NÃO lê `classificacao_aluno`: a tabela é cache de lote e cobre 568 dos 1.229 alunos com nota — devolver 404 aos outros 661 seria transformar "o job ainda não passou por você" em "você não existe". Calcula com o mesmo avaliador de `criterios.py`, nunca uma cópia da regra: foi a segunda cópia que a migration 0037 matou.
+- **`cortePorMateria`** — Vem na MESMA resposta de `zonaEDistancia`, e `useMateriasContraCorte` a recorta da mesma `queryKey`. Separar as duas em chaves diferentes faria duas chamadas e — pior — abriria a porta para a tela mostrar a barra de uma régua e o rótulo de outra.
 - **`respostaNoTreino`** — Ligada em 02/09 (migration 0042). É a única fonte de acerto por assunto que NÃO depende do Sprint 6 — as questões do banco já são classificadas por tópico do edital. ⚠️ `acertou` é calculado no SERVIDOR contra o gabarito, nunca aceito do cliente; `null` é "não dá para dizer" (dissertativa ou sem gabarito), jamais "errou". E não muda a diretriz: alimenta o plano de estudo, NUNCA o XP — treino não é supervisionado.
+- **`metaDoCiclo`** — Quem define é o SISTEMA e a meta é PRESENÇA (docs/36 §1.5) — foi assim que a decisão aberta de docs/24 §9.1 caiu sem inventar produto: dá para verificar com `nota.presente`, não depende do XP (travado no backtest de docs/29 §H) e não pede tela de coordenação. ⚠️ `alvo` sai do CALENDÁRIO do ciclo, não do que o aluno fez: contar só o que ele já viu faria a meta andar junto com ele e parecer sempre cumprida.
+- **`formulaMatematica`** — ⚠️ A decisão de docs/27 §12 ("KaTeX ou Temml?") JÁ ESTAVA FECHADA no código — o documento é que não sabia. `componentes/ui/Markdown.tsx` usa KaTeX desde 01/09, com macros pt-BR (`\sen`, `\tg`, `\cotg`) e fontes servidas do nosso domínio, e já desenha as resoluções do banco e as questões do treino. Não entrou dependência nova: o artefato do Tio Léo passou a usar o mesmo componente. Um segundo motor de fórmula seria a dívida que este projeto vive consertando. ⚠️ O risco de docs/27 §10 NÃO é resolvido por renderizar e segue de pé: fórmula bonita e errada aumenta a confiança do aluno numa resposta falsa.
 
 | Fonte | O que é | Rota que alimenta | Em que telas aparece |
 |---|---|---|---|
@@ -53,9 +60,16 @@ O endpoint existe e a tela consome de verdade. Nada aqui é mock.
 | `missaoDoDia` | O assunto do dia com 10 questões — o herói da aba Hoje, igual para toda a turma | `GET /missao/hoje` | Hoje, Sessão de treino |
 | `conversaTioLeo` | Threads, streaming SSE e as 6 tools do aluno | `GET/POST /chat/threads…` | Tio Léo |
 | `autenticacao` | SSO do Canvas para o aluno — a coordenação entra por senha, na mesma tela | `GET /auth/canvas/iniciar · /auth/canvas/callback · POST /auth/login (coordenação)` | Login |
+| `presencaNosSimulados` | Os simulados em que o aluno faltou — os quadrados vazados da corrente | `GET /me/simulados?incluirFaltas=true` | Hoje, Jornada |
+| `sequencia` | Simulados consecutivos sem faltar, corrente e recorde | `GET /me/jogo` | Hoje, casco (coluna direita), Login |
+| `proximoSimulado` | Data do próximo simulado, para a contagem regressiva | `GET /me/agenda` | Hoje, casco (coluna direita) |
+| `zonaEDistancia` | Zona do aluno, distância até a próxima e o nome da régua que produziu o veredito | `GET /me/zona` | Hoje, Jornada |
+| `cortePorMateria` | A nota de corte de cada matéria — 4,0, e 5,0 no Inglês eliminatório do ITA F1 | `GET /me/zona (mesma rota da zona)` | Hoje, Provas, Jornada, Extrato de XP |
 | `respostaNoTreino` | A alternativa que o aluno escolheu no treino e se ela bate com o gabarito | `PUT /banco/estudo/{id} · alternativaEscolhida` | Sessão de treino, Resumo do treino |
+| `metaDoCiclo` | O alvo do ciclo — substituiu a meta semanal, que o dado não sustentava | `GET /me/meta` | Hoje |
+| `formulaMatematica` | Renderização de fórmula na resposta do Tio Léo | `componentes/ui/Markdown.tsx (KaTeX) — renderização no cliente, sem rota` | Tio Léo |
 
-## 2 · DADO EXISTE, ROTA NÃO — 6 fontes
+## 2 · DADO EXISTE, ROTA NÃO — 1 fontes
 
 O servidor já sabe a resposta; só não há rota que a devolva. **Ordenada por
 esforço crescente, porque esta tabela é a lista de tarefas mais barata do
@@ -65,19 +79,10 @@ que já está no Postgres, não inventar produto.
 | Esforço | Fonte | O que é | Onde o dado JÁ está no servidor | Rota que a desmockaria | Telas |
 |---|---|---|---|---|---|
 | P | `meusErros` | Todas as questões erradas e em branco, agregadas por todos os simulados | `/me/simulado/{id}/questoes` já devolve isso por simulado — falta somar | `GET /me/erros` | Estudar (o elo quieto), Sessão de treino (origem `erros`) |
-| P | `presencaNosSimulados` | Os simulados em que o aluno faltou — os quadrados vazados da corrente | `nota.presente`, hoje filtrado fora por `simulados_do_aluno` | `GET /me/simulados?incluirFaltas=true (ou um /me/presenca)` | Hoje, Jornada |
-| P | `proximoSimulado` | Data do próximo simulado, para a contagem regressiva | `evento_agenda`, que já dispara e-mail ao aluno na véspera desde a Sprint 1 | `GET /me/agenda` | Hoje, casco (coluna direita) |
-| P | `sequencia` | Simulados consecutivos sem faltar, corrente e recorde | `nota.presente` — o mesmo dado de `presencaNosSimulados` | `GET /me/jogo (docs/26 §9)` | Hoje, casco (coluna direita), Login |
-| M | `cortePorMateria` | A nota de corte de cada matéria — 4,0, e 5,0 no Inglês eliminatório do ITA F1 | `criterio_classificacao` (0023), a mesma régua que a coordenação já lê | `GET /me/zona (mesma rota da zona)` | Hoje, Provas, Jornada, Extrato de XP |
-| M | `zonaEDistancia` | Zona do aluno, distância até a próxima e o nome da régua que produziu o veredito | `classificacao_aluno.zona` + o avaliador de critérios (migration 0023) | `GET /me/zona` | Hoje, Jornada |
 
-- **`meusErros`** — O material de estudo mais óbvio que temos, enterrado atrás de uma navegação.
-- **`presencaNosSimulados`** — Do lado do aluno a falta é invisível hoje. Sem ela a corrente perde justamente o que dá peso à sequência.
-- **`proximoSimulado`** — O e-mail sabe do simulado; a tela não. É o gancho diário do produto inteiro (docs/26 §2) e não tem fonte.
-- **`sequencia`** — ⚠️ `/me/streak` EXISTE, mas com a semântica ANTIGA — "ciclos consecutivos acima da média da turma", que é relativa e premia posição, não progresso (docs/24 §1.1). Não foi ligada de propósito: ligar a rota errada seria pior que mockar.
-- **`zonaEDistancia`** — A régua é obrigatória junto do rótulo (docs/24 §2): "risco" sem contra qual corte é só a má notícia.
+- **`meusErros`** — ⚠️ FICOU DE FORA da leva de 05/09 de propósito (docs/36 §4), e não por esforço: `questao.assunto` está 100% VAZIO no banco (0 de 1.079), então a rota nasceria devolvendo `assunto: null` em toda linha e a tela prometeria "estude por assunto" sem saber o assunto. São ~200 questões erradas por aluno, pior caso 676 — o que também pede uma decisão de teto, já que não há paginação. Volta no Sprint 6 com `questao_topico`, e aí nasce já útil.
 
-## 3 · MOCK PURO — 13 fontes
+## 3 · MOCK PURO — 11 fontes
 
 Não existe nem dado. Desmockar é decisão de produto, migration, ou as duas.
 
@@ -85,11 +90,9 @@ Não existe nem dado. Desmockar é decisão de produto, migration, ou as duas.
 |---|---|---|---|---|---|
 | P | `conquistas` | As medalhas sob as regras novas — só o que se verifica | docs/26 §6 | xp, sequencia e `conquista_aluno(aluno_id, chave, em)` | Jornada |
 | P | `depoimentos` | "De quem já passou" — o cartão de aprovados | docs/24 §7 (brief) | conteúdo editorial de verdade | Jornada |
-| P | `metaDoCiclo` | O alvo do ciclo — substituiu a meta semanal, que o dado não sustentava | docs/24 §7.3 | a decisão aberta "quem define a meta, aluno ou sistema" (docs/24 §9.1) | — nenhuma |
 | M | `artefatosDoTioLeo` | Os artefatos novos do catálogo: barras_corte, extrato_xp, questao, plano, prova | docs/27 §7 | as tools novas em `tools_aluno.py` e as fontes que cada artefato mostra | Tio Léo |
 | M | `escolhaDaFilaDeTreino` | Quais questões entram na sessão, e em que ordem | docs/28 §3 | acertoPorAssunto + importanciaDoAssunto | Sessão de treino |
 | M | `extratoXp` | De onde vieram os pontos, linha por linha, com as que não pontuaram vazadas | docs/26 §3 | xp + cortePorMateria | Extrato de XP, Tio Léo (artefato) |
-| M | `formulaMatematica` | Renderização de fórmula na resposta do Tio Léo | docs/27 §12 | a decisão aberta entre KaTeX empacotado e MathML via Temml | Tio Léo |
 | M | `importanciaDoAssunto` | Fatia da prova ponderada por recência (meia-vida 5 anos) e a tendência ao lado | docs/24 §4 | `/banco/estatisticas`, que já dá a incidência bruta — falta a ponderação | — nenhuma |
 | M | `xp` | XP total e do ciclo | docs/26 §3 | o cálculo de XP reusando o avaliador de critérios, e o backtest de docs/29 §H | casco (topo e coluna direita), Extrato de XP, Liga |
 | G | `acertoPorAssunto` | Quanto o aluno acerta em cada tópico do edital | docs/24 §3 | classificar as 1.031 questões de simulado (`questao_topico`, Sprint 6) | Resumo do treino |
@@ -99,11 +102,9 @@ Não existe nem dado. Desmockar é decisão de produto, migration, ou as duas.
 
 - **`conquistas`** — Sai "Top 15%", que premia posição. Sem a tabela de registro a celebração de tela cheia repete a cada abertura.
 - **`depoimentos`** — Entregue como afordância com um botão. Citação de aprovado não se inventa.
-- **`metaDoCiclo`** — ⚠️ NÃO foi construída. O hook existe e nenhuma tela o consome: a contagem regressiva ocupou o lugar que a meta teria na Hoje, e enquanto a decisão de quem define o alvo estiver aberta, um bloco de meta seria inventar produto.
 - **`artefatosDoTioLeo`** — `histograma` e `linha_temporal` já são reais e continuam. `fonte_id` é injetado do JWT, nunca aceito como argumento.
 - **`escolhaDaFilaDeTreino`** — As QUESTÕES são reais (`/banco/questoes`); o que é mock é o critério de escolha. Antes do Sprint 6 a sessão cai para matéria, escolhida pela mais distante do corte.
 - **`extratoXp`** — A única tela que explica a régua de corte sem parecer boletim. As linhas com +0 nunca somem.
-- **`formulaMatematica`** — Renderizada como TEXTO SIMPLES de propósito: nenhuma dependência entra antes da decisão. E o risco de docs/27 §10 segue de pé — fórmula bonita e errada aumenta a confiança do aluno numa resposta falsa.
 - **`importanciaDoAssunto`** — ⚠️ ADIADA POR DECISÃO DE 02/09: a tela de Estatísticas ranqueia por INCIDÊNCIA BRUTA, sem ponderação por recência, e a tendência sai de código puro sobre a mesma série que o gráfico desenha (`dominio/serieDoAssunto.ts`). Sobrevive só como heurística interna da fila de treino (o fixture `ASSUNTOS` em `mocks.ts`, dentro de `ordenarFilaDeTreino`). Independe do Sprint 6 e continua sendo "B pode começar hoje" de docs/24 §8 — mas deixou de ser pré-requisito da missão do dia, que foi construída em 04/09 sem ela: um desafio igual para toda a turma não pondera nada por aluno (docs/35 §9).
 - **`xp`** — ⚠️ Os números da tabela são primeira calibração e o backtest contra os 5 ciclos de 2026 é PORTÃO, não desejável (docs/26 §7). XP é derivado, nunca saldo gravado.
 - **`acertoPorAssunto`** — O caminho crítico de tudo. Classificar 1.031 questões faz 237.081 respostas passarem a dizer em que assunto o aluno erra.

@@ -69,8 +69,22 @@ export const removerFotoDeAluno = (id: string) => del<{ ok: true }>(`/alunos/${e
 export const obterMe = () => get<unknown>('/me');
 export const trajetoriaMe = () => get<unknown[]>('/me/trajetoria');
 export const heatmapMe = () => get<unknown>('/me/heatmap');
-export const streakMe = () => get<{ count: number; label: string }>('/me/streak');
+// `streakMe` SAIU em 05/09 com `GET /me/streak` (docs/36 §4). Ela media
+// "ciclos consecutivos acima da média da turma" — relativa, premiava posição e
+// não progresso (docs/24 §1.1). Quem responde por sequência agora é `jogoMe`,
+// e ela conta simulados sem faltar.
 export const listarSimuladosMe = () => get<unknown[]>('/me/simulados');
+/** Os simulados COM as faltas juntas — os quadrados vazados da corrente. */
+export const listarSimuladosComFaltasMe = () =>
+  get<unknown[]>('/me/simulados?incluirFaltas=true');
+export const jogoMe = () => get<unknown>('/me/jogo');
+export const agendaMe = () => get<unknown>('/me/agenda');
+export const metaMe = () => get<unknown>('/me/meta');
+export const zonaMe = () => get<unknown>('/me/zona');
+export const vestibularesMe = () =>
+  get<{ vestibulares: string[]; completo: boolean }>('/me/vestibulares');
+export const definirVestibularesMe = (vestibulares: string[]) =>
+  put<{ vestibulares: string[]; completo: boolean }>('/me/vestibulares', { vestibulares });
 export const obterSimuladoMe = (id: string) => get<unknown>(`/me/simulado/${enc(id)}`);
 export const questoesSimuladoMe = (id: string) => get<unknown>(`/me/simulado/${enc(id)}/questoes`);
 // `arquivoSimuladoMe` SAIU em 04/09 com `GET /me/simulado/{id}/arquivo`

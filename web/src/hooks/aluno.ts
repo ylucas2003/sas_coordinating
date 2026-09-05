@@ -8,11 +8,10 @@ import { useQuery } from '@tanstack/react-query';
 import * as api from '../servicos/api';
 import type {
   DetalheSimuladoAluno, EvolucaoAluno, InsightDoAluno, QuestoesDoSimulado,
-  SimuladoDoAluno, Streak,
+  SimuladoDoAluno,
 } from '../tipos/aluno';
 
 export const chavesMe = {
-  streak: ['me', 'streak'] as const,
   simulados: ['me', 'simulados'] as const,
   simulado: (id: string) => ['me', 'simulado', id] as const,
   questoes: (id: string) => ['me', 'simulado', id, 'questoes'] as const,
@@ -21,14 +20,6 @@ export const chavesMe = {
 };
 
 const semCache = { staleTime: 0 };
-
-export function useStreakMe() {
-  return useQuery({
-    queryKey: chavesMe.streak,
-    queryFn: () => api.streakMe() as Promise<Streak>,
-    ...semCache,
-  });
-}
 
 export function useSimuladosMe() {
   return useQuery({

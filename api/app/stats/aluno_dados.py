@@ -26,11 +26,23 @@ from .metricas import mapa_metrica_geral_por_simulado
 from .utils import como_float, filtro_nota_valida, nota_real, simulado_entra_no_agregado
 
 
-def simulados_do_aluno(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
+def simulados_do_aluno(
+    cliente: Client, aluno_id: str, *, incluir_faltas: bool = False
+) -> list[dict[str, Any]]:
     """Lista de simulados do aluno com nota, delta vs próprio padrão e média
     da turma — mesma resposta de GET /me/simulados (ordenada do mais recente
-    para o mais antigo, com flag `novo` no primeiro)."""
-    resp = (
+    para o mais antigo, com flag `novo` no primeiro).
+
+    `incluir_faltas=True` traz também os simulados em que o aluno não
+    compareceu, com `nota: None` e `presente: False` — são os quadrados vazados
+    da corrente (docs/36 §2.1).
+
+    ⚠️ O default é `False` de propósito. Hoje, Provas e Jornada já consomem
+    esta função e calculam média e delta sobre a lista que ela devolve; ligar a
+    falta por default mudaria número em tela sem ninguém ter pedido. Quem quer
+    a ausência pede por ela.
+    """
+    consulta = (
         cliente.table("nota")
         .select(
             "pontuacao, presente, simulado("
@@ -40,12 +52,13 @@ def simulados_do_aluno(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
             ")"
         )
         .eq("aluno_id", aluno_id)
-        # Sem `filtro_nota_valida` de propósito: esta é a ficha do aluno, e uma
-        # nota que saiu da média tem de continuar visível, com a marca. Quem
-        # some daqui é a ausência, não a nota que o SAS decidiu não somar.
-        .eq("presente", True)
-        .execute()
     )
+    # Sem `filtro_nota_valida` de propósito: esta é a ficha do aluno, e uma
+    # nota que saiu da média tem de continuar visível, com a marca. Quem
+    # some daqui é a ausência, não a nota que o SAS decidiu não somar.
+    if not incluir_faltas:
+        consulta = consulta.eq("presente", True)
+    resp = consulta.execute()
 
     metricas = mapa_metrica_geral_por_simulado(cliente)
     mats_resp = cliente.table("materia").select("id, nome").execute()
@@ -58,8 +71,12 @@ def simulados_do_aluno(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
         # aluno de 2023 não perde o histórico, e a tela põe a ressalva.
         if sim.get("anulado") or sim.get("e_agregado"):
             continue
+        presente = bool(linha.get("presente"))
         nota = nota_real(como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima")))
-        if nota is None:
+        # Quem compareceu e não tem nota calculável não é falta — é dado
+        # quebrado, e sai da lista como sempre saiu. Quem faltou entra sem
+        # nota: é isso que o quadrado vazado desenha.
+        if nota is None and presente:
             continue
         ciclo = sim.get("ciclo") or {}
         met = metricas.get(sim["id"]) or {}
@@ -71,7 +88,8 @@ def simulados_do_aluno(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
                 "dataAplicacao": sim.get("data_aplicacao"),
                 "tipo": sim.get("tipo"),
                 "materia": nome_mat.get(sim.get("materia_id")),
-                "nota": round(nota, 2),
+                "nota": round(nota, 2) if presente and nota is not None else None,
+                "presente": presente,
                 "deltaSelf": None,
                 "mediaGeral": round(met["media"], 2) if met.get("media") is not None else None,
                 "nPresentes": met.get("n_presentes", 0),
@@ -82,24 +100,38 @@ def simulados_do_aluno(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
             }
         )
 
-    # Ordena ASC para calcular delta acumulativo
+    # Ordena ASC para calcular delta acumulativo. A falta não entra no
+    # "próprio padrão" nem recebe delta: ausência não é desempenho, e somá-la
+    # como zero puxaria a régua do aluno para baixo por não ter feito a prova.
     itens.sort(key=lambda s: s.get("dataAplicacao") or "")
     notas_ant: list[float] = []
     for item in itens:
+        if item["nota"] is None:
+            continue
         if notas_ant:
             item["deltaSelf"] = round(item["nota"] - sum(notas_ant) / len(notas_ant), 2)
         notas_ant.append(item["nota"])
 
-    # Ordena DESC para a resposta; marca o mais recente
+    # Ordena DESC para a resposta; marca o mais recente COM NOTA — "novo" é o
+    # selo de nota que acabou de sair, e uma falta não é novidade nenhuma.
     itens.sort(key=lambda s: s.get("dataAplicacao") or "", reverse=True)
-    if itens:
-        itens[0]["novo"] = True
+    for item in itens:
+        if item["nota"] is not None:
+            item["novo"] = True
+            break
 
     return itens
 
 
-def _streak_de_itens(itens: list[dict[str, Any]]) -> int:
-    """Ciclos consecutivos recentes com média do aluno acima da média da turma."""
+def _ciclos_acima_da_media_da_turma(itens: list[dict[str, Any]]) -> int:
+    """Ciclos consecutivos recentes com média do aluno acima da média da turma.
+
+    ⚠️ NÃO é "a sequência do aluno" — essa é `aluno_jornada.sequencia_do_aluno`,
+    e mede simulados sem faltar. Esta aqui é relativa: premia posição contra a
+    turma, não progresso (docs/24 §1.1). Sobrou só como um número entre outros
+    no payload que o insight manda ao LLM, e o nome da chave diz o que ela é
+    justamente para o modelo não a ler como sequência.
+    """
     por_ciclo: dict[int, dict[str, list[float]]] = {}
     for item in itens:
         ordem = item.get("cicloOrdem")
@@ -120,12 +152,6 @@ def _streak_de_itens(itens: list[dict[str, Any]]) -> int:
         else:
             break
     return streak
-
-
-def streak_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any]:
-    """Mesma resposta de GET /me/streak."""
-    itens = simulados_do_aluno(cliente, aluno_id)
-    return {"count": _streak_de_itens(itens), "label": "ciclos acima da média da turma"}
 
 
 def detalhe_simulado_do_aluno(
@@ -279,7 +305,7 @@ def evolucao_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any]:
 
     ordens = sorted(dados.keys())
     ciclos = [{"ordem": o, "label": f"C{o}"} for o in ordens]
-    todas_mats = sorted({m for cd in dados.values() for m in cd.keys()})
+    todas_mats = sorted({m for cd in dados.values() for m in cd})
 
     materias_out: dict[str, dict] = {}
     for mat in todas_mats:
@@ -485,7 +511,7 @@ def payload_insight_ciclo(
         "geral": {
             "minhaMedia": _media([i["nota"] for i in do_ciclo]),
             "mediaTurma": _media([i["mediaGeral"] for i in do_ciclo if i.get("mediaGeral") is not None]),
-            "streak": _streak_de_itens(itens),
+            "ciclosAcimaDaMediaDaTurma": _ciclos_acima_da_media_da_turma(itens),
         },
         "porMateria": por_materia,
         "temCicloAnterior": bool(do_anterior),

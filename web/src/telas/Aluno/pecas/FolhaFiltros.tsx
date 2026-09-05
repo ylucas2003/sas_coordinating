@@ -244,7 +244,12 @@ export function FiltrosDeMateriaEAssunto({ filtros, onAplicar }: PropsDoFoco) {
                     {topicos.map((t) => (
                       <Pilula
                         key={t.codigo}
-                        rotulo={`${t.nome} · ${t.totalQuestoes}`}
+                        // Sem a contagem ao lado do nome, de propósito: o
+                        // `totalQuestoes` da taxonomia inclui dissertativa, e a
+                        // fila de treino descarta dissertativa — então o número
+                        // prometia mais questões do que o assunto entrega. Quem
+                        // dá o número certo é o rodapé, depois do filtro aplicado.
+                        rotulo={t.nome}
                         ativa={filtros.topico === t.codigo}
                         onToque={() => escolherTopico(t)}
                       />

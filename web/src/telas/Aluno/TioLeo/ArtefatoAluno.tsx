@@ -10,6 +10,7 @@ import { BarraCorte } from '../pecas/BarraCorte';
 import { CartaoQuestaoAluno } from '../pecas/CartaoQuestaoAluno';
 import { Icone } from '../pecas/Icone';
 import { TarjaFonte } from '../pecas/TarjaFonte';
+import { Markdown } from '../../../componentes/ui/Markdown';
 import {
   AVISO_DE_COBERTURA,
   MATERIAS_COM_TAXONOMIA,
@@ -507,17 +508,21 @@ function Prova({ artefato }: { artefato: ArtefatoChat }) {
 /**
  * Fórmula como TEXTO SIMPLES, e é decisão, não preguiça.
  *
- * A escolha entre KaTeX empacotado e MathML via Temml está EM ABERTO
- * (docs/27 §12), e nenhuma dependência entra antes dela — as quatro de produção
- * são react, react-dom, react-router-dom e @tanstack/react-query.
+ * ⚠️ O renderizador NÃO é novo, e a decisão de docs/27 §12 ("KaTeX empacotado
+ * ou MathML via Temml?") já estava fechada no código antes desta passagem:
+ * `componentes/ui/Markdown.tsx` usa KaTeX desde 01/09, com as macros pt-BR
+ * (`\sen`, `\tg`, `\cotg`) e as fontes servidas do nosso domínio — a mesma
+ * regra de CDN da armadilha 6. Ele já desenha as resoluções do banco e as
+ * questões do treino. Trazer um segundo motor de fórmula para desenhar a
+ * MESMA coisa noutro canto seria a dívida que este projeto vive consertando:
+ * duas implementações da mesma regra, divergindo em silêncio.
  *
- * ⚠️ E o risco de docs/27 §10 é o motivo de não haver pressa: FÓRMULA BONITA E
- * ERRADA AUMENTA A CONFIANÇA DO ALUNO NUMA RESPOSTA FALSA. O modelo escreve
- * LaTeX impecavelmente renderizado e matematicamente falso, e um aluno de 17
- * anos não tem repertório para desconfiar de uma derivação bem diagramada.
- * Enquanto a mitigação (mostrar a resolução oficial da questão em vez de
- * derivar do zero) não estiver no prompt, o texto cru é o estado honesto: ele
- * *parece* rascunho, e rascunho se confere.
+ * ⚠️ O risco de docs/27 §10 continua de pé e NÃO é resolvido por renderizar:
+ * FÓRMULA BONITA E ERRADA AUMENTA A CONFIANÇA DO ALUNO NUMA RESPOSTA FALSA. O
+ * modelo escreve LaTeX impecavelmente diagramado e matematicamente falso, e um
+ * aluno de 17 anos não tem repertório para desconfiar de uma derivação bem
+ * feita. Por isso o aviso abaixo do bloco FICA: ele deixou de dizer "ainda não
+ * desenhamos" e passou a dizer o que importa — confira as contas.
  */
 function Formula({ artefato }: { artefato: ArtefatoChat }) {
   const p = artefato.payload;
@@ -531,10 +536,11 @@ function Formula({ artefato }: { artefato: ArtefatoChat }) {
       <span className="alu-olho alu-olho--quieto">Fórmula</span>
       {/* `overflow-x: auto` no próprio bloco: uma fórmula longa rola sozinha e
           não empurra a folha (docs/27 §8). */}
-      <pre className="alu-tioleo__formula">{expressao}</pre>
+      <div className="alu-tioleo__formula">
+        <Markdown texto={expressao} variante="resolucao" />
+      </div>
       <p className="alu-tioleo__formula-aviso">
-        Ainda não desenhamos fórmula: isto é o texto como o Tio Léo escreveu. Confira as contas
-        antes de confiar.
+        O Tio Léo pode errar a conta mesmo escrevendo bonito. Confira antes de confiar.
       </p>
     </div>
   );

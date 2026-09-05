@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 
 import type {
-  EloDaCorrente,
+  CicloDePresenca,
   EvolucaoAluno,
   MateriaContraCorte,
   PontoDaTrajetoria,
@@ -86,7 +86,7 @@ export function Jornada() {
             {presenca.data.map((ciclo) => (
               <li key={ciclo.ciclo} className="alu-jor-ciclo">
                 <span className="alu-jor-ciclo__nome">{ciclo.ciclo}</span>
-                <Corrente elos={elosDoCiclo(ciclo.presencas)} tamanho={22} />
+                <Corrente elos={ciclo.elos} tamanho={22} />
               </li>
             ))}
           </ol>
@@ -303,7 +303,13 @@ function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
   // direita o texto "VOCÊ · 6,8" sairia pela borda.
   const pontoX = faixaX + faixaW * 0.5;
 
-  const distancia = Math.abs(zona.distancia);
+  // No topo a cota mede FOLGA contra o corte já cruzado; abaixo dele mede a
+  // FALTA até o próximo. A fronteira desenhada muda junto: no topo ela é a que
+  // ele JÁ cruzou, e é `corteAtual` que a nomeia.
+  const corteDaFronteira = noTopo ? zona.corteAtual : zona.corteProximaZona;
+  const folga = zona.corteAtual == null ? null : zona.media - zona.corteAtual;
+  const bruta = noTopo ? folga : zona.distancia;
+  const distancia = Math.abs(bruta ?? 0);
   const textoCota = `${noTopo ? '+' : '−'}${fmt(distancia)}`;
   const larguraCota = 16 + textoCota.length * 7.4;
   const yCotaMeio = (yPonto + yFronteira) / 2;
@@ -313,6 +319,21 @@ function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
   const corDaEtiqueta = noTopo ? 'var(--alu-dado)' : 'var(--alu-alerta)';
 
   const nome = NOME_DA_ZONA[zona.zona] ?? zona.zona;
+
+  // ⚠️ Régua sem exigência de MÉDIA não tem cota nem fronteira a desenhar, e
+  // `ime-f2` é exatamente esse caso: os mínimos do IME na 2ª fase são todos
+  // POR MATÉRIA (Art. 37, III) — não há um número de média no edital. Desenhar
+  // "CORTE 0,0" e "−0,0" seria inventar régua, que é o pecado que a migration
+  // 0037 corrigiu. Sem o número, o veredito continua honesto: o nome do
+  // critério fica no cabeçalho (docs/24 §2) e a distância que existe é a das
+  // barras por matéria, logo abaixo no mesmo bloco.
+  // Duas condições, não uma. A FRONTEIRA é a borda da faixa e existe sempre que
+  // a régua tiver corte de média — ela é geometria da escada. A COTA é uma
+  // medição sobre o aluno, e some quando não há o que medir: régua sem corte de
+  // média (`ime-f2`), ou média que já passou a fronteira enquanto quem corta é
+  // uma matéria. Desenhar a cota nesse caso apontaria para o lugar errado.
+  const temFronteira = corteDaFronteira != null;
+  const temCota = temFronteira && bruta != null;
 
   return (
     <div className="alu-jor-zona">
@@ -330,17 +351,21 @@ function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
         // No topo não existe "próxima zona": a fronteira é a que ele já cruzou,
         // e chamá-la de próxima no leitor de tela contradiz o texto visível.
         aria-label={
-          noTopo
-            ? `${nome}, sob o critério ${zona.regua}. Sua média é ${fmt(
-                zona.media,
-              )} e o corte que você já cruzou é ${fmt(
-                zona.corteProximaZona,
-              )}: você está ${fmt(distancia)} acima dele.`
-            : `${nome}, sob o critério ${zona.regua}. Sua média é ${fmt(
-                zona.media,
-              )} e a fronteira da próxima zona é ${fmt(
-                zona.corteProximaZona,
-              )}: faltam ${fmt(distancia)} para chegar lá.`
+          !temCota
+            ? // Sem corte de média não há distância a narrar, e narrar uma
+              // seria inventá-la para quem não vê a tela.
+              `${nome}, sob o critério ${zona.regua}. Sua média é ${fmt(zona.media)}. Este critério não exige nota mínima de média: os cortes dele são por matéria, e estão nas barras abaixo.`
+            : noTopo
+              ? `${nome}, sob o critério ${zona.regua}. Sua média é ${fmt(
+                  zona.media,
+                )} e o corte que você já cruzou é ${fmt(
+                  zona.corteAtual,
+                )}: você está ${fmt(distancia)} acima dele.`
+              : `${nome}, sob o critério ${zona.regua}. Sua média é ${fmt(
+                  zona.media,
+                )} e a fronteira da próxima zona é ${fmt(
+                  zona.corteProximaZona,
+                )}: faltam ${fmt(distancia)} para chegar lá.`
         }
         style={{ display: 'block', overflow: 'visible' }}
       >
@@ -377,24 +402,28 @@ function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
           );
         })}
 
-        {/* A fronteira dourada, rotulada com o corte. VALOR, sempre: ela é a
-            régua, não a má notícia. */}
-        <line
-          x1={faixaX}
-          x2={faixaX + faixaW}
-          y1={yFronteira}
-          y2={yFronteira}
-          stroke="var(--alu-valor)"
-          strokeWidth="2"
-        />
-        <text
-          x={faixaX + faixaW}
-          y={yFronteira - 6}
-          textAnchor="end"
-          className="alu-jor-zona__corte"
-        >
-          CORTE {fmt(zona.corteProximaZona)}
-        </text>
+        {temFronteira && (
+          <>
+          {/* A fronteira dourada, rotulada com o corte. VALOR, sempre: ela é a
+              régua, não a má notícia. */}
+          <line
+            x1={faixaX}
+            x2={faixaX + faixaW}
+            y1={yFronteira}
+            y2={yFronteira}
+            stroke="var(--alu-valor)"
+            strokeWidth="2"
+          />
+          <text
+            x={faixaX + faixaW}
+            y={yFronteira - 6}
+            textAnchor="end"
+            className="alu-jor-zona__corte"
+          >
+            CORTE {fmt(corteDaFronteira)}
+          </text>
+          </>
+        )}
 
         {/* O ponto do aluno. O anel na cor do fundo o separa da borda da faixa
             quando os dois se encostam. */}
@@ -410,56 +439,81 @@ function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
           VOCÊ · {fmt(zona.media)}
         </text>
 
-        {/* A linha de cota: do ponto até a fronteira, com travessas nas duas
-            pontas. O número dentro dela é a distância — e é ele que carrega o
-            valor, porque a escada não tem escala numérica.
+        {temCota && (
+          <>
+          {/* A linha de cota: do ponto até a fronteira, com travessas nas duas
+              pontas. O número dentro dela é a distância — e é ele que carrega o
+              valor, porque a escada não tem escala numérica.
 
-            O fio e as travessas são GEOMETRIA, e por isso neutros: docs/24 §7.2
-            regra 2 reserva ALERTA para a ETIQUETA de distância, não para o
-            desenho em volta dela. */}
-        <line
-          x1={cotaX}
-          x2={cotaX}
-          y1={yPonto}
-          y2={yFronteira}
-          stroke="var(--alu-texto-2)"
-          strokeWidth="1.5"
-        />
-        <line
-          x1={cotaX - 6}
-          x2={cotaX + 6}
-          y1={yPonto}
-          y2={yPonto}
-          stroke="var(--alu-texto-2)"
-          strokeWidth="1.5"
-        />
-        <line
-          x1={cotaX - 6}
-          x2={cotaX + 6}
-          y1={yFronteira}
-          y2={yFronteira}
-          stroke="var(--alu-texto-2)"
-          strokeWidth="1.5"
-        />
-        <rect
-          x={cotaX - larguraCota / 2}
-          y={yCotaMeio - 10}
-          width={larguraCota}
-          height="20"
-          rx="10"
-          fill={corDaEtiqueta}
-        />
-        <text x={cotaX} y={yCotaMeio + 4} textAnchor="middle" className="alu-jor-zona__cota">
-          {textoCota}
-        </text>
+              O fio e as travessas são GEOMETRIA, e por isso neutros: docs/24 §7.2
+              regra 2 reserva ALERTA para a ETIQUETA de distância, não para o
+              desenho em volta dela. */}
+          <line
+            x1={cotaX}
+            x2={cotaX}
+            y1={yPonto}
+            y2={yFronteira}
+            stroke="var(--alu-texto-2)"
+            strokeWidth="1.5"
+          />
+          <line
+            x1={cotaX - 6}
+            x2={cotaX + 6}
+            y1={yPonto}
+            y2={yPonto}
+            stroke="var(--alu-texto-2)"
+            strokeWidth="1.5"
+          />
+          <line
+            x1={cotaX - 6}
+            x2={cotaX + 6}
+            y1={yFronteira}
+            y2={yFronteira}
+            stroke="var(--alu-texto-2)"
+            strokeWidth="1.5"
+          />
+          <rect
+            x={cotaX - larguraCota / 2}
+            y={yCotaMeio - 10}
+            width={larguraCota}
+            height="20"
+            rx="10"
+            fill={corDaEtiqueta}
+          />
+          <text x={cotaX} y={yCotaMeio + 4} textAnchor="middle" className="alu-jor-zona__cota">
+            {textoCota}
+          </text>
+          </>
+        )}
       </svg>
 
       <p className="alu-jor-zona__leitura">
-        {noTopo ? (
+        {!temCota ? (
+          // Sem distância de média a medir, a frase tem de dizer o que É o
+          // caso — e o caso é bom e específico: a média dele já passou, e quem
+          // segura é uma matéria. "Faltam 0,0 para subir de zona" seria uma
+          // frase sem sentido escrita com um número inventado.
+          <>
+            Sua média é <strong>{fmt(zona.media)}</strong>
+            {corteDaFronteira != null && (
+              <>
+                {' '}
+                e já passa o corte de <strong>{fmt(corteDaFronteira)}</strong>
+              </>
+            )}
+            . O que segura você é matéria
+            {zona.materiaMaisCurta && (
+              <>
+                , e a mais atrasada é <strong>{zona.materiaMaisCurta}</strong>
+              </>
+            )}
+            .
+          </>
+        ) : noTopo ? (
           <>
             Sua média é <strong>{fmt(zona.media)}</strong> e você está{' '}
             <strong>{fmt(distancia)}</strong> acima do corte de{' '}
-            <strong>{fmt(zona.corteProximaZona)}</strong>.
+            <strong>{fmt(zona.corteAtual)}</strong>.
           </>
         ) : (
           <>
@@ -735,29 +789,17 @@ function mediaDaTurmaPorCiclo(
 }
 
 /**
- * Os elos de um ciclo a partir dos booleanos de presença.
+ * "18 de 20 simulados" — o resumo que vai no canto do bloco da corrente.
  *
- * ⚠️ O rótulo é POSICIONAL ("P1", "P2"): `presencaNosSimulados` devolve só o
- * booleano, sem o nome do simulado. Quando a rota existir (docs/29 §A.2 —
- * `nota.presente`, hoje filtrado fora), ela precisa trazer o rótulo junto,
- * senão a corrente segue chamando de P3 um simulado que a coordenação chama de
- * outra coisa.
+ * ⚠️ O rótulo do elo era POSICIONAL ("P1", "P2") enquanto a fonte era mock, que
+ * só devolvia booleano. Desde 05/09 `usePresencaPorCiclo` monta os elos sobre
+ * `GET /me/simulados?incluirFaltas=true` (docs/36 §2.1) e cada quadrado carrega
+ * o rótulo e a data do simulado que ele é — a corrente parou de chamar de P3
+ * uma prova que a coordenação chama de outra coisa.
  */
-function elosDoCiclo(presencas: boolean[]): EloDaCorrente[] {
-  return presencas.map((presente, i) => ({
-    simuladoId: null,
-    rotulo: `P${i + 1}`,
-    data: null,
-    presente,
-  }));
-}
-
-/** "18 de 20 simulados" — o resumo que vai no canto do bloco da corrente. */
-function resumoDePresenca(
-  ciclos: Array<{ ciclo: string; presencas: boolean[] }> | undefined,
-): string | undefined {
+function resumoDePresenca(ciclos: CicloDePresenca[] | undefined): string | undefined {
   if (!ciclos?.length) return undefined;
-  const todos = ciclos.flatMap((c) => c.presencas);
+  const todos = ciclos.flatMap((c) => c.elos);
   if (!todos.length) return undefined;
-  return `${todos.filter(Boolean).length} de ${todos.length} simulados`;
+  return `${todos.filter((e) => e.presente).length} de ${todos.length} simulados`;
 }

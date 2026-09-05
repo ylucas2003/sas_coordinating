@@ -33,15 +33,22 @@ export {
   useInsight,
   useLista,
   useListas,
+  useMateriasContraCorte,
+  useMetaDoCiclo,
   useMissaoDoDia,
+  usePresencaPorCiclo,
   useProgressoBanco,
+  useProximoSimulado,
   useQuestaoDoBanco,
   useQuestoesDoBanco,
   useQuestoesDoSimulado,
+  useSequencia,
   useSimulado,
   useSimulados,
   useTaxonomia,
   useTrajetoria,
+  useVestibulares,
+  useZona,
 } from './reais';
 
 export {
@@ -62,46 +69,16 @@ export {
 /** `staleTime: Infinity` — o mock não muda, e revalidar dado falso é ruído. */
 const fixo = { staleTime: Number.POSITIVE_INFINITY };
 
-/** sem-rota · `nota.presente` (docs/29 §A.2, docs/26 §4) */
-export function useSequencia() {
-  return useQuery({ queryKey: ['mock', 'sequencia'], queryFn: mocks.buscarSequencia, ...fixo });
-}
-
-/** sem-rota · `evento_agenda` (docs/29 §A.1) */
-export function useProximoSimulado() {
-  return useQuery({
-    queryKey: ['mock', 'proximoSimulado'],
-    queryFn: mocks.buscarProximoSimulado,
-    ...fixo,
-  });
-}
-
-/** sem-rota · `classificacao_aluno.zona` + avaliador de critérios (docs/29 §A.4) */
-export function useZona() {
-  return useQuery({ queryKey: ['mock', 'zonaEDistancia'], queryFn: mocks.buscarZona, ...fixo });
-}
-
-/** sem-rota · `criterio_classificacao` (docs/24 §2) */
-export function useMateriasContraCorte() {
-  return useQuery({
-    queryKey: ['mock', 'cortePorMateria'],
-    queryFn: mocks.buscarMateriasContraCorte,
-    ...fixo,
-  });
-}
-
-/** sem-rota · agregação de `/me/simulado/{id}/questoes` (docs/29 §A.3) */
+/**
+ * sem-rota · agregação de `/me/simulado/{id}/questoes` (docs/29 §A.3)
+ *
+ * ⚠️ Ficou de fora da leva de 05/09 de propósito (docs/36 §4): `questao.assunto`
+ * está 100% vazio no banco (0 de 1.079), então a rota nasceria devolvendo
+ * `assunto: null` em toda linha e a tela prometeria "estude por assunto" sem
+ * saber o assunto. Volta no Sprint 6, com `questao_topico`.
+ */
 export function useMeusErros() {
   return useQuery({ queryKey: ['mock', 'meusErros'], queryFn: mocks.buscarErros, ...fixo });
-}
-
-/** sem-rota · `nota.presente` por ciclo (docs/29 §A.2) */
-export function usePresencaPorCiclo() {
-  return useQuery({
-    queryKey: ['mock', 'presencaNosSimulados'],
-    queryFn: mocks.buscarCiclosAnteriores,
-    ...fixo,
-  });
 }
 
 /** mock · docs/26 §3 — e o backtest de docs/29 §H é portão antes de fixar número */
@@ -127,11 +104,6 @@ export function useConquistas() {
 /** mock · o cartão de aprovados, entregue como afordância */
 export function useDepoimento() {
   return useQuery({ queryKey: ['mock', 'depoimentos'], queryFn: mocks.buscarDepoimento, ...fixo });
-}
-
-/** mock · docs/24 §7.3 — a meta semanal virou meta do ciclo */
-export function useMetaDoCiclo() {
-  return useQuery({ queryKey: ['mock', 'metaDoCiclo'], queryFn: mocks.buscarMetaDoCiclo, ...fixo });
 }
 
 // ─── Funções puras da camada de mock ─────────────────────────────────────

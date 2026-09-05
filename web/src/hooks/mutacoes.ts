@@ -136,6 +136,19 @@ export function useSalvarMinhaFoto() {
   });
 }
 
+/**
+ * O alvo declarado no onboarding — a escrita que faltava para `/me/zona` ter
+ * régua (docs/36 §1.4). `invalidarTudo` porque a zona, os cortes e tudo que
+ * depende da régua mudam de resposta no mesmo instante.
+ */
+export function useDefinirVestibulares() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vestibulares: string[]) => api.definirVestibularesMe(vestibulares),
+    onSuccess: () => invalidarTudo(queryClient),
+  });
+}
+
 export function useRemoverMinhaFoto() {
   const queryClient = useQueryClient();
   return useMutation({

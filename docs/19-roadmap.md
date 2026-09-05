@@ -474,7 +474,7 @@ um D e ir para um A?"* Desenho em [24](24-jornada-do-aluno.md).
 | P2 | **Onde estou / para onde vou** — zona atual, distância até o corte, meta do ciclo (`meta_aluno`), linha do tempo de zona | G | destravada: o aluno **vê** a zona, com a distância (29/08) |
 | P3 | **Um próximo passo por vez** — o elemento maior da tela, acima do desempenho | M | P1 |
 | P4 | **Tio Léo** — o nome, e 5 tools novas (importância, assuntos fracos, plano de revisão, questões do banco por tópico, minha zona) | M | P1. A colisão de nome com a régua foi **assumida de propósito** (29/08) |
-| P5 | **Consertar o streak** — hoje mede posição contra a turma, não progresso do aluno ([24 §1.1](24-jornada-do-aluno.md)) | P | — |
+| P5 | ~~**Consertar o streak**~~ ✅ **FEITO em 05/09** — `/me/streak` saiu e `/me/jogo` conta simulados sem faltar ([36 §2.3](36-plano-faixa-1-e-2.md)) | P | ✅ |
 
 **Fora de escopo, de propósito:** o RAG dos livros de método de estudo. Exige
 `pgvector`, decisão de direito de uso e infra que o projeto não tem — e as
@@ -488,7 +488,7 @@ Nada aqui é tela; tudo é o que impede as telas desenhadas de funcionarem.
 
 | Bloco | O quê | Tamanho |
 |---|---|---|
-| **A** | Cinco rotas que faltam — `/me/agenda` (o e-mail já sabe do simulado, a tela não), `/me/erros`, `/me/zona`, e expor `trajetoria`/`heatmap`/`arquivo`, que existem e nenhuma tela desenha. **E tirar o filtro `presente = True`**, que esconde a falta e quebra a sequência | **M** |
+| **A** | ✅ **FEITO em 05/09** ([36](36-plano-faixa-1-e-2.md)), menos `/me/erros`: ela ficou para o Sprint 6 porque `questao.assunto` está 100% vazio e a rota nasceria prometendo "estude por assunto" sem saber o assunto | **M** |
 | **B** | As regras que ninguém escreveu: simulado anulado e nota corrigida, virada de ano letivo, quem entra no meio, quem sai, e o `vestibular_alvo_aluno` que nunca foi lido | **M** |
 | **C** | **Notificação** — não existe `web/public` nem manifest; o PWA nunca foi feito. Sem isso, sequência, liga e contagem regressiva perdem o gatilho | **G** |
 | **D** | Confiança: a **origem da resolução** (o acervo histórico tem resolução gerada por LLM e o aluno vai achar que é do professor) e um canal de suporte | **M** |
@@ -537,22 +537,29 @@ O estado real, fonte por fonte, está em
 
 | | |
 |---|---|
-| **LIGADO** | 20 fontes — o endpoint existe e a tela consome |
-| **DADO EXISTE, ROTA NÃO** | 6 — o servidor já sabe a resposta, falta a rota |
-| **MOCK PURO** | 16 — não existe nem dado |
+| **LIGADO** | 28 fontes — o endpoint existe e a tela consome |
+| **DADO EXISTE, ROTA NÃO** | 1 — `meusErros`, segurada até o Sprint 6 |
+| **MOCK PURO** | 11 — não existe nem dado |
 
 Três rotas prontas e sem tela desde sempre ganharam uma ([29 §A.5](29-area-do-aluno-o-que-falta.md)):
 `/me/trajetoria`, `/me/heatmap` e `/me/simulado/{id}/arquivo`.
 
-⚠️ **`/me/streak` continua no ar medindo a coisa errada** e não foi ligada de
-propósito — "ciclos acima da média da turma" premia posição, não progresso
-([24 §1.1](24-jornada-do-aluno.md)). Sai quando `/me/jogo` entrar.
+### ✅ Faixa 1 e Faixa 2 entregues *(05/09)* — [36](36-plano-faixa-1-e-2.md)
 
-**O que falta, em ordem de esforço:** as cinco rotas curtas da tabela 2 do
-docs/30 (`/me/agenda`, a falta em `/me/simulados`, `/me/erros`, `/me/jogo`,
-`/me/zona`) → o backtest do XP, que é portão → a migration de
-`alternativa_escolhida`/`acertou` → o Sprint 6 → notificação → Liga e
-Esquadrilha.
+Entraram `/me/agenda`, `/me/jogo`, `/me/zona`, `/me/meta`,
+`/me/simulados?incluirFaltas` e o onboarding (`GET/PUT /me/vestibulares` +
+tela + portão), que a decisão da régua obrigou: `vestibular_alvo_aluno` existe
+desde a 0001 e nunca teve quem escrevesse nela. **`/me/streak` SAIU**, e o tool
+`meu_streak` do Tio Léo foi repontado para `/me/jogo`. A fórmula do Tio Léo saiu
+do mock sem dependência nova — o KaTeX já estava no projeto.
+
+⚠️ **A medição do banco derrubou três premissas do docs/30** (§0 do 36):
+`nota.presente` tem 58,7% de falta e mistura ausência com "esta prova nunca foi
+minha"; `evento_agenda` tem 1 evento futuro no ano inteiro; e `questao.assunto`
+está 100% vazio — por isso `/me/erros` **ficou de fora** e volta no Sprint 6.
+
+**O que falta, em ordem de esforço:** o backtest do XP, que é portão → o
+Sprint 6 → notificação → Liga e Esquadrilha.
 
 **Buracos conhecidos** (lista inteira na última seção do docs/30): quatro telas
 não foram vistas rodando; o mapa de calor nasce 98,3% vazio porque o eixo real é

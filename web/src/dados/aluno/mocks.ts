@@ -42,12 +42,9 @@ import type {
   ExtratoXp,
   Liga,
   MateriaContraCorte,
-  ProximoSimulado,
   QuestaoVestibular,
   ResumoDoTreino,
-  Sequencia,
   Xp,
-  ZonaEDistancia,
 } from './contratos';
 
 /** O mock devolve Promise, nunca objeto solto: é o que faz a assinatura do
@@ -56,25 +53,22 @@ function entregar<T>(valor: T): Promise<T> {
   return Promise.resolve(valor);
 }
 
-/**
- * Datas relativas a hoje, e não fixas no calendário: com data fixa a contagem
- * regressiva viraria negativa depois de setembro de 2026 e o mock morreria
- * sozinho, que é como mock passa a mentir sem ninguém notar.
- */
-function emDias(dias: number): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() + dias);
-  return d.toISOString().slice(0, 10);
-}
-
 // ─── Régua de corte ──────────────────────────────────────────────────────
 
 /** 4,0 por matéria; 5,0 no Inglês da Fase 1 do ITA, o único eliminatório. */
 export const CORTE_PADRAO = 4;
 export const CORTE_INGLES_ITA_F1 = 5;
 
-export const MATERIAS_CONTRA_CORTE: MateriaContraCorte[] = [
+/**
+ * ⚠️ NÃO é mais a fonte das barras da tela — quem responde por elas é
+ * `GET /me/zona` desde 05/09 (docs/36 §2.5), com o corte da régua de verdade.
+ *
+ * O que sobrou aqui é heurística interna de `ordenarFilaDeTreino`, que continua
+ * mock porque depende de `acertoPorAssunto` (Sprint 6). Enquanto a fila não
+ * souber em que assunto o aluno erra, ela desempata pela matéria mais distante
+ * do corte — e esta é a tabela desse desempate.
+ */
+const MATERIAS_CONTRA_CORTE: MateriaContraCorte[] = [
   { materia: 'Matemática', nota: 6.8, corte: CORTE_PADRAO, eliminatoria: false },
   { materia: 'Física', nota: 7.4, corte: CORTE_PADRAO, eliminatoria: false },
   { materia: 'Química', nota: 3.2, corte: CORTE_PADRAO, eliminatoria: false },
@@ -82,55 +76,13 @@ export const MATERIAS_CONTRA_CORTE: MateriaContraCorte[] = [
   { materia: 'Inglês', nota: 4.6, corte: CORTE_INGLES_ITA_F1, eliminatoria: true },
 ];
 
-export const ZONA: ZonaEDistancia = {
-  zona: 'cinzenta',
-  media: 6.8,
-  corteProximaZona: 8,
-  distancia: 1.2,
-  materiaMaisCurta: 'Química',
-  regua: 'Tio Leo',
-};
-
 // ─── Agenda e sequência ──────────────────────────────────────────────────
-
-export function proximoSimulado(): ProximoSimulado {
-  return {
-    id: 'mock-c5-p1',
-    rotulo: 'Ciclo 5 · P1',
-    data: emDias(12),
-    vestibular: 'ITA',
-    fase: 1,
-    dataAnterior: emDias(-11),
-  };
-}
-
-export function sequencia(): Sequencia {
-  return {
-    simulados: 12,
-    melhor: 12,
-    corrente: [
-      { simuladoId: 'mock-c4-p1', rotulo: 'P1', data: emDias(-70), presente: true },
-      { simuladoId: 'mock-c4-p2', rotulo: 'P2', data: emDias(-56), presente: true },
-      { simuladoId: 'mock-c4-p3', rotulo: 'P3', data: emDias(-42), presente: true },
-      { simuladoId: 'mock-c4-p4', rotulo: 'P4', data: emDias(-25), presente: true },
-      { simuladoId: 'mock-c4-p5', rotulo: 'P5', data: emDias(-11), presente: true },
-      { simuladoId: null, rotulo: 'P1', data: emDias(12), presente: null },
-    ],
-  };
-}
 
 /**
  * A falta vive aqui, e não na corrente do ciclo corrente, porque a sequência do
  * aluno é 12 — pôr um quadrado vazado no ciclo 4 contradiria os dois números na
  * mesma tela. O ciclo 2 é onde a forma do quadrado vazado se vê.
  */
-export const CICLOS_ANTERIORES: Array<{ ciclo: string; presencas: boolean[] }> = [
-  { ciclo: 'Ciclo 1', presencas: [true, true, false, true, true] },
-  { ciclo: 'Ciclo 2', presencas: [true, false, true, true, true] },
-  { ciclo: 'Ciclo 3', presencas: [true, true, true, true, true] },
-  { ciclo: 'Ciclo 4', presencas: [true, true, true, true, true] },
-];
-
 // ─── XP ──────────────────────────────────────────────────────────────────
 
 /** Um bloco por simulado. Somam 1.240 — o XP do ciclo, que é o da liga. */
@@ -436,16 +388,9 @@ export function ordenarFilaDeTreino(questoes: QuestaoVestibular[]): QuestaoVesti
 
 // ─── Os hooks-fonte: tudo daqui devolve Promise ──────────────────────────
 
-export const buscarSequencia = () => entregar(sequencia());
-export const buscarProximoSimulado = () => entregar(proximoSimulado());
-export const buscarZona = () => entregar(ZONA);
-export const buscarMateriasContraCorte = () => entregar(MATERIAS_CONTRA_CORTE);
 export const buscarXp = () => entregar(XP);
 export const buscarExtratoXp = () => entregar(EXTRATO_XP);
 export const buscarLiga = () => entregar(LIGA);
 export const buscarConquistas = () => entregar(CONQUISTAS);
 export const buscarDepoimento = () => entregar(DEPOIMENTO);
 export const buscarErros = () => entregar(ERROS);
-export const buscarCiclosAnteriores = () => entregar(CICLOS_ANTERIORES);
-export const buscarMetaDoCiclo = () =>
-  entregar({ alvo: 5, feitos: 5, rotulo: 'Comparecer aos 5 simulados do ciclo' });
