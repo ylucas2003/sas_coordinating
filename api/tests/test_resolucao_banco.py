@@ -16,21 +16,37 @@ ficaram cravadas erradas aqui — o teste passava com o deep-link quebrado
 (docs/35 §0.2).
 
 ESTAS páginas foram abertas e lidas em 04/09/2026, e só destas os valores saem
-conferidos: `comentarios.aridesa.com.br/ita?reference_id=1` (com e sem
-`&stage=2`), `/ime?reference_id=2|3|4`, e
-`servicos.aridesa.com.br/comentario/ita/2022` e `/2023`. Cada caso conferido
-aponta para o `data-src` que a página tem naquele índice.
+conferidos — cada caso aponta para o .gif que a página tem naquele índice, no
+`data-src` do botão em ita/2022 e ita/2023 e no `href` nas demais:
+`comentarios.aridesa.com.br/ita?reference_id=1` (com e sem `&stage=2`),
+`/ime?reference_id=2|3|4`, e `servicos.aridesa.com.br/comentario/ita/2022`,
+`/2023`, `/2024`, `/ime/2021-2022` e `/ime/2022-2023`. As três últimas tinham
+ficado de fora da primeira releitura e eram só herança; foram lidas agora e os
+casos que este arquivo crava contra elas conferem — em ita/2024 a `gallery-5`
+índice 1 é `QUI-1_Q49.gif` e a `gallery-1` índice 13 é `FIS-2_Q01.gif`; em
+ime/2021-2022 a `gallery-2` índice 5 é `FIS-1_Q20.gif`; em ime/2022-2023 a
+`gallery-3` índice 5 é `QUI-1_Q35-1.gif`.
 
-⚠️ Os casos de `ita/2024` e de `ime/2021-2022` e `/2022-2023` NÃO foram
-reconferidos nesta passagem: seguem valendo pela conferência antiga. Quem mexer
-neles abra a página antes — e troque este parágrafo, que é o registro do que
-está provado e do que só está herdado.
+A releitura achou também um defeito no IME, e este era o único da leva que
+quebrava link **vivo**: a `gallery-2` de `ime/2022-2023` tem 16 slides, e o
+primeiro é lixo da própria página do Ari — `FIS-2_Q01.gif` rotulado `15-C`, um
+botão da 2ª fase no começo da galeria da 1ª. A Física da 1ª fase começa no
+índice 2, e o offset assumia 1, então as 15 questões de IME 2022 · 1ª fase ·
+Física que estão no acervo apontavam um slide atrás — a q16 abria uma prova de
+outra fase. Corrigido em `_IME_F1_OFFSET_POR_ANO`, com as três bordas (q16,
+q20, q30) cravadas abaixo, mais Matemática e Química do mesmo ano, que **não**
+deslocam. Em 2021 a mesma galeria não tem o intruso.
 
-A releitura achou um segundo defeito, além do nome da galeria que motivou a
-docs/35 §2: a 1ª fase do ITA de 2022 tem 70 questões e uma régua própria, e o
-offset dela estava errado. Não quebrava link vivo — não há questão de ITA 2022 ·
-1ª fase no acervo —, mas quebraria em silêncio no dia em que ela entrasse.
-Corrigido em `_ITA_F1_OFFSET_POR_ANO`.
+A releitura achou também um defeito no ITA, além do nome da galeria que motivou
+a docs/35 §2: a 1ª fase de 2022 tem 70 questões e régua própria (Fís 1–15 ·
+Port 16–30 · Ing 31–40 · Mat 41–55 · Quí 56–70), e a Química dela não cabe em
+régua nenhuma — a q60 foi anulada (rótulo `60-N`, botão `disabled` e sem
+`data-fancybox`) e ficou fora da `gallery-5`, que tem 14 slides para 15
+questões. Consertado em `_indice_f1_do_ita`: antes do buraco o índice é
+`numero - 55`, depois dele `numero - 56`, e a própria q60 devolve None. As 15
+questões de Matemática e as 15 de Química de 2022 foram conferidas uma a uma
+contra a página. Não quebrava link vivo — o acervo não tem ITA 2022 · 1ª fase —,
+mas quebraria em silêncio no dia em que ela entrasse.
 
 Quem mudar um número aqui: abra a página antes. Comparar com o código só
 confirma o que o código já acha.
@@ -68,15 +84,41 @@ from app.banco.resolucao import url_da_resolucao
          "https://servicos.aridesa.com.br/comentario/ita/2024/#gallery-5-1"),
         # A 1ª fase de 2022 tem 70 questões numa régua PRÓPRIA (Fís 1–15 ·
         # Port 16–30 · Ing 31–40 · Mat 41–55 · Quí 56–70), e por isso o offset
-        # dela é 40/55 e não 36/48. Conferido na página: gallery-4 índice 1 é
-        # `MAT-1_Q41.gif`, rótulo `41-B`. Com a régua de 2023 a q41 caía no
-        # índice 5, que é a q45.
+        # dela é 40/55 e não 36/48. Com a régua de 2023 a q41 caía no índice 5,
+        # que é a q45. Cada caso abaixo aponta para o `data-src` daquele índice
+        # na página, e são as duas PONTAS de cada matéria, não só a primeira:
+        # na `gallery-4` o índice 1 é `MAT-1_Q41.gif` (rótulo `41-B`) e o 15,
+        # último da galeria, é `MAT-1_Q55.gif` (`55-C`); na `gallery-1` o 1 é
+        # `FIS-1_Q01.gif` (`01-B`) e o 15 é `FIS-1_Q15.gif` (`15-B`).
         ("ITA", 2022, 1, "Matemática", 41,
          "https://servicos.aridesa.com.br/comentario/ita/2022/#gallery-4-1"),
-        ("ITA", 2022, 1, "Química", 56,
-         "https://servicos.aridesa.com.br/comentario/ita/2022/#gallery-5-1"),
+        ("ITA", 2022, 1, "Matemática", 55,
+         "https://servicos.aridesa.com.br/comentario/ita/2022/#gallery-4-15"),
         ("ITA", 2022, 1, "Física", 1,
          "https://servicos.aridesa.com.br/comentario/ita/2022/#gallery-1-1"),
+        ("ITA", 2022, 1, "Física", 15,
+         "https://servicos.aridesa.com.br/comentario/ita/2022/#gallery-1-15"),
+        # ── o buraco da Química de 2022 ──────────────────────────────────
+        # A `gallery-5` tem 14 slides para as 15 questões: a q60 foi anulada e
+        # o Ari não a comentou (`60-N`, botão `disabled` e sem `data-fancybox`),
+        # então a galeria salta da q59 para a q61. Nenhum offset fixo cobre os
+        # dois lados disso — por isso o teste pina os DOIS, e o buraco no meio.
+        # Índices lidos da página: 1 `QUI-1_Q56.gif` (`56-D`), 4
+        # `QUI-1_Q59-1.gif` (`59-A`), 5 `QUI-1_Q61.gif` (`61-B`), 14 — o último
+        # — `QUI-1_Q70.gif` (`70-A`). Com o offset único de 55, a q61 caía no
+        # slide da q62 e a q70 pedia o índice 15, que não existe: o Fancybox
+        # não abre nada.
+        ("ITA", 2022, 1, "Química", 56,
+         "https://servicos.aridesa.com.br/comentario/ita/2022/#gallery-5-1"),
+        ("ITA", 2022, 1, "Química", 59,
+         "https://servicos.aridesa.com.br/comentario/ita/2022/#gallery-5-4"),
+        # Sem slide: `url_da_resolucao` devolve None e o cartão esconde o botão,
+        # que é melhor que um link para o comentário da questão errada.
+        ("ITA", 2022, 1, "Química", 60, None),
+        ("ITA", 2022, 1, "Química", 61,
+         "https://servicos.aridesa.com.br/comentario/ita/2022/#gallery-5-5"),
+        ("ITA", 2022, 1, "Química", 70,
+         "https://servicos.aridesa.com.br/comentario/ita/2022/#gallery-5-14"),
         # 2025+: reference_id é ano-2024, galeria única, e o nome dela é
         # `gallery-stage-1` — a plataforma nova numera pelo stage, não por
         # matéria. Conferido na página: índice 36 → QUI-1_Q36.gif, rótulo "36 - C".
@@ -106,6 +148,26 @@ from app.banco.resolucao import url_da_resolucao
          "https://servicos.aridesa.com.br/comentario/ime/2021-2022/#gallery-2-5"),
         ("IME", 2022, 1, "Química", 35,
          "https://servicos.aridesa.com.br/comentario/ime/2022-2023/#gallery-3-5"),
+        # ⚠️ A Física de 2022 desloca UM slide, e é a página do Ari que está
+        # torta: a `gallery-2` de ime/2022-2023 tem 16 botões e o PRIMEIRO é
+        # `FIS-2_Q01.gif` (rótulo "15-C"), uma imagem da 2ª fase encravada no
+        # topo da galeria da 1ª. A q16 real cai no índice 2.
+        # As três bordas ficam pinadas: a primeira depois do intruso, uma do
+        # meio e a última. Em 2021 a mesma galeria não tem o intruso — por isso
+        # o caso de 2021 acima continua com o índice 5 para a q20.
+        ("IME", 2022, 1, "Física", 16,
+         "https://servicos.aridesa.com.br/comentario/ime/2022-2023/#gallery-2-2"),
+        ("IME", 2022, 1, "Física", 20,
+         "https://servicos.aridesa.com.br/comentario/ime/2022-2023/#gallery-2-6"),
+        ("IME", 2022, 1, "Física", 30,
+         "https://servicos.aridesa.com.br/comentario/ime/2022-2023/#gallery-2-16"),
+        # Matemática e Química de 2022 NÃO deslocam: as galerias 1 e 3 daquela
+        # página começam limpas, em MAT-1_Q01 e QUI-1_Q31. O desconto é por ano
+        # E por matéria, e este par é o que impede alguém de "consertar" as três.
+        ("IME", 2022, 1, "Matemática", 1,
+         "https://servicos.aridesa.com.br/comentario/ime/2022-2023/#gallery-1-1"),
+        ("IME", 2022, 1, "Química", 31,
+         "https://servicos.aridesa.com.br/comentario/ime/2022-2023/#gallery-3-1"),
         # 2023–2025: reference_id sem fórmula, galeria única indexada pelo número.
         ("IME", 2024, 1, "Física", 21,
          "https://comentarios.aridesa.com.br/ime?reference_id=2#gallery-stage-1-21"),
@@ -128,7 +190,7 @@ _MATERIAS = ("Física", "Química", "Matemática")
 
 # Só o NOME da galeria, sem o índice: o índice não é assunto desta varredura.
 # Ela passa por combinações que o banco não tem — Química q1 na 1ª fase do ITA
-# de 2022, cuja Química começa na 49 —, e ali o offset dá número negativo. Quem
+# de 2022, cuja Química começa na 56 —, e ali o offset dá número negativo. Quem
 # trava índice são os casos parametrizados acima, conferidos contra a página.
 _NOME_GALERIA_ANTIGA = re.compile(r"#gallery-\d+-")
 _NOME_GALERIA_NOVA = re.compile(r"#gallery-stage-[12]-")
