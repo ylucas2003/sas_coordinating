@@ -21,7 +21,6 @@
 }
 .integracao-card:hover {
   border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-card-hover, var(--shadow-card));
   text-decoration: none;
 }
 /* O card é um link: sem foco visível ele some para quem navega por teclado. */

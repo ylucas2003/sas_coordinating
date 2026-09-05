@@ -6,11 +6,23 @@
    vertical, que devolve a largura inteira da janela para as tabelas.
    ─────────────────────────────────────────────────────────────────────── */
 
+/* A GRADE DE FUNDO. Quadrada, de 24px, quase imperceptível, sob o conteúdo
+   inteiro. É a mesma da área do aluno — e é ela que amarra os dois produtos
+   na primeira olhada, antes de qualquer leitura. Mesmo motivo do cobogó da
+   fachada do login, em outra escala: não são duas decisões
+   (docs/brief-claude-design-coordenacao.md §Forma).
+
+   O fundo é `--color-bg`, branco desde a inversão de superfícies deste PR;
+   era `--color-surface-inset`, cinza, de quando o card é que era branco. */
 .casco {
   display: grid;
   grid-template-columns: var(--rail-w) 1fr;
   min-height: 100dvh;
-  background: var(--color-surface-inset);
+  background-color: var(--color-bg);
+  background-image:
+    linear-gradient(to right, var(--dia-grade) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--dia-grade) 1px, transparent 1px);
+  background-size: 24px 24px;
   transition: grid-template-columns 180ms ease;
 }
 
@@ -342,8 +354,8 @@
   right: 0;
   min-width: 280px;
   background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-float);
   padding: 6px;
   z-index: 60;
   max-height: 340px;

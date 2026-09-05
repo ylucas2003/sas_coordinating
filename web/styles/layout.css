@@ -11,12 +11,18 @@
 
 /* ─── Card ──────────────────────────────────────────────────────────── */
 
-/* Sem borda: o cartão se separa do fundo pela sombra e pelo branco. Somar
-   fio + sombra + fundo cinza dá três marcações para a mesma aresta. */
+/* BORDA, nunca sombra. A superfície se separa do fundo pela borda e pelo
+   tom — é a regra que sozinha mais aproxima a coordenação do aluno, e a que
+   faz uma tela deixar de parecer template.
+
+   Antes era o contrário: card BRANCO sobre fundo cinza, separado por duas
+   sombras empilhadas. Com o fundo agora branco e a superfície cinza (a
+   inversão deste mesmo PR), não há profundidade a simular — a aresta é uma
+   marcação só. */
 .card {
   background: var(--color-surface);
+  border: var(--color-border-largura) solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
 }
 
 /* ─── Tela de Importar ──────────────────────────────────────────────── */
@@ -93,17 +99,44 @@
   cursor: not-allowed;
 }
 
+/* A TECLA, e SÓ no primário: 3px de borda inferior sólida que comprime ao
+   apertar. É a única peça de física do sistema — tecla em tudo deixa de
+   significar "aperte aqui", e todo o resto da interface é chapado.
+
+   3px, e não os 4px da área do aluno: quem clica trezentas vezes por dia
+   sente a diferença, e 0 perderia a peça inteira
+   (docs/brief-claude-design-coordenacao.md §Forma). Sem blur, nunca.
+
+   `margin-bottom` reserva o espaço da sombra — sem ele o elemento seguinte
+   sobe 3px quando a tecla é apertada. */
 .btn-primary,
 .btn--primary {
   background: var(--color-navy);
   border-color: var(--color-navy);
   color: #fff;
+  box-shadow: 0 3px 0 0 var(--color-navy-deep);
+  margin-bottom: 3px;
+  transition: background 150ms, border-color 150ms, transform 80ms ease-out,
+    box-shadow 80ms ease-out;
 }
 
 .btn-primary:hover:not(:disabled),
 .btn--primary:hover:not(:disabled) {
   background: var(--color-navy-deep);
   border-color: var(--color-navy-deep);
+}
+
+.btn-primary:active:not(:disabled),
+.btn--primary:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 0 var(--color-navy-deep);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn--primary {
+    transition: background 150ms, border-color 150ms;
+  }
 }
 
 .btn--ghost {
@@ -619,8 +652,8 @@
 /* Cada KPI num cartão próprio — é a faixa de quatro do topo das fichas. */
 .kpi-grid--cartoes .kpi {
   background: var(--color-surface);
+  border: var(--color-border-largura) solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
   padding: 20px 22px;
 }
 
@@ -1536,8 +1569,8 @@
 
 .barra-filtros {
   background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
   padding: 14px 22px;
   display: flex;
   align-items: center;

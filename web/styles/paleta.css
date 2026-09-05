@@ -93,21 +93,11 @@
      virar alias sem mudar a tela. Ficam aqui para os hexadecimais continuarem
      tendo um lugar só, e saem conforme cada regra do brief chega:
 
-       as superfícies      no PR de superfície e forma — hoje a coordenação é
-                           fundo cinza com card branco, e o sistema é o
-                           inverso disso (fundo branco, superfície cinza);
        verde/âmbar/vermelho  no PR do fim do semáforo, quando deixam de ter
                            papel que os justifique.
 
-     ⚠️ Nada novo entra aqui. Esta seção só encolhe. */
-  --coord-bg: #eef1f7;
-  --coord-superficie: #ffffff;
-  --coord-superficie-inset: #f6f8fc;
-  --coord-borda: #eef1f7;
-  --coord-borda-forte: #dee5f1;
-  --coord-divisor: #f2f5fa;
-  --coord-shell-borda: #eaeef6;
-
+     ⚠️ Nada novo entra aqui. Esta seção só encolhe — as sete entradas de
+     superfície e borda já saíram, no PR de superfície e forma. */
   --coord-navy-deep: #16336f;
   --coord-navy-mid: #2952a3;
   --coord-navy-light: #4a78c9;

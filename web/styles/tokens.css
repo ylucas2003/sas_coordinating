@@ -17,11 +17,10 @@
    com seletor próprio, no PR do tema escuro — e é lá que estes aliases
    passam a apontar para `--sas-*`.
 
-   Dos trinta e poucos tokens, apenas CINCO já coincidem com um papel e por
-   isso apontam para a paleta compartilhada; o resto ainda tem valor próprio,
-   marcado abaixo com o PR que o aposenta. A divergência maior está nas
-   superfícies, e ela é uma INVERSÃO: a coordenação é fundo cinza com card
-   branco, e o sistema é o contrário disso.
+   As superfícies, as bordas e os raios já migraram para a paleta
+   compartilhada — a inversão de fundo e card aconteceu no PR de superfície e
+   forma. O que ainda tem valor próprio é a variação de marca e o semáforo,
+   marcados abaixo com o PR que os aposenta.
 
    A leitura semântica antiga está em ../../docs/03-design-system.md, que este
    trabalho torna histórico — a régua em vigor é
@@ -73,40 +72,57 @@
   --color-amber-soft: var(--coord-amber-soft);
   --color-neutral-soft: var(--coord-neutral-soft);
 
-  /* ── Superfícies ──────────────────────────────────────────────────────
-     ⚠️ Aqui está a maior divergência do sistema, e ela é uma INVERSÃO:
-     a coordenação é fundo cinza (#eef1f7) com card branco; o aluno é fundo
-     branco com superfície cinza. Apontar estes três para os papéis mudaria
-     a tela inteira, e por isso é uma decisão própria, do PR de superfície e
-     forma — não um efeito colateral da pilha de tokens. */
-  --color-bg: var(--coord-bg);
-  --color-surface: var(--coord-superficie);
-  --color-surface-inset: var(--coord-superficie-inset);
-  --color-surface-muted: var(--coord-superficie-inset);
+  /* ── Superfícies · INVERTIDAS neste PR ────────────────────────────────
+     Era fundo cinza (#eef1f7) com card branco; passa a ser fundo BRANCO com
+     superfície cinza, que é como o sistema descreve as duas coisas. A troca
+     é o que faz a borda poder substituir a sombra: um card branco sobre
+     fundo branco precisaria da sombra de volta para existir.
+
+     `inset` desce um degrau junto, para continuar sendo "mais fundo que a
+     superfície" — se ficasse onde estava, listra de tabela e card ficariam
+     indistinguíveis. */
+  --color-bg: var(--dia-fundo);
+  --color-surface: var(--dia-superficie);
+  --color-surface-inset: var(--dia-superficie-2);
+  --color-surface-muted: var(--dia-superficie-2);
 
   /* ── Texto ────────────────────────────────────────────────────────────── */
   --color-text-body: var(--coord-texto-body);
   --color-text-faint: var(--coord-texto-faint);
 
-  /* ── Bordas e sombras ─────────────────────────────────────────────────
-     ⚠️ As duas sombras morrem no PR de superfície e forma: a superfície se
-     separa do fundo pela BORDA e pelo tom, nunca pela profundidade. É a
-     regra que sozinha mais aproxima a coordenação do aluno. */
-  --color-border: var(--coord-borda);
-  --color-border-strong: var(--coord-borda-forte);
+  /* ── Bordas ───────────────────────────────────────────────────────────
+     As duas sombras MORRERAM neste PR. A superfície se separa do fundo pela
+     borda e pelo tom, nunca pela profundidade — é a regra que sozinha mais
+     aproxima a coordenação do aluno, e é o que faz uma tela deixar de
+     parecer template.
+
+     A borda deixa de ser quase invisível (#eef1f7, que era a mesma cor do
+     fundo antigo) e passa a ser a do sistema: agora ela é quem desenha a
+     aresta, então precisa ser vista. */
+  --color-border: var(--dia-borda);
+  --color-border-strong: var(--dia-borda);
   /* Fio entre linhas de tabela: mais claro que a borda de card, senão a
      tabela vira grade e o olho para em cada linha. */
-  --color-divider: var(--coord-divisor);
-  --color-shell-border: var(--coord-shell-borda);
-  --shadow-card: 0 1px 2px rgba(20, 32, 64, 0.05);
-  --shadow-float: 0 1px 2px rgba(20, 32, 64, 0.05), 0 8px 24px rgba(20, 32, 64, 0.06);
+  --color-divider: var(--dia-fio);
+  --color-shell-border: var(--dia-borda);
+  /* A largura da borda de superfície. Fica em 2px cravado enquanto a
+     coordenação não tem tema: apontar para `--sas-borda-l` agora faria a
+     borda encolher para 1px em quem tivesse escolhido "noite" na área do
+     aluno — a mesma armadilha do `data-tema` que o cabeçalho descreve, em
+     versão discreta. Passa a apontar no PR do tema escuro. */
+  --color-border-largura: 2px;
 
-  /* ── Raios ────────────────────────────────────────────────────────────
-     ⚠️ São QUATRO e o sistema tem três (18 em superfície, 12 em elemento
-     pequeno, 999 em pílula). A redução é do PR de superfície e forma. */
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 16px;
+  /* ── Raios · TRÊS valores ─────────────────────────────────────────────
+     Eram quatro (10, 14, 16, 18) e ninguém sabia qual usar. O sistema tem
+     três: 18 em superfície, 12 em elemento pequeno, 999 em pílula.
+
+     Os quatro NOMES continuam existindo e colapsam sobre três valores, de
+     propósito: renomear os 99 usos no mesmo commit em que a forma muda
+     tiraria a chance de ver o que a forma fez. Os nomes redundantes saem na
+     limpeza. */
+  --radius-sm: 12px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
   --radius-xl: 18px;
   --radius-pill: 999px;
 
