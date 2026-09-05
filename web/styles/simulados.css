@@ -284,3 +284,475 @@
   color: var(--sas-texto-2);
   font-size: 14px;
 }
+
+
+/* ─── A FICHA DE UMA PROVA ───────────────────────────────────────────────
+   `telas/SimuladoFicha/SimuladoFicha.tsx`, refeita na fase 3 do docs/39 a
+   partir da prancheta de Provas (telas `simulado`, `simulado-fora` e
+   `simulado-sem-notas`).
+
+   O defeito que este bloco existe para consertar: a ficha era UM card gigante
+   com seis `.section` empilhadas dentro, todas com o mesmo peso. A pergunta da
+   tela — "a prova estava boa?" — é respondida pela DISTRIBUIÇÃO, e a
+   distribuição tinha exatamente o mesmo tamanho, a mesma moldura e o mesmo
+   título das notas individuais, que são um anexo de centenas de linhas.
+
+   A hierarquia agora vem da SUPERFÍCIE, não do título: cada pergunta é um
+   card próprio, e o tamanho de cada card é o peso dela. Identidade sem
+   moldura → ressalva em moldura de régua → KPIs em cartões pequenos →
+   distribuição em card largo → duas quebras lado a lado → o anexo por último.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* ── Identidade ────────────────────────────────────────────────────────
+   Sem card: o título da tela não é conteúdo de uma seção, é a tela. O
+   chevron de 44px e o `<h1>` vêm de `CabecaDeCampo` (campo.css). */
+
+.prova-identidade {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prova-identidade__contexto {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  /* O chevron ocupa 44px + 14px de gap na linha de cima; alinhar por baixo
+     dele deixa a sobrancelha pendurada no vão do botão. */
+  padding-left: 58px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sas-texto-2);
+}
+
+@media (max-width: 700px) {
+  .prova-identidade__contexto {
+    padding-left: 0;
+  }
+}
+
+/* A prova anulada. Contorno, nunca preenchimento de alerta: a anulação é uma
+   CATEGORIA declarada, não uma falha operacional, e o vermelho está reservado
+   à etiqueta de distância e ao que quebrou (R4). O `.tag.tone-anulado` de
+   `edicao.css`, que pintava fundo em alerta, era o último resto do semáforo
+   nesta tela. */
+.prova-marca {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sas-texto);
+  white-space: nowrap;
+}
+
+
+/* ── As ações condicionais ─────────────────────────────────────────────
+   O problema: quatro botões que apareciam e sumiam na MESMA linha do título,
+   de modo que abrir duas provas seguidas dava duas barras de larguras
+   diferentes — e o "Editar simulado", que está sempre lá, mudava de lugar a
+   cada prova.
+
+   A separação resolve sem estado nenhum: a linha do título tem UM botão, o
+   fixo, e nunca dança. O que é condicional desce para uma faixa própria, uma
+   linha por condição, e cada linha CARREGA O MOTIVO escrito. Um botão que
+   aparece sozinho, sem dizer por que hoje ele existe, é a mesma pergunta que
+   o coordenador já não sabia responder. */
+
+.prova-condicoes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prova-condicao {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+.prova-condicao__motivo {
+  flex: 1;
+  min-width: 12rem;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sas-texto);
+}
+
+.prova-condicao__botao {
+  flex: none;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--sas-texto);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+}
+
+.prova-condicao__botao:hover:not(:disabled) {
+  background: var(--sas-superficie-2);
+  border-color: var(--sas-dado);
+}
+
+.prova-condicao__botao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* A ÚNICA condição que é falha operacional — o Canvas recusou. É o caso do
+   R4: alerta na moldura e na letra do botão, e em mais nada. */
+.prova-condicao--falha,
+.prova-condicao--falha .prova-condicao__botao {
+  border-color: var(--sas-alerta);
+}
+
+.prova-condicao--falha .prova-condicao__botao {
+  color: var(--sas-alerta-texto);
+}
+
+
+/* ── A ressalva: estado da tela inteira ────────────────────────────────
+   "Esta prova não entra nas médias, nos histogramas nem nos alertas" era um
+   parágrafo cinza de subtítulo, do tamanho de uma nota de rodapé. Quando ela
+   existe, é a informação mais importante da tela: sem lê-la o coordenador
+   compara esta prova com as outras e chega à conclusão errada.
+
+   A moldura é de RÉGUA (ouro) porque é disso que a frase fala — de qual
+   contagem esta prova está dentro ou fora (R2). É o mesmo ouro do traço de
+   corte no histograma abaixo, e a prancheta desenha os dois na mesma tela de
+   propósito: os dois falam do critério, e nada mais na tela usa ouro. */
+
+.prova-ressalva {
+  border: var(--sas-borda-l) solid var(--sas-valor);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--sas-valor) 8%, transparent);
+  padding: 18px 20px;
+}
+
+.prova-ressalva__olho {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--sas-valor-texto);
+}
+
+.prova-ressalva__frase {
+  margin: 12px 0 0;
+  max-width: 62ch;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--sas-magnitude);
+}
+
+/* A segunda metade, e ela não é decoração: a prova está fora das médias MAS
+   as notas individuais continuam valendo no histórico de cada aluno. Sem esta
+   linha a primeira lê como "apague esta prova da cabeça", e o aluno de 2023
+   perderia o histórico dele na leitura de quem decide (docs/32 §1.5, item 6). */
+.prova-ressalva__resto {
+  margin: 12px 0 0;
+  max-width: 62ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sas-texto);
+}
+
+
+/* ── Sem nota lançada ──────────────────────────────────────────────────
+   O estado mais frequente logo depois de uma aplicação, e o que estava pior:
+   cinco travessões numa fileira de KPIs, um histograma vazio e duas tabelas
+   dizendo "ainda não calculadas". Cinco buracos não são informação.
+
+   Mesma cura do ciclo sem provas (prancheta, tela `vazio`): os KPIs, o
+   gráfico e as tabelas SOMEM, e no lugar entra uma frase que diz o que
+   aconteceu, o que falta e por que a tela está assim. O desenho ao lado é o
+   histograma que existiria — vazado e tracejado, com a régua desenhada —,
+   para que a ausência tenha forma em vez de ser um vão branco. */
+
+.prova-vazio {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  padding: 26px 28px;
+}
+
+@media (max-width: 900px) {
+  .prova-vazio {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+  }
+}
+
+.prova-vazio__texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.prova-vazio__olho {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+.prova-vazio__titulo {
+  margin: 14px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--sas-magnitude);
+}
+
+.prova-vazio__frase {
+  margin: 12px 0 0;
+  max-width: 56ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sas-texto-2);
+}
+
+.prova-vazio__desenho {
+  flex: none;
+}
+
+
+/* ── Blocos de conteúdo ────────────────────────────────────────────────
+   Cada pergunta em um card, e o card diz de que pergunta se trata pelo OLHO —
+   10px em caixa alta, a marca tipográfica do sistema. Substitui o
+   `.section__title` de 16px que dava a uma tabela de anexo o mesmo peso da
+   distribuição. */
+
+.prova-bloco__cabeca {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--sas-borda);
+}
+
+.prova-bloco__olho {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+/* O olho da DISTRIBUIÇÃO é o único em DADO na tela: é a resposta à pergunta
+   que trouxe o coordenador aqui, e o azul é o papel do valor medido. Marcar
+   todos os olhos de azul seria o mesmo que não marcar nenhum (R7). */
+.prova-bloco__olho--dado {
+  color: var(--sas-dado);
+}
+
+.prova-bloco__dica {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sas-texto-2);
+}
+
+.prova-bloco__corpo {
+  padding: 18px 20px 20px;
+}
+
+/* A tabela vai até a borda do card: linha de tabela com respiro lateral
+   próprio vira uma segunda moldura dentro da primeira. */
+.prova-bloco__corpo--tabela {
+  padding: 0;
+}
+
+.prova-bloco__vazio {
+  padding: 18px 20px 20px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+
+/* ── A faixa de números ────────────────────────────────────────────────
+   Cinco KPIs em cartões próprios (`.kpi-grid--cartoes`, layout.css), e
+   embaixo a linha que a tabela de notas cobra: ausência não é zero. */
+
+.prova-aviso-ausencia {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sas-referencia);
+}
+
+
+/* ── As duas quebras, lado a lado ──────────────────────────────────────
+   Empilhadas em largura cheia elas custavam duas rolagens e liam como duas
+   perguntas grandes. São a mesma pergunta em dois recortes — "onde a prova
+   foi diferente?" — e ficam lado a lado. */
+
+.prova-quebras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .prova-quebras {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prova-quebra-tabela td:not(:first-child),
+.prova-quebra-tabela th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.prova-quebra-tabela tbody tr[data-navegavel='sim'] {
+  cursor: pointer;
+}
+
+
+/* ── O anexo: as notas individuais ─────────────────────────────────────
+   Três alvos de clique concorrentes moravam nesta linha — a linha inteira
+   navegava (sem nenhuma marca de que navegava), mais um "Ver →" e um
+   "Editar", e duas colunas de cabeçalho vazio para segurá-los.
+
+   Agora são DOIS, os dois nomeados na dica do cabeçalho: a linha abre o
+   aluno, a nota abre a edição. E a linha virou um `<Link>` de verdade — a
+   camada invisível é o `::after` dele, não um `onClick` num `<tr>` —, o que
+   devolve teclado, foco, botão do meio e "abrir em nova aba" de graça. */
+
+.prova-notas tbody tr {
+  /* O `::after` do elo cobre a linha inteira, e sem isto ele se ancoraria no
+     card. `position: relative` em `<tr>` é suportado em todos os motores
+     desde 2021. */
+  position: relative;
+}
+
+.prova-notas tbody td {
+  padding: 3px 20px;
+  height: 52px;
+}
+
+.prova-notas thead th {
+  padding: 12px 20px;
+}
+
+.prova-notas__elo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--sas-texto);
+  text-decoration: none;
+}
+
+.prova-notas__elo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.prova-notas tbody tr:hover .prova-notas__elo {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* O foco tem de aparecer na LINHA, não no texto: o alvo real é a linha
+   inteira, e um anel só em volta do nome mentiria sobre o tamanho do que vai
+   ser ativado. */
+.prova-notas__elo:focus-visible {
+  outline: none;
+}
+
+.prova-notas__elo:focus-visible::after {
+  outline: 2px solid var(--sas-dado-claro);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Sem foto de aluno em lugar nenhum — o SAS não guarda imagem de menor de
+   idade (CLAUDE.md, armadilha 6). A inicial dá à linha o mesmo ponto de
+   ancoragem visual sem armazenar nada. */
+.prova-notas__iniciais {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--sas-texto-2);
+}
+
+.prova-notas__acertos {
+  font-size: 13px;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.prova-notas__nota {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* O segundo alvo, e ele precisa passar POR CIMA da camada do elo — senão o
+   clique na nota abriria o aluno, que é o bug que a sobreposição costuma
+   trazer. 44px de altura no botão, com o chip de 26px centrado dentro. */
+.prova-notas__editar {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+
+.prova-notas__editar:focus-visible {
+  outline: 2px solid var(--sas-dado-claro);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* O aluno sem `alunoId` não tem ficha para abrir. Ele fica com a mesma
+   anatomia da linha navegável, sem o elo: um link que não navega é a promessa
+   quebrada mais barata de escrever e a mais cara de descobrir. */
+.prova-notas__sem-ficha {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--sas-texto-2);
+}

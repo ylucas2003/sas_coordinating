@@ -1,82 +1,80 @@
 import { useState } from 'react';
 
 import { AlertCard } from '../../componentes/ui/AlertCard';
-import { alertasDoRecorte, contarDecisoes } from '../../dominio/painel';
-import type { ClassificacaoPorAluno } from '../../dominio/painel';
 import { useAlertas } from '../../hooks/consultas';
-import { useResolverAlerta } from '../../hooks/mutacoes';
-import type { Aluno } from '../../tipos/dominio';
+import { useReabrirAlerta, useResolverAlerta } from '../../hooks/mutacoes';
 
-// A faixa de decisão — o que merece atenção hoje, acima da tabela.
+// A FAIXA DE DECISÃO — o que merece atenção hoje.
 //
 // É a promessa do CLAUDE.md ("sinaliza o que merece atenção em vez de esperar
-// que o coordenador saiba o que procurar") chegando à tela pela primeira vez.
-// O motor de 7 regras existe desde a Sprint 1, `GET /alertas` responde,
-// `useAlertas` está escrito e `AlertCard.tsx` estava lá, comentado como
-// "componente central do Painel" — **importado por ninguém**. O sino da topbar
-// apontava para `/painel#alertas`, âncora que não existia (docs/33 §0.2).
+// que o coordenador saiba o que procurar") e, desde a fase 2 do docs/39, é a
+// ÚNICA coisa do Painel que não é porta: os três cards acima são atalhos para
+// telas que existem noutro lugar; isto aqui não existe em lugar nenhum além
+// daqui. A assimetria é o desenho.
 //
-// ⚠️ A tabela FICA. Cartão é para decidir, tabela é para comparar, e a maioria
-// das telas de coordenação é de comparação — o Painel é a tela de varrer 900
-// pessoas, e cartão não compara 900 linhas (docs/25 §2). Esta faixa não
-// substitui nada; ela responde a pergunta que a tabela não responde.
+// ⚠️ ELA SIMPLIFICOU, e a simplificação é consequência da tabela ter mudado de
+// casa. Enquanto o Painel tinha faixa de filtros, a faixa respeitava o recorte
+// da tela — senão diria "3 alunos em queda" sobre uma tabela de uma turma só —
+// e era obrigada a avisar "+N fora do recorte atual", porque sumir com alerta
+// em silêncio é número errado sem parecer errado. Sem filtros não há recorte:
+// a faixa mostra tudo, e aquela linha de rodapé morreu junto com o motivo dela
+// existir.
+//
+// ⚠️ E "Resolver" virou uma das DUAS coisas que se pode fazer nesta tela — a
+// outra é entrar por uma porta. Antes era um botãozinho de texto no canto de
+// um cartão, numa tela com 900 linhas editáveis embaixo. Resolver faz o alerta
+// SUMIR, sem motivo e sem registro visível; por isso agora vem com desfazer à
+// mão, enquanto a pessoa ainda está olhando.
 
 /** Quantos cartões cabem antes de a faixa virar uma segunda tabela. */
 const VISIVEIS_POR_PADRAO = 3;
 
 export function FaixaDecisao({
-  alunosNoRecorte,
-  classificacao,
-  recorteAtivo,
+  cortados,
   nomeCriterio,
+  corte,
 }: {
-  /** Os alunos que a tabela abaixo está mostrando — sede, turma e busca já aplicados. */
-  alunosNoRecorte: readonly Aluno[];
-  classificacao: ClassificacaoPorAluno;
-  recorteAtivo: boolean;
+  /** Quantos alunos estão abaixo do corte no ciclo em foco. `null` = não sei. */
+  cortados: number | null;
   nomeCriterio: string | null;
+  /** O corte majoritário da régua em vigor, para a sparkline dos cartões (R2). */
+  corte?: number;
 }) {
   const { data: alertas = [] } = useAlertas();
   const resolver = useResolverAlerta();
+  const reabrir = useReabrirAlerta();
   const [verTodos, setVerTodos] = useState(false);
+  // O último resolvido, para o desfazer. Um só: desfazer é o gesto de quem
+  // errou o clique agora, não um histórico — para histórico existe a auditoria.
+  const [desfazivel, setDesfazivel] = useState<{ id: string; titulo: string } | null>(null);
 
-  const contagem = contarDecisoes(alunosNoRecorte, classificacao);
-  // Os NÚMEROS desta faixa subiram para a fileira de KPIs: eles e os KPIs
-  // diziam a mesma coisa em duas alturas, e o olho passava por quatro estratos
-  // antes de chegar à tabela. O que sobra aqui é o que a tabela não responde —
-  // os cartões de alerta. A contagem continua sendo lida para decidir se há
-  // algo a mostrar.
-  const { visiveis, ocultos } = alertasDoRecorte(alertas, alunosNoRecorte, recorteAtivo);
-  const mostrados = verTodos ? visiveis : visiveis.slice(0, VISIVEIS_POR_PADRAO);
-
-  const semNada = contagem.cortados === 0 && contagem.noLimite === 0 && visiveis.length === 0;
+  const mostrados = verTodos ? alertas : alertas.slice(0, VISIVEIS_POR_PADRAO);
 
   return (
-    // A âncora que o sino da topbar promete há tempo.
+    // A âncora que o sino da topbar prometia. O sino saiu na fase 1 — ele
+    // apontava para cá, e "cá" virou praticamente a tela inteira.
     <section className="faixa-decisao" id="alertas">
       <div className="faixa-decisao__topo">
         <h2 className="faixa-decisao__titulo">O que merece atenção</h2>
         {nomeCriterio && <span className="faixa-decisao__regua">{`régua: ${nomeCriterio}`}</span>}
       </div>
 
-      {/* ⚠️ A condição é sobre haver ALERTA, não sobre haver problema.
-          Enquanto os números de cortados viviam aqui, eles preenchiam o
-          cartão e o caso "há cortados mas nenhum alerta" nunca aparecia
-          vazio. Quando os números subiram para os KPIs, esse caso virou uma
-          caixa pálida sem nada dentro — que é como a tela estava em
-          05/09/2026, com 156 cortados e zero alertas.
-
-          Um cartão vazio não é neutro: ele diz "aqui deveria ter algo" e
-          quebra a leitura da tela inteira. */}
-      {visiveis.length === 0 ? (
+      {/* ⚠️ A condição é sobre haver ALERTA, não sobre haver problema. Com a
+          tabela embaixo, o caso "há cortados e nenhum alerta" nunca aparecia
+          vazio. Sem ela, esta frase passa a ser o rodapé da tela — e caixa
+          pálida vazia diz "aqui deveria ter algo" e quebra a leitura inteira.
+          Aconteceu de verdade: um dia com 156 cortados e zero alertas. */}
+      {alertas.length === 0 ? (
         <p className="faixa-decisao__vazio">
-          {semNada
-            ? 'Nada exigindo ação neste recorte. A tabela abaixo continua sendo o lugar de comparar.'
-            : `Nenhum alerta aberto neste recorte. ${
-                contagem.cortados === 1
-                  ? 'O aluno abaixo do corte está'
-                  : `Os ${contagem.cortados} alunos abaixo do corte estão`
-              } na tabela, ordenados pelo pior.`}
+          {cortados == null
+            ? 'Nada exigindo ação agora.'
+            : cortados === 0
+              ? 'Nada exigindo ação agora, e ninguém abaixo do corte no ciclo em andamento.'
+              : `Nenhum alerta aberto. ${
+                  cortados === 1
+                    ? 'O aluno abaixo do corte está'
+                    : `Os ${cortados} alunos abaixo do corte estão`
+                } na tabela do ciclo, ordenados pelo pior.`}
         </p>
       ) : (
         <div className="faixa-decisao__alertas">
@@ -84,31 +82,46 @@ export function FaixaDecisao({
             <AlertCard
               key={a.id}
               alerta={a}
-              onResolver={() => resolver.mutate(a.id)}
+              corte={corte}
+              onResolver={() => {
+                resolver.mutate(a.id);
+                setDesfazivel({ id: a.id, titulo: a.titulo });
+              }}
             />
           ))}
         </div>
       )}
 
-      <div className="faixa-decisao__rodape">
-        {visiveis.length > VISIVEIS_POR_PADRAO && (
-          <button className="faixa-decisao__mais" onClick={() => setVerTodos((v) => !v)}>
-            {verTodos
-              ? 'Mostrar menos'
-              : `Ver os outros ${visiveis.length - VISIVEIS_POR_PADRAO}`}
-          </button>
-        )}
-        {/* ⚠️ Nunca esconder em silêncio. A faixa respeita o recorte da tela —
-            senão diria "3 alunos em queda" sobre uma tabela de uma turma só —,
-            mas some com alerta sem avisar seria a armadilha 2 do CLAUDE.md
-            noutra roupa: número errado sem parecer errado. */}
-        {ocultos > 0 && (
-          <span className="faixa-decisao__ocultos">
-            {`+${ocultos} fora do recorte atual`}
+      {desfazivel && (
+        <div className="faixa-decisao__desfazer" role="status">
+          <span className="faixa-decisao__desfazer-texto">
+            {`"${desfazivel.titulo}" saiu da lista.`}
           </span>
-        )}
-      </div>
+          <button
+            type="button"
+            className="faixa-decisao__desfazer-botao"
+            disabled={reabrir.isPending}
+            onClick={() => {
+              reabrir.mutate(desfazivel.id);
+              setDesfazivel(null);
+            }}
+          >
+            Desfazer
+          </button>
+        </div>
+      )}
+
+      {alertas.length > VISIVEIS_POR_PADRAO && (
+        <div className="faixa-decisao__rodape">
+          <button
+            type="button"
+            className="faixa-decisao__mais"
+            onClick={() => setVerTodos((v) => !v)}
+          >
+            {verTodos ? 'Mostrar menos' : `Ver os outros ${alertas.length - VISIVEIS_POR_PADRAO}`}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
-

@@ -7,6 +7,15 @@ export interface Mudanca {
   campo: string;
   de: string;
   para: string;
+  /**
+   * O que a mudança FAZ, em três ou quatro palavras: "passa do corte", "sai da
+   * média". Opcional porque nem toda mudança tem efeito que se possa afirmar —
+   * sem régua resolvida a linha fica sem ele, em vez de ganhar um palpite.
+   *
+   * É a metade que faltava no diff: "14 → 12" não diz nada a quem não guarda
+   * de cabeça o corte daquela matéria (a prancheta do diálogo de nota).
+   */
+  efeito?: string;
 }
 
 /**
@@ -78,6 +87,7 @@ export function DialogoComDiff({
                   <span className="dialog__diff-de">{m.de}</span>
                   <span className="dialog__diff-seta"> → </span>
                   <span className="dialog__diff-para">{m.para}</span>
+                  {m.efeito && <span className="dialog__diff-efeito">{m.efeito}</span>}
                 </div>
               ))}
             </div>

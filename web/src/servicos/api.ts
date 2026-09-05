@@ -52,6 +52,9 @@ export const login = (corpo: { tipo: string; usuario: string; senha: string }) =
 
 export const listarAlertas = () => get<Alerta[]>('/alertas');
 export const resolverAlerta = (id: string) => post<unknown>(`/alertas/${enc(id)}/resolver`);
+/** O desfazer do cartão resolvido (docs/39 §3, fase 1). Não cria alerta novo:
+    reabre a MESMA linha e limpa a hora do resolver. */
+export const reabrirAlerta = (id: string) => post<unknown>(`/alertas/${enc(id)}/reabrir`);
 
 // ─── Alunos (visão da coordenação) ───────────────────────────────────────
 

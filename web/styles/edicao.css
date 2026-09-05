@@ -200,6 +200,14 @@
   font-weight: 500;
 }
 
+/* O efeito da mudança, empurrado para a direita da linha: ele é a única parte
+   do diff que não é número, e lê como legenda do par que está à esquerda. */
+.dialog__diff-efeito {
+  margin-left: auto;
+  color: var(--sas-texto-2);
+  font-size: 12px;
+}
+
 /* ─── Footer ──────────────────────────────────────────────────────────── */
 
 .dialog__footer {

@@ -83,6 +83,26 @@ export function useResolverAlerta() {
   });
 }
 
+/**
+ * Reabre o alerta que acabou de ser resolvido — o desfazer do `AlertCard`
+ * (docs/39 §3, fase 1).
+ *
+ * Resolver era a única ação do Painel sem volta, e passava porque havia 900
+ * linhas editáveis ao lado; no Painel novo sobram duas ações, e uma delas
+ * precisava de arrependimento.
+ *
+ * Invalida SÓ `chaves.alertas`, e não tudo, pelo mesmo motivo do resolver: o
+ * que muda é a faixa de alertas — nenhuma nota, nenhuma estatística, nenhum
+ * KPI depende de um alerta estar aberto ou fechado.
+ */
+export function useReabrirAlerta() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.reabrirAlerta(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: chaves.alertas }),
+  });
+}
+
 // ─── Administração ───────────────────────────────────────────────────────
 
 function invalidarAdministracao(queryClient: ReturnType<typeof useQueryClient>) {

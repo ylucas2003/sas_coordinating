@@ -1,12 +1,13 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 
 import { AppShell } from './componentes/layout/AppShell';
 import { Alunos } from './telas/Alunos/Alunos';
 import { Provas } from './telas/Provas/Provas';
+import { Ciclos } from './telas/Ciclos/Ciclos';
+import { Simulados } from './telas/Simulados/Simulados';
 import { SimuladoFicha } from './telas/SimuladoFicha/SimuladoFicha';
 import { CicloFicha } from './telas/CicloFicha/CicloFicha';
 import { CicloCalibracao } from './telas/CicloFicha/CicloCalibracao';
-import { CicloRegua } from './telas/CicloFicha/CicloRegua';
 import { CicloComparacao } from './telas/CicloFicha/CicloComparacao';
 import { AlunoFicha } from './telas/AlunoFicha/AlunoFicha';
 import { CascoAluno } from './telas/Aluno/CascoAluno';
@@ -83,18 +84,27 @@ function AppCoordenacao() {
         <Route path="/painel" element={<Painel />} />
         <Route path="/alunos" element={<Alunos />} />
         <Route path="/alunos/:id" element={<AlunoFicha />} />
+        {/* PROVAS — hub e as duas listas.
+
+            As abas (`?aba=simulados`) viraram três endereços: cada lista é
+            tela inteira com URL própria (C3, docs/39 fase 3). O hub em si
+            traduz o `?aba=` antigo, porque o roteador não casa query string.
+
+            Os caminhos antigos seguem valendo — estão em link salvo e em
+            e-mail de lembrete, e removê-los é proibição registrada no
+            `web/CLAUDE.md`. */}
         <Route path="/provas" element={<Provas />} />
-        {/* As listagens viraram abas de /provas. Os caminhos antigos seguem
-            valendo porque estão em link salvo e em e-mail de lembrete. */}
-        <Route path="/simulados" element={<Navigate to="/provas?aba=simulados" replace />} />
+        <Route path="/provas/ciclos" element={<Ciclos />} />
+        <Route path="/provas/simulados" element={<Simulados />} />
+        <Route path="/simulados" element={<Navigate to="/provas/simulados" replace />} />
         <Route path="/simulados/:id" element={<SimuladoFicha />} />
-        <Route path="/ciclos" element={<Navigate to="/provas" replace />} />
-        {/* A ficha de ciclo virou entrada + três campos (C3: cada destino é
-            tela inteira, com URL própria). `/ciclos/:id` continua sendo a
-            entrada, então nenhum link salvo quebra. */}
+        <Route path="/ciclos" element={<Navigate to="/provas/ciclos" replace />} />
+        {/* A ficha de ciclo virou entrada + campos (C3: cada destino é tela
+            inteira, com URL própria). `/ciclos/:id` continua sendo a entrada,
+            então nenhum link salvo quebra. */}
         <Route path="/ciclos/:id" element={<CicloFicha />} />
         <Route path="/ciclos/:id/calibracao" element={<CicloCalibracao />} />
-        <Route path="/ciclos/:id/regua" element={<CicloRegua />} />
+        <Route path="/ciclos/:id/regua" element={<ReguaAbsorvidaPelaFicha />} />
         <Route path="/ciclos/:id/comparacao" element={<CicloComparacao />} />
         <Route path="/importar" element={<Importar />} />
         <Route path="/banco/*" element={<Banco perfil="coordenacao" />} />
@@ -124,6 +134,21 @@ function AppCoordenacao() {
       <LembreteFotoPerfil />
     </AppShell>
   );
+}
+
+/**
+ * `/ciclos/:id/regua` SOME — a tabela dela foi absorvida pela ficha do ciclo
+ * (docs/39 fase 3), com as colunas Situação e Distância junto, que são a única
+ * explicação de corte do produto.
+ *
+ * Redireciona em vez de dar 404 porque quem tem o link salvo quer a resposta,
+ * não a tela: ele cai onde a pergunta passou a ser respondida. `<Navigate>`
+ * puro não serve — ele não interpola `:id`, e o parâmetro é justamente o que
+ * não se pode perder no caminho.
+ */
+function ReguaAbsorvidaPelaFicha() {
+  const { id } = useParams();
+  return <Navigate to={`/ciclos/${id}`} replace />;
 }
 
 /**

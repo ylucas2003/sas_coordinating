@@ -1,0 +1,326 @@
+/* ─── Provas — o hub de duas portas e as duas listas ─────────────────────
+   A fase 3 do docs/39. As abas `?aba=simulados` viraram um hub com URL
+   própria para cada lista (C3), e estas classes são o que o padrão de campo
+   (`campo.css`) não cobre.
+
+   Por que não reusei `.campo-cartao`: o card de campo tem UMA linha de dado
+   vivo, e a porta do hub tem duas coisas em níveis diferentes — o NOME, que é
+   decisão do dono do produto ("Ciclos completos", "Provas específicas"), e a
+   PERGUNTA que a leitura responde ("Como o grupo está fechando?"). É a
+   pergunta que faz esta tela deixar de ser menu de instalador: sem ela restam
+   dois retângulos com dois substantivos, e o coordenador escolhe por
+   eliminação em vez de por intenção.
+
+   ⚠️ Esta folha é importada pelas TELAS, não por `main.tsx` como as outras —
+   ver o comentário no topo de `telas/Provas/Provas.tsx`. Nada aqui redefine
+   classe de outra folha, então a ordem no bundle não muda desenho nenhum.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* ── O hub ───────────────────────────────────────────────────────────────
+   Coluna alinhada à esquerda, com teto de 1000px. Não é centralizada de
+   propósito: dois retângulos no meio de 1440px leem como menu de instalador,
+   e o que ancora a tela é o bloco de texto acima deles — ele diz o critério
+   da bifurcação antes de a pessoa ter de escolher.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.provas-hub {
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  max-width: 1000px;
+}
+
+.provas-hub__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Medida de leitura: a frase do critério é para ser LIDA, não varrida. */
+  max-width: 560px;
+}
+
+.provas-hub__olho {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--sas-texto-2);
+}
+
+.provas-hub__titulo {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--sas-magnitude);
+}
+
+.provas-hub__linha {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--sas-texto-2);
+}
+
+.provas-hub__portas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 26px;
+}
+
+.provas-porta {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 296px;
+  padding: 30px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 150ms, transform 80ms ease-out;
+}
+
+.provas-porta:hover {
+  border-color: var(--sas-dado);
+  text-decoration: none;
+}
+
+/* Os mesmos 2px do card de campo: um bloco deste tamanho descendo os 3px da
+   tecla do botão primário parece solto. */
+.provas-porta:active {
+  transform: translateY(2px);
+}
+
+.provas-porta__olho {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--sas-texto-2);
+}
+
+.provas-porta__nome {
+  display: block;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.06;
+  color: var(--sas-magnitude);
+}
+
+/* A pergunta é o único azul da porta, e é ele que carrega a decisão: DADO é
+   a cor do que se vai medir (R3/R7), e a pergunta nomeia a medida. */
+.provas-porta__pergunta {
+  display: block;
+  margin-top: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--sas-dado);
+}
+
+.provas-porta__sub {
+  display: block;
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Carregando: esqueleto, nunca um número chutado — o mesmo raciocínio de
+   `.campo-cartao__esqueleto`. Duas barras porque o subtítulo do hub tem duas
+   linhas na largura da porta, e a grade não pode pular quando o dado chega. */
+.provas-porta__esqueleto {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.provas-porta__esqueleto span {
+  height: 12px;
+  border-radius: 4px;
+  background: var(--sas-referencia-fraca);
+}
+
+.provas-porta__esqueleto span:first-child { width: 72%; }
+.provas-porta__esqueleto span:last-child { width: 48%; }
+
+.provas-porta__glifo {
+  flex: none;
+  align-self: flex-end;
+  margin-top: auto;
+  color: var(--sas-dado);
+}
+
+.provas-hub__rodape {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  flex-wrap: wrap;
+  /* Sem borda nem fundo: é rodapé de leitura, não uma terceira porta. */
+  min-height: 22px;
+}
+
+/* A 900px as duas portas empilham. Abaixo disso elas ficariam com 27px de
+   nome em 200px de largura, e o nome quebraria em três linhas. */
+@media (max-width: 900px) {
+  .provas-hub__portas {
+    grid-template-columns: 1fr;
+  }
+
+  .provas-porta {
+    min-height: 0;
+    padding: 22px;
+  }
+
+  .provas-porta__nome {
+    font-size: 23px;
+  }
+
+  .provas-porta__glifo {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* ── As duas listas ──────────────────────────────────────────────────────
+   Cabeça de campo (chevron de 44px na mesma linha do título, C4) mais uma
+   linha de contagem. A contagem não voltou a ser `.tela-subtitulo` porque
+   ali ela ficava a 15px, do tamanho de uma frase — e ela é um número de
+   recorte, que se lê de relance e some da atenção.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.provas-lista__contagem {
+  margin: -8px 0 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A pílula de contorno da coluna Vestibular.
+
+   ⚠️ Era `.tag.tone-navy`, e o preenchimento azul de uma célula quebrava R4:
+   cor de dado numa etiqueta de categoria compete com o número medido da linha
+   ao lado. ITA e IME não são medida — são de qual acervo a linha é. */
+.provas-pilula {
+  display: inline-block;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--sas-texto);
+  white-space: nowrap;
+}
+
+/* O estado do ciclo em palavras, sob o nome: "em andamento · fecha em 6
+   dias". É a coluna que a lista não tinha e que respondia sozinha por que
+   aquele ciclo importa hoje. */
+.provas-linha__estado {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
+/* A linha do ciclo aberto ganha REALCE — que é fundo de "onde você está", não
+   de bom ou ruim (R4). É o mesmo papel que marca a linha ativa no Painel. */
+.provas-linha--em-andamento > td {
+  background: var(--sas-realce);
+}
+
+/* ── As agendadas ────────────────────────────────────────────────────────
+   Prova agendada e prova aplicada são conjuntos de NATUREZA diferente: a
+   agendada não tem média, mediana, desvio nem n porque ainda não aconteceu.
+   Misturá-las deixaria quatro colunas vazias em algumas linhas e a tela
+   pareceria quebrada (docs/11 §6).
+
+   O contorno é TRACEJADO pela mesma razão do card inerte: promessa, não
+   registro. E o bloco fica ACIMA da tabela porque o que ainda vai acontecer é
+   o que se pode mudar.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.provas-agendadas {
+  border: 1px dashed var(--sas-fio-forte);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+
+.provas-agendadas__cabeca {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.provas-agendadas__olho {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: var(--sas-texto-2);
+}
+
+/* A ressalva que impede a leitura errada: as quatro colunas de estatística
+   não estão faltando, elas não existem ainda. */
+.provas-agendadas__nota {
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
+/* Zero agendadas é o normal na maior parte do ano, e por isso o bloco inteiro
+   colapsa numa linha — some a caixa, fica a frase. Sumir de vez apagaria a
+   diferença entre "nada marcado" e "este produto não marca prova", que é
+   justamente o que um coordenador novo precisa saber. */
+.provas-agendadas--vazio {
+  border: none;
+  padding: 0;
+}
+
+.provas-agendadas--vazio .provas-agendadas__olho {
+  flex: none;
+}
+
+/* ── O calendário ────────────────────────────────────────────────────────
+   Ele começa fechado e o botão que o abre vive na cabeça da tela, junto das
+   outras ações — não como um link solto acima da tabela, onde parecia parte
+   do recorte.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.provas-acao {
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 15px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--sas-texto);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  transition: border-color 150ms, background 150ms;
+}
+
+.provas-acao:hover {
+  border-color: var(--sas-dado);
+  background: var(--sas-superficie-2);
+}
+
+.provas-acao svg {
+  flex: none;
+  color: var(--sas-dado);
+}

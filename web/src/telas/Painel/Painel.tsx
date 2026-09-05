@@ -1,694 +1,407 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 
-import { Kpi } from '../../componentes/ui/Kpi';
-import { EdicaoCriterio } from '../../componentes/dialogos/EdicaoCriterio';
-import { SeletorCriterio } from '../../componentes/ui/SeletorCriterio';
-import { BarraFiltros, Busca, Pills, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
-import { CartaoDeEntrada } from '../../componentes/ui/Campo';
-import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
-import {
-  RECORTE_VAZIO, cicloPadrao, ciclosNoRecorte, contagensDoRecorte, recorteCompleto, rotuloDoCiclo,
-} from '../../dominio/painelFiltros';
-import type { RecortePainel } from '../../dominio/painelFiltros';
-import { FichaNota } from '../../componentes/dialogos/FichaNota';
-import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
-import { FaixaDecisao } from './FaixaDecisao';
-import { TabelaPainel } from './TabelaPainel';
-import {
-  contarDecisoes, estatisticasDoSimulado, montarPainel, nomeSede, normMateria,
-} from '../../dominio/painel';
-import {
-  useAlertas, useAlunos, useCiclos, useClassificacaoCiclo, useCriteriosDisponiveis,
-  useNotasDoCiclo, useSedes, useSimulados, useTurmas,
-} from '../../hooks/consultas';
-import { useEditarNota } from '../../hooks/mutacoes';
+import { CartaoDeCampo } from '../../componentes/ui/Campo';
 import { useRecorteDaTela } from '../../componentes/layout/migalhas';
+import { dataLocal, isoDoDia } from '../../dominio/cantina';
+import { corteDaMateria } from '../../dominio/criterios';
+import { cicloPadrao, ciclosNoRecorte, recorteCompleto } from '../../dominio/painelFiltros';
+import { useCalendarioNaCoordenacao } from '../../hooks/cantina';
+import { useCiclos, useClassificacaoCiclo, useSimulados } from '../../hooks/consultas';
 import { fmtNota } from '../../util/formato';
-import type { OrdenacaoPainel } from '../../dominio/painel';
-import type { AlunoClassificado, CriterioClassificacao } from '../../tipos/dominio';
+import { FaixaDecisao } from './FaixaDecisao';
+import type { DiaDoCalendario } from '../../tipos/cantina';
+import type { Ciclo, Simulado } from '../../tipos/dominio';
 
-// Painel — a tabela alunos × matérias/fases de um ciclo.
+// O PAINEL — três portas e uma coisa que só ele faz.
 //
-// A lógica de colunas, médias e ranking vive em `dominio/painel.ts`; aqui fica
-// só o estado da tela (ciclo, filtros, busca, ordenação) e o desenho.
+// `/` cai aqui, rota desconhecida cai aqui, e é a primeira tela que dois ou
+// três coordenadores veem toda manhã. O trabalho da fase 2 do docs/39 foi
+// quase todo SUBTRAÇÃO: a tela empilhava seis estratos e cinco saíram.
+//
+//   a TABELA        mudou de casa para `telas/CicloFicha/TabelaDoCiclo.tsx`.
+//                   Ela sempre foi de UM ciclo, e a primeira coisa que se
+//                   fazia aqui era escolher esse ciclo numa faixa de filtros —
+//                   a tela pedia um contexto que a URL sabe dar.
+//   a FAIXA DE      ano · vestibular · ciclo · sede · turma · busca. O filtro
+//   FILTROS         de ciclo existia para escolher o alvo da tabela; sem
+//                   tabela não há alvo. Sede e turma iriam só recortar os
+//                   alertas, e home com barra de filtro deixa de ser home e
+//                   vira dashboard.
+//   os 4 KPIs       todos os quatro eram sobre o ciclo, e o card do ciclo já
+//                   os carrega. Sobrou UMA magnitude, dentro dele.
+//   o TÍTULO        "Panorama geral" repetia a migalha da topbar, que desde a
+//                   fase 1 é o título da tela (`Topbar.tsx`).
+//   "QUEM MUDOU     apontava para `/painel#alertas`, que é esta tela. Era
+//   DE ZONA?"       circular, e a faixa de alertas logo abaixo responde — é o
+//                   alerta `ZONA_TRANSICAO`.
+//
+// ⚠️ A ASSIMETRIA É O DESENHO. Os três cards são ATALHOS para telas que
+// existem noutro lugar; a faixa de alertas é a única coisa do produto que só
+// existe aqui. Não tente equilibrar os dois lados: cards em cima porque coisa
+// previsível se aprende onde fica, alertas embaixo e abertos porque coisa
+// episódica precisa estar onde o olho cai.
+//
+// O que a subtração comprou de graça: a home deixou de baixar 900 alunos, as
+// turmas, as sedes e as notas do ciclo inteiro. Sobraram quatro consultas, e
+// nenhuma delas tem linha por aluno.
 
-/** O resumo da ordenação para a faixa colapsada — curto, mas ainda nomeando. */
-const ROTULO_ORDEM_CURTO: Record<OrdenacaoPainel, string> = {
-  distancia: 'pior primeiro',
-  ranking: 'ranking',
-  alfabetica: 'A–Z',
-};
+/**
+ * A régua desta tela, fixa.
+ *
+ * O seletor de régua era da faixa de filtros e foi com ela — quem quer ver a
+ * mesma turma sob o edital do ITA vai à ficha do ciclo, onde a régua é do
+ * cabeçalho. Aqui fica a pedagógica do colégio, e a faixa de alertas a NOMEIA
+ * (R2): régua não declarada é a pior fonte de engano do produto.
+ */
+const REGUA_DO_PAINEL = 'tio-leo';
+
+/**
+ * A partir de quantos dias sem prova nova o atalho passa a confessar a idade.
+ *
+ * Um ciclo aplica prova toda semana; três semanas sem nenhuma ainda é recesso
+ * ou emenda de feriado. Um mês não é — é janeiro, ou a semana depois de um
+ * ciclo fechar, e aí o card mostra o número de julho como se fosse o de hoje.
+ * A prancheta desenha o normal com 22 dias de idade e sem ressalva nenhuma,
+ * então o limite tem de ser maior que isso.
+ */
+const DIAS_ATE_ENVELHECER = 28;
+
+/** O `<path>` do glifo do card de simulado — barras, 44px em traço fino. */
+const GLIFO_SIMULADO = <path d="M14 52V30M26 52V18M38 52V36M50 52V24M10 58h50" />;
+
+/** O glifo do card da cantina — talher e prato. */
+const GLIFO_CANTINA = <path d="M18 14h34M22 14v10a13 13 0 0 0 26 0V14M35 37v19M12 60h46" />;
+
+/**
+ * Dias inteiros desde a época, a partir de um ISO `YYYY-MM-DD`.
+ *
+ * Passa por `Date.UTC` com os três números já separados, e não por
+ * `new Date(iso)`: a segunda forma lê a string como meia-noite UTC e devolve o
+ * dia anterior em todo fuso negativo — o Brasil inteiro. É a mesma armadilha
+ * que `dominio/cantina.ts::dataLocal` documenta, e ela apareceria aqui como
+ * "a prova de hoje foi aplicada ontem".
+ */
+function emDias(iso: string): number {
+  const [ano, mes, dia] = iso.slice(0, 10).split('-').map(Number);
+  return Math.floor(Date.UTC(ano, mes - 1, dia) / 86_400_000);
+}
+
+/** `2026-08-14` → `14/08`. Fatia a string, sem passar por `Date` nenhum. */
+function dataCurta(iso: string): string {
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+}
+
+/**
+ * "há 7 semanas" — a idade dita na escala em que ela importa.
+ *
+ * Dia enquanto o número de dias ainda diz algo; semana quando ele deixa de
+ * dizer (ninguém lê "há 49 dias"); mês quando nem a semana diz.
+ */
+function haQuanto(iso: string, hoje: string): string {
+  const dias = emDias(hoje) - emDias(iso);
+  if (dias <= 0) return 'hoje';
+  if (dias === 1) return 'ontem';
+  if (dias < 14) return `há ${dias} dias`;
+  if (dias < 60) return `há ${Math.round(dias / 7)} semanas`;
+  return `há ${Math.round(dias / 30)} meses`;
+}
+
+/**
+ * "Ciclo 4 · ITA · 2026".
+ *
+ * ⚠️ Monta-se das colunas estruturadas, e não de `ciclo.nome`, porque o
+ * subtítulo tem uma obrigação: NOMEAR O VESTIBULAR. ITA e IME correm em
+ * paralelo, o card mostra um só, e sem essa palavra metade do colégio olha o
+ * número achando que é o dela. O `nome` hoje nasce exatamente assim
+ * (`api/app/routes/ciclos.py`), mas ciclo antigo veio do Canvas com o nome que
+ * estivesse na planilha — e aí a garantia se perde em silêncio.
+ */
+function identidadeDoCiclo(ciclo: Ciclo): string {
+  const partes = [ciclo.ordem ? `Ciclo ${ciclo.ordem}` : ciclo.nome];
+  if (ciclo.vestibularAlvo) partes.push(ciclo.vestibularAlvo);
+  if (ciclo.anoLetivo) partes.push(String(ciclo.anoLetivo));
+  return partes.join(' · ');
+}
+
+/** "Física · P8", ou o nome do Canvas quando a prova não tem matéria nem rótulo. */
+function nomeDaProva(prova: Simulado): string {
+  const partes = [prova.materia?.nome, prova.rotuloCurto].filter(Boolean);
+  return partes.length ? partes.join(' · ') : prova.nome;
+}
+
+/**
+ * Quantos pediram — e `null` quando a pergunta não se aplica.
+ *
+ * Rascunho e "sem cardápio" não têm contagem: o aluno nem viu o cardápio, e
+ * zero ali seria "ninguém quis", que é outra coisa.
+ */
+function pedidosDaRefeicao(dia: DiaDoCalendario | null): number | null {
+  if (!dia) return null;
+  return dia.estado === 'aberto' || dia.estado === 'fechado' ? dia.pedidos : null;
+}
+
+/** O que uma refeição tem a dizer no subtítulo do card. `null` = nada. */
+function fraseDaRefeicao(dia: DiaDoCalendario | null, rotulo: string): string | null {
+  // Sem cardápio o card CALA. "Cardápio não lançado" é a pergunta do card da
+  // Administração ("o que foi lançado?"), e os dois cards de cantina só se
+  // justificam enquanto os subtítulos disserem coisas diferentes.
+  if (!dia || dia.estado === 'sem-cardapio') return null;
+  if (dia.estado === 'sem-refeicao') return `sem ${rotulo} hoje`;
+  if (dia.estado === 'rascunho') return `${rotulo} em rascunho`;
+  return `${rotulo} ${dia.pedidos} pedidos`;
+}
 
 export function Painel() {
-  const { data: ciclos = [] } = useCiclos();
-  const { data: alunos = [] } = useAlunos();
-  const { data: simulados = [] } = useSimulados();
-  // Só para a faixa de entrada; a faixa de decisão faz a própria consulta, e
-  // o react-query compartilha o cache — não é uma segunda requisição.
-  const { data: alertas = [] } = useAlertas();
-  const { data: sedes = [] } = useSedes();
-  const { data: turmas = [] } = useTurmas();
+  // O dia, recalculado a cada render de propósito: a aba fica aberta a manhã
+  // inteira, e congelar `hoje` num `useMemo(…, [])` faria a virada da
+  // meia-noite passar sem a tela perceber.
+  const hoje = isoDoDia(new Date());
 
-  const [cicloId, setCicloId] = useState<string | null>(null);
-  // Ano e vestibular estreitam a fileira de ciclos, e nascem com TUDO marcado
-  // (decisão do Yan, 03/09) — o recorte inteiro é o estado neutro.
-  const [recorte, setRecorte] = useState<RecortePainel>(RECORTE_VAZIO);
-  const [sedeIds, setSedeIds] = useState<ReadonlySet<string>>(new Set());
-  const [turmaIds, setTurmaIds] = useState<ReadonlySet<string>>(new Set());
-  const [busca, setBusca] = useState('');
-  // R6 · a tabela ABRE pela distância do corte, ascendente — o pior primeiro.
-  // É o que substitui a cor como mecanismo de varredura, e é por isso que ele
-  // é o padrão e não mais uma opção na lista.
-  const [ordenacao, setOrdenacao] = useState<OrdenacaoPainel>('distancia');
-  const [fase, setFase] = useState<'1' | '2'>('1');
-  // A régua do corte. 'tio-leo' é a pedagógica do colégio; ITA/IME seguem o edital.
-  const [criterio, setCriterio] = useState('tio-leo');
-  const [recolhidos, setRecolhidos] = useState<ReadonlySet<number>>(new Set());
-  const [emEdicao, setEmEdicao] = useState<{ alunoId: string; simuladoId: string } | null>(null);
-  const [erroSalvar, setErroSalvar] = useState('');
-  const [criandoRegua, setCriandoRegua] = useState(false);
+  const { data: ciclos = [], isPending: carregandoCiclos, isError: erroCiclos } = useCiclos();
+  const { data: simulados = [], isPending: carregandoSimulados } = useSimulados();
 
-  const editarNota = useEditarNota();
-
-  // Semeia UMA vez, quando os ciclos chegam. Semear a cada render desfaria o
-  // que o coordenador acabou de desmarcar.
-  const jaSemeou = useRef(false);
-  useEffect(() => {
-    if (jaSemeou.current || ciclos.length === 0) return;
-    jaSemeou.current = true;
-    setRecorte(recorteCompleto(ciclos));
-  }, [ciclos]);
-
-  const todasAsOpcoes = useMemo(() => recorteCompleto(ciclos), [ciclos]);
-  const anosOrdenados = useMemo(
-    () => [...todasAsOpcoes.anos].sort((a, b) => b - a),
-    [todasAsOpcoes],
+  // A fileira de ciclos sumiu, mas a ORDENAÇÃO dela não podia sumir junto: o
+  // último recurso de `cicloPadrao` é `ciclos[0]`, e a API ordena só por
+  // `ordem` — três ciclos empatam em `ordem = 1` e qual deles vem primeiro não
+  // está definido (docs/32 §3.1). `recorteCompleto` aqui não é filtro, é
+  // "todos"; o que se aproveita é a ordem que `ciclosNoRecorte` impõe.
+  const ciclosOrdenados = useMemo(
+    () => ciclosNoRecorte(ciclos, recorteCompleto(ciclos)),
+    [ciclos],
   );
-  const vestibularesOrdenados = useMemo(
-    () => [...todasAsOpcoes.vestibulares].sort(),
-    [todasAsOpcoes],
-  );
-  const ciclosVisiveis = useMemo(() => ciclosNoRecorte(ciclos, recorte), [ciclos, recorte]);
-  const contagens = useMemo(() => contagensDoRecorte(ciclos, recorte), [ciclos, recorte]);
-
-  // O ciclo escolhido pode ter saído da fileira quando o recorte mudou; aí a
-  // tela cai no default do recorte novo em vez de apontar para um ciclo que
-  // não está mais visível. Antes disto o Painel abria em `ciclos[0]`, que é o
-  // primeiro dos TRÊS ciclos com `ordem = 1` — e qual dos três não estava
-  // definido (docs/32 §3.1).
   const cicloAtivo = useMemo(
-    () => ciclosVisiveis.find((c) => c.id === cicloId) ?? cicloPadrao(ciclosVisiveis, simulados),
-    [ciclosVisiveis, cicloId, simulados],
-  );
-  const { data: notasPorSim = {}, isPending: carregandoNotas } = useNotasDoCiclo(cicloAtivo, simulados);
-  const { data: criterios = [] } = useCriteriosDisponiveis();
-  // Veredito, motivo, cor e posição vêm do servidor (docs/18 §1.2). A fase
-  // exibida manda: a régua do colégio vale para qualquer fase; as do edital
-  // já sabem a sua.
-  const { data: classificacaoResp } = useClassificacaoCiclo(
-    cicloAtivo?.id ?? null, criterio, fase === '1' ? 1 : 2,
-  );
-  const classificacao = useMemo(() => {
-    const porAluno: Record<string, AlunoClassificado> = {};
-    for (const a of classificacaoResp?.alunos ?? []) porAluno[a.alunoId] = a;
-    return porAluno;
-  }, [classificacaoResp]);
-
-  // O que o assistente precisa saber para "e a Física?" ter referente. É o
-  // Painel que declara porque estes filtros vivem em `useState` e não na URL.
-  useRecorteDaTela(useMemo(() => ({
-    cicloId: cicloAtivo?.id,
-    fase: fase === '1' ? (1 as const) : (2 as const),
-    criterio,
-    sedeIds: [...sedeIds],
-    turmaIds: [...turmaIds],
-    anos: [...recorte.anos],
-    vestibulares: [...recorte.vestibulares],
-  }), [cicloAtivo?.id, fase, criterio, sedeIds, turmaIds, recorte]));
-
-  const alunosFiltrados = useMemo(() => {
-    const q = normMateria(busca.trim());
-    return alunos.filter((a) => {
-      if (sedeIds.size && !sedeIds.has(a.sedeId)) return false;
-      if (turmaIds.size && !turmaIds.has(a.turmaId)) return false;
-      if (q && !normMateria(a.nome).includes(q)) return false;
-      return true;
-    });
-  }, [alunos, sedeIds, turmaIds, busca]);
-
-  const dados = useMemo(
-    () => montarPainel({
-      ciclo: cicloAtivo,
-      simulados,
-      alunos: alunosFiltrados,
-      notasPorSim,
-      fase,
-      ordenacao,
-      classificacao,
-      criterio: classificacaoResp?.criterio ?? null,
-    }),
-    [
-      cicloAtivo, simulados, alunosFiltrados, notasPorSim, fase, ordenacao, classificacao,
-      classificacaoResp?.criterio,
-    ],
+    () => cicloPadrao(ciclosOrdenados, simulados, hoje),
+    [ciclosOrdenados, simulados, hoje],
   );
 
-  // A fase escolhida pode não existir no ciclo novo — segue a que sobrou.
-  useEffect(() => {
-    if (dados.faseSelecionada !== fase) setFase(dados.faseSelecionada);
-  }, [dados.faseSelecionada, fase]);
+  // Sem `fase`: o Painel conta o ciclo INTEIRO sob a régua do colégio, e a
+  // rota já cai na fase da própria régua quando o parâmetro não vai
+  // (`api/app/routes/ciclos.py::classificacao_do_ciclo`). A fase era um
+  // recorte da tabela, e a tabela mudou de casa.
+  const classificacao = useClassificacaoCiclo(cicloAtivo?.id ?? null, REGUA_DO_PAINEL);
+  const criterio = classificacao.data?.criterio ?? null;
 
-  async function salvarNota(valores: ValoresNota | null) {
-    const alvo = emEdicao;
-    setEmEdicao(null);
-    if (!valores || !alvo) return;
-    try {
-      await editarNota.mutateAsync({
-        alunoId: alvo.alunoId,
-        simuladoId: alvo.simuladoId,
-        corpo: valores,
-      });
-    } catch (e) {
-      setErroSalvar(`Erro ao salvar: ${(e as Error).message}`);
-    }
-  }
+  // O dia de hoje na cantina — as DUAS refeições numa janela de um dia só.
+  const cantina = useCalendarioNaCoordenacao(hoje, hoje);
 
-  function alternarConjunto<V>(set: ReadonlySet<V>, valor: V): ReadonlySet<V> {
-    const novo = new Set(set);
-    if (novo.has(valor)) novo.delete(valor);
-    else novo.add(valor);
-    return novo;
-  }
+  // O que o assistente precisa para "e a Física?" ter referente. Sobrou o
+  // essencial: sem filtros, o recorte desta tela é o ciclo e a régua.
+  useRecorteDaTela(useMemo(
+    () => ({ cicloId: cicloAtivo?.id, criterio: REGUA_DO_PAINEL }),
+    [cicloAtivo?.id],
+  ));
 
-  const resumo = dados.resumo;
+  // ─── CICLO · "Como está fechando?" ────────────────────────────────────
+  const cartaoCiclo = useMemo(() => {
+    if (!cicloAtivo) return null;
+    const doCiclo = simulados.filter((s) => s.cicloId === cicloAtivo.id);
+    const previstas = cicloAtivo.simuladoIds.length || doCiclo.length;
+    const aplicadas = doCiclo.filter((s) => s.dataAplicacao && s.dataAplicacao <= hoje).length;
 
-  // ─── A faixa de entrada ────────────────────────────────────────────────
-  // Três perguntas, e cada uma leva a uma tela que JÁ EXISTE. Os números são
-  // vivos (C2) e nenhum é escrito à mão: onde o dado não existe, o card
-  // mostra o esqueleto em vez de um número inventado.
-  // A contagem que era da faixa de decisão. Fica aqui porque os KPIs a
-  // mostram, e a faixa continua lendo a sua para decidir se tem o que dizer.
-  const decisoes = useMemo(
-    () => contarDecisoes(dados.alunosOrdenados, classificacao),
-    [dados.alunosOrdenados, classificacao],
-  );
-
-  const entrada = useMemo(() => {
-    const doCiclo = cicloAtivo ? simulados.filter((s) => s.cicloId === cicloAtivo.id) : [];
-    // A prova mais recente COM data — é a que a pergunta "a prova estava boa?"
-    // quer dizer, e ordenar por nome daria a ordem errada em P10 vs P9.
-    const ultima = doCiclo
-      .filter((s) => s.dataAplicacao)
-      .sort((a, b) => String(b.dataAplicacao).localeCompare(String(a.dataAplicacao)))[0];
-
-    const cortados = classificacaoResp?.cortados ?? null;
-    const total = classificacaoResp?.total ?? null;
-
-    // "Quem mudou de zona" vem do alerta de ZONA_TRANSICAO, que o motor de
-    // regras já emite. Sem alerta, não há movimento a relatar — e o card diz
-    // isso ficando no esqueleto, em vez de mostrar "0".
-    const transicao = alertas.find((a) => a.categoria === 'ZONA_TRANSICAO');
+    // O ciclo fechou e nenhum outro começou: o número grande é história. Sem
+    // esta linha, 128 cortados de julho se leem como o de hoje.
+    const encerrado = !!cicloAtivo.periodoFim && cicloAtivo.periodoFim < hoje;
+    const algumEmAndamento = ciclos.some(
+      (c) => !!c.periodoInicio && !!c.periodoFim && c.periodoInicio <= hoje && hoje <= c.periodoFim,
+    );
 
     return {
-      prova: ultima
-        ? `${ultima.materia?.nome ?? ultima.nome} · ${ultima.dataAplicacao}`
+      subtitulo: `${identidadeDoCiclo(cicloAtivo)} · ${aplicadas} de ${previstas} provas`,
+      aviso: encerrado && !algumEmAndamento
+        ? `nenhum ciclo em andamento — este encerrou ${haQuanto(cicloAtivo.periodoFim, hoje)}`
         : null,
-      provaPara: ultima ? `/simulados/${ultima.id}` : '/provas?aba=simulados',
-      ciclo: cicloAtivo && total != null
-        ? `${doCiclo.length} provas · ${cortados} de ${total} cortados`
-        : null,
-      movimento: transicao?.subtitulo ?? null,
+      para: `/ciclos/${cicloAtivo.id}`,
     };
-  }, [cicloAtivo, simulados, classificacaoResp, alertas]);
+  }, [cicloAtivo, ciclos, simulados, hoje]);
+
+  // ─── SIMULADO · "A prova estava boa?" ─────────────────────────────────
+  const cartaoSimulado = useMemo(() => {
+    // A última APLICADA, por data de aplicação — não por nota lançada. A prova
+    // que acabou de ser feita e ainda não voltou do Canvas é justamente a que
+    // se quer olhar; ordenar por nome daria P9 depois de P10.
+    const prova = simulados
+      .filter((s) => s.dataAplicacao && s.dataAplicacao <= hoje)
+      .sort((a, b) => b.dataAplicacao.localeCompare(a.dataAplicacao))[0];
+    if (!prova) return null;
+
+    const semNotas = prova.media == null;
+    const envelheceu = emDias(hoje) - emDias(prova.dataAplicacao) >= DIAS_ATE_ENVELHECER;
+    const quando = envelheceu
+      ? `aplicada ${haQuanto(prova.dataAplicacao, hoje)}`
+      : semNotas
+        ? `aplicada em ${dataCurta(prova.dataAplicacao)}`
+        : dataCurta(prova.dataAplicacao);
+
+    return {
+      // Aplicada e sem notas não é card quebrado: é uma PENDÊNCIA, e o card a
+      // anuncia com a marca em vez de mostrar um espaço vazio onde o
+      // coordenador procuraria a média.
+      subtitulo: semNotas
+        ? `${nomeDaProva(prova)} · ${quando} · notas ainda não lançadas`
+        : `${nomeDaProva(prova)} · ${quando} · média ${fmtNota(prova.media)}`,
+      marca: semNotas ? 'Pendente' : null,
+      para: `/simulados/${prova.id}`,
+    };
+  }, [simulados, hoje]);
+
+  // ─── CANTINA · "O que é hoje?" ────────────────────────────────────────
+  const cartaoCantina = useMemo(() => {
+    if (cantina.isError) {
+      // A consulta falhou: nem inventa número nem some com a porta. Diz que
+      // não sabe — "0 pedidos" para quem tem 62 é a mentira mais cara da tela.
+      return { subtitulo: 'não deu para ler o cardápio de hoje', marca: 'Indisponível', inerte: true };
+    }
+    const doDia = (cantina.data ?? []).filter((d) => d.data === hoje);
+    const almoco = doDia.find((d) => d.refeicao === 'almoco') ?? null;
+    const janta = doDia.find((d) => d.refeicao === 'janta') ?? null;
+
+    // Só há para onde ir se existe cardápio — rascunho inclusive, que a
+    // coordenação enxerga e o aluno não.
+    const abrivel = [almoco, janta].some(
+      (d) => d && d.estado !== 'sem-refeicao' && d.estado !== 'sem-cardapio',
+    );
+    if (!abrivel) {
+      const diaDaSemana = dataLocal(hoje).toLocaleDateString('pt-BR', { weekday: 'long' });
+      // ⚠️ "sem refeição" só quando o SERVIDOR disse isso. Um dia que
+      // simplesmente não veio no calendário pode ser sábado ou pode ser a
+      // cantina que não lançou, e deduzir qual dos dois seria inventar regra
+      // de negócio no front. O que a tela sabe é o dia da semana — e é ele
+      // que deixa o coordenador concluir sozinho.
+      const declarouSemRefeicao = [almoco, janta].some((d) => d?.estado === 'sem-refeicao');
+      return {
+        subtitulo: declarouSemRefeicao
+          ? `sem refeição hoje · ${diaDaSemana}`
+          : `nenhum cardápio para hoje · ${diaDaSemana}`,
+        marca: 'Sem destino',
+        inerte: true,
+      };
+    }
+
+    const pedidosAlmoco = pedidosDaRefeicao(almoco);
+    const pedidosJanta = pedidosDaRefeicao(janta);
+    const subtitulo = pedidosAlmoco != null && pedidosJanta != null
+      // A palavra "pedidos" uma vez só quando os dois números são pedidos: é
+      // a linha da prancheta, e ela cabe onde duas frases inteiras não cabem.
+      ? `almoço ${pedidosAlmoco} · janta ${pedidosJanta} pedidos`
+      : [fraseDaRefeicao(almoco, 'almoço'), fraseDaRefeicao(janta, 'janta')]
+        .filter((f): f is string => f != null)
+        .join(' · ');
+
+    return { subtitulo, marca: null, inerte: false };
+  }, [cantina.isError, cantina.data, hoje]);
+
+  // ─── O primeiro dia do ano letivo ─────────────────────────────────────
+  // As três portas apontam para o que já aconteceu, e ainda não aconteceu
+  // nada. Só vale quando as consultas VOLTARAM vazias: lista vazia por erro de
+  // rede não é colégio novo, e mandar o coordenador criar um ciclo que já
+  // existe seria pior que a tela em branco.
+  const primeiroDia = !carregandoCiclos && !carregandoSimulados && !erroCiclos
+    && ciclos.length === 0 && simulados.length === 0;
+
+  if (primeiroDia) return <PrimeiroDia />;
 
   return (
     <div className="tela">
-      <BarraFiltros
-        tela="painel"
-        algumAtivo={
-          sedeIds.size > 0 ||
-          turmaIds.size > 0 ||
-          recorte.anos.size !== todasAsOpcoes.anos.size ||
-          recorte.vestibulares.size !== todasAsOpcoes.vestibulares.size
-        }
-        // Nesta faixa "limpar" é voltar para TUDO marcado, não para vazio:
-        // com os dois eixos nascendo cheios, o vazio não é o estado neutro —
-        // é a fileira de ciclos sem nenhum ciclo.
-        onLimpar={() => {
-          setSedeIds(new Set());
-          setTurmaIds(new Set());
-          setRecorte(recorteCompleto(ciclos));
-        }}
-        grupos={[
-          {
-            chave: 'ano', rotulo: 'Ano letivo',
-            resumo: resumirSelecao(
-              recorte.anos,
-              anosOrdenados.map((a) => ({ valor: a, label: String(a) })),
-              'ano', 'anos',
-            ),
-            corpo: (
-              <Pills
-                opcoes={anosOrdenados.map((ano) => ({
-                  valor: ano,
-                  label: String(ano),
-                  contagem: contagens.porAno.get(ano) ?? 0,
-                }))}
-                selecionados={recorte.anos}
-                onToggle={(ano) =>
-                  setRecorte((r) => ({ ...r, anos: alternarConjunto(r.anos, ano) }))}
-              />
-            ),
-          },
-          {
-            chave: 'vestibular', rotulo: 'Vestibular',
-            resumo: resumirSelecao(
-              recorte.vestibulares,
-              vestibularesOrdenados.map((v) => ({ valor: v, label: v })),
-              'vestibular', 'vestibulares',
-            ),
-            corpo: (
-              <Pills
-                opcoes={vestibularesOrdenados.map((v) => ({
-                  valor: v,
-                  label: v,
-                  contagem: contagens.porVestibular.get(v) ?? 0,
-                }))}
-                selecionados={recorte.vestibulares}
-                onToggle={(v) =>
-                  setRecorte((r) => ({ ...r, vestibulares: alternarConjunto(r.vestibulares, v) }))}
-              />
-            ),
-          },
-          {
-            chave: 'ciclo', rotulo: 'Ciclo',
-            // O nome inteiro, e não o rótulo curto da pílula: colapsada, a faixa
-            // perde o contexto que o recorte dava, e "4" sozinho não diz de
-            // que ano nem de que vestibular.
-            resumo: cicloAtivo?.nome ?? null,
-            corpo: (
-              <PillsUnica
-                opcoes={ciclosVisiveis.map((c) => ({
-                  valor: c.id,
-                  label: rotuloDoCiclo(c, recorte),
-                }))}
-                selecionado={cicloAtivo?.id ?? null}
-                onSelecionar={(id) => {
-                  setCicloId(id);
-                  setBusca('');
-                }}
-              />
-            ),
-          },
-          {
-            chave: 'sede', rotulo: 'Sede',
-            resumo: resumirSelecao(
-              sedeIds,
-              sedes.map((sd) => ({ valor: sd.id, label: nomeSede(sd.nome) })),
-              'sede', 'sedes',
-            ),
-            corpo: (
-              <Pills
-                // Sedes com prefixo de ano são resíduo de importações antigas.
-                opcoes={sedes
-                  .filter((sd) => !sd.nome.startsWith('2025_'))
-                  .map((sd) => ({ valor: sd.id, label: nomeSede(sd.nome) }))}
-                selecionados={sedeIds}
-                onToggle={(id) => setSedeIds((s) => alternarConjunto(s, id))}
-              />
-            ),
-          },
-          {
-            chave: 'busca', rotulo: 'Aluno',
-            resumo: resumirTexto(busca),
-            corpo: (
-              <Busca
-                valor={busca}
-                onChange={setBusca}
-                placeholder="Buscar aluno…"
-                rotulo="Buscar aluno na tabela"
-              />
-            ),
-          },
-          {
-            chave: 'turma', rotulo: 'Turmas',
-            resumo: resumirSelecao(
-              turmaIds,
-              turmas.map((t) => ({ valor: t.id, label: t.nome })),
-              'turma', 'turmas',
-            ),
-            corpo: (
-              <Pills
-                opcoes={turmas.map((t) => ({ valor: t.id, label: t.nome }))}
-                selecionados={turmaIds}
-                onToggle={(id) => setTurmaIds((s) => alternarConjunto(s, id))}
-              />
-            ),
-          },
-          // ─── A FUSÃO ─────────────────────────────────────────────────
-          // Régua, fase e ordenação eram um SEGUNDO estrato de recorte, na
-          // linha do título, empilhado sobre esta faixa. Duas faixas de
-          // recorte é uma a mais: o olho passava por quatro estratos antes de
-          // chegar ao dado. Agora são grupos daqui.
-          //
-          // ⚠️ Cada um passa `resumo` — é ele que impede um recorte em vigor
-          // de ficar invisível quando a faixa colapsa. A régua é o caso mais
-          // caro: ela muda TODA a leitura da tela, e uma régua trocada e
-          // escondida seria a pior fonte de engano do produto.
-          {
-            chave: 'regua', rotulo: 'Régua',
-            resumo: classificacaoResp?.criterio.nome ?? null,
-            corpo: (
-              <SeletorCriterio
-                criterios={criterios}
-                valor={criterio}
-                onEscolher={setCriterio}
-                onCriar={() => setCriandoRegua(true)}
-              />
-            ),
-          },
-          dados.fasesDisponiveis.length >= 2 && {
-            chave: 'fase', rotulo: 'Fase',
-            resumo: dados.faseSelecionada === '1' ? '1ª Fase' : '2ª Fase',
-            corpo: (
-              <Segmento
-                opcoes={dados.fasesDisponiveis.map((f) => ({
-                  label: f === '1' ? '1ª Fase' : '2ª Fase',
-                  value: f,
-                }))}
-                valor={dados.faseSelecionada}
-                onEscolher={setFase}
-              />
-            ),
-          },
-          {
-            chave: 'ordem', rotulo: 'Ordem',
-            resumo: ROTULO_ORDEM_CURTO[ordenacao],
-            corpo: (
-              <Segmento
-                opcoes={[
-                  { label: 'Pior primeiro', value: 'distancia' as const },
-                  { label: 'Ranking', value: 'ranking' as const },
-                  { label: 'A–Z', value: 'alfabetica' as const },
-                ]}
-                valor={ordenacao}
-                onEscolher={setOrdenacao}
-              />
-            ),
-          },
-        ]}
-      />
-
-      {/* A FAIXA DE ENTRADA. Rola para fora — não é sticky: o Painel é a tela
-          de varrer 900 pessoas, e a faixa existe para ser vista na chegada,
-          não para cobrar espaço permanente da tarefa dominante. Cortada por
-          PERGUNTA (C1), nunca por objeto. */}
-      <div className="campo-faixa-entrada">
-        <CartaoDeEntrada
-          olho="Calibração"
-          titulo="A prova estava boa?"
-          numeros={entrada.prova}
-          para={entrada.provaPara}
-        />
-        <CartaoDeEntrada
+      {/* A grade é de 12 colunas, e ela tem de aceitar um quarto e um quinto
+          card sem virar outra tela — o Painel vai crescer. Quem manda no
+          tamanho é a MAGNITUDE, não o contrário: só um card por tela a tem, e
+          é dela que a hierarquia vem (`styles/painel.css`). */}
+      <section className="painel-grade" aria-label="Atalhos do dia">
+        <CartaoDeCampo
           olho="Ciclo"
           titulo="Como está fechando?"
-          numeros={entrada.ciclo}
-          para={cicloAtivo ? `/ciclos/${cicloAtivo.id}` : '/provas'}
+          para={cartaoCiclo?.para ?? '/provas'}
+          carregando={carregandoCiclos || (!!cicloAtivo && classificacao.isPending)}
+          // ⚠️ `null` e ausente não são a mesma coisa: `null` reserva o vão do
+          // numeral e a grade não pula quando o número chega. Este card SEMPRE
+          // declara magnitude, mesmo sem ciclo — é ela que lhe dá as 7 colunas.
+          magnitude={classificacao.data ? String(classificacao.data.cortados) : null}
+          magnitudeLegenda={
+            classificacao.data ? `cortados de ${classificacao.data.total} alunos` : undefined
+          }
+          subtitulo={cartaoCiclo?.subtitulo ?? null}
+          aviso={cartaoCiclo?.aviso ?? null}
+          vazio="nenhum ciclo com prova aplicada"
         />
-        <CartaoDeEntrada
-          olho="Movimento"
-          titulo="Quem mudou de zona?"
-          numeros={entrada.movimento}
-          para="/painel#alertas"
+
+        <CartaoDeCampo
+          compacto
+          olho="Simulado"
+          titulo="A prova estava boa?"
+          para={cartaoSimulado?.para ?? '/provas?aba=simulados'}
+          carregando={carregandoSimulados}
+          subtitulo={cartaoSimulado?.subtitulo ?? null}
+          marca={cartaoSimulado?.marca ?? null}
+          vazio="nenhuma prova aplicada ainda"
+          glifo={GLIFO_SIMULADO}
         />
-      </div>
 
-      <div className="tela-cabecalho">
-        <div>
-          <h1 className="tela-titulo">Panorama geral</h1>
-          <p className="tela-subtitulo">
-            {cicloAtivo
-              ? `${cicloAtivo.nome} · ${dados.resumo?.totalSimulados ?? 0} simulados aplicados`
-              : 'Escolha um ciclo na faixa de filtros.'}
-          </p>
-        </div>
-        <div className="painel-header__controles">
-          <BotaoAjuda criterio={classificacaoResp?.criterio ?? null} />
-        </div>
-      </div>
-
-      {erroSalvar && <div className="agendar__erro">{erroSalvar}</div>}
-
-      {cicloAtivo && (
-        <FaixaDecisao
-          alunosNoRecorte={dados.alunosOrdenados}
-          classificacao={classificacao}
-          recorteAtivo={sedeIds.size > 0 || turmaIds.size > 0 || busca.trim() !== ''}
-          nomeCriterio={classificacaoResp?.criterio.nome ?? null}
+        <CartaoDeCampo
+          compacto
+          olho="Cantina"
+          titulo="O que é hoje?"
+          // A rota `/cantina/:data` é da fase 5 e ainda não existe — hoje só
+          // há `/cantina/:data/:refeicao`. O card aponta para o destino do
+          // desenho de propósito (docs/39 §3, fase 5).
+          para={`/cantina/${hoje}`}
+          inerte={cartaoCantina.inerte}
+          carregando={cantina.isPending}
+          subtitulo={cartaoCantina.subtitulo}
+          marca={cartaoCantina.marca}
+          vazio="sem refeição hoje"
+          glifo={GLIFO_CANTINA}
         />
-      )}
-
-      {resumo && (
-        <div className="kpi-grid kpi-grid--cartoes">
-          <Kpi rotulo="Alunos no ciclo" valor={resumo.totalAlunos} />
-          {/* Vindos da faixa de decisão: eram um estrato próprio, dizendo a
-              mesma coisa que esta fileira numa altura diferente. */}
-          <Kpi
-            rotulo="Perto do corte"
-            valor={decisoes.noLimite}
-            sufixo={` de ${resumo.totalAlunos}`}
-          />
-          {/* Sem tom, e é decisão (R7): a TABELA abaixo é que carrega a
-              leitura da tela, e duas escalas semânticas ao mesmo tempo é o
-              mesmo que nenhuma.
-
-              A "Média geral" tinha um ternário fixo — verde ≥7, âmbar ≥5 —
-              sem relação nenhuma com o corte em uso, enquanto a célula logo
-              abaixo usava o corte de verdade: o MESMO número podia estar
-              verde em cima e vermelho embaixo. Não foi substituído por outra
-              função de cor porque não sobra cor para ele. */}
-          <Kpi rotulo="Média geral" valor={fmtNota(resumo.mediaGeral)} />
-          <Kpi
-            rotulo={`Cortados · ${classificacaoResp?.criterio.nome ?? '…'}`}
-            valor={resumo.cortados ?? '…'}
-            sufixo={` de ${resumo.totalAlunos}`}
-          />
-        </div>
-      )}
-
-      <section className="card">
-        {carregandoNotas ? (
-          <div className="empty-state">Carregando notas…</div>
-        ) : dados.erro ? (
-          <div className="empty-state">{dados.erro}</div>
-        ) : (
-          <TabelaPainel
-            alunos={dados.alunosOrdenados}
-            colunas={dados.colunas}
-            notasAluno={dados.notasAluno}
-            notasIgnoradas={dados.notasIgnoradas}
-            mediasVirtuais={dados.mediasVirtuais}
-            mediasPorColuna={dados.mediasPorColuna}
-            classificacao={classificacao}
-            criterio={classificacaoResp?.criterio ?? null}
-            ordenacao={ordenacao}
-            recolhidos={recolhidos}
-            onToggleLimite={
-              ordenacao === 'ranking'
-                ? (pos) => setRecolhidos((r) => alternarConjunto(r, pos))
-                : null
-            }
-            onEditarNota={(alunoId, simuladoId) => setEmEdicao({ alunoId, simuladoId })}
-          />
-        )}
       </section>
 
-      {emEdicao && (
-        <DialogoNota
-          alunoId={emEdicao.alunoId}
-          simuladoId={emEdicao.simuladoId}
-          notasPorSim={notasPorSim}
-          onFechar={salvarNota}
-        />
-      )}
-
-      {criandoRegua && (
-        <EdicaoCriterio
-          cicloId={cicloAtivo?.id ?? null}
-          fase={fase === '1' ? 1 : 2}
-          onFechar={() => setCriandoRegua(false)}
-          onSalvo={(slug) => {
-            setCriandoRegua(false);
-            // Já entra em uso: quem acabou de descrever a régua quer vê-la
-            // aplicada, não procurá-la no seletor.
-            setCriterio(slug);
-          }}
-        />
-      )}
+      <FaixaDecisao
+        cortados={classificacao.data?.cortados ?? null}
+        nomeCriterio={criterio?.nome ?? null}
+        corte={corteDaMateria(criterio, null) ?? undefined}
+      />
     </div>
   );
 }
 
 /**
- * Ficha de nota aberta a partir de uma célula. Fica em componente separado
- * porque precisa cruzar aluno, simulado e as notas da turma para montar a
- * comparação.
+ * O primeiro dia do ano letivo — colégio sem ciclo e sem prova.
+ *
+ * Não é um estado vazio de lista: é a tela inteira, porque as três portas
+ * apontam para o passado e não há passado. O ano começa pelo ciclo — é ele que
+ * agrupa as provas e aplica a régua —, então a tela diz isso e leva lá.
  */
-function DialogoNota({
-  alunoId, simuladoId, notasPorSim, onFechar,
-}: {
-  alunoId: string;
-  simuladoId: string;
-  notasPorSim: Record<string, Array<{ alunoId: string; nota: number | null; presente?: boolean; acertos?: number | null; total?: number | null }>>;
-  onFechar: (valores: ValoresNota | null) => void;
-}) {
-  const { data: alunos = [] } = useAlunos();
-  const { data: simulados = [] } = useSimulados();
-
-  const aluno = alunos.find((a) => a.id === alunoId);
-  const simulado = simulados.find((s) => s.id === simuladoId);
-  if (!aluno || !simulado) return null;
-
-  const notas = notasPorSim[simuladoId] ?? [];
-  const atual = notas.find((n) => n.alunoId === alunoId);
-
+function PrimeiroDia() {
   return (
-    <FichaNota
-      nomeAluno={aluno.nome}
-      nomeSimulado={simulado.rotuloCurto || simulado.nome}
-      pontuacaoAtual={atual?.acertos ?? null}
-      presenteAtual={atual?.presente ?? true}
-      notaMaxima={atual?.total ?? simulado.notaMaxima ?? null}
-      stats={estatisticasDoSimulado(notas, alunoId)}
-      onFechar={onFechar}
-    />
-  );
-}
-
-/** Seletor de valor único em pílulas — ordenação e fase. */
-function Segmento<V extends string>({
-  opcoes, valor, onEscolher,
-}: {
-  opcoes: Array<{ label: string; value: V }>;
-  valor: V;
-  onEscolher: (v: V) => void;
-}) {
-  return (
-    <div className="painel-topn">
-      {opcoes.map((o) => (
-        <button
-          key={o.value}
-          className={`pill${valor === o.value ? ' is-active' : ''}`}
-          aria-pressed={valor === o.value}
-          onClick={() => onEscolher(o.value)}
+    <div className="tela">
+      <section className="painel-primeiro">
+        <div className="painel-primeiro__texto">
+          <p className="painel-primeiro__olho">Primeiro dia do ano letivo</p>
+          <h2 className="painel-primeiro__titulo">Nenhum ciclo criado, nenhuma prova aplicada</h2>
+          <p className="painel-primeiro__corpo">
+            As três portas desta tela apontam para o que já aconteceu, e ainda não aconteceu
+            nada. O ano começa pelo ciclo: é ele que agrupa as provas e aplica a régua.
+          </p>
+          <div className="painel-primeiro__acoes">
+            <Link className="btn btn-primary" to="/provas">Criar o primeiro ciclo</Link>
+            <Link className="btn" to="/alunos">Conferir os alunos importados</Link>
+          </div>
+        </div>
+        {/* Três portas fechadas, no arranjo dos três cards que ainda não têm o
+            que mostrar — 7 colunas à esquerda, duas de 5 empilhadas. */}
+        <svg
+          className="painel-primeiro__portas"
+          width="280"
+          height="200"
+          viewBox="0 0 280 200"
+          fill="none"
+          role="img"
+          aria-label="Três portas fechadas, ainda sem destino"
         >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function descreverMinimo(p: CriterioClassificacao['predicados'][number]): string {
-  if (typeof p.minimo === 'number') return fmtNota(p.minimo);
-  return `${p.minimo.acertos} de ${p.minimo.de} acertos`;
-}
-
-/**
- * Legenda gerada a partir do critério — nunca de um número fixo. Foi um "4,0
- * em vermelho" com legenda dizendo "< 5,0" que expôs a régua duplicada.
- */
-function LegendaCriterio({ criterio }: { criterio: CriterioClassificacao | null }) {
-  if (!criterio) return null;
-  const regra = criterio.combinador === 'todos'
-    ? 'cortado quando TODOS os requisitos falham'
-    : 'cortado quando QUALQUER requisito falha';
-  return (
-    <>
-      <p className="painel-help-titulo">{criterio.nome} — {regra}</p>
-      <ul className="painel-help-lista">
-        {criterio.predicados.map((p, i) => (
-          <li key={i}>
-            {p.materia === null ? 'Média geral' : p.materia === '*' ? 'Qualquer disciplina' : p.materia === 'fase_1' ? '1ª fase (componente da média)' : p.materia}
-            {` ${p.operador} ${descreverMinimo(p)}`}
-            {p.eliminatorio ? ' · eliminatório' : ''}
-            {!p.entraNaMedia ? ' · fora da média' : ''}
-            {p.peso !== 1 ? ` · peso ${p.peso}` : ''}
-            {p.fonte ? ` (${p.fonte})` : ''}
-          </li>
-        ))}
-      </ul>
-      <div className="painel-help-sep" />
-      {/* A legenda explicava o semáforo. Agora explica a FORMA, que é o que a
-          célula passou a dizer: preenchido acima do corte, vazado abaixo, e a
-          distância no próprio traço. Uma legenda desatualizada é pior que
-          nenhuma — ela ensina a ler errado. */}
-      <div className="painel-help-legenda">
-        <span className="painel-help-amostra painel-help-amostra--acima" />
-        Preenchido — acima do corte; quanto mais forte, mais folga
-      </div>
-      <div className="painel-help-legenda">
-        <span className="painel-help-amostra painel-help-amostra--margem" />
-        Preenchido fraco — passou, mas perto do corte
-      </div>
-      <div className="painel-help-legenda">
-        <span className="painel-help-amostra painel-help-amostra--abaixo" />
-        Vazado — abaixo do corte; o traço engrossa com a distância, e o número
-        vermelho ao lado diz quanto
-      </div>
-      <div className="painel-help-legenda">
-        <span className="painel-help-amostra painel-help-amostra--sem-nota" />
-        Hachurado — sem nota lançada. Não é zero
-      </div>
-    </>
-  );
-}
-
-const AJUDA_ITENS = [
-  'Escolha um ciclo na faixa de filtros para carregar os dados.',
-  'Estreite a fileira de ciclos por Ano letivo e Vestibular — os dois nascem com tudo marcado.',
-  'Filtre por Sede e Turmas na mesma faixa (múltipla seleção).',
-  'Use a busca da faixa para encontrar um aluno na tabela.',
-  'A faixa colapsa sozinha quando não cabe numa linha; o resumo do que está ativo fica no lugar.',
-  'Ranking: não-cortados primeiro, depois os cortados; desempate pela ordem do critério.',
-  'Troque o critério (Tio Leo, ITA, IME) para ver a mesma turma sob outra régua.',
-  'Clique nos separadores Top 10 / 50 / 100 para ocultar ou exibir os alunos abaixo.',
-];
-
-function BotaoAjuda({ criterio }: { criterio: CriterioClassificacao | null }) {
-  const [aberto, setAberto] = useState(false);
-  const refRaiz = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!aberto) return;
-    function aoClicarFora(ev: MouseEvent) {
-      if (!refRaiz.current?.contains(ev.target as Node)) setAberto(false);
-    }
-    document.addEventListener('click', aoClicarFora);
-    return () => document.removeEventListener('click', aoClicarFora);
-  }, [aberto]);
-
-  return (
-    <div className="painel-help-wrap" ref={refRaiz}>
-      <button
-        className="painel-help-btn"
-        onClick={(ev) => {
-          ev.stopPropagation();
-          setAberto((a) => !a);
-        }}
-      >
-        ?
-      </button>
-
-      <div className="painel-help-tooltip" style={{ display: aberto ? '' : 'none' }}>
-        <p className="painel-help-titulo">Legenda &amp; funcionalidades</p>
-        <ul className="painel-help-lista">
-          {AJUDA_ITENS.map((t) => <li key={t}>{t}</li>)}
-        </ul>
-        <div className="painel-help-sep" />
-        <LegendaCriterio criterio={criterio} />
-      </div>
+          <rect x="14" y="26" width="120" height="150" rx="10" stroke="var(--sas-fio-forte)" strokeWidth="1.4" strokeDasharray="4 4" />
+          <rect x="146" y="26" width="120" height="68" rx="10" stroke="var(--sas-fio-forte)" strokeWidth="1.4" strokeDasharray="4 4" />
+          <rect x="146" y="108" width="120" height="68" rx="10" stroke="var(--sas-fio-forte)" strokeWidth="1.4" strokeDasharray="4 4" />
+        </svg>
+      </section>
     </div>
   );
 }

@@ -32,6 +32,10 @@ import '../styles/layout.css';
 import '../styles/simulados.css';
 import '../styles/auditoria.css';
 import '../styles/painel.css';
+// A varredura de um ciclo. Saiu de `painel.css` junto com o componente
+// (docs/39 §PRECEDÊNCIA): a tabela sempre foi de um ciclo só, e o Painel
+// gastava uma faixa de filtros para pedir o contexto que a URL já dá.
+import '../styles/ciclo.css';
 import '../styles/aluno-ficha.css';
 import '../styles/filtros.css';
 import '../styles/campo.css';
