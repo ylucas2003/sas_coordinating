@@ -57,11 +57,30 @@ class FotoPerfilBody(BaseModel):
 
 
 def _entidade_do_usuario(user: dict) -> tuple[str, str, str]:
-    """(nome da entidade, tabela, id) a partir do JWT. `tipo` já vem
-    validado por `get_current_user` — só "aluno" ou "coordenador" chegam aqui."""
+    """(nome da entidade, tabela, id) a partir do JWT.
+
+    ⚠️ **Fail-closed, e o `else` genérico que estava aqui era um bug esperando
+    um terceiro tipo de sessão.** Até 05/09 esta função dizia, por escrito, que
+    "só 'aluno' ou 'coordenador' chegam aqui" e devolvia a entidade de
+    COORDENAÇÃO para tudo que não fosse aluno. A premissa era verdadeira e
+    deixou de ser quando a cantina entrou em `TIPOS_DE_SESSAO` (0047): uma
+    sessão de cantina passaria a LER E ESCREVER `usuario_coordenacao` pelo
+    próprio `sub` — foto de perfil é `UPDATE` (docs/38 §1.1).
+
+    É a mesma forma da vulnerabilidade do token de download (PR #7), e o
+    conserto é o mesmo de `chat/rotas.py`: cada tipo conhecido tem o seu ramo,
+    e o desconhecido levanta em vez de cair no ramo mais poderoso.
+
+    A cantina não tem foto de propósito — não há tela dela que mostre avatar, e
+    inventar uma coluna para isso seria produto que ninguém pediu.
+    """
     if user["tipo"] == "aluno":
         return "aluno", "aluno", user["aluno_id"]
-    return "coordenador", "usuario_coordenacao", user["sub"]
+    if user["tipo"] == "coordenador":
+        return "coordenador", "usuario_coordenacao", user["sub"]
+    raise HTTPException(
+        status_code=403, detail="Este tipo de conta não tem foto de perfil."
+    )
 
 
 def _ip(request: Request) -> str | None:

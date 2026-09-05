@@ -16,11 +16,16 @@ Quem entra, e por onde (docs/35 §11):
   dado sem ganhar nada.
 - **Coordenação**: e-mail + senha na tabela `usuario_coordenacao` (0021), com
   o `papel` da 0045 dizendo o que a conta pode a mais.
+- **Cantina**: e-mail + senha na tabela `usuario_cantina` (0047), pela mesma
+  rota `/auth/login` com `tipo: "cantina"`. É um TIPO, não um papel de
+  coordenação: um papel novo em `usuario_coordenacao` passaria por
+  `get_current_coordenador` — que aceita todo papel de propósito — e abriria as
+  39 rotas de coordenação para quem trabalha na copa (docs/38 §1).
 - **Scheduler** (hoje o cron do VPS; o nome EventBridge é resíduo da migração):
   segredo compartilhado no header X-Scheduler-Secret, não JWT.
 
 ⚠️ **`tipo` e `papel` são coisas diferentes, e confundir os dois derruba
-acesso.** `tipo` diz QUE TIPO DE SESSÃO é — aluno ou coordenação — e é o que
+acesso.** `tipo` diz QUE TIPO DE SESSÃO é — aluno, coordenação ou cantina — e é o que
 `chat/rotas.py`, `routes/foto_perfil.py` e o casco do front leem para escolher
 namespace, tabela e tela. `papel` diz o que uma sessão de COORDENAÇÃO pode a
 mais. Por isso o administrador tem `tipo: "coordenador"` e `papel:
@@ -51,7 +56,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 horas
 # `else` do chat, ganhando o perfil de COORDENAÇÃO com as tools que leem
 # qualquer aluno. Assinatura válida não é identidade válida; o `tipo` é que diz
 # para que o token serve.
-TIPOS_DE_SESSAO = frozenset({"aluno", "coordenador"})
+#
+# ⚠️ **Acrescentar um tipo aqui NÃO é uma linha.** Todo lugar que dividia o
+# mundo em "aluno" e "todo o resto" passa a estar errado no instante em que um
+# terceiro existe. Quando a cantina entrou (05/09, docs/38 §1.1) foram três, e
+# os três foram consertados junto com esta linha:
+#   * `routes/foto_perfil.py` — caía num `return` de coordenação por omissão, o
+#     que daria à cantina acesso de ESCRITA a `usuario_coordenacao`;
+#   * `web/src/App.tsx` — montava o casco da coordenação para o que não fosse aluno;
+#   * `web/src/servicos/sessao.ts` — sem o tipo na lista, a sessão nasce morta.
+# `chat/rotas.py` já era fail-closed e por isso não precisou de conserto: a
+# cantina simplesmente não tem chat, que é o comportamento certo.
+TIPOS_DE_SESSAO = frozenset({"aluno", "coordenador", "cantina"})
 
 # Os papéis de uma sessão de COORDENAÇÃO (coluna `papel`, migration 0045).
 # Administrador não é um `tipo` — ver o ⚠️ do docstring do módulo.
@@ -195,6 +211,33 @@ async def get_current_administrador(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Esta ação é restrita ao administrador do SAS.",
+        )
+    return user
+
+
+async def get_current_cantina(user: dict = Depends(get_current_user)) -> dict:
+    """Guard de toda rota da cantina.
+
+    Não aceita coordenação: a coordenação LÊ o cardápio por rotas próprias
+    (`get_current_coordenador`), e deixar um coordenador publicar cardápio em
+    nome da cantina apagaria a autoria de `cardapio.criado_por`.
+
+    O `cantina_id` vem do token, e é por isso que ele existe como claim: toda
+    consulta filtra por ele, nunca por parâmetro de URL — senão uma cantina lê
+    o cardápio da outra trocando um id (docs/38 §3.3).
+    """
+    if user.get("tipo") != "cantina":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito à cantina",
+        )
+    if not user.get("cantina_id"):
+        # Fail-closed: token de cantina sem estabelecimento não filtra nada, e
+        # "não filtra nada" numa rota que lista cardápio é vazamento entre
+        # cantinas. Só acontece com token emitido por uma versão anterior.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token sem identidade de cantina",
         )
     return user
 

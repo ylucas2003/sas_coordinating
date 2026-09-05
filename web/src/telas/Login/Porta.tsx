@@ -54,8 +54,17 @@ import type { ReactNode } from 'react';
 // "2.693 questões"): não vêm de dado nenhum, e a régua do brief é explícita —
 // nenhum número institucional inventado.
 
-/** Qual das duas portas está aberta. Não diz quem a pessoa é. */
-export type Modo = 'aluno' | 'coordenador';
+/**
+ * Qual porta está aberta. NÃO diz quem a pessoa é — diz o que a tela mostra.
+ *
+ * São TRÊS desde 05/09, e a terceira não é irmã das outras duas: 'aluno' e
+ * 'coordenador' convivem na MESMA URL (`/login`) e trocam por um link no
+ * rodapé; 'cantina' mora em `/login-cantina` e não tem travessia nenhuma
+ * (docs/38 §5). Quem trabalha na cantina não erra de porta por engano — chega
+ * lá pelo endereço que a coordenação entregou —, e um "Sou aluno" ali seria
+ * ruído numa porta de trabalho.
+ */
+export type Modo = 'aluno' | 'coordenador' | 'cantina';
 
 interface Props {
   modo: Modo;
@@ -63,16 +72,52 @@ interface Props {
   ssoCanvas: boolean;
   /** Aviso de volta do SSO ("o Canvas recusou o login…"), quando houver. */
   avisoCanvas: string | null;
-  onTrocarModo: (modo: Modo) => void;
+  /** Ausente no modo 'cantina': não há para onde atravessar. */
+  onTrocarModo?: (modo: Modo) => void;
   /** O formulário de e-mail e senha. Entra como slot para a porta não precisar
       conhecer a sessão nem a API — ela é só o casco. */
-  formularioCoordenacao: ReactNode;
+  formulario: ReactNode;
 }
 
+/** O que o painel da direita diz, por porta. */
+const TEXTO_DO_PAINEL: Record<Modo, { titulo: string; ajuda: ReactNode }> = {
+  aluno: {
+    titulo: 'Entrar',
+    ajuda: (
+      <>
+        Você entra com a <b>mesma conta do Canvas</b> que usa nas aulas. Não há senha
+        separada aqui — se já estiver logado no Canvas, a porta abre direto.
+      </>
+    ),
+  },
+  coordenador: {
+    titulo: 'Entrar na coordenação',
+    ajuda: (
+      <>
+        A coordenação entra com <b>e-mail e senha</b>. O botão do Canvas é a porta do
+        aluno — esta conta existe só aqui.
+      </>
+    ),
+  },
+  cantina: {
+    titulo: 'Entrar na cantina',
+    ajuda: (
+      <>
+        A conta da cantina é criada pelo <b>administrador do SAS</b> e serve só para lançar
+        cardápio e ver os pedidos do dia.
+      </>
+    ),
+  },
+};
+
 export function Porta({
-  modo, ssoCanvas, avisoCanvas, onTrocarModo, formularioCoordenacao,
+  modo, ssoCanvas, avisoCanvas, onTrocarModo, formulario,
 }: Props) {
-  const coordenacao = modo === 'coordenador';
+  // As duas portas com senha se comportam igual daqui para baixo: mostram o
+  // formulário e escondem o botão do Canvas. O que as separa é só o texto do
+  // cabeçalho e a existência da travessia.
+  const comSenha = modo !== 'aluno';
+  const texto = TEXTO_DO_PAINEL[modo];
   return (
     <div className="porta">
       <div className="porta__cena-caixa">
@@ -100,31 +145,19 @@ export function Porta({
           produto ao clicar em "Sou da coordenação". */}
       <div className="porta__painel">
         <div className="porta__painel-interno">
-          {avisoCanvas && !coordenacao && (
+          {avisoCanvas && !comSenha && (
             <p className="porta__erro" role="alert">
               {avisoCanvas}
             </p>
           )}
 
           <div className="porta__cabecalho">
-            <h2 className="porta__titulo">{coordenacao ? 'Entrar na coordenação' : 'Entrar'}</h2>
-            <p className="porta__ajuda">
-              {coordenacao ? (
-                <>
-                  A coordenação entra com <b>e-mail e senha</b>. O botão do Canvas é a porta do
-                  aluno — esta conta existe só aqui.
-                </>
-              ) : (
-                <>
-                  Você entra com a <b>mesma conta do Canvas</b> que usa nas aulas. Não há senha
-                  separada aqui — se já estiver logado no Canvas, a porta abre direto.
-                </>
-              )}
-            </p>
+            <h2 className="porta__titulo">{texto.titulo}</h2>
+            <p className="porta__ajuda">{texto.ajuda}</p>
           </div>
 
-          {coordenacao ? (
-            formularioCoordenacao
+          {comSenha ? (
+            formulario
           ) : (
             <>
               {ssoCanvas ? (
@@ -154,14 +187,19 @@ export function Porta({
 
           {/* A travessia para a outra porta, discreta, no rodapé do painel.
               São ~900 alunos contra uma dúzia de coordenadores: o padrão é a
-              porta do aluno, e a volta é um link, não uma aba. */}
-          <button
-            type="button"
-            className="porta__coordenacao"
-            onClick={() => onTrocarModo(coordenacao ? 'aluno' : 'coordenador')}
-          >
-            {coordenacao ? 'Sou aluno' : 'Sou da coordenação'}
-          </button>
+              porta do aluno, e a volta é um link, não uma aba.
+
+              A cantina NÃO participa: ela mora noutra URL e não tem para onde
+              atravessar — ver o comentário do tipo `Modo`. */}
+          {onTrocarModo && modo !== 'cantina' && (
+            <button
+              type="button"
+              className="porta__coordenacao"
+              onClick={() => onTrocarModo(modo === 'coordenador' ? 'aluno' : 'coordenador')}
+            >
+              {modo === 'coordenador' ? 'Sou aluno' : 'Sou da coordenação'}
+            </button>
+          )}
         </div>
       </div>
     </div>

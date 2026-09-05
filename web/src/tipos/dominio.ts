@@ -150,7 +150,19 @@ export interface Alerta {
  * pergunta é sempre "o que esta pessoa vê". Ver `servicos/sessao.ts` e o ⚠️ de
  * `api/app/auth.py`.
  */
-export type TipoSessao = 'aluno' | 'coordenador' | 'administrador';
+/**
+ * O que a sessão VÊ — não é o `tipo` cru do token.
+ *
+ * 'administrador' não existe como `tipo` no servidor (lá ele é
+ * `tipo: "coordenador"` + `papel: "administrador"`, docs/35 §11.3). Aqui ele é
+ * um valor próprio porque a única pergunta do front é "o que esta pessoa vê", e
+ * aí administrador e coordenador não são a mesma resposta. A tradução mora só
+ * em `servicos/sessao.ts`.
+ *
+ * 'cantina' É um tipo de verdade no servidor (docs/38 §1) — a única entrada
+ * desta lista que vale nos dois lados.
+ */
+export type TipoSessao = 'aluno' | 'coordenador' | 'administrador' | 'cantina';
 
 // ─── Respostas de estatística ────────────────────────────────────────────
 // Formatos devolvidos pelas rotas de análise. Não são entidades do banco:

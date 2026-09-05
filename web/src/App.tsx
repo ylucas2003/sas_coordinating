@@ -24,7 +24,11 @@ import { Contas } from './telas/Administracao/Contas';
 import { Integracoes } from './telas/Integracoes/Integracoes';
 import { SincronizacaoAulas } from './telas/Integracoes/SincronizacaoAulas';
 import { Login } from './telas/Login/Login';
+import { LoginCantina } from './telas/Login/LoginCantina';
 import { CallbackCanvas } from './telas/Login/CallbackCanvas';
+import { CascoCantina } from './telas/Cantina/CascoCantina';
+import { CantinaCoordenacao, CardapioNaCoordenacao } from './telas/Cantina/NaCoordenacao';
+import { AdministracaoCantina } from './telas/Administracao/Cantina';
 import { ChatLauncher } from './componentes/chat/ChatLauncher';
 import { LimiteDeErro } from './componentes/LimiteDeErro';
 import { LembreteFotoPerfil } from './componentes/perfil/LembreteFotoPerfil';
@@ -103,6 +107,11 @@ function AppCoordenacao() {
         <Route path="/administracao/contas" element={<Contas />} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/integracoes/aulas" element={<SincronizacaoAulas />} />
+        {/* A cantina em modo LEITURA. A coordenação vê o cardápio e os
+            pedidos; publicar é da cantina, que tem casco próprio (docs/38 §6). */}
+        <Route path="/cantina" element={<CantinaCoordenacao />} />
+        <Route path="/cantina/:data/:refeicao" element={<CardapioNaCoordenacao />} />
+        <Route path="/administracao/cantina" element={<AdministracaoCantina />} />
         {/* Rota desconhecida cai no painel, como o roteador antigo fazia. */}
         <Route path="*" element={<Navigate to="/painel" replace />} />
       </Routes>
@@ -140,14 +149,40 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* URL própria, e não um terceiro modo de `/login`: quem trabalha na
+          cantina recebe UM endereço e o salva (docs/38 §5). */}
+      <Route path="/login-cantina" element={<LoginCantina />} />
       <Route path="/login/canvas" element={<CallbackCanvas />} />
       <Route path="*" element={<RotaProtegida />} />
     </Routes>
   );
 }
 
-/** Sem sessão, qualquer rota leva ao login. */
+/**
+ * Sem sessão, qualquer rota leva ao login.
+ *
+ * ⚠️ **Três cascos, e o desconhecido volta para o login — não para a
+ * coordenação.** Até 05/09 isto era `tipo === 'aluno' ? aluno : coordenação`,
+ * e o `else` era seguro só porque existiam exatamente dois tipos. Com a
+ * cantina, aquele `else` montaria o casco da COORDENAÇÃO para ela: as rotas
+ * dariam 403 e a tela apareceria mesmo assim — e tela que monta para dar erro
+ * ensina a pessoa a desconfiar do produto (docs/38 §1.1).
+ *
+ * O default do `switch` é fail-closed pela mesma razão: um `sas_tipo` que esta
+ * versão não conhece (token velho, storage adulterado) não pode cair no casco
+ * mais poderoso.
+ */
 function RotaProtegida() {
   if (!sessao.autenticado()) return <Navigate to="/login" replace />;
-  return sessao.tipo() === 'aluno' ? <AppAluno /> : <AppCoordenacao />;
+  switch (sessao.tipo()) {
+    case 'aluno':
+      return <AppAluno />;
+    case 'coordenador':
+    case 'administrador':
+      return <AppCoordenacao />;
+    case 'cantina':
+      return <CascoCantina />;
+    default:
+      return <Navigate to="/login" replace />;
+  }
 }

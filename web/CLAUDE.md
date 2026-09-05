@@ -14,6 +14,24 @@ wrapper `<Legado>` ou hash router, está descrevendo o passado. Rotas são
 caminhos reais (`/alunos/A023`), o login é a rota `/login`, e a entrada é uma
 só: `index.html`.
 
+## São TRÊS cascos, não dois
+
+`App.tsx::RotaProtegida` monta um de três, por `sessao.tipo()`: a coordenação
+(rail + topbar), o aluno (barra de quatro destinos) e — desde 05/09 — a
+**cantina** (`telas/Cantina/CascoCantina.tsx`), que é marca, nome e sair, e
+nada mais.
+
+⚠️ Aquele `switch` era um ternário `aluno ? … : coordenação`, e o `else` só era
+seguro enquanto existiam dois tipos. Hoje o default volta ao login: um
+`sas_tipo` que esta versão não conhece não pode cair no casco mais poderoso
+(docs/38 §1.1). O mesmo vale para o array `TIPOS` de `servicos/sessao.ts` —
+tipo fora dele faz `tipo()` devolver `null` e a sessão nasce morta.
+
+O login também são três portas em DOIS endereços: `/login` alterna aluno e
+coordenação por um link no rodapé; `/login-cantina` é URL própria e não tem
+travessia. O formulário de e-mail e senha é um só (`Login/FormularioSenha.tsx`),
+usado pelas duas portas com senha.
+
 ## O casco: rail de ícones, não topbar de abas
 
 `componentes/layout/` monta rail (5 destinos) + topbar (migalhas, busca, sino,

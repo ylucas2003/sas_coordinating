@@ -66,7 +66,11 @@ sas/
 │                 sprints.html é a mesma coisa em página; 36 é a faixa 1 e 2
 │                 do aluno; **37 é a refatoração visual da coordenação** — a
 │                 pilha de cor, o fim do semáforo e o padrão de campo, com o
-│                 §6 dizendo o que NÃO foi verificado no browser
+│                 §6 dizendo o que NÃO foi verificado no browser; 38 é a
+│                 cantina (cardápio, pedido do aluno, contas da cantina) — e o
+│                 §1.1 dele lista os três lugares que quebram ao existir um
+│                 TERCEIRO tipo de sessão, e o §10.2 diz o que NÃO foi
+│                 verificado no browser
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no
@@ -84,7 +88,7 @@ docker compose up                        # front :8080 · API :8000 · postgrest
 docker compose run --rm migrate status   # ver migrations aplicadas/pendentes
 docker compose run --rm migrate up       # aplicar
 
-cd api && ./.venv/bin/python -m pytest tests/ -q   # 503 testes (+15 pulados)
+cd api && ./.venv/bin/python -m pytest tests/ -q   # 530 testes (+15 pulados)
 cd api && ./.venv/bin/ruff check .                 # lint
 cd web && npm test && npm run lint && npm run typecheck
 

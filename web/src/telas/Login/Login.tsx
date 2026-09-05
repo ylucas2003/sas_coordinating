@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import * as api from '../../servicos/api';
-import { ErroApi } from '../../servicos/http';
 import * as sessao from '../../servicos/sessao';
+import { FormularioSenha } from './FormularioSenha';
 import { Porta } from './Porta';
 import type { Modo } from './Porta';
 
@@ -67,9 +67,7 @@ export function Login() {
 
   const [modo, setModo] = useState<Modo>('aluno');
 
-  function entrar(dados: {
-    access_token: string; tipo: string; papel?: string; nome: string; aluno_id?: string; temFoto: boolean;
-  }) {
+  function entrar(dados: api.RespostaAutenticacao) {
     sessao.iniciar(dados);
     navegar('/', { replace: true });
   }
@@ -80,129 +78,28 @@ export function Login() {
       ssoCanvas={ssoCanvas}
       avisoCanvas={avisoCanvas}
       onTrocarModo={setModo}
-      formularioCoordenacao={<FormularioCoordenacao onEntrar={entrar} onTrocarModo={setModo} />}
+      formulario={(
+        <FormularioSenha
+          tipo="coordenador"
+          onEntrar={entrar}
+          exemploEmail="nome@aridesa.com.br"
+          /* Não há "primeiro acesso" nem "esqueci a senha": a senha da
+             coordenação é redefinida pelo administrador, em
+             /administracao/contas, e entregue pelo canal do colégio
+             (docs/35 §11.7). */
+          ajuda="Esqueceu a senha? Peça ao administrador do SAS para redefinir."
+          aposErro={(
+            /* DUAS PORTAS, e elas são diferentes: a coordenação entra por
+               e-mail e senha; o aluno entra SÓ pelo Canvas. Quem errar de
+               porta precisa saber para onde ir — senão tenta a mesma senha
+               três vezes e conclui que a conta foi bloqueada. Só aparece
+               DEPOIS de uma falha: antes dela seria ruído na porta certa. */
+            <button type="button" className="porta__link" onClick={() => setModo('aluno')}>
+              É aluno? A entrada de aluno é pelo Canvas.
+            </button>
+          )}
+        />
+      )}
     />
   );
-}
-
-/**
- * E-mail e senha — a única porta da coordenação, e a mesma do administrador.
- * Quem distingue os dois é o `papel` que volta do servidor (docs/35 §11).
- *
- * Usa as classes `.porta__*`, que já existiam e estavam órfãs: são as do
- * formulário que o ALUNO teve até 04/09, quando a senha de aluno acabou. O
- * desenho do campo, do rótulo e do olho de senha é o mesmo — o que mudou é
- * quem digita nele.
- */
-function FormularioCoordenacao({
-  onEntrar, onTrocarModo,
-}: {
-  onEntrar: (dados: { access_token: string; tipo: string; papel?: string; nome: string; aluno_id?: string; temFoto: boolean }) => void;
-  /** Para mandar quem errou de porta para a certa. */
-  onTrocarModo: (modo: Modo) => void;
-}) {
-  const [usuario, setUsuario] = useState('');
-  const [senha, setSenha] = useState('');
-  const [verSenha, setVerSenha] = useState(false);
-  const [erro, setErro] = useState('');
-  const [enviando, setEnviando] = useState(false);
-
-  async function enviar(ev: React.FormEvent) {
-    ev.preventDefault();
-    setEnviando(true);
-    setErro('');
-    try {
-      // `tipo` fixo: é o único que `/auth/login` ainda aceita.
-      onEntrar(await api.login({ tipo: 'coordenador', usuario: usuario.trim(), senha }));
-    } catch (e) {
-      setErro(mensagemDeErro(e, 'Credenciais inválidas. Verifique seus dados e tente novamente.'));
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  return (
-    <form className="porta__form" noValidate onSubmit={enviar}>
-      <div className="porta__campo">
-        <label className="porta__rotulo" htmlFor="login-usuario">E-mail</label>
-        <div className="porta__campo-caixa">
-          <input
-            id="login-usuario"
-            className="porta__input"
-            type="email"
-            placeholder="nome@aridesa.com.br"
-            autoComplete="username"
-            value={usuario}
-            onChange={(e) => setUsuario(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="porta__campo">
-        <label className="porta__rotulo" htmlFor="login-senha">Senha</label>
-        <div className="porta__campo-caixa">
-          <input
-            id="login-senha"
-            className="porta__input"
-            type={verSenha ? 'text' : 'password'}
-            placeholder="••••••••"
-            autoComplete="current-password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-          />
-          <button
-            type="button"
-            className="porta__olho"
-            tabIndex={-1}
-            aria-label={verSenha ? 'Ocultar senha' : 'Mostrar senha'}
-            onClick={() => setVerSenha((v) => !v)}
-          >
-            {verSenha ? 'Ocultar' : 'Mostrar'}
-          </button>
-        </div>
-      </div>
-
-      {/* O "Manter conectado" NÃO voltou. Era `defaultChecked` sem estado e sem
-          chegar ao `api.login` — um controle que fingia fazer alguma coisa, o
-          que é pior que controle nenhum. Se sessão longa virar produto, o lugar
-          dela é no servidor, na validade do token. */}
-
-      {erro && (
-        <div className="porta__erro" role="alert">
-          {erro}
-          {/* DUAS PORTAS, e elas são diferentes: a coordenação entra por e-mail
-              e senha; o aluno entra SÓ pelo Canvas. Quem errar de porta precisa
-              saber para onde ir — senão tenta a mesma senha três vezes e
-              conclui que a conta foi bloqueada. Só aparece DEPOIS de uma
-              falha: antes dela seria ruído na porta certa. */}
-          <button type="button" className="porta__link" onClick={() => onTrocarModo('aluno')}>
-            É aluno? A entrada de aluno é pelo Canvas.
-          </button>
-        </div>
-      )}
-
-      <button type="submit" className="alu-tecla alu-tecla--larga" disabled={enviando}>
-        {enviando ? 'Entrando…' : 'Entrar'}
-      </button>
-
-      {/* Não há "primeiro acesso" nem "esqueci a senha": a senha da coordenação
-          é redefinida pelo administrador, em /administracao/contas, e entregue
-          pelo canal do colégio (docs/35 §11.7). */}
-      <p className="porta__ajuda">
-        Esqueceu a senha? Peça ao administrador do SAS para redefinir.
-      </p>
-    </form>
-  );
-}
-
-/**
- * A mensagem que o usuário vê.
- *
- * 401 e as mensagens que terminam em "→ 4xx" viram o texto padrão: são o
- * "credenciais inválidas" cru da API, que não ajuda ninguém. O resto passa,
- * porque aí o servidor disse algo específico e útil.
- */
-function mensagemDeErro(e: unknown, padrao: string): string {
-  if (e instanceof ErroApi && (e.status === 401 || /→ \d{3}$/.test(e.message))) return padrao;
-  return (e as Error)?.message || padrao;
 }
