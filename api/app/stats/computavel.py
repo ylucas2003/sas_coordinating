@@ -22,8 +22,30 @@ Quem respondeu tudo e errou tudo tirou zero, e o zero conta.
     têm evidência por aluno; ali o zero conta e a tela diz que não há como
     distinguir. Um zero em Redação é nota de verdade com muito mais frequência
     que um zero em Matemática objetiva.
-  - **Não infere por prova.** Aquilo é o Problema B, e a decisão é sobre a
-    prova inteira (`simulado.nota_confiavel`), tomada à mão.
+  - **Não decide sozinho quais provas são exceção.** A lista de
+    `simulado.zero_e_ausencia` é ligada à mão (migration 0046). Não há
+    detector: o critério que achou as oito de 2023 — pico em zero com vale ao
+    lado, prova irmã do mesmo dia com contagem incompatível — é forte para um
+    humano ler e fraco para uma máquina aplicar.
+
+─── As DUAS evidências, e por que a segunda existe ──────────────────────
+
+  A) **Por aluno** (`todas_em_branco`): ele abriu o quiz e não marcou nada.
+     Direta, verificável, 122 células em produção.
+  B) **Por prova** (`zero_por_falta_lancada`): naquela prova o professor
+     lançou 0 para quem faltou. São oito provas de 2023 — 71% de todos os
+     zeros do sistema —, nenhuma delas quiz, e por isso invisíveis para a
+     evidência (A). O que as autoriza é a contagem da prova irmã do mesmo dia:
+     em seis das oito, o número de alunos acima de zero bate com quantos
+     alunos a irmã avaliou, dentro de 1% a 7% (docs/32 §1.4).
+
+  A (A) é mais específica e ganha quando as duas se aplicam. Na prática elas
+  não colidem: as oito provas de (B) não têm dado de questão nenhum.
+
+  ⚠️ (B) marca a NOTA, não a prova. A prova continua entrando na média — com
+  a média de quem de fato a fez. Isso é diferente de `simulado.nota_confiavel`,
+  que tira a prova inteira do agregado e existe para o caso, ainda não
+  observado, de uma prova de fato inutilizável.
 
 ⚠️ **ORDEM.** A evidência mora em `questao_resposta_aluno`, que o sync popula
 DEPOIS da nota. Chamar isto antes das respostas chegarem classifica todo mundo
@@ -42,9 +64,16 @@ from supabase import Client
 
 log = logging.getLogger("sas.stats.computavel")
 
-#: O motivo, hoje único. A coluna é texto para a próxima regra não precisar de
+#: Os dois motivos. A coluna é texto para a próxima regra não precisar de
 #: migration — não para virar campo livre.
+#:
+#: `TODAS_EM_BRANCO` é evidência POR ALUNO: ele abriu o quiz e não marcou nada.
+#: `ZERO_POR_FALTA_LANCADA` é evidência POR PROVA: naquela prova o professor
+#: lançou 0 para quem faltou, e a contagem da prova irmã do mesmo dia confirma
+#: (docs/32 §1.4). A segunda não sabe QUEM faltou — sabe que, ali, zero não é
+#: desempenho.
 TODAS_EM_BRANCO = "todas_em_branco"
+ZERO_POR_FALTA_LANCADA = "zero_por_falta_lancada"
 
 #: Balde sintético do Quiz Statistics que significa "deixou em branco".
 #: `other` (marcou fora das alternativas) NÃO conta como branco: é resposta,
@@ -97,11 +126,16 @@ def avaliar_computavel(cliente: Client, *, simulado_ids: list[str]) -> int:
     if not simulado_ids:
         return 0
 
+    # A segunda evidência é da PROVA, e vale mesmo onde não há quiz — é
+    # justamente o caso das oito de 2023, todas com nota lançada à mão.
+    provas_zero_e_falta = _provas_com_zero_e_ausencia(cliente, simulado_ids)
+
     questao_para_simulado = _mapear_questoes(cliente, simulado_ids)
     if not questao_para_simulado:
-        # Nenhum dos simulados é quiz: não há evidência para ninguém, e a
-        # única coisa a fazer é desmarcar quem porventura estivesse marcado.
-        return _aplicar(cliente, simulado_ids, {})
+        # Nenhum dos simulados é quiz: não há evidência POR ALUNO para
+        # ninguém. A da prova continua valendo, e quem não se encaixa em
+        # nenhuma das duas volta a ser computável.
+        return _aplicar(cliente, simulado_ids, {}, provas_zero_e_falta)
 
     respostas = _carregar_respostas(cliente, list(questao_para_simulado))
 
@@ -116,7 +150,30 @@ def avaliar_computavel(cliente: Client, *, simulado_ids: list[str]) -> int:
     veredictos = {
         chave: decidir(linhas) for chave, linhas in por_aluno_simulado.items()
     }
-    return _aplicar(cliente, simulado_ids, veredictos)
+    return _aplicar(cliente, simulado_ids, veredictos, provas_zero_e_falta)
+
+
+def _provas_com_zero_e_ausencia(cliente: Client, simulado_ids: list[str]) -> set[str]:
+    """Quais destas provas estão marcadas como "aqui, zero quer dizer falta".
+
+    Ligada à mão, com lista na mão (`simulado.zero_e_ausencia`, migration
+    0046). Não há detector automático de propósito: o critério que achou as
+    oito de 2023 é forte para um humano ler e fraco para uma máquina aplicar —
+    em Redação um pico em zero é legítimo, e automatizar repetiria o erro da
+    regra dos "2+ zeros no mesmo dia", que apagava nota de quem respondeu.
+    """
+    marcadas: set[str] = set()
+    for lote in _em_lotes(simulado_ids):
+        resp = (
+            cliente.table("simulado")
+            .select("id, zero_e_ausencia")
+            .in_("id", lote)
+            .execute()
+        )
+        for linha in resp.data or []:
+            if linha.get("zero_e_ausencia"):
+                marcadas.add(linha["id"])
+    return marcadas
 
 
 def _mapear_questoes(cliente: Client, simulado_ids: list[str]) -> dict[str, str]:
@@ -150,8 +207,10 @@ def _aplicar(
     cliente: Client,
     simulado_ids: list[str],
     veredictos: dict[tuple[str, str], tuple[bool, str | None]],
+    provas_zero_e_falta: set[str] | None = None,
 ) -> int:
     """Escreve só o que mudou de estado."""
+    marcadas = provas_zero_e_falta or set()
     mudancas = 0
     for lote in _em_lotes(simulado_ids):
         resp = (
@@ -164,9 +223,16 @@ def _aplicar(
             chave = (linha["aluno_id"], linha["simulado_id"])
             computavel, motivo = veredictos.get(chave, (True, None))
 
-            # A regra só fala de ZERO com presença afirmada. Nota positiva e
-            # ausência declarada não são assunto dela — e "todas em branco"
-            # com nota acima de zero seria contradição do Canvas, não nossa.
+            # A evidência da PROVA entra aqui, e não em `decidir`, porque só
+            # neste ponto se sabe se a nota é zero. Ela é o fallback: a
+            # evidência por aluno é mais específica e ganha quando existe.
+            if computavel and linha["simulado_id"] in marcadas:
+                computavel, motivo = False, ZERO_POR_FALTA_LANCADA
+
+            # Nenhuma das duas regras fala de outra coisa que não ZERO com
+            # presença afirmada. Nota positiva e ausência declarada não são
+            # assunto delas — e "todas em branco" com nota acima de zero seria
+            # contradição do Canvas, não nossa.
             if computavel is False and not _e_zero_presente(linha):
                 computavel, motivo = True, None
 

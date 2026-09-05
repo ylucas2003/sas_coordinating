@@ -54,13 +54,22 @@ def simulado_entra_no_agregado(simulado: dict) -> bool:
       - `anulado`      — a prova foi anulada;
       - `e_agregado`   — é a linha somatória, contá-la seria contar duas vezes;
       - `nota_confiavel = false` — a coluna inteira não representa desempenho.
-        São oito provas de 2023 em que o professor lançou 0 para quem faltou:
-        71% de todos os zeros do sistema, e uma média divulgada de 1,10 onde a
-        média de quem realmente fez é 3,84 (docs/32 §1.2).
 
-    ⚠️ Isto é a régua do AGREGADO. A trajetória do aluno de 2023 continua
-    mostrando a nota que ele tirou, com a ressalva na tela: quem perde a prova
-    é a estatística, não o histórico da pessoa.
+    ⚠️ **As oito provas de 2023 NÃO saem por aqui**, e isso mudou em 04/09.
+    O plano original as excluía com `nota_confiavel = false`; medir mostrou que
+    excluir era pior. Aquelas provas eram genuinamente difíceis (média de 2,7 a
+    4,4 entre quem as fez), e tirá-las INFLAVA a média do ciclo — 6,18 contra
+    os 5,51 corretos no Ciclo 4 · ITA · 2023. Elas ficam no agregado; quem sai
+    são as notas zeradas, uma a uma, por `simulado.zero_e_ausencia` →
+    `nota.computavel` (docs/32 §1.4, migration 0046).
+
+    Hoje **nenhuma prova** está com `nota_confiavel = false`. A coluna segue
+    existindo para o caso, ainda não observado, de uma prova de fato
+    inutilizável de ponta a ponta — e é por isso que ela não foi removida.
+
+    ⚠️ Isto é a régua do AGREGADO. A trajetória do aluno continua mostrando a
+    nota que ele tirou: quem perde a prova é a estatística, não o histórico da
+    pessoa.
     """
     if simulado.get("anulado") or simulado.get("e_agregado"):
         return False

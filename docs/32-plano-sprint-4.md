@@ -319,7 +319,7 @@ marca a **prova**.
 
 #### Problema A · nota a nota
 
-1. **Migration `0039`**:
+1. **Migration `0043`** *(aplicada em produção em 03/09)*:
    - `nota.computavel boolean NOT NULL DEFAULT true` — "esta nota entra na
      estatística".
    - `nota.motivo_nao_computavel text` — `'todas_em_branco'` por enquanto; a
@@ -327,10 +327,16 @@ marca a **prova**.
    - `questao_resposta_aluno.balde_sem_alternativa text` (`'none'` / `'other'` /
      null), para a ressalva do [§1.4](#14--as-duas-regras-propostas).
    - `simulado.nota_confiavel boolean NOT NULL DEFAULT true` +
-     `simulado.motivo_nota_nao_confiavel text` — é o Problema B, na mesma
-     migration porque é a mesma ideia e não vale duas paradas do PostgREST.
+     `simulado.motivo_nota_nao_confiavel text`.
    - Par `.down.sql`, e `docker compose restart postgrest` depois do `up`
      (armadilha 1 do `CLAUDE.md`).
+
+   ⚠️ **`nota_confiavel` não é o mecanismo do Problema B**, apesar de ter
+   nascido para isso. A `0043` foi escrita quando o plano ainda mandava excluir
+   a prova inteira; a regra melhor chegou **depois dela**, em 04/09. O que vale
+   é a `0046` ([Problema B](#problema-b--prova-a-prova)). A coluna fica, sem
+   nenhuma prova marcada, para o caso — ainda não observado — de uma prova de
+   fato inutilizável de ponta a ponta.
 
 2. **Um único avaliador**, novo módulo `api/app/stats/computavel.py`:
    `avaliar_computavel(cliente, *, simulado_ids)` conta brancos por
@@ -418,8 +424,11 @@ marca a **prova**.
   bate com a média das 2 — e o mesmo teste rodado contra cada superfície
   (Painel, ficha de ciclo, ficha de aluno, tool do chat), porque são 15 pontos
   de leitura e o risco é esquecer um.
-- `nota_confiavel = false`: a prova sai da média do ciclo e **continua**
-  aparecendo na trajetória do aluno.
+- `zero_e_ausencia = true`: o zero sai da conta, a **nota positiva não é
+  tocada** (são as ~130 verdadeiras de cada prova), a prova **continua** no
+  agregado, e desligar a marca devolve tudo.
+- Precedência: quando as duas evidências se aplicam, o motivo registrado é
+  `todas_em_branco` — o mais específico.
 - Regressão: nenhuma nota com `presente = false` muda de estado.
 
 ### 1.7 · O que precisa da coordenação, e o que não precisa
@@ -712,7 +721,8 @@ escolhido de propósito.
 | # | O quê | Parte |
 |---|---|---|
 | `0043` | `nota.computavel` + `nota.motivo_nao_computavel` · `questao_resposta_aluno.balde_sem_alternativa` · `simulado.nota_confiavel` + `simulado.motivo_nota_nao_confiavel` · **e a view `v_nota_dimensoes`**, que ganhou as duas colunas | P1 — os dois problemas na mesma migration: é a mesma ideia em dois níveis, e não vale duas paradas do PostgREST |
-| `0043b` | Migration de **dados**: marca as oito provas de 2023 por `external_id`, com o motivo escrito | P1 · Problema B — **só depois do aval da coordenação** ([§1.7](#17--o-que-precisa-da-coordenação-e-o-que-não-precisa)) |
+| `0046` | `simulado.zero_e_ausencia` + `simulado.motivo_zero_e_ausencia` — **o mecanismo real do Problema B**, escrito depois que a regra melhorou em 04/09 | P1 · Problema B — schema aplicado; nenhuma prova marcada |
+| `0046b` | Migration de **dados**: liga a marca nas oito provas de 2023, com a conferência da prova irmã escrita no motivo | P1 · Problema B — **só depois do aval da coordenação** ([§1.7](#17--o-que-precisa-da-coordenação-e-o-que-não-precisa)) |
 | ~~`0040`~~ | ~~`nota.presente_canvas` / `presente_sas`~~ | **Não será feita.** A P2 aposentou a planilha em 30/08 ([§2.4](#24--como-implementar)); com um só escritor não há o que arbitrar. Fica descrita em [§2.4](#24--como-implementar) como o caminho não tomado |
 
 > ⚠️ **Renumerada de `0039` para `0043` em 03/09.** Quando este plano foi
@@ -727,10 +737,20 @@ escolhido de propósito.
 > view: `CREATE OR REPLACE VIEW` só aceita acrescentar ao final, e o `.down`
 > precisa de `DROP` + `CREATE`, porque replace não sabe remover coluna.
 
-**Uma migration só, portanto.** Um sprint que começou com duas e termina com
-uma porque a resposta foi "esse caminho não é usado" é o resultado certo.
+> ⚠️ **Por que a `0046` existe, se a `0043` já tinha uma coluna para o
+> Problema B.** Porque são vereditos diferentes, e confundi-los custaria caro:
+> `nota_confiavel = false` diz *"a coluna inteira não presta"* e tira a prova
+> do agregado; `zero_e_ausencia = true` diz *"aqui, zero quer dizer falta"* e
+> **mantém a prova**, com a média de quem a fez. A `0043` foi escrita sob o
+> plano antigo; a regra melhor chegou depois dela. Nenhuma prova está marcada
+> com `nota_confiavel`, então não houve dado a migrar de uma para a outra — e
+> a coluna fica para o caso, ainda não observado, de uma prova inutilizável de
+> ponta a ponta.
 
-⬜ **Antes da `0039`, uma conferência de 30 segundos** que está no
+**Duas migrations de schema, e nenhuma de dado ainda.** A `0040` que o plano
+previa não existe porque a P2 aposentou a planilha; a `0046b` espera o aval.
+
+⬜ **Antes de qualquer migration, uma conferência de 30 segundos** que está no
 [`medir_zeros_b3.sql`](../api/scripts/medir_zeros_b3.sql) (bloco 9): se
 `notas_editadas_pelo_sas > 0` em produção, o `presente` sem arbitragem
 ([§2.2](#22--o-que-sobrou--e-é-um-defeito-de-verdade)) deixa de ser risco
@@ -784,13 +804,15 @@ ssh sas@46.202.150.165 'cd /opt/sas/infra/vps && docker compose exec -T db \
 [P3](#3--p3--split-ano--vestibular--ciclo-no-painel-c2) (só front, isolado) ·
 [P2](#2--p2--precedência-entre-ingest-de-planilha-e-sync-do-canvas-b4) no
 caminho de aposentar, que virou tamanho P e não tem migration ·
-**Problema A da [P1](#1--p1--zero--ausência-nas-estatísticas-b3)** — a `0039`
-inteira, o avaliador, o helper de leitura e as marcas na tela.
+**Problema A da [P1](#1--p1--zero--ausência-nas-estatísticas-b3)** — a `0043`
+inteira, o avaliador, o helper de leitura e as marcas na tela. ✅ **Em produção
+desde 03/09**, com 123 notas marcadas `todas_em_branco`.
 
 **Onda 1b — espera o aval da coordenação**
-**Problema B da P1**: a `0039b`, que são oito `UPDATE` com motivo escrito. A
-migration `0039` já cria as colunas, então esta onda é só o dado — e pode
-entrar dias depois, sem novo deploy de schema.
+**Problema B da P1**: oito `UPDATE` com motivo escrito, ligando
+`simulado.zero_e_ausencia`. A migration `0046` já criou a coluna e o avaliador
+já a lê, então esta onda é **só o dado** — entra no dia em que o aval vier, sem
+novo deploy de schema.
 
 **Onda 2 — o que fecha um buraco visível**
 [P6](#4--p6--envio-em-lote-ao-canvas-c5), começando pelo unitário do ciclo, que
