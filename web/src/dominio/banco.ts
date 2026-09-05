@@ -49,6 +49,35 @@ export function ehDissertativa(q: QuestaoVestibular): boolean {
   return q.dissertativa === true;
 }
 
+/**
+ * As letras que a tela oferece para marcar — de A até a última NECESSÁRIA, sem
+ * buraco no meio.
+ *
+ * ⚠️ NÃO é `Object.keys(alternativas)`, e a diferença tem consequência. A
+ * transcrição perdeu alternativas em 8 questões do acervo, e em 4 delas falta
+ * justamente a letra do GABARITO — `ita_2019_fase1_q12` traz A, C, D e E, e a
+ * resposta é B. Oferecer só o que foi transcrito obriga o aluno a errar: o
+ * botão da resposta certa não existe.
+ *
+ * Quem manda sobre quantas alternativas a prova tem é a IMAGEM do enunciado,
+ * que as traz impressas. Completar a série até a maior letra necessária — a
+ * última transcrita ou a do gabarito, a que vier depois — devolve o botão que
+ * faltava sem inventar alternativa acima do que a prova mostra.
+ *
+ * Devolve vazio quando não há alternativa nenhuma (dissertativa): aí não há
+ * série a completar, e `respondivel` já tira a questão da fila.
+ */
+export function letrasDaQuestao(q: QuestaoVestibular): string[] {
+  const transcritas = Object.keys(q.alternativas ?? {}).map((letra) => letra.toUpperCase());
+  if (!transcritas.length) return [];
+  const ultima = [...transcritas, q.gabarito?.trim().toUpperCase() ?? ''].reduce(
+    (maior, letra) => (letra > maior && letra <= 'Z' ? letra : maior),
+    'A',
+  );
+  const quantas = ultima.charCodeAt(0) - 'A'.charCodeAt(0) + 1;
+  return Array.from({ length: quantas }, (_, i) => String.fromCharCode(65 + i));
+}
+
 // ─── Filtro em memória ───────────────────────────────────────────────────
 
 /**
