@@ -717,6 +717,28 @@
   flex: none;
 }
 
+/* A coluna de TRAJETÓRIA do Painel. A de Distância saiu: o número já está na
+   etiqueta de cada célula abaixo do corte, e a coluna só repetia a pior
+   delas. A ordenação continua sendo por distância — quem a nomeia é a faixa
+   acima da tabela. */
+.painel-tabela__th-traj,
+.painel-tabela__td-traj {
+  text-align: center;
+  white-space: nowrap;
+  width: 110px;
+}
+
+.painel-tabela__th-traj {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+
+.painel-tabela__traj-vazia {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
 /* Mesmo desenho dos outros cabeçalhos: 13px, 500, CINZA. Estava herdando o
    `th` genérico (14px, 700, texto escuro) e competia com o dado abaixo. */
 .painel-tabela__th-dist {
