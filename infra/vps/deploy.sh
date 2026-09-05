@@ -111,10 +111,25 @@ portoes_locais() {
 # O rsync envia a ÁRVORE DE TRABALHO, não o HEAD. Então o que está sujo no git
 # é o que vai para produção, e isso precisa aparecer ANTES, não depois.
 resumo_e_confirmacao() {
-    local commit sujos
+    local commit sujos atras ramo
+    atras=0
     if git -C "$RAIZ" rev-parse --git-dir >/dev/null 2>&1; then
         commit="$(git -C "$RAIZ" log -1 --format='%h %s')"
         sujos="$(git -C "$RAIZ" status --porcelain | wc -l | tr -d ' ')"
+        # ⚠️ Árvore ATRASADA em relação ao remoto passava em silêncio até 05/09.
+        # Como o rsync envia a árvore de trabalho, um `main` que não puxou sobe
+        # sem os commits que já foram mergeados — e o deploy declara sucesso.
+        # Aconteceu: o PR #40 foi mergeado no GitHub, o `deploy.sh` rodou de uma
+        # árvore 10 commits atrás, e produção ficou sem a migration 0045 e sem
+        # dois scripts. Ninguém percebeu até alguém ir procurar a coluna nova.
+        #
+        # `|| true` porque nem todo ramo tem upstream, e não ter é caso normal
+        # (ramo local de teste), não erro que deva interromper o deploy.
+        ramo="$(git -C "$RAIZ" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')"
+        if git -C "$RAIZ" rev-parse --verify --quiet '@{u}' >/dev/null 2>&1; then
+            git -C "$RAIZ" fetch --quiet 2>/dev/null || true
+            atras="$(git -C "$RAIZ" rev-list --count 'HEAD..@{u}' 2>/dev/null || echo 0)"
+        fi
     else
         commit="sem git"; sujos=0
     fi
@@ -127,6 +142,12 @@ resumo_e_confirmacao() {
         printf '  \033[0;33mnão commitado  %s arquivo(s) — o rsync envia a árvore de trabalho\033[0m\n' "$sujos"
         git -C "$RAIZ" status --porcelain | head -10 | sed 's/^/      /' || true
         [[ "$sujos" -gt 10 ]] && printf '      … e mais %s\n' "$((sujos - 10))"
+    fi
+    if [[ "$atras" != "0" ]]; then
+        printf '  \033[0;33mATRÁS DO REMOTO  %s commit(s) — `%s` não puxou\033[0m\n' "$atras" "$ramo"
+        printf '  \033[0;33m                 o que já foi mergeado NÃO vai subir; rode `git pull` antes\033[0m\n'
+        git -C "$RAIZ" log --oneline 'HEAD..@{u}' 2>/dev/null | head -5 | sed 's/^/      /' || true
+        [[ "$atras" -gt 5 ]] && printf '      … e mais %s\n' "$((atras - 5))"
     fi
     printf '  migrations  %s\n' \
         "$([[ $MIGRAR == 1 ]] && echo 'AUTORIZADAS (--migrar)' || echo 'bloqueadas (use --migrar)')"

@@ -52,10 +52,20 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from app.supabase_client import criar_cliente_supabase
 
-# O diretório dos patches é irmão de `api/`, não filho — o pipeline vive fora da
-# API de propósito (nada ali roda em requisição; ver banco-questoes/README.md).
-_RAIZ = pathlib.Path(__file__).resolve().parent.parent.parent
-_PATCHES = _RAIZ / "banco-questoes" / "patches"
+# ⚠️ O padrão SÓ vale rodando do repositório. Dentro do container `api/` é
+# `/app`, então subir três níveis dá `/` e o script procurava em
+# `/banco-questoes/patches` — que não existe, porque o contexto de build da
+# imagem é `../../api` e `banco-questoes/` fica de fora. O docstring acima
+# avisava exatamente isso, e a primeira versão assumiu o layout do repositório
+# mesmo assim: em produção só rodou com um bind mount improvisado.
+#
+# Por isso o caminho é ARGUMENTO, com o padrão do repositório para o uso local.
+# No servidor, montar o diretório e apontar para ele:
+#
+#   docker compose run --rm -T -v /opt/sas/banco-questoes:/patches api \
+#       python -m scripts.aplicar_patches_de_classificacao \
+#       --patches /patches/patches --aplicar </dev/null
+_PATCHES_PADRAO = pathlib.Path(__file__).resolve().parent.parent.parent / "banco-questoes" / "patches"
 
 # O prefixo do id de uma questão é o nome da pasta da prova, e o sufixo é o
 # número com dois dígitos: `ita_2008_fase1` + `q11` → `ita_2008_fase1_q11`.
@@ -120,15 +130,29 @@ def main() -> int:
         action="store_true",
         help="grava. Sem esta flag o script só relata, como o recalcular_resolucao_url.",
     )
+    parser.add_argument(
+        "--patches",
+        type=pathlib.Path,
+        default=_PATCHES_PADRAO,
+        help=f"diretório dos patches. Padrão: {_PATCHES_PADRAO} (só existe rodando do repositório).",
+    )
     args = parser.parse_args()
 
-    if not _PATCHES.is_dir():
-        print(f"✗ diretório de patches não encontrado: {_PATCHES}", file=sys.stderr)
+    patches_dir: pathlib.Path = args.patches
+    if not patches_dir.is_dir():
+        print(f"✗ diretório de patches não encontrado: {patches_dir}", file=sys.stderr)
+        if patches_dir == _PATCHES_PADRAO:
+            # A pista que faltou na primeira vez que isto quebrou em produção.
+            print(
+                "  Rodando dentro do container? `banco-questoes/` não entra na imagem.\n"
+                "  Monte o diretório e aponte para ele com --patches.",
+                file=sys.stderr,
+            )
         return 1
 
-    patches = sorted(_PATCHES.glob("*.json"))
+    patches = sorted(patches_dir.glob("*.json"))
     if not patches:
-        print(f"Nenhum patch em {_PATCHES}. Nada a fazer.")
+        print(f"Nenhum patch em {patches_dir}. Nada a fazer.")
         return 0
 
     desejadas: dict[str, dict] = {}
