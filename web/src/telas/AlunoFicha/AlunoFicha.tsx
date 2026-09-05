@@ -4,6 +4,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Avatar } from '../../componentes/ui/Avatar';
 import { GraficoEmCamadas } from '../../componentes/ui/GraficoEmCamadas';
 import { Heatmap } from '../../componentes/ui/Heatmap';
+import { BarraCorte } from '../Aluno/pecas/BarraCorte';
+import { corteDaMateria, eliminaSozinho } from '../../dominio/criterios';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { LinhaEvolucao } from '../../componentes/ui/LinhaEvolucao';
 import { SimFiltros } from '../../componentes/simulados/SimFiltros';
@@ -19,7 +21,7 @@ import type { FiltroSimulados } from '../../dominio/simulados';
 import { decidirCorte, montarEixoCiclos, montarSeries } from '../../dominio/evolucaoAluno';
 import { lerSeries } from '../../dominio/leituraDeGrafico';
 import {
-  useAluno, useAlunosSimilares, useCriteriosDisponiveis, useHeatmapAluno, useSedes,
+  useAluno, useAlunosSimilares, useCriteriosDisponiveis, useHeatmapAluno, useMaterias, useSedes,
   useSimulados, useTrajetoriaAluno, useTurmas,
 } from '../../hooks/consultas';
 import { useEditarNota } from '../../hooks/mutacoes';
@@ -45,6 +47,7 @@ export function AlunoFicha() {
   const { data: aluno, isPending, isError } = useAluno(id);
   const { data: turmas = [] } = useTurmas();
   const { data: sedes = [] } = useSedes();
+  const { data: materias = [] } = useMaterias();
   const { data: trajetoria = [] } = useTrajetoriaAluno(id);
   const { data: heat } = useHeatmapAluno(id);
   const { data: similares = [] } = useAlunosSimilares(id);
@@ -86,6 +89,47 @@ export function AlunoFicha() {
   // desenhar o corte errado em metade dos pontos.
   const { data: criterios = [] } = useCriteriosDisponiveis();
   const corte = decidirCorte(filtro, criterios.find((c) => c.slug === 'tio-leo') ?? criterios[0]);
+
+  // A BARRA DE CORTE do aluno, reusada literalmente (brief §4): as mesmas
+  // matérias contra a mesma linha de ouro que o próprio aluno vê de si. É onde
+  // a coerência entre os dois produtos fica evidente.
+  //
+  // ⚠️ O heatmap traz matéria por NOME e a régua guarda o corte por CÓDIGO, e
+  // é o mapa abaixo que evita o erro caro: sem ele, `corteDaMateria` cairia no
+  // corte genérico e o Inglês eliminatório da F1 do ITA — o único com 5,0 —
+  // seria lido contra 4,0, mentindo justamente sobre a matéria que mais
+  // elimina (R2).
+  const codigoPorNome = useMemo(
+    () => new Map(materias.map((m) => [m.nome, m.codigo])),
+    [materias],
+  );
+  const reguaAtiva = criterios.find((c) => c.slug === 'tio-leo') ?? criterios[0] ?? null;
+  const materiasContraCorte = useMemo(() => {
+    if (!heat?.materias?.length) return [];
+    // A prova mais recente de cada matéria: o corte compara a situação ATUAL,
+    // não a média de tudo que já foi feito.
+    const ordem = new Map(heat.simulados.map((sim, i) => [sim.id, i]));
+    const ultima = new Map<string, { nota: number; pos: number }>();
+    for (const c of heat.celulas) {
+      if (c.pontuacao == null) continue;
+      const pos = ordem.get(c.simuladoId) ?? -1;
+      const atual = ultima.get(c.materia);
+      if (!atual || pos > atual.pos) ultima.set(c.materia, { nota: c.pontuacao, pos });
+    }
+    return heat.materias.flatMap((nome) => {
+      const achado = ultima.get(nome);
+      if (!achado) return [];
+      const codigo = codigoPorNome.get(nome) ?? nome;
+      const corteDela = corteDaMateria(reguaAtiva, codigo);
+      if (corteDela == null) return [];
+      return [{
+        materia: nome,
+        nota: achado.nota,
+        corte: corteDela,
+        eliminatoria: eliminaSozinho(reguaAtiva, codigo),
+      }];
+    });
+  }, [heat, codigoPorNome, reguaAtiva]);
 
   const turma = turmas.find((t) => t.id === aluno?.turmaId);
   const sede = sedes.find((s) => s.id === aluno?.sedeId);
@@ -148,8 +192,14 @@ export function AlunoFicha() {
   const totalPontos = series.reduce((acc, s) => acc + s.pontos.length, 0);
 
   return (
-    <div className="tela">
-      <div className="screen-stack">
+    // A ficha é TELA DE LEITURA, e por isso ganha a coluna lateral de 320px
+    // com o contexto que vivia espalhado pelo cabeçalho: a régua em vigor,
+    // onde o aluno está contra ela, as classificações e as ações. As telas de
+    // VARREDURA — painel, alunos, banco — não têm: lá a tabela tem 14 colunas,
+    // e 320px do lado direito saem direto da tarefa mais frequente do dia
+    // (docs/brief-claude-design-coordenacao.md §A arquitetura).
+    <div className="tela ficha-duas-colunas">
+      <div className="screen-stack ficha-coluna">
         <section className="card">
           <div className="aluno-ficha__header">
             <div className="aluno-ficha__header-info" style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
@@ -163,6 +213,7 @@ export function AlunoFicha() {
               </div>
             </div>
 
+            {/* As ações mudaram de lugar — ver a coluna lateral. */}
             <MenuExportar
               onPanoramaPDF={() => exportarPanoramaPDF(dadosPanorama())}
               onPanoramaPNG={() =>
@@ -179,19 +230,6 @@ export function AlunoFicha() {
           </div>
 
           {erroSalvar && <div className="agendar__erro">{erroSalvar}</div>}
-
-          <div className="section">
-            <div className="section__title">Classificações</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <span className="tag tone-navy">{PERFIL_LABEL[aluno.perfil] || aluno.perfil}</span>
-              <span className={`tag ${TENDENCIA_TONE[aluno.tendencia] ?? ''}`}>
-                {TENDENCIA_LABEL[aluno.tendencia] || aluno.tendencia}
-              </span>
-              <span className={`tag ${ZONA_TONE[aluno.zona] ?? ''}`}>
-                {ZONA_LABEL[aluno.zona] || aluno.zona}
-              </span>
-            </div>
-          </div>
 
           <SimFiltros
             opcoes={opcoes}
@@ -245,7 +283,7 @@ export function AlunoFicha() {
           <div className="section">
             <GraficoEmCamadas
               titulo="Heatmap matérias × simulados"
-              legenda="Cores: verde = nota alta · vermelho = nota baixa. Cobre todo o histórico do aluno (independente dos filtros acima)."
+              legenda="Célula cheia = acima do corte, e quanto mais forte, mais folga; célula vazada = abaixo. Cobre todo o histórico do aluno (independente dos filtros acima)."
               // O heatmap não tem insight de LLM por trás — não existe recorte
               // em `insight_ciclo` que corresponda a "este aluno, todas as
               // matérias". A camada aparece vazia, com a mensagem que o
@@ -257,9 +295,44 @@ export function AlunoFicha() {
           </div>
         </section>
 
+      </div>
+
+      {/* A COLUNA LATERAL, 320px. O contexto que estava espalhado pelo
+          cabeçalho e pelo fim da rolagem: onde o aluno está contra a régua,
+          as classificações como PALAVRA, e o acesso. */}
+      <aside className="ficha-lateral aluno-ficha__nao-imprimir">
+        <section className="card">
+          <div className="section">
+            <div className="section__title">Onde ele está</div>
+            <div className="section__subtitle">
+              {reguaAtiva ? `régua ${reguaAtiva.nome}` : 'régua indisponível'}
+            </div>
+            {/* A MESMA peça que o aluno vê de si mesmo, e é de propósito: é
+                aqui que a coerência entre os dois produtos fica evidente. */}
+            <BarraCorte materias={materiasContraCorte} />
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="section">
+            <div className="section__title">Classificações</div>
+            {/* Perfil e tendência como PALAVRAS, não como cores (R4/R7): o que
+                a tag diz é a categoria, e o desenho dela é contorno. */}
+            <div className="ficha-lateral__tags">
+              <span className="tag tone-navy">{PERFIL_LABEL[aluno.perfil] || aluno.perfil}</span>
+              <span className={`tag ${TENDENCIA_TONE[aluno.tendencia] ?? ''}`}>
+                {TENDENCIA_LABEL[aluno.tendencia] || aluno.tendencia}
+              </span>
+              <span className={`tag ${ZONA_TONE[aluno.zona] ?? ''}`}>
+                {ZONA_LABEL[aluno.zona] || aluno.zona}
+              </span>
+            </div>
+          </div>
+        </section>
+
         <PerfisSemelhantes similares={similares} />
 
-        <section className="card aluno-ficha__nao-imprimir">
+        <section className="card">
           <div className="section">
             <div className="section__title">Métricas internas</div>
             <div className="kpi-grid">
@@ -271,7 +344,7 @@ export function AlunoFicha() {
         </section>
 
         <AcessoDoAluno aluno={aluno} />
-      </div>
+      </aside>
 
       {emEdicao && (
         <EdicaoNota
