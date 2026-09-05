@@ -187,8 +187,11 @@
   font-weight: 500;
 }
 
-.linha-evol__tt-val.tone-verde { color: #5ed896; }
-.linha-evol__tt-val.tone-vermelho { color: #f08c95; }
+/* Tooltip do gráfico, sobre fundo escuro. O delta é comparação e fica
+   neutro (R5); os dois literais claros eram a última cor de semáforo
+   escrita à mão fora da paleta. */
+.linha-evol__tt-val.tone-verde,
+.linha-evol__tt-val.tone-vermelho { color: rgba(255, 255, 255, 0.72); }
 
 .linha-evol__tt-sep {
   height: 1px;
@@ -216,12 +219,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sim-tabela__delta.tone-verde {
-  color: var(--color-green);
-}
-
+/* R5 · A COMPARAÇÃO É CINZA. O delta contra a média da turma é comparação, e
+   o sentido dele já está no sinal — verde e vermelho aqui só acrescentam uma
+   segunda escala semântica na mesma tela. */
+.sim-tabela__delta.tone-verde,
 .sim-tabela__delta.tone-vermelho {
-  color: var(--color-red);
+  color: var(--color-text-tertiary);
 }
 
 /* ─── @media print — ficha pra exportação PDF (window.print) ─────────── */

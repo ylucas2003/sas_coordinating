@@ -30,11 +30,6 @@ import type { AlunoClassificado, CriterioClassificacao } from '../../tipos/domin
 // A lógica de colunas, médias e ranking vive em `dominio/painel.ts`; aqui fica
 // só o estado da tela (ciclo, filtros, busca, ordenação) e o desenho.
 
-function toneMedia(media: number | null): string {
-  if (media == null) return '';
-  return media >= 7 ? 'tone-verde' : media >= 5 ? 'tone-ambar' : 'tone-vermelho';
-}
-
 export function Painel() {
   const { data: ciclos = [] } = useCiclos();
   const { data: alunos = [] } = useAlunos();
@@ -347,12 +342,20 @@ export function Painel() {
         <div className="kpi-grid kpi-grid--cartoes">
           <Kpi rotulo="Alunos no ciclo" valor={resumo.totalAlunos} />
           <Kpi rotulo="Simulados aplicados" valor={resumo.totalSimulados} />
-          <Kpi rotulo="Média geral" valor={fmtNota(resumo.mediaGeral)} tone={toneMedia(resumo.mediaGeral)} />
+          {/* Sem tom, e é decisão (R7): a TABELA abaixo é que carrega a
+              leitura da tela, e duas escalas semânticas ao mesmo tempo é o
+              mesmo que nenhuma.
+
+              A "Média geral" tinha um ternário fixo — verde ≥7, âmbar ≥5 —
+              sem relação nenhuma com o corte em uso, enquanto a célula logo
+              abaixo usava o corte de verdade: o MESMO número podia estar
+              verde em cima e vermelho embaixo. Não foi substituído por outra
+              função de cor porque não sobra cor para ele. */}
+          <Kpi rotulo="Média geral" valor={fmtNota(resumo.mediaGeral)} />
           <Kpi
             rotulo={`Cortados · ${classificacaoResp?.criterio.nome ?? '…'}`}
             valor={resumo.cortados ?? '…'}
             sufixo={` de ${resumo.totalAlunos}`}
-            tone={resumo.cortados == null ? '' : resumo.cortados > 0 ? 'tone-vermelho' : 'tone-verde'}
           />
         </div>
       )}
@@ -371,6 +374,7 @@ export function Painel() {
             mediasVirtuais={dados.mediasVirtuais}
             mediasPorColuna={dados.mediasPorColuna}
             classificacao={classificacao}
+            criterio={classificacaoResp?.criterio ?? null}
             recolhidos={recolhidos}
             onToggleLimite={
               ordenacao === 'ranking'
@@ -498,17 +502,26 @@ function LegendaCriterio({ criterio }: { criterio: CriterioClassificacao | null 
         ))}
       </ul>
       <div className="painel-help-sep" />
+      {/* A legenda explicava o semáforo. Agora explica a FORMA, que é o que a
+          célula passou a dizer: preenchido acima do corte, vazado abaixo, e a
+          distância no próprio traço. Uma legenda desatualizada é pior que
+          nenhuma — ela ensina a ler errado. */}
       <div className="painel-help-legenda">
-        <span className="painel-help-dot painel-help-dot--verde" />
-        Verde — confortável acima do corte
+        <span className="painel-help-amostra painel-help-amostra--acima" />
+        Preenchido — acima do corte; quanto mais forte, mais folga
       </div>
       <div className="painel-help-legenda">
-        <span className="painel-help-dot painel-help-dot--ambar" />
-        Âmbar — passou, mas perto do corte
+        <span className="painel-help-amostra painel-help-amostra--margem" />
+        Preenchido fraco — passou, mas perto do corte
       </div>
       <div className="painel-help-legenda">
-        <span className="painel-help-dot painel-help-dot--vermelho" />
-        Vermelho — abaixo do corte
+        <span className="painel-help-amostra painel-help-amostra--abaixo" />
+        Vazado — abaixo do corte; o traço engrossa com a distância, e o número
+        vermelho ao lado diz quanto
+      </div>
+      <div className="painel-help-legenda">
+        <span className="painel-help-amostra painel-help-amostra--sem-nota" />
+        Hachurado — sem nota lançada. Não é zero
       </div>
     </>
   );

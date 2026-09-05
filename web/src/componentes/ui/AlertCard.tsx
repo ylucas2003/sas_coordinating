@@ -20,7 +20,10 @@ export function AlertCard({ alerta, onResolver }: Props) {
 
   return (
     <div className={`alert-card ${tone}`} onClick={() => navegar(destino)}>
-      <div className={`alert-card__bar ${tone}`} />
+      {/* A barra de severidade saiu (R4): a gravidade é ORDEM — o mais grave
+          primeiro — e etiqueta, nunca uma faixa colorida na lateral. O
+          `tone-*` fica na raiz porque o servidor ainda manda `severidade` e
+          outras telas leem daqui; ele não pinta mais superfície nenhuma. */}
       <div className="alert-card__main">
         <div className="alert-card__meta">
           <span className={`alert-card__tag ${tone}`}>{alerta.tagLabel}</span>

@@ -33,6 +33,12 @@
      dizem a mesma coisa com a mesma cor. */
   --color-navy: var(--dia-acao); /* ACAO */
   --color-gold: var(--dia-valor); /* VALOR */
+  /* DADO: o valor medido — barra, ponto, linha, célula cheia, seleção. */
+  --color-dado: var(--dia-dado);
+  --color-dado-texto-forte: var(--dia-dado-texto-forte);
+  /* A hachura de "sem nota". Ausência e zero são coisas diferentes no
+     domínio, e a interface nunca pode confundi-las. */
+  --color-hachura: var(--dia-hachura);
   --color-text-primary: var(--dia-texto);
   --color-text-secondary: var(--dia-texto-2);
   --color-text-tertiary: var(--dia-referencia); /* REFERENCIA */

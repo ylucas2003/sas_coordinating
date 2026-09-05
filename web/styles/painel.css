@@ -209,34 +209,122 @@
 
 /* ─── Badge de nota ─────────────────────────────────────────────────────── */
 
-/* `min-width` fixo para a coluna de notas ler como coluna, e não como uma
+/* ─── PREENCHIDO É ACIMA, VAZADO É ABAIXO (R1) ─────────────────────────────
+   O semáforo saiu. A varredura deixa de ser leitura de MATIZ e vira leitura
+   de FORMA: um aluno em risco é uma linha de buracos numa grade cheia, e o
+   olho acha um buraco mais rápido do que acha um vermelho no meio de outros
+   vermelhos. Funciona no daltonismo — ~8% dos homens — e funciona impresso
+   em preto e branco, que é como o dossiê do ciclo sai.
+
+   `--nota-intensidade` (0…1) é a distância do corte, calculada em
+   `dominio/selo.ts` e entregue pelo componente. Acima do corte ela satura o
+   preenchimento; abaixo, engrossa e escurece o contorno (R3). É escala
+   sequencial de matiz único, ancorada NO CORTE — nunca divergente de duas
+   cores, que é o que fazia 3,9 e 0,4 serem o mesmo vermelho.
+
+   `min-width` fixo para a coluna de notas ler como coluna, e não como uma
    fileira de pílulas de larguras diferentes. Vive aqui, e não em layout.css,
-   porque este arquivo carrega depois — duas definições e a de lá nunca
-   valeria. Os modificadores `--verde` e as classes `.tone-verde` do resto do
-   app apontam para o mesmo desenho. */
+   porque este arquivo carrega depois. */
 
 .nota-badge {
+  --nota-intensidade: 0;
   display: inline-block;
   padding: 6px 12px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   font-size: 13px;
   min-width: 62px;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  background: var(--color-neutral-soft);
+  background: transparent;
+  border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
 }
 
+/* Os nomes que o servidor manda (`verde`/`ambar`/`vermelho`) não carregam
+   distância, só lado. Ganham a intensidade fixa da tabela de tradução do
+   brief — "acima com saturação alta", "acima com saturação baixa", "vazado".
+   Renomear no backend é limpeza posterior e não é deste trabalho. */
 .nota-badge--verde,
-.nota-badge.tone-verde       { background: var(--color-green-soft);  color: var(--color-green); }
+.nota-badge.tone-verde { --nota-intensidade: 0.7; }
 .nota-badge--ambar,
-.nota-badge.tone-ambar       { background: var(--color-amber-soft);  color: var(--color-amber-text); }
+.nota-badge.tone-ambar { --nota-intensidade: 0.15; }
 .nota-badge--vermelho,
-.nota-badge.tone-vermelho    { background: var(--color-red-soft);    color: var(--color-red); }
-.nota-badge--vazia           { background: transparent; color: var(--color-text-tertiary); min-width: 0; }
+.nota-badge.tone-vermelho { --nota-intensidade: 0.5; }
 
+/* ACIMA · preenchido, e a saturação cresce com a distância. */
+.nota-badge--acima,
+.nota-badge--verde,
+.nota-badge.tone-verde,
+.nota-badge--ambar,
+.nota-badge.tone-ambar {
+  background: color-mix(
+    in srgb,
+    var(--color-dado) calc((22 + var(--nota-intensidade) * 78) * 1%),
+    transparent
+  );
+  border-color: transparent;
+  color: var(--color-magnitude);
+}
+
+/* Passado da metade da escala o preenchimento fica escuro demais para texto
+   escuro em cima. */
+.nota-badge--acima-forte {
+  color: var(--color-dado-texto-forte);
+}
+
+/* NO CORTE · preenchido no mínimo. Está no corte, então passou — o corte é o
+   mínimo que a régua exige, e 4,0 contra 4,0 não está abaixo de nada. */
+.nota-badge--no-corte {
+  background: color-mix(in srgb, var(--color-dado) 22%, transparent);
+  border-color: transparent;
+  color: var(--color-magnitude);
+}
+
+/* ABAIXO · vazado. O contorno engrossa e escurece com a distância, e é o
+   ÚNICO lugar onde a distância aparece sem número.
+   ⚠️ Nunca vermelho: só a etiqueta ao lado é ALERTA (R4). */
+.nota-badge--abaixo,
+.nota-badge--vermelho,
+.nota-badge.tone-vermelho {
+  background: transparent;
+  border-width: calc(1px + var(--nota-intensidade) * 1.6px);
+  border-color: color-mix(
+    in srgb,
+    var(--color-magnitude) calc((30 + var(--nota-intensidade) * 55) * 1%),
+    transparent
+  );
+  color: var(--color-magnitude);
+}
+
+/* SEM NOTA · hachura diagonal. Não é zero, e não pode parecer zero. */
+.nota-badge--vazia {
+  background: var(--color-hachura);
+  border-style: dashed;
+  color: var(--color-text-tertiary);
+  min-width: 0;
+}
+
+/* A ETIQUETA DE DISTÂNCIA — o único vermelho da varredura (R4).
+   Ela é que devolve o número que o contorno só sugere: "−1,4". */
+.nota-etiqueta {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--color-red);
+  vertical-align: middle;
+}
+
+/* A média da turma é REFERÊNCIA (R5): cinza azulado, atrás do dado, nunca
+   disputando a leitura com as linhas de aluno. Ela não é o desempenho de
+   ninguém — é a comparação contra a qual as linhas se leem. */
 .nota-badge--media {
-  font-weight: 500;
+  font-weight: 600;
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-tertiary);
 }
 
 /* A nota que a média não somou (docs/32 §1.4).
@@ -457,16 +545,33 @@
   margin-bottom: 6px;
 }
 
-.painel-help-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+/* As amostras da legenda são a própria peça em miniatura, e não um ponto
+   colorido: quem lê a legenda precisa reconhecer a FORMA na tabela abaixo. */
+.painel-help-amostra {
+  width: 22px;
+  height: 14px;
+  border-radius: 4px;
   flex-shrink: 0;
+  border: 1px solid transparent;
 }
 
-.painel-help-dot--verde    { background: var(--color-green); }
-.painel-help-dot--ambar    { background: var(--color-amber); }
-.painel-help-dot--vermelho { background: var(--color-red); }
+.painel-help-amostra--acima {
+  background: color-mix(in srgb, var(--color-dado) 85%, transparent);
+}
+
+.painel-help-amostra--margem {
+  background: color-mix(in srgb, var(--color-dado) 25%, transparent);
+}
+
+.painel-help-amostra--abaixo {
+  background: transparent;
+  border: 2px solid color-mix(in srgb, var(--color-magnitude) 60%, transparent);
+}
+
+.painel-help-amostra--sem-nota {
+  background: var(--color-hachura);
+  border: 1px dashed var(--color-border);
+}
 
 
 /* ─── A faixa de decisão (docs/33 §3) ───────────────────────────────────
