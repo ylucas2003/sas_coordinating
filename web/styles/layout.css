@@ -1410,34 +1410,6 @@
 
 
 /* Botão dos avançados + seção colapsável. */
-.ciclo-avancado__toggle {
-  display: flex;
-  justify-content: center;
-  margin: 24px 0 8px 0;
-}
-
-.ciclo-avancado__btn {
-  padding: 10px 24px;
-  font-size: 13px;
-  font-family: inherit;
-  font-weight: 500;
-  background: var(--color-surface-inset);
-  color: var(--color-navy);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-}
-
-.ciclo-avancado__btn:hover {
-  background: var(--color-bg);
-}
-
-.ciclo-avancado__btn.is-aberto {
-  background: var(--color-navy);
-  color: white;
-  border-color: var(--color-navy);
-}
-
 .ciclo-avancado {
   background: var(--color-surface-inset);
   border-radius: var(--radius-md);

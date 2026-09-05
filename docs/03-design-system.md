@@ -1,5 +1,28 @@
 # 03 — Design system
 
+> ## ⚠️ HISTÓRICO — este documento descreve o sistema ANTERIOR
+>
+> A régua em vigor é
+> [brief-claude-design-coordenacao.md](brief-claude-design-coordenacao.md), e o
+> que foi implementado está em
+> [37-plano-refatoracao-visual-coordenacao.md](37-plano-refatoracao-visual-coordenacao.md).
+>
+> O que abaixo ficou **falso** em 05/09/2026:
+>
+> | Seção | O que ela diz | O que é verdade |
+> |---|---|---|
+> | Paleta semântica | verde = acima da meta, vermelho = abaixo | **Não existe verde nesta interface.** Acima do corte é PREENCHIDO, abaixo é VAZADO, e a intensidade carrega a distância (R1/R3). O vermelho existe só na etiqueta de distância e na falha operacional (R4) |
+> | Tokens de cor | os `--color-*` com valor próprio | são ALIAS dos seis papéis. Os hexadecimais moram em `web/styles/paleta.css`, os papéis em `papeis.css` |
+> | `--color-bg` / `--color-surface` | fundo cinza, card branco | **invertidos**: fundo branco, superfície cinza |
+> | Escala tipográfica | KPI 32–40px em peso 700 | 40px em **800**, com tracking −0.035em e tabular. 700 era o mesmo peso do título ao lado |
+> | Sombras | `--shadow-card` e `--shadow-float` | **morreram.** Superfície é BORDA, nunca sombra |
+> | Raios | quatro (10, 14, 16, 18) | três (12, 18, 999) |
+> | (ausente) | — | existe **tema escuro**, e ele é uma decisão só, em `papeis.css` |
+>
+> Fica como registro do que o produto foi até a Sprint 5. Quem quiser a régua
+> atual, é o brief.
+
+
 ## Paleta semântica
 
 Paleta restrita, onde cada cor carrega significado fixo em toda a plataforma. Cor é tratada como linguagem, não como decoração.

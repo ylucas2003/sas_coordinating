@@ -32,7 +32,9 @@ export function Integracoes() {
       ? `${comErro} aula${comErro > 1 ? 's' : ''} com erro`
       : (andamento ?? `${publicadas} aula${publicadas === 1 ? '' : 's'} no canal`);
 
-  const tone = !data ? '' : comErro ? 'tone-vermelho' : andamento ? 'tone-navy' : 'tone-verde';
+  // Só a falha tem cor (R4). "Está rodando" não precisa de verde: a ausência
+  // de vermelho já diz isso, e verde aqui recriaria o semáforo.
+  const tone = comErro ? 'tone-vermelho' : '';
 
   return (
     <div className="tela">

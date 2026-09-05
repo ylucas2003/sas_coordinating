@@ -42,16 +42,23 @@
   color: var(--color-text-primary);
   margin: 0;
 }
-.integracao-card__estado {
-  font-size: 13px;
-  white-space: nowrap;
-}
 /* `.tone-navy` só existe no global combinado com `.tag` e `.kpi__valor`; solto
    num span ele não pinta nada. As outras três (verde/âmbar/vermelho) têm
    regra própria em layout.css e vêm de graça. */
-.integracao-card__estado.tone-navy {
-  color: var(--color-navy);
+/* O estado da integração. Neutro por padrão; só a FALHA é ALERTA — é o caso
+   (b) da R4, a falha operacional. "Está rodando" não precisa de verde: a
+   ausência de vermelho já diz isso, e verde aqui recriaria o semáforo numa
+   tela que não é de desempenho. */
+.integracao-card__estado {
+  font-size: 13px;
+  white-space: nowrap;
+  color: var(--color-text-tertiary);
 }
+
+.integracao-card__estado.tone-vermelho {
+  color: var(--color-red);
+}
+
 .integracao-card__texto {
   font-size: 14px;
   line-height: 1.5;

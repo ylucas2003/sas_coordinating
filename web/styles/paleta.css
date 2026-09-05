@@ -88,36 +88,11 @@
     rgba(110, 133, 184, 0.3) 5px
   );
 
-  /* ── O que ainda é só da coordenação ──────────────────────────────────
-     Os valores que NÃO coincidem com nenhum papel e que, por isso, não podem
-     virar alias sem mudar a tela. Ficam aqui para os hexadecimais continuarem
-     tendo um lugar só, e saem conforme cada regra do brief chega:
-
-       verde/âmbar/vermelho  no PR do fim do semáforo, quando deixam de ter
-                           papel que os justifique.
-
-     ⚠️ Nada novo entra aqui. Esta seção só encolhe — as sete entradas de
-     superfície e borda já saíram, no PR de superfície e forma. */
-  --coord-navy-deep: #16336f;
-  --coord-navy-mid: #2952a3;
-  --coord-navy-light: #4a78c9;
-  --coord-navy-soft: #e7edf9;
-  --coord-navy-tint: #eaf0fb;
-  --coord-gold-deep: #d4a82e;
-  --coord-gold-soft: #fbefc6;
-
-  /* Semáforo — morre no PR do fim do semáforo. */
-  --coord-red: #d9354a;
-  --coord-red-soft: #fbe9ec;
-  --coord-green: #2e8c5a;
-  --coord-green-soft: #e9f5ee;
-  --coord-amber: #d4a82e;
-  --coord-amber-text: #b08419;
-  --coord-amber-soft: #fbf3e2;
-  --coord-neutral-soft: #f1f3f8;
-
-  --coord-texto-body: #1a2233;
-  --coord-texto-faint: #a2abbd;
+  /* A seção `--coord-*` desapareceu aqui: eram os valores que a coordenação
+     tinha e o sistema não. As sete superfícies saíram no PR de superfície e
+     forma; as sete de marca e as oito do semáforo, no do tema escuro, quando
+     passaram a ser derivadas do papel por `color-mix` em vez de existirem
+     como um segundo hexadecimal. Nenhum leitor sobrou. */
 
   /* ── Séries categóricas ───────────────────────────────────────────────
      Para distinguir MATÉRIA numa linha de evolução, e nada mais — não têm

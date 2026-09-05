@@ -32,6 +32,9 @@ avatar) + `<main>`. Três consequências que se descobre errando:
     `dominio/filtros.ts`.
   - A `tela` que a faixa recebe é a SUPERFÍCIE, não a rota (`provas.ciclos` ≠
     `provas.simulados`).
+  - No Painel ela também carrega **régua, fase e ordenação**, que eram um
+    segundo estrato de recorte na linha do título. Cada um passa `resumo` — e a
+    régua é o caso mais caro, porque ela muda TODA a leitura da tela.
 - **Duas buscas, e elas não competem.** A da topbar é NAVEGAÇÃO — digite de
   qualquer tela, atalho `/`, e vá para a ficha do aluno. A da `BarraFiltros`
   (`<Busca>`) é RECORTE: peneira as linhas da tela em que você está. A primeira
@@ -40,6 +43,9 @@ avatar) + `<main>`. Três consequências que se descobre errando:
 - **A tela não monta `<main>`.** Quem monta é o casco; a rota devolve
   `.tela`, que é só a coluna de blocos. Dois `<main>` na página é HTML
   inválido e o leitor de tela anuncia duas regiões principais.
+- **Coluna lateral de 320px só em tela de LEITURA** (ficha do aluno). Painel,
+  Alunos e Banco são de varredura: lá a tabela tem 14 colunas com o nome
+  congelado, e 320px do lado direito saem da tarefa mais frequente do dia.
 - **Quem abre o rail é o CSS**, por `:has(.rail:hover)` e `:focus-within` —
   não um `useState`. Estado aqui remontaria a árvore a cada passada de mouse.
 
@@ -81,14 +87,40 @@ Não "modernize" essa pasta.
 - **Classes compartilhadas ficam globais** (`.card`, `.tone-*`, `.nota-badge`,
   `.btn`); só o CSS de prefixo próprio da tela vira módulo. Extração ao
   contrário trava.
+- **A cor tem uma pilha de cinco arquivos, e a ordem é obrigatória**
+  (docs/37): `paleta.css` (os hexadecimais, uma vez cada) → `papeis.css` (os
+  seis papéis e os três blocos de tema) → `tokens.css` (`--color-*`) e
+  `aluno-tokens.css` (`--alu-*`), que são só alias → `documento.css`
+  (`--doc-*`), **por último**, porque o `@media print` dele remapeia a paleta e
+  blocos `:root` têm a mesma especificidade.
+
+  ⚠️ Nenhuma tela lê `--dia-*`, `--noite-*` direto: eles são matéria-prima.
+  `dominio/tokensCss.test.ts` trava isso — e existe porque um `*/` perdido já
+  comentou sete tokens sem o build reclamar: `var()` indefinido é descartado em
+  silêncio.
+- **O semáforo não existe mais.** Acima do corte é preenchido, abaixo é vazado,
+  a intensidade carrega a distância, e o vermelho fica só na etiqueta e na
+  falha operacional. `dominio/selo.ts` faz a tradução; o backend continua
+  mandando `'verde' | 'ambar' | 'vermelho'`, e isso está certo.
+- **O padrão de campo** (`componentes/ui/Campo.tsx`) é como uma tela pesada
+  vira várias leves: divisão por PERGUNTA, subtítulo com dado vivo nos três
+  estados, destino em tela inteira com URL própria, chevron de 44px na mesma
+  linha do título, e o elo quieto que some quando está vazio **ou quando a
+  consulta falha**. Está em Administração e na ficha de ciclo.
 - `tipos/dominio.ts` espelha `api/app/schemas/domain.py`. Mudou o schema
   Pydantic, mude aqui — é o que faz `turmaId` vs `turma_id` aparecer no build
   em vez de em runtime. O mesmo vale para `tipos/banco.ts` ↔ `schemas/banco.py`.
-- **`telas/Banco/` serve os dois cascos.** A aba do banco de questões é o mesmo
-  produto para aluno e coordenação; o que muda é permissão, não código, e por
-  isso `Banco.tsx` recebe `perfil` e esconde o que não se aplica. Duplicar em
-  `telas/Aluno/Banco` garantiria divergência — o primeiro conserto de CSS iria
-  para um lado só. Ver docs/22 §3.1.
+- **⚠️ `telas/Banco/` NÃO serve mais os dois cascos.** A intenção era essa —
+  `Banco.tsx` ainda recebe `perfil` —, mas o aluno tem
+  `telas/Aluno/EstudarBanco.tsx`, uma reimplementação, e `perfil="aluno"` em
+  `Banco.tsx` virou **código morto**.
+
+  Vale registrar como custou: a falta de espinha comum fez o mesmo produto ser
+  construído duas vezes. A razão declarada da duplicação era que a tela da
+  coordenação é toda em tokens da coordenação e não sobreviveria ao tema
+  escuro do aluno — e **essa razão morreu em 05/09/2026**, quando `--color-*`
+  passou a apontar para os mesmos papéis que `--alu-*` (docs/37 §7.3).
+  Reunificá-las voltou a ser possível, e é trabalho próprio.
 
 ## Ferramentas
 
