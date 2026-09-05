@@ -68,3 +68,15 @@ banco-questoes/piloto-1973/*.png
 # também fora do rsync do deploy, que filtra a árvore de trabalho por este
 # arquivo.
 sas-rea-do-aluno/
+
+# ⚠️ Card de acessos da coordenação: SENHA EM TEXTO CLARO, inclusive de duas
+# contas `administrador`. Fica fora do git por dois motivos, e o segundo é o
+# que morde: (1) senha em commit não some com `git rm` — fica no histórico;
+# (2) o `deploy.sh` faz rsync da árvore de trabalho com
+# `--filter=':- .gitignore'` (linha 205), então o que NÃO estiver aqui vai
+# para o VPS a cada deploy. É exatamente o acidente das capturas do painel de
+# aluno real descrito mais acima neste arquivo.
+#
+# `.html` é a fonte que gera o `.png` (Chrome headless); os dois têm o mesmo
+# conteúdo sensível, por isso a regra pega os dois.
+/acessos-coordenacao.*

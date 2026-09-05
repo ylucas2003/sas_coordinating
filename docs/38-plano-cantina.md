@@ -425,18 +425,30 @@ por "o que eu faço agora", e escolher o almoço é literalmente isso — é a �
 coisa da tela que **expira**. Fica abaixo da missão porque a missão é o herói e
 não se mexe nisso.
 
-Quatro estados, e eles são o card. O quarto só existe porque quem não pede não
-come (§8.0.2):
+⚠️ **O CARD É A ÚNICA PORTA DE `/cantina`.** A tela não está na barra de quatro
+destinos — de propósito —, então toda saída quieta dele precisa levar lá. Uma
+linha sem link deixa a tela inalcançável, e foi o defeito da primeira escrita.
+
+São **cinco** estados, e a ordem de prioridade entre eles é regra: mora em
+`dominio/cantina.ts::cardDaCantina`, com teste ao lado, e não dentro do
+componente.
 
 * **prazo aberto, sem pedido** → o card cheio, com o **prazo em magnitude**
   ("escolha até as 20h de hoje"). É o único momento em que ele compete com a
   missão, e deve competir — perder esse prazo custa o almoço, não um lembrete.
-* **já pedi** → linha quieta com o resumo ("arroz · feijão · frango grelhado ·
-  trocar"), no padrão do `EloQuieto`. Trocar é permitido até o prazo.
-* **prazo vencido, sem pedido** → linha quieta e factual: *"sem almoço reservado
-  hoje"*. Some depois do horário da refeição. Não é punição nem cobrança — é
-  para o aluno **não caminhar até o balcão à toa**, que é o único desfecho ruim
-  que ainda dá para evitar nesse ponto.
+  Vence os outros: um cardápio de quarta ainda por pedir é mais urgente que o
+  de terça já resolvido.
+* **prazo aberto, já pedi** → linha quieta com o resumo ("arroz · feijão ·
+  frango grelhado · *trocar*"), no padrão do `EloQuieto`.
+* **prazo vencido, com pedido para um dia que ainda vem** → linha quieta com o
+  resumo e *ver*. É a resposta a "o que eu vou comer amanhã?", e a falta dela
+  era o defeito: o card sumia, e com ele a única porta da tela. O link não diz
+  "trocar" porque o servidor recusaria com 409.
+* **prazo vencido, sem pedido, HOJE** → linha quieta e factual: *"sem almoço
+  reservado hoje"*. Não é punição nem cobrança — é para o aluno **não caminhar
+  até o balcão à toa**, que é o único desfecho ruim que ainda dá para evitar
+  nesse ponto. Só vale para hoje: dizer isso de quinta-feira seria cobrança
+  sobre o que ainda nem chegou.
 * **sem direito, ou sem cardápio publicado** → não existe. Some, não vira
   estado vazio.
 

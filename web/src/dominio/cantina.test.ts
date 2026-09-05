@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { BlocoCardapio, Cardapio } from '../tipos/cantina';
+import type { BlocoCardapio, Cardapio, DiaDoAluno } from '../tipos/cantina';
 import {
-  dataLocal, deInputLocal, gradeDoMes, instrucaoDoBloco, isoDoDia, marcadasNoBloco,
+  cardDaCantina, dataLocal, deInputLocal, gradeDoMes, instrucaoDoBloco, isoDoDia, marcadasNoBloco,
   paraInputLocal, pendenciaDoPedido, podeMarcarMais, prazoAberto, prazoLegivel, resumoDoPedido,
   rotuloDoDia,
 } from './cantina';
@@ -173,5 +173,67 @@ describe('prazo no campo do editor', () => {
     expect(paraInputLocal(null)).toBe('');
     expect(deInputLocal('')).toBeNull();
     expect(deInputLocal('não é data')).toBeNull();
+  });
+});
+
+describe('o card em Hoje', () => {
+  const AGORA = new Date('2026-09-07T12:00:00-03:00');
+  const ABERTO = '2026-09-07T20:00:00-03:00';
+  const FECHADO = '2026-09-06T20:00:00-03:00';
+
+  const dia = (p: Partial<DiaDoAluno>): DiaDoAluno => ({
+    id: 'c', cantina_id: 'x', data: '2026-09-07', refeicao: 'almoco',
+    pedidos_ate: ABERTO, publicado_em: '2026-09-01', sem_refeicao: false,
+    estado: 'aberto', blocos: [], meuPedido: null, ...p,
+  });
+
+  it('sem dia nenhum, o card some', () => {
+    expect(cardDaCantina([], AGORA)).toBeNull();
+  });
+
+  it('prazo aberto e sem pedido é o estado urgente', () => {
+    expect(cardDaCantina([dia({})], AGORA)?.tipo).toBe('escolher');
+  });
+
+  it('o que falta pedir vence o que já foi pedido', () => {
+    // Um cardápio de quarta ainda por pedir é mais urgente que o de terça já
+    // resolvido, mesmo vindo depois na lista.
+    const r = cardDaCantina([
+      dia({ id: 'ter', meuPedido: ['x'] }),
+      dia({ id: 'qua', data: '2026-09-09', meuPedido: null }),
+    ], AGORA);
+    expect(r).toEqual({ tipo: 'escolher', dia: expect.objectContaining({ id: 'qua' }) });
+  });
+
+  it('tudo pedido e prazo aberto vira linha quieta com troca', () => {
+    expect(cardDaCantina([dia({ meuPedido: ['x'] })], AGORA)?.tipo).toBe('pedido-aberto');
+  });
+
+  it('prazo fechado com pedido ainda responde "o que eu vou comer"', () => {
+    // ⚠️ O caso que faltava. Sem ele o card sumia, e como `/cantina` não está
+    // na barra de quatro destinos, a tela ficava SEM PORTA: quem pediu na
+    // véspera não tinha como conferir o próprio pedido.
+    const r = cardDaCantina([dia({ pedidos_ate: FECHADO, meuPedido: ['x'] })], AGORA);
+    expect(r?.tipo).toBe('pedido-fechado');
+  });
+
+  it('prazo fechado com pedido de dia que já passou não volta', () => {
+    const r = cardDaCantina(
+      [dia({ data: '2026-09-01', pedidos_ate: FECHADO, meuPedido: ['x'] })],
+      AGORA,
+    );
+    expect(r).toBeNull();
+  });
+
+  it('prazo de hoje fechado e sem pedido avisa que não há reserva', () => {
+    const r = cardDaCantina([dia({ pedidos_ate: FECHADO })], AGORA);
+    expect(r?.tipo).toBe('sem-reserva');
+  });
+
+  it('prazo fechado de um dia futuro sem pedido não vira aviso de hoje', () => {
+    // "Sem almoço reservado hoje" só vale para HOJE — dizer isso de quinta-feira
+    // seria cobrança sobre algo que ainda nem chegou.
+    const r = cardDaCantina([dia({ data: '2026-09-10', pedidos_ate: FECHADO })], AGORA);
+    expect(r).toBeNull();
   });
 });

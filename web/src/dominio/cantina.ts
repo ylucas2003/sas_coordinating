@@ -11,7 +11,9 @@
 // desabilitar o botão antes do clique — um botão que só falha depois do envio
 // ensina a pessoa a desconfiar da tela.
 
-import type { BlocoCardapio, Cardapio, EstadoCardapio, Refeicao } from '../tipos/cantina';
+import type {
+  BlocoCardapio, Cardapio, DiaDoAluno, EstadoCardapio, Refeicao,
+} from '../tipos/cantina';
 
 export const ROTULO_DA_REFEICAO: Record<Refeicao, string> = {
   almoco: 'Almoço',
@@ -186,4 +188,51 @@ export function gradeDoMes(ano: number, mes: number): Array<string | null> {
   for (let dia = 1; dia <= dias; dia += 1) casas.push(isoDoDia(new Date(ano, mes, dia)));
   while (casas.length % 7 !== 0) casas.push(null);
   return casas;
+}
+
+/**
+ * O que o card da cantina mostra em Hoje — e qual dia ele fala.
+ *
+ * Função pura porque a ORDEM DE PRIORIDADE é a regra, e regra que mora dentro
+ * de um componente não tem teste. A ordem:
+ *
+ *   1. `escolher`        há prazo aberto e eu não pedi. O único estado urgente,
+ *                        e o único que merece um card grande: perder este
+ *                        prazo custa a refeição.
+ *   2. `pedido-aberto`   há prazo aberto e eu já pedi. Linha quieta, com a
+ *                        opção de trocar enquanto dá.
+ *   3. `pedido-fechado`  o prazo passou e eu tenho pedido para um dia que
+ *                        ainda vem. Linha quieta, sem trocar — é a resposta a
+ *                        "o que eu vou comer amanhã?".
+ *   4. `sem-reserva`     o prazo de HOJE passou e eu não pedi. Existe para o
+ *                        aluno não caminhar até o balcão à toa.
+ *   5. `null`            não há nada a dizer, e o card some.
+ *
+ * ⚠️ O estado 3 é o que faltava na primeira escrita, e a falta não era
+ * cosmética: com o card sumindo, `/cantina` ficava SEM PORTA — não está na
+ * barra de quatro destinos (de propósito), e o card era o único caminho. Quem
+ * pedisse na véspera não tinha como conferir o próprio pedido depois que o
+ * prazo fechava.
+ */
+export type CardDaCantina =
+  | { tipo: 'escolher' | 'pedido-aberto' | 'pedido-fechado' | 'sem-reserva'; dia: DiaDoAluno }
+  | null;
+
+export function cardDaCantina(dias: readonly DiaDoAluno[], agora: Date = new Date()): CardDaCantina {
+  if (!dias.length) return null;
+  const hoje = isoDoDia(agora);
+
+  // O próximo prazo ABERTO — não o próximo dia. Um cardápio de quarta com
+  // prazo até terça é mais urgente que o de amanhã já fechado.
+  const abertos = dias.filter((d) => prazoAberto(d.pedidos_ate, agora));
+  const porPedir = abertos.find((d) => d.meuPedido == null);
+  if (porPedir) return { tipo: 'escolher', dia: porPedir };
+  if (abertos.length) return { tipo: 'pedido-aberto', dia: abertos[0] };
+
+  // Prazo fechado: o pedido de um dia que ainda vem continua interessando.
+  const pedido = dias.find((d) => d.data >= hoje && d.meuPedido != null);
+  if (pedido) return { tipo: 'pedido-fechado', dia: pedido };
+
+  const semReserva = dias.find((d) => d.data === hoje && d.meuPedido == null);
+  return semReserva ? { tipo: 'sem-reserva', dia: semReserva } : null;
 }
