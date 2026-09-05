@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
-  instrucaoDoBloco, marcadasNoBloco, pendenciaDoPedido, podeMarcarMais, prazoAberto,
-  prazoLegivel, resumoDoPedido, ROTULO_DA_REFEICAO, rotuloDoDia,
+  cardDaCantina, instrucaoDoBloco, marcadasNoBloco, pendenciaDoPedido, podeMarcarMais,
+  prazoAberto, prazoLegivel, resumoDoPedido, ROTULO_DA_REFEICAO, rotuloDoDia,
 } from '../../dominio/cantina';
 import { useCancelarPedido, useCantinaDoAluno, useSalvarPedido } from '../../hooks/cantina';
 import type { DiaDoAluno } from '../../tipos/cantina';
@@ -222,38 +222,35 @@ export function DiaDaCantina({ dia }: { dia: DiaDoAluno }) {
  */
 export function BlocoDaCantina() {
   const { data } = useCantinaDoAluno();
+  const card = useMemo(() => cardDaCantina(data?.dias ?? []), [data]);
 
-  const dia = useMemo(() => {
-    if (!data?.dias.length) return null;
-    // O PRÓXIMO prazo aberto — não o próximo dia. Um cardápio de quarta com
-    // prazo até terça é mais urgente que o de amanhã já fechado.
-    const abertos = data.dias.filter((d) => prazoAberto(d.pedidos_ate));
-    if (abertos.length) return abertos[0];
-    // Nenhum aberto: só interessa dizer que hoje ficou sem, e só hoje.
-    const hoje = new Date().toISOString().slice(0, 10);
-    return data.dias.find((d) => d.data === hoje && d.meuPedido == null) ?? null;
-  }, [data]);
+  if (!card) return null;
+  const { tipo, dia } = card;
+  const refeicao = ROTULO_DA_REFEICAO[dia.refeicao];
 
-  if (!dia) return null;
+  // ⚠️ TODA saída quieta leva a `/cantina`. A tela não está na barra de quatro
+  // destinos — de propósito —, então o card É a porta dela: uma linha sem link
+  // deixa a tela inalcançável, que foi o defeito da primeira escrita.
 
-  const aberto = prazoAberto(dia.pedidos_ate);
-  const jaPedi = dia.meuPedido != null;
-
-  if (!aberto) {
+  if (tipo === 'sem-reserva') {
     return (
       <p className="alu-cantina__linha-quieta">
-        Sem {ROTULO_DA_REFEICAO[dia.refeicao].toLowerCase()} reservado hoje.
+        Sem {refeicao.toLowerCase()} reservado hoje.{' '}
+        <Link to="/cantina">ver a cantina</Link>
       </p>
     );
   }
 
-  if (jaPedi) {
+  if (tipo === 'pedido-aberto' || tipo === 'pedido-fechado') {
     return (
       <p className="alu-cantina__linha-quieta">
-        {ROTULO_DA_REFEICAO[dia.refeicao]} de {rotuloDoDia(dia.data)}:{' '}
+        {refeicao} de {rotuloDoDia(dia.data)}:{' '}
         {resumoDoPedido(dia, dia.meuPedido ?? []) || 'nada marcado'}
         {' · '}
-        <Link to="/cantina">trocar</Link>
+        {/* "Trocar" só enquanto dá. Depois do prazo o link continua — o pedido
+            é a resposta a "o que eu vou comer amanhã" —, mas não promete uma
+            edição que o servidor recusaria com 409. */}
+        <Link to="/cantina">{tipo === 'pedido-aberto' ? 'trocar' : 'ver'}</Link>
       </p>
     );
   }
@@ -266,7 +263,7 @@ export function BlocoDaCantina() {
       acao={<Link className="alu-bloco__link" to="/cantina">Escolher</Link>}
     >
       <p className="alu-cantina__chamada">
-        Escolha seu {ROTULO_DA_REFEICAO[dia.refeicao].toLowerCase()} de {rotuloDoDia(dia.data)}
+        Escolha seu {refeicao.toLowerCase()} de {rotuloDoDia(dia.data)}
       </p>
       {/* O prazo em MAGNITUDE: perder este prazo custa a refeição, não um
           lembrete — e não há lembrete (docs/38 §7). */}
