@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { corteDaMateria } from '../../dominio/criterios';
 import { LIMITES_RANKING, linhaVisivel } from '../../dominio/painel';
-import type { ClassificacaoPorAluno } from '../../dominio/painel';
-import { seloDaNota } from '../../dominio/selo';
+import type { ClassificacaoPorAluno, OrdenacaoPainel } from '../../dominio/painel';
+import { distanciaAoCorte, formatarDistancia, seloDaNota } from '../../dominio/selo';
 import type { TomNota } from '../../tipos/dominio';
 import type { ColunaPainel, IgnoradasPorAluno, NotasPorAluno } from '../../dominio/painel';
 import type { Aluno, CriterioClassificacao } from '../../tipos/dominio';
@@ -21,11 +21,20 @@ interface Props {
   /** A régua em vigor. É dela que sai o corte de cada matéria, e sem ela o
       selo não tem como desenhar distância — só lado. */
   criterio: CriterioClassificacao | null;
+  /** Qual ordenação está em vigor — R6 exige que ela seja VISÍVEL e NOMEADA. */
+  ordenacao: OrdenacaoPainel;
   recolhidos: ReadonlySet<number>;
   /** `null` fora do modo ranking — os separadores só fazem sentido ordenado. */
   onToggleLimite: ((posicao: number) => void) | null;
   onEditarNota: (alunoId: string, simuladoId: string) => void;
 }
+
+/** O nome do ordenador, como ele aparece no cabeçalho da tabela (R6). */
+const ROTULO_ORDEM: Record<OrdenacaoPainel, string> = {
+  distancia: 'distância do corte, pior primeiro',
+  ranking: 'classificação do critério',
+  alfabetica: 'nome, A–Z',
+};
 
 function classeColuna(col: ColunaPainel, base: string): string {
   return [base, col.novaFase && 'borda-nova-fase', col.destaque && 'col-destaque']
@@ -135,11 +144,26 @@ function NotaIgnoradaBadge({ nota, motivo }: { nota: number | null; motivo: stri
 
 export function TabelaPainel({
   alunos, colunas, notasAluno, notasIgnoradas, mediasVirtuais, mediasPorColuna, classificacao,
-  criterio,
+  criterio, ordenacao,
   recolhidos, onToggleLimite, onEditarNota,
 }: Props) {
   return (
     <div className="painel-tabela-wrap">
+      {/* R6 · o ordenador em vigor é visível e NOMEADO. Sem a cor, é a ordem
+          que entrega o aluno em risco — e uma ordem que o coordenador não sabe
+          qual é não entrega nada. */}
+      <div className="painel-tabela-ordem">
+        <span className="painel-tabela-ordem__total">
+          {alunos.length} {alunos.length === 1 ? 'aluno' : 'alunos'}
+        </span>
+        <span className="painel-tabela-ordem__pilula">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M12 5v14M7 14l5 5 5-5" />
+          </svg>
+          {ROTULO_ORDEM[ordenacao]}
+        </span>
+      </div>
       <table className="painel-tabela">
         <thead>
           <tr>
@@ -150,6 +174,9 @@ export function TabelaPainel({
                 {col.label}
               </th>
             ))}
+            <th className="painel-tabela__th-dist" rowSpan={2} title="A pior matéria contra o corte da régua em vigor">
+              Distância
+            </th>
           </tr>
           <tr>
             {colunas.map((col) => (
@@ -169,6 +196,7 @@ export function TabelaPainel({
                 <NotaBadge nota={mediasPorColuna[col.id] ?? null} daTurma />
               </td>
             ))}
+            <td className="painel-tabela__td-dist" />
           </tr>
 
           {alunos.flatMap((aluno, i) => {
@@ -228,6 +256,24 @@ export function TabelaPainel({
                     </td>
                   );
                 })}
+                {(() => {
+                  const d = distanciaAoCorte(veredito, criterio);
+                  return (
+                    <td className="painel-tabela__td-dist">
+                      {d == null ? (
+                        <span className="painel-tabela__dist painel-tabela__dist--vazia" title="sem nota no ciclo">
+                          —
+                        </span>
+                      ) : (
+                        <span
+                          className={`painel-tabela__dist${d < 0 ? ' painel-tabela__dist--abaixo' : ''}`}
+                        >
+                          {formatarDistancia(d)}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })()}
               </tr>
             );
 

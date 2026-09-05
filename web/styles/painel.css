@@ -689,3 +689,69 @@
     flex-direction: column;
   }
 }
+
+
+/* ─── R6 · o ordenador em vigor, visível e nomeado ────────────────────────
+   Sem a cor, quem entrega o aluno em risco é a ORDEM. Uma ordem que o
+   coordenador não sabe qual é não entrega nada — daí a faixa, e daí a coluna
+   de distância ao lado, que mostra o número pelo qual a tabela está ordenada.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.painel-tabela-ordem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.painel-tabela-ordem__total {
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.painel-tabela-ordem__pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.painel-tabela-ordem__pilula svg {
+  color: var(--color-dado);
+  flex: none;
+}
+
+.painel-tabela__th-dist {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.painel-tabela__td-dist {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.painel-tabela__dist {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
+}
+
+/* Só a distância NEGATIVA é alerta — é a etiqueta da R4, aqui em coluna. */
+.painel-tabela__dist--abaixo {
+  color: var(--color-red);
+}
+
+.painel-tabela__dist--vazia {
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}

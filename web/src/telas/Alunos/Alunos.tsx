@@ -17,6 +17,9 @@ const TENDENCIA_LABEL = { subindo: '↑ Subindo', estavel: '→ Estável', caind
 const ZONA_LABEL = { top: 'Top', cinzenta: 'Cinzenta', risco: 'Risco' } as const;
 
 const ZONA_TONE = { top: 'tone-verde', cinzenta: 'tone-ambar', risco: 'tone-vermelho' } as const;
+// Tendência e zona continuam com `tone-*` porque o servidor os manda assim; o
+// que mudou é o DESENHO: `.tag.tone-*` virou contorno neutro, e a palavra é
+// que diz o estado (R4/R7 — perfil e tendência como palavras, não como cores).
 const TENDENCIA_TONE = { subindo: 'tone-verde', estavel: 'tone-navy', caindo: 'tone-vermelho' } as const;
 
 // Ordem semântica das colunas categóricas — do pior para o melhor. Ordenar
@@ -49,7 +52,11 @@ export function Alunos() {
   const [sedesSel, setSedesSel] = useState<ReadonlySet<string>>(
     () => new Set(params.getAll('sedeId')),
   );
-  const [ordenacao, setOrdenacao] = useState<Ordenacao | null>(null);
+  // R6 · toda tabela de aluno ABRE pelo pior. Aqui não há classificação de
+  // ciclo — logo não há distância do corte —, e o que a tela tem que responde
+  // à mesma pergunta é a ZONA: `ORDEM_ZONA` já vai do risco ao topo. O
+  // ordenador aparece nomeado no cabeçalho, como nas demais.
+  const [ordenacao, setOrdenacao] = useState<Ordenacao | null>({ chave: 'zona', dir: 'asc' });
 
   const turmaPorId = useMemo(() => new Map(turmas.map((t) => [t.id, t])), [turmas]);
   const sedePorId = useMemo(() => new Map(sedes.map((s) => [s.id, s])), [sedes]);

@@ -23,6 +23,7 @@ import {
 import { useEditarNota } from '../../hooks/mutacoes';
 import { useRecorteDaTela } from '../../componentes/layout/migalhas';
 import { fmtNota } from '../../util/formato';
+import type { OrdenacaoPainel } from '../../dominio/painel';
 import type { AlunoClassificado, CriterioClassificacao } from '../../tipos/dominio';
 
 // Painel — a tabela alunos × matérias/fases de um ciclo.
@@ -44,7 +45,10 @@ export function Painel() {
   const [sedeIds, setSedeIds] = useState<ReadonlySet<string>>(new Set());
   const [turmaIds, setTurmaIds] = useState<ReadonlySet<string>>(new Set());
   const [busca, setBusca] = useState('');
-  const [ordenacao, setOrdenacao] = useState<'ranking' | 'alfabetica'>('ranking');
+  // R6 · a tabela ABRE pela distância do corte, ascendente — o pior primeiro.
+  // É o que substitui a cor como mecanismo de varredura, e é por isso que ele
+  // é o padrão e não mais uma opção na lista.
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoPainel>('distancia');
   const [fase, setFase] = useState<'1' | '2'>('1');
   // A régua do corte. 'tio-leo' é a pedagógica do colégio; ITA/IME seguem o edital.
   const [criterio, setCriterio] = useState('tio-leo');
@@ -130,8 +134,12 @@ export function Painel() {
       fase,
       ordenacao,
       classificacao,
+      criterio: classificacaoResp?.criterio ?? null,
     }),
-    [cicloAtivo, simulados, alunosFiltrados, notasPorSim, fase, ordenacao, classificacao],
+    [
+      cicloAtivo, simulados, alunosFiltrados, notasPorSim, fase, ordenacao, classificacao,
+      classificacaoResp?.criterio,
+    ],
   );
 
   // A fase escolhida pode não existir no ciclo novo — segue a que sobrou.
@@ -302,6 +310,7 @@ export function Painel() {
           <BotaoAjuda criterio={classificacaoResp?.criterio ?? null} />
           <Segmento
             opcoes={[
+              { label: 'Pior primeiro', value: 'distancia' as const },
               { label: 'Ranking', value: 'ranking' as const },
               { label: 'A–Z', value: 'alfabetica' as const },
             ]}
@@ -375,6 +384,7 @@ export function Painel() {
             mediasPorColuna={dados.mediasPorColuna}
             classificacao={classificacao}
             criterio={classificacaoResp?.criterio ?? null}
+            ordenacao={ordenacao}
             recolhidos={recolhidos}
             onToggleLimite={
               ordenacao === 'ranking'

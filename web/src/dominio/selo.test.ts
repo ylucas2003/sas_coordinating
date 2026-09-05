@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatarDistancia, piorDistancia, seloDaNota } from './selo';
+import {
+  compararPorDistancia,
+  distanciaAoCorte,
+  formatarDistancia,
+  piorDistancia,
+  seloDaNota,
+} from './selo';
 
 describe('seloDaNota', () => {
   it('preenche acima do corte e vaza abaixo (R1)', () => {
@@ -125,5 +131,56 @@ describe('piorDistancia', () => {
     expect(piorDistancia([])).toBeNull();
     expect(piorDistancia([{ nota: null, corte: 4 }])).toBeNull();
     expect(piorDistancia([{ nota: 7, corte: null }])).toBeNull();
+  });
+});
+
+describe('compararPorDistancia (R6)', () => {
+  const ordenar = (v: (number | null)[]) => v.slice().sort(compararPorDistancia);
+
+  it('põe o pior primeiro', () => {
+    expect(ordenar([2.1, -3.2, 0.4, -0.5])).toEqual([-3.2, -0.5, 0.4, 2.1]);
+  });
+
+  it('afunda quem não tem dado, e não o promove a "pior"', () => {
+    // A regra que a ordenação ingênua erra: aluno sem nota não foi mal, não
+    // foi medido. No topo, ele mandaria o coordenador conversar com quem não
+    // tem problema enquanto quem está a 3,2 do corte fica na terceira página.
+    expect(ordenar([null, -1.2, null, 0.8])).toEqual([-1.2, 0.8, null, null]);
+  });
+
+  it('é estável entre dois sem dado', () => {
+    expect(compararPorDistancia(null, null)).toBe(0);
+  });
+});
+
+describe('distanciaAoCorte', () => {
+  const criterio = {
+    nome: 'ITA · Fase 1',
+    cortes: { ing: 5 },
+    eliminatorias: ['ing'],
+    corteGenerico: 4,
+    corteMedia: 4,
+  } as unknown as Parameters<typeof distanciaAoCorte>[1];
+
+  const veredito = (notas: Record<string, number>) =>
+    ({
+      alunoId: 'A1', nome: 'x', turmaId: null, posicao: 1, aprovado: true, motivo: null,
+      media: null,
+      notas: Object.fromEntries(
+        Object.entries(notas).map(([m, n]) => [m, { nota: n, tom: 'verde' as const }]),
+      ),
+    }) as unknown as Parameters<typeof distanciaAoCorte>[0];
+
+  it('usa o corte específico da matéria, não o genérico', () => {
+    // Inglês 4,6 passa contra 4,0 e reprova contra o 5,0 eliminatório.
+    expect(distanciaAoCorte(veredito({ mat: 6, ing: 4.6 }), criterio)).toBeCloseTo(-0.4, 5);
+  });
+
+  it('devolve null sem veredito', () => {
+    expect(distanciaAoCorte(undefined, criterio)).toBeNull();
+  });
+
+  it('devolve null quando o aluno não tem nota nenhuma', () => {
+    expect(distanciaAoCorte(veredito({}), criterio)).toBeNull();
   });
 });

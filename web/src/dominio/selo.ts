@@ -24,6 +24,9 @@
 // divergir (docs/18 §1.2). O que está aqui é a APRESENTAÇÃO de uma diferença
 // que o servidor já decidiu.
 
+import { corteDaMateria } from './criterios';
+import type { AlunoClassificado, CriterioClassificacao } from '../tipos/dominio';
+
 /** Como o selo deve ser desenhado. */
 export type EstadoDoSelo = 'acima' | 'no-corte' | 'abaixo' | 'sem-dado';
 
@@ -116,4 +119,43 @@ export function piorDistancia(
     if (pior == null || distancia < pior) pior = distancia;
   }
   return pior;
+}
+
+
+/**
+ * A distância do aluno ao corte: a pior das matérias que ele tem nota (R6).
+ *
+ * É o ordenador padrão de toda tabela de aluno e o número da coluna
+ * "Distância". Lê o veredito que o servidor já calculou e a régua em vigor —
+ * não recalcula critério nenhum.
+ */
+export function distanciaAoCorte(
+  veredito: AlunoClassificado | undefined,
+  criterio: CriterioClassificacao | null | undefined,
+): number | null {
+  if (!veredito) return null;
+  const pares = Object.entries(veredito.notas ?? {}).map(([materia, { nota }]) => ({
+    nota,
+    corte: corteDaMateria(criterio, materia),
+  }));
+  return piorDistancia(pares);
+}
+
+/**
+ * Compara dois alunos pela distância do corte, ASCENDENTE — o pior primeiro.
+ *
+ * ⚠️ Nulo afunda nos DOIS sentidos, e essa é a regra que a ordenação ingênua
+ * erra: um aluno sem nota no ciclo não pode encabeçar a lista de "pior
+ * desempenho". Ele não foi mal — ele não foi medido, e colocá-lo no topo
+ * mandaria o coordenador conversar com quem não tem problema nenhum enquanto
+ * quem está a 3,2 do corte fica na terceira página.
+ */
+export function compararPorDistancia(
+  a: number | null,
+  b: number | null,
+): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return a - b;
 }
