@@ -67,6 +67,21 @@ export const FONTES: Fonte[] = [
     telas: ['casco'],
   },
 
+  {
+    chave: 'cantina',
+    estado: 'real',
+    descricao: 'Cardápios publicados que servem o aluno, o pedido dele e o prazo de cada dia',
+    doc: 'docs/38-plano-cantina.md',
+    rotaFutura: 'GET/PUT/DELETE /me/cantina',
+    telas: ['Hoje', 'Cantina'],
+    observacao:
+      'Só existe para quem tem `direito_refeicao_aluno` — o card em Hoje se apaga sozinho para '
+      + 'os outros ~800 alunos. Traz TODOS os dias publicados de hoje em diante, com teto de 30 '
+      + 'dias (docs/38 §8.0.6). É a única fonte da área do aluno que revalida sozinha: '
+      + '`refetchOnWindowFocus` ligado contra o default do app, mais polling de 60 s que se '
+      + 'autodesliga — o dado muda porque OUTRA pessoa publicou (docs/38 §9).',
+  },
+
   // ─── REAL · provas ─────────────────────────────────────────────────────
   {
     chave: 'simulados',

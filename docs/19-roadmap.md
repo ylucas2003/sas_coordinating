@@ -522,7 +522,70 @@ o que é novo é pequeno e não depende de nada:
 | Cartão de decisão acima da tabela do Painel — "o que merece atenção hoje" | M | ✅ escrito — era ligar o que já existia |
 | Dossiê de ciclo como artefato (texto + gráfico + tabela) | M | ✅ escrito, **com os gráficos** — nenhum dos dois exportadores sabia levar SVG |
 
-**Total à frente: 6 sprints, 34 partes**, mais o polimento avulso de 6 itens.
+### ✅ Sprint Cantina · o cardápio, o pedido e um terceiro tipo de sessão *(05/09)*
+
+> **ESCRITA, fora de produção.** As quatro fases estão no código e verificadas
+> fora do browser: 530 testes no backend (+27), 392 no front (+23), portões
+> limpos, as três migrations aplicadas no compose e um smoke de 37 passos
+> exercitando as três sessões contra a API de verdade. **Falta o deploy e a
+> verificação no browser** — a lista do que não foi olhado está em
+> [38 §10.2](38-plano-cantina.md), no molde do §6 do docs/37.
+
+Frente **nova**, fora da fila do brainstorming de 29/08: alunos com direito a
+alimentação escolhem o prato no painel; a cantina entra por porta própria
+(`/login-cantina`), lança o cardápio num calendário e lê os pedidos do dia; a
+coordenação administra os dois lados. Plano em
+[38-plano-cantina.md](38-plano-cantina.md).
+
+⚠️ **Não é um CRUD a mais.** É o primeiro TIPO de sessão novo desde que o
+projeto existe, e [38 §1.1](38-plano-cantina.md) lista os **três** lugares
+verificados onde "aluno ou todo o resto" deixa de ser verdade — um deles
+(`routes/foto_perfil.py`) daria a uma sessão de cantina acesso de escrita a
+`usuario_coordenacao`. Por isso a Fase 0 vai sozinha e com `/security-review`.
+
+| Fase | O quê | Estado |
+|---|---|---|
+| **0** | O terceiro tipo de sessão: migration 0047, `get_current_cantina`, os três consertos fail-closed, `/login-cantina`, casco próprio | ✅ escrita |
+| **1** | O cardápio: migration 0048, calendário de cinco estados, editor de blocos/opções/limites, publicar, copiar-de | ✅ escrita |
+| **2** | O direito e o pedido: migration 0049, flag e concessão em lote, card em Hoje e tela `/cantina` do aluno | ✅ escrita |
+| **3** | A leitura: duas views agregadas, contagem de produção, lista do balcão, campo no hub, leitura da coordenação | ✅ escrita |
+
+O conserto de `routes/foto_perfil.py` é o item que mais vale ler no diff: até
+05/09 ele devolvia a entidade de COORDENAÇÃO para todo tipo que não fosse
+aluno, e a premissa ("só existem dois tipos") era verdadeira até deixar de
+ser. `test_cantina.py` tranca os cinco guards para que nenhum deles volte a ser
+um `else`.
+
+> **Dez decisões fechadas em 05/09** ([38 §8.0](38-plano-cantina.md)): o
+> **prazo do pedido é definido pela cantina**, não pelo sistema (regra padrão da
+> casa + prazo por dia, absoluto); **quem não pediu não come**; **conceder o
+> direito é só do administrador**, o que trouxe a concessão em lote para dentro
+> do escopo; o direito é **flag pura**, sem vigência; **nada entra depois do
+> prazo, nem pela cantina**; o aluno vê **todos os dias já publicados** (teto de
+> 30); **não há lembrete**; almoço e janta são **cardápios diferentes**; a
+> **restrição alimentar é registrada** (`aluno.restricao_alimentar`, preenchida
+> pela coordenação, visível só à cantina); e o escopo é **só as turmas
+> ITA/IME** — verificado no código, e não por suposição: `aluno` tem um único
+> escritor, o sync só enxerga o curso `{ano} 3o ITA/IME Simulados`, e o SSO do
+> Canvas não cria aluno nenhum. **Nada mais trava código.**
+>
+> ⚠️ As três últimas se somam a um preço registrado em [38 §7](38-plano-cantina.md):
+> sem prato padrão, sem exceção no balcão e sem lembrete, **o aluno que esquecer
+> fica sem almoço e o sistema não terá avisado**. Escolha de simplicidade
+> consciente — e a primeira a revisitar se aparecer reclamação.
+>
+> [38 §9](38-plano-cantina.md) responde ao tempo real (cardápio aparecendo sem
+> refresh): o caminho de SSE já está aberto de ponta a ponta neste projeto — o
+> nginx e o parser do cliente existem por causa do chat, e `UVICORN_WORKERS=1`
+> dispensa `LISTEN/NOTIFY` —, mas a recomendação é `refetchOnWindowFocus` +
+> polling autodesligável no v1, porque o cardápio é publicado horas antes.
+
+⚠️ `pedido_refeicao_item` é a primeira tabela que cresce por *dia × aluno ×
+item* — 160 mil a 1,4 milhão de linhas no primeiro ano, num sistema **sem
+paginação em lugar nenhum** (CLAUDE.md, armadilha 2). A contagem de produção
+nasce como view agregada, não como soma em Python ([38 §2.4](38-plano-cantina.md)).
+
+**Total à frente: 7 sprints, 34 partes + as 4 fases da cantina**, mais o polimento avulso de 6 itens.
 
 ---
 

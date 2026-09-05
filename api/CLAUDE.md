@@ -52,9 +52,16 @@ o gancho `questao.assunto`, vazio desde a 0015.
 
 ## Autenticação
 
-Três tipos de credencial, um JWT (HS256, 8h) — [app/auth.py](app/auth.py):
+Quatro tipos de credencial, um JWT (HS256, 8h) — [app/auth.py](app/auth.py).
 
-- **Aluno**: matrícula + senha PBKDF2-HMAC-SHA256 (formato versionado).
+⚠️ **`tipo` diz que tipo de SESSÃO é; `papel` diz o que uma sessão de
+coordenação pode a mais.** Confundir os dois derruba acesso — o docstring de
+`app/auth.py` explica por que o administrador é `tipo: "coordenador"` +
+`papel: "administrador"`, e não um `tipo` próprio.
+
+- **Aluno**: SÓ pelo Canvas (`routes/auth_canvas.py`). A senha de aluno saiu em
+  04/09 (docs/35 §11.5) e `aluno.senha_hash` virou fóssil — nenhuma rota
+  autentica por ela. O caminho de acesso do aluno é o `canvas_user_id`.
 - **Coordenador**: e-mail + senha na tabela `usuario_coordenacao` (0021). A
   credencial de env não é mais lida pelo login; contas nascem pelo painel
   `/administracao` ou por `scripts/criar_coordenador.py`.
@@ -62,6 +69,18 @@ Três tipos de credencial, um JWT (HS256, 8h) — [app/auth.py](app/auth.py):
   O Canvas diz *quem é*; o banco decide *quem entra* — identidade sem linha em
   `aluno`/`usuario_coordenacao` é recusada. Precisa de `CANVAS_CLIENT_ID` /
   `CANVAS_CLIENT_SECRET` (Developer Key, OUTRA credencial que não o token).
+- **Cantina**: e-mail + senha em `usuario_cantina` (0047), pela MESMA
+  `/auth/login` com `tipo: "cantina"`. É o terceiro tipo de SESSÃO, não um
+  papel de coordenação — um papel novo em `usuario_coordenacao` passaria por
+  `get_current_coordenador`, que aceita todo papel de propósito, e abriria as
+  39 rotas de coordenação para quem trabalha na copa (docs/38 §1).
+
+  ⚠️ **Acrescentar um `tipo` a `TIPOS_DE_SESSAO` nunca é uma linha.** Todo
+  lugar que dividia o mundo em "aluno" e "todo o resto" passa a estar errado no
+  instante em que existe um terceiro — e o "resto" costuma ser o ramo de
+  COORDENAÇÃO. Quando a cantina entrou foram três lugares, verificados um a um
+  (docs/38 §1.1); `routes/foto_perfil.py` daria a ela `UPDATE` em
+  `usuario_coordenacao`. `tests/test_cantina.py` tranca os cinco guards.
 - **Scheduler** (EventBridge): segredo compartilhado no header
   `X-Scheduler-Secret`, não JWT.
 
@@ -81,7 +100,7 @@ inferência de modelo a partir de substring do nome.
 
 ## Migrations
 
-41 em [migrations/](migrations/), cada uma com par `.down.sql`. Runner próprio,
+49 em [migrations/](migrations/), cada uma com par `.down.sql`. Runner próprio,
 estado em `_migracoes_aplicadas`.
 
 ```sh
@@ -96,7 +115,7 @@ Depois de qualquer migration que toque `metrica_simulado`, rode
 ## Ferramentas
 
 ```sh
-./.venv/bin/python -m pytest tests/ -q   # 331 testes (+15 pulados)
+./.venv/bin/python -m pytest tests/ -q   # 530 testes (+15 pulados)
 ./.venv/bin/ruff check .                 # lint — configurado em pyproject.toml
 ./.venv/bin/ruff check . --fix
 ./.venv/bin/mypy app                     # sob demanda, fora do gate

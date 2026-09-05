@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 
 import { CartaoDeCampo, EloQuieto } from '../../componentes/ui/Campo';
 import { useAuditoria, useCoordenadores, usePainelGravacoes } from '../../hooks/consultas';
+import { useCalendarioNaCoordenacao, useDireitos } from '../../hooks/cantina';
+import { isoDoDia } from '../../dominio/cantina';
 import { useParametroDeImportancia } from '../../hooks/banco';
 import { resumoAndamento, situacaoDe } from '../../dominio/gravacoes';
 
@@ -20,6 +22,12 @@ import { resumoAndamento, situacaoDe } from '../../dominio/gravacoes';
 // descobrir que uma aula travou, é preciso ENTRAR na aba. Com o dado vivo no
 // card, a falha aparece na tela de entrada — que é onde uma falha precisa
 // aparecer.
+//
+// ⚠️ O quinto campo é a CANTINA, e o subtítulo dele é o exemplo mais literal
+// da C2: a falha que importa — "o cardápio de amanhã ainda não foi lançado", às
+// 18h de hoje — aparece na tela de ENTRADA, que é onde uma falha precisa
+// aparecer. Sem isso, para descobrir que a cantina esqueceu o dia seguinte
+// seria preciso entrar, escolher o mês e procurar (docs/38 §6).
 //
 // ⚠️ A rota `/administracao` era a tela de Contas e passa a ser este hub;
 // Contas mudou para `/administracao/contas`. Quem tiver o link antigo salvo
@@ -40,6 +48,44 @@ function diasDesde(iso: string | null): number | null {
 // o que o linter e o compilador usam para saber que a regra dos hooks se
 // aplica —, não preferência de idioma. O mesmo já vale para `useTituloDaTela`
 // e `useTema`.
+
+/**
+ * "cardápio de amanhã não lançado · 87 alunos com direito"
+ *
+ * A ordem das duas metades não é estética: a PENDÊNCIA vem primeiro quando
+ * existe, porque é a única coisa aqui sobre a qual alguém age hoje. Quando não
+ * há pendência, o card relata o estado e fica quieto — é o que separa um hub
+ * de um menu.
+ */
+function useResumoDaCantina() {
+  const { data: painel, isLoading: carregandoDireitos, isError: erroDireitos } = useDireitos();
+  // Só amanhã, e não o mês: a pergunta do card é sobre o próximo dia letivo.
+  const amanha = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return isoDoDia(d);
+  }, []);
+  const { data: dias, isLoading: carregandoDias, isError: erroDias } = useCalendarioNaCoordenacao(amanha, amanha);
+
+  const texto = useMemo(() => {
+    if (!painel && !dias) return null;
+    const partes: string[] = [];
+    // "Publicado" é aberto OU fechado: os dois são cardápio que existe para o
+    // aluno. Rascunho não conta — ele não aparece para ninguém.
+    const publicados = (dias ?? []).filter(
+      (d) => d.estado === 'aberto' || d.estado === 'fechado' || d.estado === 'sem-refeicao',
+    ).length;
+    if (dias && publicados === 0) partes.push('cardápio de amanhã não lançado');
+    if (painel?.comDireito) partes.push(`${painel.comDireito} alunos com direito`);
+    return partes.length ? partes.join(' · ') : null;
+  }, [painel, dias]);
+
+  // Falha de consulta NÃO vira "0": um número errado é pior que nenhum.
+  return {
+    texto: erroDireitos || erroDias ? null : texto,
+    carregando: carregandoDireitos || carregandoDias,
+  };
+}
 
 /** "3 coordenadores · 1 sem entrar há 40 dias" */
 function useResumoDeContas() {
@@ -122,6 +168,7 @@ function useResumoDeCalibracao() {
 }
 
 export function HubAdministracao() {
+  const cantina = useResumoDaCantina();
   const contas = useResumoDeContas();
   const auditoria = useResumoDeAuditoria();
   const integracoes = useResumoDeIntegracoes();
@@ -139,6 +186,22 @@ export function HubAdministracao() {
       </div>
 
       <div className="campo-grade">
+        <CartaoDeCampo
+          olho="Cantina"
+          titulo="A cantina está em dia?"
+          para="/administracao/cantina"
+          carregando={cantina.carregando}
+          subtitulo={cantina.texto}
+          vazio="Nenhuma cantina cadastrada ainda."
+          glifo={
+            <>
+              <path d="M16 20v14a8 8 0 0 0 16 0V20" />
+              <path d="M24 20v34" />
+              <path d="M48 54V20c-6 0-9 5-9 12s3 10 9 10" />
+            </>
+          }
+        />
+
         <CartaoDeCampo
           olho="Contas"
           titulo="Quem tem acesso"

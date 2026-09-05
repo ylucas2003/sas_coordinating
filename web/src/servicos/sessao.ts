@@ -12,6 +12,7 @@ const CHAVES = {
   alunoId: 'sas_aluno_id',
   temFoto: 'sas_tem_foto',
   fotoDispensadaNestaSessao: 'sas_foto_dispensada',
+  cantina: 'sas_cantina',
 } as const;
 
 export function token(): string | null {
@@ -22,7 +23,11 @@ export function autenticado(): boolean {
   return sessionStorage.getItem(CHAVES.auth) === '1';
 }
 
-const TIPOS: readonly TipoSessao[] = ['aluno', 'coordenador', 'administrador'];
+// ⚠️ Um tipo que não está nesta lista faz `tipo()` devolver `null`, e uma
+// sessão com tipo nulo nasce morta: `RotaProtegida` a manda para o login em
+// loop, com o token gravado e válido. Foi o terceiro dos três lugares que o
+// tipo `cantina` obrigou a mexer (docs/38 §1.1).
+const TIPOS: readonly TipoSessao[] = ['aluno', 'coordenador', 'administrador', 'cantina'];
 
 export function tipo(): TipoSessao | null {
   const valor = sessionStorage.getItem(CHAVES.tipo);
@@ -32,6 +37,11 @@ export function tipo(): TipoSessao | null {
 /** Atalho para as telas que escondem o que só o administrador pode fazer. */
 export function ehAdministrador(): boolean {
   return tipo() === 'administrador';
+}
+
+/** O nome do estabelecimento, para o casco da cantina. Vazio nas outras sessões. */
+export function nomeDaCantina(): string {
+  return sessionStorage.getItem(CHAVES.cantina) ?? '';
 }
 
 export function nome(): string {
@@ -47,11 +57,14 @@ export interface RespostaAutenticacao {
   tipo: string;
   /**
    * Só vem do login da coordenação: 'coordenador' ou 'administrador'
-   * (migration 0045). O SSO do Canvas não manda — de lá só entra aluno.
+   * (migration 0045). O SSO do Canvas não manda — de lá só entra aluno, e o
+   * login da cantina manda `null`.
    */
-  papel?: string;
+  papel?: string | null;
+  /** Só vem do login da cantina: o nome do estabelecimento (docs/38 §2.1). */
+  cantina?: string | null;
   nome: string;
-  aluno_id?: string;
+  aluno_id?: string | null;
   temFoto: boolean;
 }
 
@@ -64,6 +77,10 @@ export interface RespostaAutenticacao {
  * (docs/35 §11.3), enquanto no front a única pergunta é "o que esta pessoa
  * vê" — e aí administrador e coordenador não são a mesma resposta. Juntar os
  * dois em UM valor evita que cada tela tenha que lembrar de olhar dois campos.
+ *
+ * A cantina passa reto por essa tradução: ela manda `papel: null`, então o
+ * `||` cai no `tipo`, que já é 'cantina'. É o que `RotaProtegida` lê para
+ * montar o casco certo.
  */
 export function iniciar(dados: RespostaAutenticacao): void {
   sessionStorage.setItem(CHAVES.token, dados.access_token);
@@ -72,6 +89,7 @@ export function iniciar(dados: RespostaAutenticacao): void {
   sessionStorage.setItem(CHAVES.auth, '1');
   if (dados.aluno_id) sessionStorage.setItem(CHAVES.alunoId, dados.aluno_id);
   sessionStorage.setItem(CHAVES.temFoto, dados.temFoto ? '1' : '0');
+  if (dados.cantina) sessionStorage.setItem(CHAVES.cantina, dados.cantina);
 }
 
 export function encerrar(): void {
