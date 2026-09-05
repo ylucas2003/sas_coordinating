@@ -5,6 +5,9 @@ import { Alunos } from './telas/Alunos/Alunos';
 import { Provas } from './telas/Provas/Provas';
 import { SimuladoFicha } from './telas/SimuladoFicha/SimuladoFicha';
 import { CicloFicha } from './telas/CicloFicha/CicloFicha';
+import { CicloCalibracao } from './telas/CicloFicha/CicloCalibracao';
+import { CicloRegua } from './telas/CicloFicha/CicloRegua';
+import { CicloComparacao } from './telas/CicloFicha/CicloComparacao';
 import { AlunoFicha } from './telas/AlunoFicha/AlunoFicha';
 import { CascoAluno } from './telas/Aluno/CascoAluno';
 import { PortaoDoOnboarding } from './telas/Aluno/Onboarding';
@@ -82,7 +85,13 @@ function AppCoordenacao() {
         <Route path="/simulados" element={<Navigate to="/provas?aba=simulados" replace />} />
         <Route path="/simulados/:id" element={<SimuladoFicha />} />
         <Route path="/ciclos" element={<Navigate to="/provas" replace />} />
+        {/* A ficha de ciclo virou entrada + três campos (C3: cada destino é
+            tela inteira, com URL própria). `/ciclos/:id` continua sendo a
+            entrada, então nenhum link salvo quebra. */}
         <Route path="/ciclos/:id" element={<CicloFicha />} />
+        <Route path="/ciclos/:id/calibracao" element={<CicloCalibracao />} />
+        <Route path="/ciclos/:id/regua" element={<CicloRegua />} />
+        <Route path="/ciclos/:id/comparacao" element={<CicloComparacao />} />
         <Route path="/importar" element={<Importar />} />
         <Route path="/banco/*" element={<Banco perfil="coordenacao" />} />
         <Route path="/auditoria" element={<Auditoria />} />

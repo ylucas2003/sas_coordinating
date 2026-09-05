@@ -757,3 +757,14 @@
   color: var(--color-text-tertiary);
   font-weight: 400;
 }
+
+
+/* O motivo do corte é PALAVRA, não cor: "Química 3,2 — mínimo 4,0 (ITA
+   §4.6.6.5)" diz qual matéria e qual mínimo, que é o que o coordenador
+   precisa para decidir se chama o aluno. Uma célula vermelha não diria nada
+   disso (R4/R7). */
+.ciclo-regua__motivo {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  max-width: 42ch;
+}
