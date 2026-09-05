@@ -23,7 +23,7 @@ saiu da audiência.
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from supabase import Client
@@ -31,7 +31,7 @@ from supabase import Client
 from ...config import get_settings
 from .. import supressao
 from ..descadastro import montar_link
-from ..motor import FUSO_BRASIL, _ESTADOS_VIVOS
+from ..motor import _ESTADOS_VIVOS, FUSO_BRASIL
 from . import Mensagem
 
 CHAVE_PREFIXO = "aluno-dia"
@@ -145,7 +145,7 @@ def compor_digest(
 
 
 def _hoje_brt() -> date:
-    return datetime.now(timezone.utc).astimezone(FUSO_BRASIL).date()
+    return datetime.now(UTC).astimezone(FUSO_BRASIL).date()
 
 
 def _hora_lembrete() -> time:
@@ -274,7 +274,7 @@ def _cancelar(cliente: Client, ids: list[str]) -> None:
     cliente.table("disparo").update(
         {
             "estado": "cancelado",
-            "atualizado_em": datetime.now(timezone.utc).isoformat(),
+            "atualizado_em": datetime.now(UTC).isoformat(),
         }
     ).in_("id", ids).execute()
 

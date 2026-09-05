@@ -17,12 +17,10 @@ from __future__ import annotations
 
 import csv
 import io
-from typing import Any
 
 from supabase import Client
 
 from ...stats.utils import como_float, nota_real
-
 
 # ─── gerar_grafico ────────────────────────────────────────────────────────
 

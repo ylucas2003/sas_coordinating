@@ -12,13 +12,11 @@ from __future__ import annotations
 import math
 import statistics as st
 from collections import defaultdict
-from typing import Any
 
 from supabase import Client
 
 from ...stats import classificacao as _classif
 from ...stats.utils import como_float, nota_real, simulado_entra_no_agregado
-
 
 # ─── comparar_ciclos ──────────────────────────────────────────────────────
 
@@ -387,7 +385,7 @@ def _distancia(a: list[float | None], b: list[float | None]) -> float | None:
         return None
     soma = 0.0
     dims = 0
-    for x, y in zip(a, b):
+    for x, y in zip(a, b, strict=False):
         if x is None or y is None:
             continue
         soma += (x - y) ** 2

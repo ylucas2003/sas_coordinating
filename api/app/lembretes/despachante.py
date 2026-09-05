@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import time as _time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from supabase import Client
@@ -36,7 +36,7 @@ ENVIANDO_ORFAO_MINUTOS = 30
 
 
 def _agora() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _filtro_ts(momento: datetime) -> str:
@@ -102,7 +102,7 @@ def _carregar_regra(cliente: Client, regra_id: str) -> dict[str, Any] | None:
 def _materializar_sem_derrubar_o_tick(cliente: Client) -> dict[str, Any]:
     try:
         return aplicacoes.materializar_pendentes(cliente)
-    except Exception as exc:   # noqa: BLE001 — a fila tem que rodar mesmo assim
+    except Exception as exc:
         return {"erro": str(exc)[:500]}
 
 

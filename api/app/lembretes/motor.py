@@ -9,7 +9,7 @@ disparo desatualizado vira no-op, não dano.
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta, timezone
 from typing import Any
 
 from supabase import Client
@@ -31,7 +31,7 @@ MATERIALIZA_SOZINHA = frozenset({"aluno"})
 
 
 def _agora_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def calcular_enviar_em(data_evento: date, hora_evento: time, dias_antes: int) -> datetime:

@@ -27,10 +27,9 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal
-
 
 # ─── Tipos públicos ───────────────────────────────────────────────────────
 
@@ -174,8 +173,10 @@ def parse_data_br(s: str, ano_fallback: int | None = None) -> date | None:
         if len(s) == 5:  # dd/mm
             if ano_fallback is None:
                 return None
-            return datetime.strptime(f"{s}/{ano_fallback}", "%d/%m/%Y").date()
-        return datetime.strptime(s, "%d/%m/%Y").date()
+            # `.date()` na mesma expressão: o datetime ingênuo não escapa, e
+            # o calendário escolar é data local, não instante com fuso.
+            return datetime.strptime(f"{s}/{ano_fallback}", "%d/%m/%Y").date()  # noqa: DTZ007
+        return datetime.strptime(s, "%d/%m/%Y").date()  # noqa: DTZ007
     except ValueError:
         return None
 

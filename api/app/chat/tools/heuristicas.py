@@ -15,14 +15,11 @@ from __future__ import annotations
 
 import statistics as st
 from collections import defaultdict
-from typing import Any
 
 from supabase import Client
 
-from ...stats import classificacao as _classif
 from ...stats import criterios
 from ...stats.utils import como_float, nota_real, simulado_entra_no_agregado
-
 
 # ─── alunos_em_risco ──────────────────────────────────────────────────────
 

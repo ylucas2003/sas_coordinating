@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path
 from fastapi.responses import StreamingResponse
@@ -54,7 +55,7 @@ def _verificar_teto_de_uso(cliente, usuario: str) -> None:
     que ocasionalmente não conta.
     """
     settings = get_settings()
-    agora = datetime.now(timezone.utc)
+    agora = datetime.now(UTC)
     try:
         resp = (
             cliente.table("chat_mensagem")
@@ -64,7 +65,7 @@ def _verificar_teto_de_uso(cliente, usuario: str) -> None:
             .execute()
         )
         linhas = resp.data or []
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.exception("teto de uso do chat: consulta falhou, liberando a mensagem")
         return
 
@@ -472,13 +473,15 @@ async def _stream_mensagem(
             "conteudo": f"⚠️ Erro: {erro}",
         }).execute()
         cliente.table("chat_thread").update(
-            {"ultima_msg_em": datetime.now(timezone.utc).isoformat()}
+            {"ultima_msg_em": datetime.now(UTC).isoformat()}
         ).eq("id", thread_id).execute()
         return
 
     # 3. Persiste tool_calls como assistant turn + tool turns.
     if tool_calls_acumuladas:
-        assistant_tools_resp = (
+        # A resposta do insert não é lida: o turno do assistente só precisa
+        # existir para os tool results abaixo referenciarem a ordem.
+        (
             cliente.table("chat_mensagem")
             .insert({
                 "thread_id": thread_id,
@@ -495,7 +498,6 @@ async def _stream_mensagem(
             })
             .execute()
         )
-        assistant_tool_msg_id = assistant_tools_resp.data[0]["id"]
         proxima_ordem += 1
 
         # Tool result messages
@@ -541,7 +543,7 @@ async def _stream_mensagem(
     if eh_primeira_resposta and texto_final:
         titulo_novo = agente.gerar_titulo(texto_user, texto_final)
 
-    update_patch: dict = {"ultima_msg_em": datetime.now(timezone.utc).isoformat()}
+    update_patch: dict = {"ultima_msg_em": datetime.now(UTC).isoformat()}
     # Atualiza também pro caso de erro mais cedo, mas aqui sempre marca.
     if titulo_novo:
         update_patch["titulo"] = titulo_novo
@@ -556,7 +558,7 @@ async def _stream_mensagem(
 
 
 def Evento_para_bytes(nome: str, dados: dict) -> bytes:
-    return f"event: {nome}\ndata: {json.dumps(dados, ensure_ascii=False)}\n\n".encode("utf-8")
+    return f"event: {nome}\ndata: {json.dumps(dados, ensure_ascii=False)}\n\n".encode()
 
 
 def _carregar_thread_ou_404(cliente, thread_id: str, usuario: str) -> dict:

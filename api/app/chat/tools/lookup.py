@@ -7,12 +7,10 @@ exigem id. Por isso o LLM SEMPRE chama lookup antes das tools detalhadas.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
-from datetime import date
-
 from supabase import Client
-
 
 # ─── buscar_aluno_por_nome ────────────────────────────────────────────────
 

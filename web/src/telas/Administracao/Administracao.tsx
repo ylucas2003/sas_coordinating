@@ -338,6 +338,9 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
     >
       <Linha2>
         <Campo label="Nome">
+          {/* biome-ignore lint/a11y/noAutofocus: é o primeiro campo de um
+              diálogo modal, onde levar o foco para dentro é o comportamento
+              correto — a regra existe para autofocus em página inteira. */}
           <input className="dialog__input" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
         </Campo>
         <Campo label="E-mail">

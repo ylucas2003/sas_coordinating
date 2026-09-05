@@ -18,7 +18,7 @@ fonte nova para os mesmos dicts que a planilha produzia (com colunas extras).
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from supabase import Client
@@ -588,7 +588,7 @@ async def _preencher_emails_incremental(
     nao_tentados = [a for a in ainda_sem_email if not a.get("email_verificado_em")]
     for aluno in nao_tentados[:MAX_CANAIS_POR_RODADA]:
         patch: dict[str, Any] = {
-            "email_verificado_em": datetime.now(timezone.utc).isoformat()
+            "email_verificado_em": datetime.now(UTC).isoformat()
         }
         try:
             canais = await canvas.listar_canais_de_comunicacao(str(aluno["canvas_user_id"]))
@@ -596,8 +596,10 @@ async def _preencher_emails_incremental(
             if email:
                 patch["email"] = email
                 resumo.emails_preenchidos += 1
-        except Exception:
-            pass  # marca a tentativa mesmo assim — sem loop infinito de retry
+        except Exception:  # noqa: S110 — a tentativa fica marcada mesmo sem e-mail
+            # Engolir aqui é o que impede o loop infinito de retry: o `patch`
+            # abaixo grava a tentativa, com ou sem o canal de comunicação.
+            pass
         cliente.table("aluno").update(patch).eq("id", aluno["id"]).execute()
 
 
@@ -605,7 +607,9 @@ async def _preencher_emails_incremental(
 
 
 def _recalcular_stats(cliente: Client) -> None:
-    from ..stats import alertas as _alertas, classificacao as _classif, metricas as _metricas
+    from ..stats import alertas as _alertas
+    from ..stats import classificacao as _classif
+    from ..stats import metricas as _metricas
 
     _metricas.recalcular_tudo(cliente)
     _classif.recalcular_tudo(cliente)
@@ -629,7 +633,7 @@ async def sincronizar_ano_atual(
         canvas, account_id=account_id, override_ano=override_ano
     )
     graded_since = (
-        datetime.now(timezone.utc) - timedelta(minutes=lookback_minutos)
+        datetime.now(UTC) - timedelta(minutes=lookback_minutos)
     ).isoformat()
 
     # Simulados agendados no SAS que ainda não existem no Canvas (POST falhou
@@ -657,7 +661,8 @@ async def sincronizar_ano_atual(
     # vazios e nada roda. Alertas NÃO rodam aqui — o job horário
     # POST /alertas/verificar os avalia, e o reconcile diário
     # POST /canvas-sync/reconciliar recomputa tudo pra curar drift de turma.
-    from ..stats import classificacao as _classif, metricas as _metricas
+    from ..stats import classificacao as _classif
+    from ..stats import metricas as _metricas
 
     # ⚠️ **A ORDEM AQUI É O PONTO**, duas vezes.
     #
@@ -701,8 +706,10 @@ async def sincronizar_historico_completo(
     for canvas_user_id, aluno_id in aluno_por_canvas_user.items():
         try:
             canais = await canvas.listar_canais_de_comunicacao(canvas_user_id)
-        except Exception:
-            continue  # aluno sem canais acessíveis não bloqueia o backfill
+        except Exception:  # noqa: S112 — aluno sem canais não derruba o backfill
+            # Só a busca do canal entra no `try`: um erro do `update` abaixo
+            # continua subindo, porque aí o dado é que ficou pela metade.
+            continue
         email = mapeador.extrair_email(canais)
         if email:
             cliente.table("aluno").update({"email": email}).eq("id", aluno_id).execute()

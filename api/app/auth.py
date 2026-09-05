@@ -33,8 +33,7 @@ as 39 rotas de coordenação de uma vez — o oposto do que foi pedido (docs/35
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -75,7 +74,7 @@ def hash_senha(senha: str) -> str:
     return f"{_PREFIXO_HASH}${PBKDF2_ITERACOES}${salt}${derivado.hex()}"
 
 
-def verificar_senha(senha: str, senha_hash: Optional[str]) -> bool:
+def verificar_senha(senha: str, senha_hash: str | None) -> bool:
     """Confere a senha contra o hash armazenado.
 
     NULL ou formato desconhecido (ex.: md5 legado zerado pela migration 0012)
@@ -97,10 +96,10 @@ def verificar_senha(senha: str, senha_hash: Optional[str]) -> bool:
     return hmac.compare_digest(derivado.hex(), esperado)
 
 
-def criar_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def criar_token(data: dict, expires_delta: timedelta | None = None) -> str:
     settings = get_settings()
     payload = data.copy()
-    expire = datetime.now(timezone.utc) + (
+    expire = datetime.now(UTC) + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     payload["exp"] = expire
@@ -113,7 +112,7 @@ def _decodificar(token: str) -> dict:
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> dict:
     if not credentials:
         raise HTTPException(
@@ -201,7 +200,7 @@ async def get_current_administrador(
 
 
 async def exigir_scheduler_secret(
-    x_scheduler_secret: Optional[str] = Header(default=None, alias="X-Scheduler-Secret"),
+    x_scheduler_secret: str | None = Header(default=None, alias="X-Scheduler-Secret"),
 ) -> None:
     """Autentica chamadas máquina-a-máquina do scheduler (AWS EventBridge).
 

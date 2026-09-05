@@ -33,7 +33,6 @@ dão acesso total (sem RLS) — toda lógica de autorização fica neste backend
 """
 
 from functools import lru_cache
-from typing import Union
 
 from postgrest import SyncPostgrestClient
 from supabase import Client, create_client
@@ -41,7 +40,7 @@ from supabase import Client, create_client
 from .config import get_settings
 
 # O que os módulos recebem. Anotado como `Client` na maior parte do código.
-ClienteDados = Union[Client, SyncPostgrestClient]
+ClienteDados = Client | SyncPostgrestClient
 
 
 def _criar_cliente_postgrest_local(url: str, token: str) -> SyncPostgrestClient:

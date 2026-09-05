@@ -258,7 +258,7 @@ def cmd_wipe_dados(conn: psycopg.Connection) -> None:
     if not caminho.exists():
         sys.exit(f"script não encontrado: {caminho}")
     sql = caminho.read_text(encoding="utf-8")
-    print(f"→ esvaziando dados importados …", end=" ", flush=True)
+    print("→ esvaziando dados importados …", end=" ", flush=True)
     try:
         with conn.cursor() as cur:
             cur.execute(sql)
@@ -304,7 +304,7 @@ def cmd_bootstrap(conn: psycopg.Connection) -> None:
     conn.commit()
 
     if registradas:
-        print(f"✓ marcadas como já-aplicadas (detectadas no schema):")
+        print("✓ marcadas como já-aplicadas (detectadas no schema):")
         for nome in registradas:
             print(f"  · {nome}")
     else:

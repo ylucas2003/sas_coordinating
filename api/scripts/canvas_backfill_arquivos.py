@@ -28,11 +28,11 @@ from dotenv import load_dotenv
 
 load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
 
-from app.canvas_sync.arquivos import sincronizar_arquivos_do_curso              # noqa: E402
-from app.canvas_sync.cliente import ClienteCanvas                              # noqa: E402
-from app.canvas_sync.sincronizar import _descobrir_cursos_simulados            # noqa: E402
-from app.config import get_settings                                            # noqa: E402
-from app.supabase_client import criar_cliente_supabase                         # noqa: E402
+from app.canvas_sync.arquivos import sincronizar_arquivos_do_curso  # noqa: E402
+from app.canvas_sync.cliente import ClienteCanvas  # noqa: E402
+from app.canvas_sync.sincronizar import _descobrir_cursos_simulados  # noqa: E402
+from app.config import get_settings  # noqa: E402
+from app.supabase_client import criar_cliente_supabase  # noqa: E402
 
 
 def _em_lotes(itens: list, tamanho: int):

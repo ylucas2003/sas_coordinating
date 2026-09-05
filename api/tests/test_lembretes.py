@@ -85,7 +85,6 @@ from app.lembretes.aplicacoes.aluno_simulado import (  # noqa: E402
 )
 from app.lembretes.supressao import interpretar_evento_ses  # noqa: E402
 
-
 # ─── enviar_em do aluno ──────────────────────────────────────────────────
 
 

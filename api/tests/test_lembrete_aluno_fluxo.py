@@ -10,7 +10,7 @@ Ver docs/13-plano-p3-lembrete-aluno.md §4.3 e §6 (etapas 9-12).
 from __future__ import annotations
 
 import asyncio
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
 
 import pytest
 
@@ -24,7 +24,7 @@ AMANHA_OFFSET = timedelta(days=1)
 
 
 def _amanha() -> date:
-    return datetime.now(timezone.utc).astimezone(FUSO_BRASIL).date() + AMANHA_OFFSET
+    return datetime.now(UTC).astimezone(FUSO_BRASIL).date() + AMANHA_OFFSET
 
 
 @pytest.fixture(autouse=True)
@@ -221,7 +221,7 @@ def test_remarque_cancela_o_dia_antigo_e_rematerializa_no_novo(banco):
 
 
 def _vencer(db):
-    passado = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    passado = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
     for disparo in db["disparo"].values():
         if disparo["estado"] == "agendado":
             disparo["enviar_em"] = passado

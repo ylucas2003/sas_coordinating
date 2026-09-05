@@ -45,5 +45,5 @@ def registrar(
     log.info("auditoria: %s", acao, extra={"usuario": ator_id, "rota": recurso})
     try:
         cliente.table("evento_auditoria").insert(evento).execute()
-    except Exception:  # noqa: BLE001
+    except Exception:
         log.warning("não consegui gravar evento de auditoria", exc_info=True)

@@ -18,7 +18,8 @@ Registry exporta:
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from . import artefato, comparar, contexto, heuristicas, lookup, relatorios, stats
 
@@ -45,5 +46,5 @@ def executar(nome: str, cliente, args: dict) -> dict:
     except TypeError as e:
         # Argumentos inválidos (LLM passou kwargs errados).
         return {"erro": f"argumentos inválidos para '{nome}': {e}"}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"erro": f"erro ao executar '{nome}': {type(e).__name__}: {e}"}

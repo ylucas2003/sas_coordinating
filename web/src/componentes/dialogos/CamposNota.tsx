@@ -18,11 +18,12 @@ export function CamposNota({
 
   // Foca o campo que o usuário provavelmente quer mexer: a pontuação quando
   // o aluno está presente, a presença quando não está.
+  // Só na montagem: com `presente` na lista, cada toggle roubaria o foco de
+  // quem está digitando.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: só na montagem
   useEffect(() => {
     if (presente) refPontuacao.current?.focus();
     else refPresente.current?.focus();
-    // Só na montagem: refocar a cada toggle roubaria o foco do usuário.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Campo inválido: devolve o foco para quem precisa ser corrigido.

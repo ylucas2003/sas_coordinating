@@ -131,7 +131,6 @@ export function ChatLauncher({
 
       <aside
         className={`chat-drawer${aberto ? ' is-aberto' : ''}`}
-        role="complementary"
         aria-label="Chat com o assistente"
       >
         {aberto && (

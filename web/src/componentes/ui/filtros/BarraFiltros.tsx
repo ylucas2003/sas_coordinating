@@ -151,6 +151,10 @@ export function BarraFiltros({ tela, grupos, onLimpar, algumAtivo = false }: Pro
             <span className="barra-filtros__rotulo" id={`filtro-${g.chave}`}>
               {g.rotulo}
             </span>
+            {/* biome-ignore lint/a11y/useSemanticElements: `<fieldset>` não
+                encolhe em contêiner flex sem `min-width: 0` e tem métrica
+                própria — e esta faixa MEDE A SI MESMA para colapsar. Trocar o
+                elemento mexeria no laço de medição, não só na semântica. */}
             <div className="barra-filtros__grupo" role="group" aria-labelledby={`filtro-${g.chave}`}>
               {g.corpo}
             </div>

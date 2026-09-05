@@ -7,11 +7,11 @@ pra escala atual do SAS (~milhares de alunos, ~dezenas de simulados).
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import math
 import statistics as st
-from typing import Iterable, Sequence
-
+from collections.abc import Iterable
 
 # ─── O que é "nota que conta" ─────────────────────────────────────────────
 
@@ -182,7 +182,7 @@ def histograma_bins(valores: Iterable[float], *, largura_bin: float, maximo: flo
     """
     if maximo <= 0:
         maximo = 10.0
-    n_bins = max(1, int(round(maximo / largura_bin)))
+    n_bins = max(1, round(maximo / largura_bin))
     contagens = [0] * n_bins
 
     for v in valores:
@@ -213,8 +213,8 @@ def percentil(valores: list[float], p: float) -> float | None:
         return valores[0]
     ordenados = sorted(valores)
     indice = (p / 100) * (len(ordenados) - 1)
-    inf = int(math.floor(indice))
-    sup = int(math.ceil(indice))
+    inf = math.floor(indice)
+    sup = math.ceil(indice)
     if inf == sup:
         return ordenados[inf]
     fracao = indice - inf
@@ -312,7 +312,7 @@ def detectar_bimodalidade(contagens: list[int], *, min_vale_ratio: float = 0.7) 
         return False
 
     # Procura pelo menos um par com vale profundo entre eles.
-    for a, b in zip(significativos, significativos[1:]):
+    for a, b in itertools.pairwise(significativos):
         vale = min(contagens[a + 1 : b]) if b - a > 1 else min(contagens[a], contagens[b])
         menor_pico = min(contagens[a], contagens[b])
         if menor_pico == 0:
