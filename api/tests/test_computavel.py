@@ -16,7 +16,12 @@ from __future__ import annotations
 
 import pytest
 
-from app.stats.computavel import TODAS_EM_BRANCO, avaliar_computavel, decidir
+from app.stats.computavel import (
+    TODAS_EM_BRANCO,
+    ZERO_POR_FALTA_LANCADA,
+    avaliar_computavel,
+    decidir,
+)
 from app.stats.utils import simulado_entra_no_agregado
 
 from .fake_postgrest import FakeCliente
@@ -85,9 +90,17 @@ def test_simulado_entra_no_agregado(simulado, entra):
 # ─── O avaliador, contra o fake ───────────────────────────────────────────
 
 
-def _banco(respostas: list[dict], notas: list[dict]) -> FakeCliente:
+def _banco(
+    respostas: list[dict],
+    notas: list[dict],
+    provas: list[dict] | None = None,
+) -> FakeCliente:
     return FakeCliente(
         {
+            "simulado": {
+                p["id"]: dict(p)
+                for p in (provas or [{"id": "S1", "zero_e_ausencia": False}])
+            },
             "questao": {
                 "q1": {"id": "q1", "simulado_id": "S1"},
                 "q2": {"id": "q2", "simulado_id": "S1"},
@@ -212,3 +225,112 @@ def test_idempotente():
 def test_sem_simulado_nao_faz_consulta_nenhuma():
     cliente = _banco(respostas=[], notas=[])
     assert avaliar_computavel(cliente, simulado_ids=[]) == 0
+
+
+# ─── A segunda evidência: a prova em que zero quer dizer falta ────────────
+#
+# Oito provas de 2023 concentram 71% de todos os zeros do sistema, e nenhuma
+# delas é quiz — são invisíveis para a evidência por aluno. O que as autoriza é
+# a contagem da prova irmã do mesmo dia (docs/32 §1.4). O que estes testes
+# protegem: que a marca da prova derrube SÓ os zeros, que ela não engula a
+# evidência mais específica, e que desligá-la devolva tudo.
+
+MARCADA = [{"id": "S1", "zero_e_ausencia": True}]
+NAO_MARCADA = [{"id": "S1", "zero_e_ausencia": False}]
+
+
+def test_prova_marcada_faz_o_zero_virar_falta_mesmo_sem_quiz():
+    """O caso real: prova com nota lançada à mão, zero registro de questão."""
+    cliente = _banco(
+        respostas=[],
+        notas=[{"aluno_id": "A1", "simulado_id": "S1", **ZERO_PRESENTE}],
+        provas=MARCADA,
+    )
+    assert avaliar_computavel(cliente, simulado_ids=["S1"]) == 1
+    nota = cliente.db["nota"][("A1", "S1")]
+    assert nota["computavel"] is False
+    assert nota["motivo_nao_computavel"] == ZERO_POR_FALTA_LANCADA
+
+
+def test_prova_marcada_nao_toca_em_quem_tem_nota_acima_de_zero():
+    """São as ~130 notas verdadeiras de cada prova — o motivo de não excluir
+    a prova inteira, que era o desenho anterior."""
+    cliente = _banco(
+        respostas=[],
+        notas=[
+            {"aluno_id": "A1", "simulado_id": "S1", **ZERO_PRESENTE},
+            {"aluno_id": "A2", "simulado_id": "S1",
+             "pontuacao": 3.84, "presente": True, "computavel": True},
+        ],
+        provas=MARCADA,
+    )
+    assert avaliar_computavel(cliente, simulado_ids=["S1"]) == 1
+    assert cliente.db["nota"][("A2", "S1")]["computavel"] is True
+
+
+def test_prova_nao_marcada_segue_com_o_zero_valendo():
+    """Controle: sem a marca, um zero sem evidência nenhuma é desempenho."""
+    cliente = _banco(
+        respostas=[],
+        notas=[{"aluno_id": "A1", "simulado_id": "S1", **ZERO_PRESENTE}],
+        provas=NAO_MARCADA,
+    )
+    assert avaliar_computavel(cliente, simulado_ids=["S1"]) == 0
+    assert cliente.db["nota"][("A1", "S1")]["computavel"] is True
+
+
+def test_prova_marcada_nao_mexe_em_ausente():
+    """Ausência declarada pelo Canvas não é assunto de nenhuma das regras."""
+    cliente = _banco(
+        respostas=[],
+        notas=[{"aluno_id": "A1", "simulado_id": "S1",
+                "pontuacao": None, "presente": False, "computavel": True}],
+        provas=MARCADA,
+    )
+    assert avaliar_computavel(cliente, simulado_ids=["S1"]) == 0
+    assert cliente.db["nota"][("A1", "S1")]["computavel"] is True
+
+
+def test_evidencia_por_aluno_ganha_da_marca_da_prova():
+    """As duas se aplicam: o motivo registrado é o mais específico.
+
+    Na prática não colide — as oito provas de 2023 não têm dado de questão —
+    mas o motivo é o que a tela mostra, e "não marcou nada" diz mais ao
+    coordenador do que "o professor lançou zero para quem faltou".
+    """
+    cliente = _banco(
+        respostas=[
+            {"aluno_id": "A1", "questao_id": "q1", **BRANCO},
+            {"aluno_id": "A1", "questao_id": "q2", **BRANCO},
+        ],
+        notas=[{"aluno_id": "A1", "simulado_id": "S1", **ZERO_PRESENTE}],
+        provas=MARCADA,
+    )
+    assert avaliar_computavel(cliente, simulado_ids=["S1"]) == 1
+    assert cliente.db["nota"][("A1", "S1")]["motivo_nao_computavel"] == TODAS_EM_BRANCO
+
+
+def test_desligar_a_marca_devolve_o_zero_a_conta():
+    """Reversível nos dois sentidos — se a coordenação disser que aquela prova
+    foi mesmo uma catástrofe, tira-se a marca e o número volta."""
+    cliente = _banco(
+        respostas=[],
+        notas=[{"aluno_id": "A1", "simulado_id": "S1", **ZERO_PRESENTE}],
+        provas=MARCADA,
+    )
+    assert avaliar_computavel(cliente, simulado_ids=["S1"]) == 1
+    cliente.db["simulado"]["S1"]["zero_e_ausencia"] = False
+    assert avaliar_computavel(cliente, simulado_ids=["S1"]) == 1
+    nota = cliente.db["nota"][("A1", "S1")]
+    assert nota["computavel"] is True
+    assert nota["motivo_nao_computavel"] is None
+
+
+def test_marca_da_prova_e_idempotente():
+    cliente = _banco(
+        respostas=[],
+        notas=[{"aluno_id": "A1", "simulado_id": "S1", **ZERO_PRESENTE}],
+        provas=MARCADA,
+    )
+    assert avaliar_computavel(cliente, simulado_ids=["S1"]) == 1
+    assert avaliar_computavel(cliente, simulado_ids=["S1"]) == 0

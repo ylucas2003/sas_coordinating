@@ -363,8 +363,19 @@ O que a coordenação mais pediu (cobrar professor sem ser na mão) e que já te
 > em [32-plano-sprint-4.md](32-plano-sprint-4.md); o estado parte a parte está
 > no §5.1 de lá. Subiu com a `0043`, o backfill (**123 notas** marcadas
 > `todas_em_branco`) e `recalcular_metricas` sobre 255 simulados. Verificado:
-> 2.756 zeros − 123 = 2.633 ainda na conta, e **zero** provas marcadas como não
-> confiáveis — o Problema B segue desligado, esperando o aval prova a prova.
+> 2.756 zeros − 123 = 2.633 ainda na conta, e **zero** provas marcadas — o
+> Problema B segue desligado, esperando o aval prova a prova.
+>
+> ⚠️ **O mecanismo do Problema B mudou em 04/09, depois do deploy.** A `0043`
+> criou `simulado.nota_confiavel`, que tirava a prova inteira do agregado. Medir
+> mostrou que excluir era **pior**: aquelas provas eram genuinamente difíceis
+> (média de 2,7 a 4,4 entre quem as fez), e removê-las *inflava* a média do
+> ciclo — 6,18 contra os 5,51 corretos no Ciclo 4 · ITA. A regra em vigor é
+> `simulado.zero_e_ausencia` (migration **`0046`**): a prova **fica** no
+> agregado e só as notas zeradas saem, uma a uma, por `nota.computavel`. O que
+> autoriza é a contagem da prova irmã do mesmo dia — em seis das oito, o número
+> de alunos acima de zero bate com quantos a irmã avaliou, dentro de 1% a 7%.
+> `nota_confiavel` fica sem uso, para o caso de uma prova de fato inutilizável.
 
 | Parte | O quê | Estado |
 |---|---|---|
