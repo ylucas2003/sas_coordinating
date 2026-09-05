@@ -239,27 +239,75 @@ múltipla escolha `other` é raro, mas a regra ficaria apoiada numa conflação.
 **Separar os dois faz parte do trabalho**, e só então a regra é sobre "em
 branco" de fato.
 
-#### Para o Problema B — quarentena por prova, não julgamento por aluno
+#### Para o Problema B — o zero daquelas oito provas é falta
 
-> **Não inventar regra por aluno onde a evidência é por prova.**
+> **Nas oito provas identificadas, e só nelas, `pontuacao = 0` significa
+> ausência.** A nota acima de zero fica como está.
 
-O SAS não sabe *quais* dos 325 alunos faltaram. Sabe que a coluna inteira não é
-confiável. Então a decisão é sobre a **prova**, e fica visível:
+Esta regra substituiu a proposta anterior ("tirar as oito provas inteiras da
+estatística") depois de duas conferências. **A troca é uma melhoria, e veio do
+usuário em 04/09.**
 
-- Uma marca no `simulado` — `nota_confiavel = false` + motivo — que **exclui a
-  prova das estatísticas agregadas** e a mostra na tela com a ressalva.
-- **Aplicada à mão, com lista na mão**, não por heurística automática. São oito
-  provas identificadas, de 2023, e o critério que as achou (pico em zero com
-  vale ao lado, prova irmã com contagem de correção incompatível) é forte para
-  ler e fraco para automatizar — em Redação um pico em zero é legítimo.
-- **Reversível e auditada**: se a coordenação disser que aquela prova foi mesmo
-  uma catástrofe, tira-se a marca.
+**Por que é melhor que excluir a prova.** Excluir jogava fora as ~130 notas
+verdadeiras de cada prova — justamente as de quem compareceu — e, pior,
+*inflava* a média do ciclo, porque as oito eram provas genuinamente difíceis
+(média de 2,7 a 4,4 entre quem fez). Manter a prova e derrubar só os zeros
+preserva o dado bom e devolve um número honesto:
 
-> ⬜ **Isto precisa da coordenação, e é a única coisa nesta parte que precisa.**
-> São provas de 2023 — turma que já saiu. A pergunta não é técnica: *o histórico
-> de 2023 deve continuar entrando nas estatísticas como está, sabendo que a
-> média de oito provas está errada por um fator de três?* Enquanto não houver
-> resposta, **o Problema A anda sozinho** — as duas regras são independentes.
+| Ciclo (2023) | Hoje | Excluindo a prova | **Derrubando só os zeros** |
+|---|---|---|---|
+| Ciclo 2 · ITA | 6,44 | 6,44 | 6,44 |
+| Ciclo 3 · ITA | **5,23** | 5,95 | **5,73** |
+| Ciclo 4 · ITA | **4,33** | 6,18 | **5,51** |
+| Ciclo 5 · ITA | **4,61** | 6,23 | **5,66** |
+| Ciclo 6 · ITA | **4,41** | 6,47 | **6,08** |
+| Ciclo 7 · ITA | 6,63 | 6,63 | 6,63 |
+| Ciclo 10 · ITA | 6,91 | 6,91 | 6,91 |
+
+A coluna da direita é a leitura certa: uma depressão **suave** entre abril e
+julho, que é real (as provas eram difíceis), no lugar de um desabamento que não
+foi.
+
+##### A conferência que fecha o caso: a prova irmã
+
+Para cada uma das oito, comparei **quantos alunos ficaram acima de zero** com
+**quantos alunos a prova irmã do mesmo dia avaliou**. Se a hipótese estiver
+certa, os dois números têm de descrever o mesmo grupo — o de quem compareceu:
+
+| Prova | Com nota | Zeros | **Acima de zero** | **Irmã do mesmo dia** | Diferença |
+|---|---|---|---|---|---|
+| `6_P17 · Matemática · 01/07` | 455 | 325 | **130** | **128** | +2 |
+| `6_P18 · Física · 02/07` | 432 | 314 | **118** | **120** | −2 |
+| `3_P9 · Física · 23/04` | 443 | 225 | **218** | **224** | −6 |
+| `5_P14 · Matemática · 28/05` | 454 | 232 | **222** | **231** | −9 |
+| `5_P15 · Física · 04/06` | 454 | 253 | **200** | **212** | −12 |
+| `4_P12 · Física · 09/05` | 450 | 226 | **222** | **238** | −16 |
+| `4_P11 · Química · 08/05` | 453 | 219 | **234** | — | — |
+| `4_P11 · Matemática · 08/05` | 389 | 165 | **224** | — | — |
+
+**Seis das oito batem com a irmã dentro de 2 a 16 alunos** — 1% a 7%. São seis
+confirmações independentes da mesma mecânica, cada uma vinda de um professor
+diferente que lançou nota do jeito certo no mesmo dia.
+
+As duas últimas são o par de 08/05: **elas são irmãs uma da outra**, e as duas
+estão na lista, então não há terceiro para arbitrar. Mas elas concordam entre
+si — **234 e 224 acima de zero**, diferença de 4% — o que reproduz o mesmo
+padrão: cerca de 230 compareceram naquele dia, e o resto virou zero nas duas.
+
+> Isto tira o Problema B do terreno da inferência estatística. Não é mais "a
+> distribuição tem forma estranha": é **uma contagem de presença que sete
+> lançamentos independentes confirmam**.
+
+##### O erro que a regra assume, medido
+
+Onde "acima de zero" é *menor* que a irmã, a diferença é o número máximo de
+zeros legítimos que a regra converteria em falta por engano: **entre 2 e 16
+alunos por prova**. É pequeno, é conhecido, e é ordens de grandeza menor que o
+erro de hoje — 200 a 325 faltas por prova contadas como nota.
+
+⚠️ **A regra vale para estas oito e nada mais.** Não é um detector, não é um
+limiar, não roda sozinha em prova nenhuma. Qualquer prova futura entra na lista
+por decisão humana, com a mesma conferência de irmã registrada.
 
 ### 1.5 · Como implementar
 
@@ -314,21 +362,34 @@ marca a **prova**.
 
 #### Problema B · prova a prova
 
-5. **Sem heurística automática.** As oito provas do
-   [§1.2](#12--o-achado-que-reorganiza-a-parte-b3-são-dois-problemas) entram por
-   uma migration de dados explícita, com o `external_id` de cada uma e o motivo
-   escrito. Lista curta, auditável, revertível por `UPDATE`.
-   > Por que não um detector: o critério que as achou — pico em zero com vale ao
-   > lado, prova irmã do mesmo dia com contagem de correção incompatível — é
-   > forte para um humano ler e fraco para uma máquina aplicar. Em Redação um
-   > pico em zero é legítimo. **Automatizar isso criaria um segundo problema do
-   > tipo do primeiro:** uma regra que apaga dado bom em silêncio.
+5. **A lista das oito é DADO, não código.** `simulado.zero_e_ausencia = true`
+   + `motivo`, gravado por migration de dados com o `external_id` de cada uma.
+   Lista curta, auditável, revertível por um `UPDATE`.
 
-6. **`nota_confiavel = false` exclui a prova das estatísticas agregadas**
-   (média, mediana, desvio, histograma, alertas de calibração) pelo mesmo
-   helper do item 3, e **mantém as notas individuais visíveis** com a ressalva
-   na tela. O aluno de 2023 não perde o histórico; o produto para de afirmar
-   que a média daquela prova foi 1,10.
+   > ⚠️ **Por que não `if simulado_id in [...]` no processamento**, que é o
+   > caminho mais curto e o errado, por dois motivos mecânicos:
+   >
+   > 1. **Onde a regra parecida já mora, ela nunca roda.** A regra dos "2+
+   >    zeros no mesmo dia" está em `ingest/pipeline.py` — o caminho da
+   >    planilha, que **nunca executou em produção** ([§2.4](#24--como-implementar)).
+   >    Uma trava escrita ali não teria efeito nenhum.
+   > 2. **O sync desfaz.** `mapear_nota` reescreve `presente` e `pontuacao` a
+   >    cada rodada, de hora em hora. Qualquer correção precisa ser
+   >    **reaplicada depois do sync**, não aplicada uma vez.
+   >
+   > Como dado + avaliador pós-sync, a regra sobrevive à rodada seguinte, e
+   > quem abrir o banco vê por que aquela prova é diferente. Como `if` no meio
+   > do código, ela evapora e ninguém sabe que existiu.
+
+6. **O avaliador do item 2 lê a marca** e grava, nas notas com `pontuacao = 0`
+   dessas provas, `computavel = false` e
+   `motivo_nao_computavel = 'zero_por_falta_lancada'`. As notas acima de zero
+   ficam intactas e a prova **continua** na estatística — com a média de quem
+   de fato a fez.
+
+   > É a mesma coluna e o mesmo avaliador do Problema A. A diferença é só a
+   > origem da evidência: lá, as respostas em branco do aluno; aqui, a marca na
+   > prova. Um caminho de escrita, dois motivos.
 
 #### Comum aos dois
 
@@ -366,7 +427,7 @@ marca a **prova**.
 | | Precisa? |
 |---|---|
 | **Problema A** — a regra do zero sem alternativa marcada | **Não bloqueia.** É estreita (122 de 102.143), apoiada em evidência direta por aluno, e conservadora. Segue como default se ninguém responder |
-| **Problema B** — quarentena das oito provas de 2023 | **Sim, e é a única coisa da P1 que precisa.** Não é decisão técnica: é o histórico de 2023 de uma turma que já saiu, e a pergunta é se ele continua entrando nas estatísticas sabendo que oito médias estão erradas por um fator de três |
+| **Problema B** — o zero das oito provas de 2023 vira falta | **Sim, e é a única coisa da P1 que precisa.** Não é decisão técnica: é o histórico de 2023 de uma turma que já saiu, e a pergunta é se ele continua afirmando que ~2.000 alunos zeraram provas às quais a contagem de presença diz que não compareceram |
 
 **As duas são independentes** — o A anda enquanto o B espera.
 
