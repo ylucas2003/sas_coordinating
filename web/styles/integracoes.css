@@ -16,8 +16,11 @@
   padding: 22px 24px;
   text-decoration: none;
   color: inherit;
-  border: 1px solid transparent;
-  transition: border-color 150ms, box-shadow 150ms;
+  /* `transparent` anulava a borda que o `.card` desenha: o cartão ficava sem
+     aresta nenhuma, e a regra do sistema é que a superfície se separa do fundo
+     pela BORDA. O hover troca a cor, não a existência dela. */
+  border: var(--color-border-largura) solid var(--color-border);
+  transition: border-color 150ms;
 }
 .integracao-card:hover {
   border-color: var(--color-border-strong);

@@ -33,7 +33,6 @@ export function Importar() {
 
       <div className="tela-cabecalho">
         <div>
-          <h1 className="tela-titulo">Importação de planilha</h1>
           <p className="tela-subtitulo">
             Aposentada em 03/09/2026. Quem traz nota para o SAS é o sync do Canvas.
           </p>
@@ -83,7 +82,7 @@ export function Importar() {
 
       <div className="tela-cabecalho">
         <div>
-          <h2 className="tela-titulo">Histórico</h2>
+          <h2 className="section__title">Histórico</h2>
           <p className="tela-subtitulo">Importações registradas — leitura, para auditoria.</p>
         </div>
       </div>

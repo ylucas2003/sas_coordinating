@@ -147,7 +147,7 @@ export function Histograma({
             y={padTop}
             width={(xDe(corte.valor) - padLeft).toFixed(1)}
             height={plotH}
-            fill={corte.eliminatoria ? 'var(--color-red)' : 'var(--color-amber)'}
+            fill={'var(--color-gold)'}
             opacity="0.08"
           />
         )}
@@ -242,7 +242,7 @@ export function Histograma({
         {corte?.valor != null && (
           <LinhaVertical
             x={xDe(corte.valor)} y={padTop} altura={plotH}
-            cor={corte.eliminatoria ? 'var(--color-red)' : 'var(--color-amber)'}
+            cor={'var(--color-gold)'}
             rotulo={`Corte${corte.label ? ' ' + corte.label : ''}`}
             valor={corte.valor}
             tracejado={false}
@@ -256,7 +256,7 @@ export function Histograma({
         <ItemLegenda cor="var(--color-amber)" texto={`Mediana: ${fmt(mediana)}`} />
         {corte?.valor != null && (
           <ItemLegenda
-            cor={corte.eliminatoria ? 'var(--color-red)' : 'var(--color-amber)'}
+            cor={'var(--color-gold)'}
             texto={`Corte: ${fmt(corte.valor)}${corte.eliminatoria ? ' (eliminatória)' : ''}`}
           />
         )}

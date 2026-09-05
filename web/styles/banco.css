@@ -51,8 +51,8 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: var(--color-border-largura) solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 12px 14px;
 }
 
@@ -286,13 +286,17 @@
   gap: 8px 14px;
 }
 
+/* É o título da TELA, e estava em 19px/500 — o tamanho de uma migalha, e o
+   peso do texto corrente. Todas as outras telas usam 30/800 em MAGNITUDE, e
+   era esta a razão de o Banco parecer outro produto dentro do mesmo casco. */
 .banco-cabecalho__titulo {
   min-width: 0;
   margin: 0;
-  font-size: 19px;
-  font-weight: 500;
-  letter-spacing: -0.2px;
-  color: var(--color-text-primary);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--color-magnitude);
   overflow-wrap: anywhere;
 }
 
@@ -318,8 +322,8 @@
 .banco-questao {
   min-width: 0;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: var(--color-border-largura) solid var(--color-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -802,8 +806,8 @@
 .banco-estatisticas__secao {
   min-width: 0;
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: var(--color-border-largura) solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
@@ -980,7 +984,7 @@
   aspect-ratio: 1080 / 1350;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
+  border: var(--color-border-largura) solid var(--color-border);
 }
 
 @media (min-width: 880px) {

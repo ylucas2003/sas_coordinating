@@ -33,12 +33,15 @@
   white-space: nowrap;
 }
 
+/* ⚠️ Cabeçalho de tabela é CINZA (brief §Tipografia). Era
+   `--color-text-primary`, tão escuro quanto o dado abaixo dele — e cabeçalho
+   competindo com dado é o que faz uma tabela de 900 linhas cansar. */
 .painel-tabela__th-col {
   text-align: center;
   padding: 14px 10px 6px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--color-text-tertiary);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
   min-width: 92px;
@@ -151,7 +154,9 @@
   color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
-  box-shadow: 2px 0 6px -2px rgba(20, 30, 80, 0.07);
+  /* A coluna congelada se separa do que passa por baixo com uma BORDA, não com
+     um degradê de sombra — mesma regra do resto do sistema. */
+  border-right: 1px solid var(--color-border);
   width: 180px;
   max-width: 180px;
 }
@@ -421,14 +426,23 @@
    fase virou pílula na fileira de controles, e a sidebar virou a
    `.barra-filtros` horizontal de layout.css. */
 
-/* ─── Status de corte no nome do aluno ──────────────────────────────────── */
+/* ─── Status de corte no nome do aluno ────────────────────────────────────
+   ⚠️ O NOME NÃO É PINTADO. Cortado era vermelho e aprovado era verde — o
+   semáforo no elemento mais visível da tabela, e justamente o que a R4
+   proíbe: alerta é só a etiqueta de distância e a falha operacional, nunca
+   linha, célula ou nome.
 
-.painel-tabela__aluno-link.is-cortado {
-  color: var(--color-red);
-}
+   Quem diz que o aluno está abaixo do corte são as CÉLULAS vazadas e a coluna
+   Distância, que traz o número. Pintar o nome de vermelho somava uma terceira
+   marcação para a mesma informação — e as duas primeiras funcionam no
+   daltonismo e no papel, que é o motivo de existirem.
 
+   As classes ficam: `is-cortado` continua sendo o gancho de teste e de
+   depuração, e o dia em que o nome precisar de peso, o peso é `font-weight`,
+   não matiz. */
+.painel-tabela__aluno-link.is-cortado,
 .painel-tabela__aluno-link.is-aprovado {
-  color: var(--color-green);
+  color: var(--color-text-primary);
 }
 
 /* ─── Linha separadora de ranking (Top 10 / 50 / 100) ───────────────────── */
@@ -703,9 +717,36 @@
   flex: none;
 }
 
+/* A coluna de TRAJETÓRIA do Painel. A de Distância saiu: o número já está na
+   etiqueta de cada célula abaixo do corte, e a coluna só repetia a pior
+   delas. A ordenação continua sendo por distância — quem a nomeia é a faixa
+   acima da tabela. */
+.painel-tabela__th-traj,
+.painel-tabela__td-traj {
+  text-align: center;
+  white-space: nowrap;
+  width: 110px;
+}
+
+.painel-tabela__th-traj {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+
+.painel-tabela__traj-vazia {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
+/* Mesmo desenho dos outros cabeçalhos: 13px, 500, CINZA. Estava herdando o
+   `th` genérico (14px, 700, texto escuro) e competia com o dado abaixo. */
 .painel-tabela__th-dist {
   text-align: right;
   white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
 }
 
 .painel-tabela__td-dist {

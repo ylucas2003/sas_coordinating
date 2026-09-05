@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { corteDaMateria } from '../../dominio/criterios';
 import { LIMITES_RANKING, linhaVisivel } from '../../dominio/painel';
 import type { ClassificacaoPorAluno, OrdenacaoPainel } from '../../dominio/painel';
-import { distanciaAoCorte, formatarDistancia, seloDaNota } from '../../dominio/selo';
+import { seloDaNota } from '../../dominio/selo';
+import { Sparkline } from '../../componentes/ui/Sparkline';
 import type { TomNota } from '../../tipos/dominio';
 import type { ColunaPainel, IgnoradasPorAluno, NotasPorAluno } from '../../dominio/painel';
 import type { Aluno, CriterioClassificacao } from '../../tipos/dominio';
@@ -174,9 +175,11 @@ export function TabelaPainel({
                 {col.label}
               </th>
             ))}
-            <th className="painel-tabela__th-dist" rowSpan={2} title="A pior matéria contra o corte da régua em vigor">
-              Distância
-            </th>
+            {/* A TRAJETÓRIA no lugar da distância. O número da distância já
+                aparece na etiqueta de cada célula abaixo do corte, e a coluna
+                repetia a pior delas; a trajetória diz outra coisa — para onde
+                o aluno está indo —, que a tabela não respondia. */}
+            <th className="painel-tabela__th-traj" rowSpan={2}>Trajetória</th>
           </tr>
           <tr>
             {colunas.map((col) => (
@@ -196,7 +199,7 @@ export function TabelaPainel({
                 <NotaBadge nota={mediasPorColuna[col.id] ?? null} daTurma />
               </td>
             ))}
-            <td className="painel-tabela__td-dist" />
+            <td className="painel-tabela__td-traj" />
           </tr>
 
           {alunos.flatMap((aluno, i) => {
@@ -256,24 +259,13 @@ export function TabelaPainel({
                     </td>
                   );
                 })}
-                {(() => {
-                  const d = distanciaAoCorte(veredito, criterio);
-                  return (
-                    <td className="painel-tabela__td-dist">
-                      {d == null ? (
-                        <span className="painel-tabela__dist painel-tabela__dist--vazia" title="sem nota no ciclo">
-                          —
-                        </span>
-                      ) : (
-                        <span
-                          className={`painel-tabela__dist${d < 0 ? ' painel-tabela__dist--abaixo' : ''}`}
-                        >
-                          {formatarDistancia(d)}
-                        </span>
-                      )}
-                    </td>
-                  );
-                })()}
+                <td className="painel-tabela__td-traj">
+                  {aluno.sparkline?.length ? (
+                    <Sparkline valores={aluno.sparkline} cor="var(--color-dado)" />
+                  ) : (
+                    <span className="painel-tabela__traj-vazia" title="sem histórico suficiente">—</span>
+                  )}
+                </td>
               </tr>
             );
 

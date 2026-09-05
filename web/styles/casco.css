@@ -41,9 +41,14 @@
 
 /* ─── Rail ──────────────────────────────────────────────────────────────── */
 
+/* ⚠️ TRANSPARENTE e SEM BORDA, como o rail do aluno. Era `--color-surface`
+   com fio à direita, e o resultado era uma faixa clara colada num fundo claro
+   — dois planos quase idênticos separados por um fio, que é exatamente o que
+   a regra "borda, nunca sombra" existe para evitar quando os dois planos são
+   o mesmo. Sem fundo próprio, a grade de 24px passa por baixo do rail e a
+   tela vira UMA superfície, como no aluno. */
 .rail {
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-shell-border);
+  background: transparent;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -110,13 +115,18 @@
   color: var(--color-text-tertiary);
 }
 
+/* Mesma medida do item de navegação do aluno: raio 12, peso 700, 15px.
+   Era raio 13 e peso herdado — perto, mas "perto" em duas telas do mesmo
+   produto é o que faz uma parecer cópia da outra. */
 .rail__item {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 44px;
+  height: 47px;
   flex: none;
-  border-radius: 13px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--color-text-secondary);
   text-decoration: none;
   transition: background 150ms, color 150ms;
@@ -124,13 +134,15 @@
 
 .rail__item:hover {
   background: var(--color-navy-tint);
-  color: var(--color-navy);
+  color: var(--color-dado);
   text-decoration: none;
 }
 
+/* Ativo em DADO, não em ACAO: é o que o aluno usa, e faz sentido — o item
+   ativo diz ONDE VOCÊ ESTÁ (um valor), não o que apertar. */
 .rail__item.is-active {
-  background: var(--color-navy);
-  color: var(--color-navy-texto);
+  background: var(--color-dado);
+  color: var(--color-dado-texto-forte);
 }
 
 .rail__item:focus-visible {

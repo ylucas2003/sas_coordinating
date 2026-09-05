@@ -139,7 +139,7 @@ export function LinhaTemporal({
           <line
             x1={padLeft} x2={padLeft + plotW}
             y1={yDe(corte.valor).toFixed(1)} y2={yDe(corte.valor).toFixed(1)}
-            stroke={corte.eliminatoria ? 'var(--color-red)' : 'var(--color-amber)'}
+            stroke={'var(--color-gold)'}
             strokeWidth="1.5" strokeDasharray="6,3"
           >
             <title>{`Corte: ${um(corte.valor)}${corte.eliminatoria ? ' (eliminatória)' : ''}`}</title>
@@ -223,7 +223,7 @@ export function LinhaTemporal({
         {temAnterior && <ItemLegenda cor="var(--color-text-tertiary)" texto="Ciclo anterior" tracejado />}
         {corte?.valor != null && (
           <ItemLegenda
-            cor={corte.eliminatoria ? 'var(--color-red)' : 'var(--color-amber)'}
+            cor={'var(--color-gold)'}
             texto={`Corte ${um(corte.valor)}${corte.eliminatoria ? ' (eliminatória)' : ''}`}
             tracejado
           />
