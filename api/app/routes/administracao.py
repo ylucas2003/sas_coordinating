@@ -7,7 +7,8 @@ A tabela `usuario_coordenacao` existe desde a 0021, mas até aqui uma conta
 só nascia por `scripts/criar_coordenador.py`. Estas rotas são o mesmo
 provisionamento, pela tela:
 
-  * contas de coordenação: criar, renomear, desativar, redefinir senha;
+  * contas de coordenação: criar, renomear, desativar, redefinir senha e
+    trocar o papel (promover a administrador, rebaixar a coordenador);
   * alunos: quem já fez primeiro acesso, quem nunca entrou.
 
 ⚠️ **O arquivo é DIVIDIDO, não promovido inteiro.** O router exige coordenação
@@ -109,10 +110,24 @@ class CriarCoordenadorBody(BaseModel):
 class EditarCoordenadorBody(BaseModel):
     nome: str | None = None
     ativo: bool | None = None
-    # `papel` NÃO entra aqui de propósito: promover alguém é decisão de
-    # operação, feita com a coordenação junto por
-    # `scripts/criar_coordenador.py --papel`, e não um menu ao lado de
-    # "Renomear". Promover por engano dá a uma conta o poder de alterar nota.
+    # `papel` continua FORA daqui, mesmo agora que a promoção existe pela
+    # tela: ela tem rota própria (`PATCH .../papel`). Promover é a ação mais
+    # cara deste arquivo — dá a uma conta o poder de criar login e alterar
+    # nota —, e misturá-la com "Renomear" faria um corpo `{nome, papel}` mal
+    # montado promover alguém de lado. Rota separada torna isso impossível:
+    # um `papel` perdido aqui é campo desconhecido, não promoção.
+
+
+class PapelDoCoordenadorBody(BaseModel):
+    papel: str
+
+    @field_validator("papel")
+    @classmethod
+    def _papel_conhecido(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v not in PAPEIS_DE_COORDENACAO:
+            raise ValueError("papel deve ser 'coordenador' ou 'administrador'")
+        return v
 
 
 @router.get("/coordenadores")
@@ -227,7 +242,93 @@ async def editar_coordenador(
         recurso=f"coordenador/{usuario_id}", ip=_ip(request), detalhe=patch,
     )
     linha = atualizado[0]
-    return {k: linha[k] for k in ("id", "email", "nome", "ativo", "ultimo_login_em") if k in linha}
+    return {
+        k: linha[k]
+        for k in ("id", "email", "nome", "ativo", "papel", "ultimo_login_em")
+        if k in linha
+    }
+
+
+@router.patch(
+    "/coordenadores/{usuario_id}/papel",
+    dependencies=[Depends(get_current_administrador)],
+)
+async def alterar_papel_do_coordenador(
+    usuario_id: str,
+    body: PapelDoCoordenadorBody,
+    request: Request,
+    administrador: dict = Depends(get_current_administrador),
+) -> dict:
+    """Promove um coordenador a administrador, ou rebaixa um administrador a
+    coordenador.
+
+    Até 05/09 isto só existia por `scripts/criar_coordenador.py --papel`, na
+    linha de comando do VPS — o que na prática queria dizer que **rebaixar não
+    acontecia**: quem precisa tirar o acesso de alguém precisa fazer isso na
+    hora, não abrindo um ssh. A decisão anterior está preservada de outro
+    jeito: o poder continua sendo só do administrador, a ação tem rota e
+    evento de auditoria próprios, e a tela pergunta antes.
+
+    **Ninguém muda o próprio papel.** É o que garante que sempre reste um
+    administrador: quem chama já é um, e sai desta rota continuando um. Sem
+    essa regra, o último administrador se rebaixaria e a casa ficaria sem
+    quem cria login — e sem quem conserte, porque criar login é dele. É a
+    mesma trava do `ativo` em `editar_coordenador`, pelo mesmo motivo.
+
+    Rebaixar vale na hora, e não quando o token do rebaixado vencer: quem lê
+    o papel de volta na tabela é `auth.conta_ainda_e_administradora`.
+    """
+    cliente = get_supabase()
+    if usuario_id == administrador.get("sub"):
+        raise HTTPException(
+            status_code=422,
+            detail="Você não pode alterar o próprio papel. Peça a outro administrador.",
+        )
+
+    atual = (
+        cliente.table("usuario_coordenacao")
+        .select("papel, nome")
+        .eq("id", usuario_id)
+        .limit(1)
+        .execute()
+    ).data
+    if not atual:
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+    papel_anterior = atual[0].get("papel") or "coordenador"
+    if papel_anterior == body.papel:
+        raise HTTPException(
+            status_code=422, detail=f"A conta já é {body.papel}."
+        )
+
+    atualizado = (
+        cliente.table("usuario_coordenacao")
+        .update({"papel": body.papel}, returning="representation")
+        .eq("id", usuario_id)
+        .execute()
+    ).data
+    if not atualizado:
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+
+    # Evento PRÓPRIO, e não um `coordenador_editado` com o papel no detalhe:
+    # mudança de poder é o que mais se procura numa trilha de auditoria, e
+    # procurar é filtrar por ação.
+    #
+    # `valor_antes`/`valor_depois` é o par que `PATCH /notas` já usa e que a
+    # tela de auditoria já sabe desenhar como "antes → depois". Sem ele, as
+    # duas direções — promover e rebaixar — ficariam DUAS LINHAS IDÊNTICAS na
+    # trilha, dizendo que o papel mudou sem dizer para onde.
+    auditar(
+        cliente, "papel_alterado", canal="acesso",
+        ator_tipo="coordenador", ator_id=administrador.get("sub"),
+        recurso=f"coordenador/{usuario_id}", ip=_ip(request),
+        detalhe={
+            "valor_antes": papel_anterior,
+            "valor_depois": body.papel,
+            "nome": atual[0].get("nome"),
+        },
+    )
+    linha = atualizado[0]
+    return {k: linha[k] for k in ("id", "email", "nome", "ativo", "papel") if k in linha}
 
 
 # A rota POST /coordenadores/{id}/ligar-canvas ("Ligar ao Canvas") SAIU em

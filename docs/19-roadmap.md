@@ -664,6 +664,49 @@ De brinde, o PR 0 zerou 96 erros de ruff e 8 do Biome que estavam na `main`, e
 que faziam "portão verde" não significar nada.
 
 
+### ✅ Promover e rebaixar pela tela *(05/09)*
+
+> **ESCRITO, fora de produção.** Sem migration: a coluna `papel` é a da 0045.
+
+Até aqui o papel de uma conta só mudava por `scripts/criar_coordenador.py
+--papel`, num ssh para o VPS — o que na prática queria dizer que **rebaixar não
+acontecia**, porque tirar acesso de alguém tem hora marcada e abrir terminal
+não. Agora o administrador promove e rebaixa na linha da conta, em
+`/administracao/contas`.
+
+O que a decisão de 04/09 tinha de bom foi preservado de outro jeito: o poder
+continua sendo só do administrador; a ação tem **rota própria**
+(`PATCH /administracao/coordenadores/{id}/papel`, e não um campo no corpo de
+"renomear", para um `{nome, papel}` mal montado não promover ninguém de lado);
+e a tela pergunta antes, dizendo o que a pessoa ganha ou perde — não o nome do
+papel.
+
+Duas travas que não são detalhe:
+
+1. **Ninguém muda o próprio papel** (422). É o que garante que sempre reste um
+   administrador: quem chama já é um e sai continuando um. É a mesma trava que
+   o `ativo` já tinha, pelo mesmo motivo.
+2. **Rebaixar vale na hora.** O `papel` viaja num token de 8 h, então o guard
+   de administrador passou a **reler a tabela**
+   (`auth.conta_ainda_e_administradora`). Sem isso, o rebaixado continuaria
+   administrador até o token vencer — e, nessa janela, poderia criar OUTRA
+   conta de administrador e desfazer a própria queda. A releitura é só nas 5
+   rotas de administrador; as de coordenação seguem decidindo pelo token, de
+   propósito, porque quem foi rebaixado **continua coordenador**. Conta
+   desativada cai pela mesma porta.
+
+Na auditoria é evento próprio, `papel_alterado`, com
+`valor_antes`/`valor_depois` — o par que a tela já desenha como "antes →
+depois". Sem ele, promover e rebaixar seriam duas linhas idênticas na trilha.
+
+**Verificado:** 542 testes no backend (+12, em `test_papeis.py`), 392 no front,
+portões limpos; contra a API de verdade, um token emitido como administrador
+levando 403 na criação de conta **depois** do rebaixamento e 200 numa rota de
+coordenação; e no browser a 1440×900 — botão, texto da confirmação, tabela
+atualizando sozinha e a linha da auditoria nas duas direções.
+**Não verificado:** 390px, a tela na sessão de um coordenador **não**
+administrador (a coluna de ações inteira some — código, não olho), e o deploy.
+
 ## 4 · Decisões em aberto
 
 | Decisão | Trava | Quem decide |
@@ -672,7 +715,7 @@ que faziam "portão verde" não significar nada.
 | Frequência da cobrança de professores (diária? a cada 3 dias?) | Sprint 3 · P2 | coordenação |
 | Regra de "zero = provável ausência" — **metade fechada em 03/09**: o Problema A (não marcou nada) está em produção, derivado de evidência direta. Falta só o aval das **8 provas de 2023** do Problema B, prova a prova ([32 §1](32-plano-sprint-4.md)) | Sprint 3 · P3 | coordenação |
 | **Busca é da tela ou global (`⌘K`)?** | Polimento | Yan + coordenação |
-| **Papéis dentro da coordenação** — hoje todo mundo pode tudo, inclusive criar acesso e ler auditoria | Polimento | coordenação |
+| **Papéis dentro da coordenação** — *parcialmente fechada.* Existem dois papéis desde 04/09 ([35 §11](35-plano-correcoes.md)): criar conta e alterar nota pelo painel são do administrador, e desde 05/09 promover/rebaixar também. Segue aberto se **ler a auditoria** deve ser dele — hoje `/auditoria` é de qualquer coordenador | Polimento | coordenação |
 | **Servidor MCP do SAS para uso fora da plataforma?** Expõe dado de menor a cliente fora da nossa infra | — | Yan + LGPD |
 | **Parecer de LGPD sobre a Esquadrilha** — um menor compartilhando desempenho com outro, por escolha própria | Esquadrilha | Yan + LGPD |
 | **Temporada:** o que zera na virada do ano letivo (XP, liga, esquadrilha) | Sprint 7 | Yan + coordenação |

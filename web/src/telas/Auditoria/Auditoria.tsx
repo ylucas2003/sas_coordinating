@@ -37,6 +37,13 @@ const ACAO_LABEL: Record<string, string> = {
   primeiro_acesso_bloqueado: 'tentou primeiro acesso (bloqueado)',
   acesso_resetado: 'zerou a senha de um aluno',
   nota_editada: 'editou uma nota',
+  // As quatro do painel de contas. `papel_alterado` é evento próprio, e não um
+  // `coordenador_editado` com o papel no detalhe, porque mudança de PODER é o
+  // que mais se procura numa trilha — e procurar é filtrar por ação.
+  coordenador_criado: 'criou uma conta de coordenação',
+  coordenador_editado: 'editou uma conta de coordenação',
+  papel_alterado: 'mudou o papel de uma conta',
+  senha_redefinida: 'redefiniu a senha de uma conta',
   simulado_criado: 'agendou um simulado',
   simulado_editado: 'editou um simulado',
   simulado_removido: 'desmarcou um simulado',
