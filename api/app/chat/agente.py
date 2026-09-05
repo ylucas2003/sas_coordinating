@@ -29,8 +29,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator
+from typing import Any
 
 from supabase import Client
 
@@ -140,7 +141,7 @@ async def _gerar(
                 tool_choice="auto",
                 stream=False,  # Streaming + tools no MVP é mais simples sem token-streaming.
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.exception("erro na chamada OpenAI")
             erro_fatal = f"falha chamando o modelo: {e}"
             break

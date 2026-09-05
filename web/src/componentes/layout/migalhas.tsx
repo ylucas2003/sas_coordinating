@@ -115,7 +115,9 @@ export function useMigalhas(): Migalha[] {
       case 'banco':
         return [{ texto: 'Banco' }];
       case 'administracao':
-        return [{ texto: 'Administração' }];
+        // `/administracao` é o hub de quatro campos; `/administracao/contas` é
+        // um deles. `temId` aqui é o segmento "contas", não um identificador.
+        return temId ? [ADMIN, { texto: 'Quem tem acesso' }] : [{ texto: 'Administração' }];
       case 'auditoria':
         return [ADMIN, { texto: 'Auditoria' }];
       case 'calibracao':

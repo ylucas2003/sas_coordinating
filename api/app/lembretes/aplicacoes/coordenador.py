@@ -10,7 +10,7 @@ agendamento, no instante do agendamento (decisão A7 da P2).
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from typing import Any
 
 from supabase import Client
@@ -43,6 +43,6 @@ def preparar(
         titulo=str(evento.get("titulo") or "Evento agendado"),
         data_evento=date.fromisoformat(str(evento["data_evento"])),
         hora_evento=time.fromisoformat(str(evento["hora_evento"])),
-        hoje=datetime.now(timezone.utc).astimezone(FUSO_BRASIL).date(),
+        hoje=datetime.now(UTC).astimezone(FUSO_BRASIL).date(),
     )
     return Mensagem(assunto=assunto, corpo=corpo)

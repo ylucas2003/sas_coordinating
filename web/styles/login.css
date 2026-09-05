@@ -32,7 +32,6 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-card);
 }
 
 
@@ -345,26 +344,22 @@
 }
 
 /* Decorative arcs */
-.lp-arcs {
+/* A FACHADA DE COBOGÓ. Treliça quadrada de 24px — o MESMO ritmo da grade de
+   fundo do casco e da fachada do login do aluno, em outra escala. É o que faz
+   as duas portas do produto parecerem a mesma casa antes de qualquer leitura.
+
+   `currentColor` com opacidade baixa em vez de um branco cravado: o painel
+   direito é sempre escuro, mas a treliça acompanha o texto dele. */
+.lp-cobogo {
   position: absolute;
-  top: 0;
-  right: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: 0;
+  color: currentColor;
+  opacity: 0.07;
 }
-
-.lp-arc {
-  position: absolute;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  top: 0;
-  right: 0;
-}
-
-.lp-arc--1 { width: 220px; height: 220px; transform: translate(30%, -30%); }
-.lp-arc--2 { width: 360px; height: 360px; transform: translate(30%, -30%); }
-.lp-arc--3 { width: 500px; height: 500px; transform: translate(30%, -30%); border-color: rgba(255,255,255,0.05); }
-.lp-arc--4 { width: 640px; height: 640px; transform: translate(30%, -30%); border-color: rgba(255,255,255,0.03); }
 
 /* ── Logo bar ───────────────────────────────────────────────────────────── */
 
@@ -608,4 +603,23 @@
   .lp-left {
     padding: 40px 24px;
   }
+}
+
+
+/* A saída para a porta certa. Fica DENTRO da caixa de erro e só aparece com
+   ela: antes da falha seria ruído na porta certa, e depois de três tentativas
+   quem errou de porta conclui que a conta foi bloqueada. */
+.lp-error__saida {
+  display: block;
+  margin-top: 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  text-align: left;
 }

@@ -1,3 +1,49 @@
+/* ─── A ficha em duas colunas ────────────────────────────────────────────
+   Tela de LEITURA, e por isso ganha a coluna lateral de 320px com o contexto
+   que vivia espalhado pelo cabeçalho e pelo fim da rolagem.
+
+   ⚠️ Só as telas de leitura têm essa coluna. Painel, Alunos e Banco são telas
+   de VARREDURA: lá a tabela tem 14 colunas com o nome congelado à esquerda, e
+   320px do lado direito sairiam direto da tarefa mais frequente do dia
+   (docs/brief-claude-design-coordenacao.md §A arquitetura).
+
+   Abaixo de 1180px a lateral vira o rodapé da coluna: a 390px, duas colunas
+   de 320px não cabem, e o contexto é secundário ao gráfico.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ficha-duas-colunas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* `min-width: 0` é obrigatório: sem ele o item de grid não encolhe, e a
+   tabela larga do histórico empurra a lateral para fora da tela — foi um dos
+   três defeitos que o sprint mobile só achou em runtime. */
+.ficha-coluna {
+  min-width: 0;
+}
+
+.ficha-lateral {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.ficha-lateral__tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1180px) {
+  .ficha-duas-colunas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* ─── Ficha individual do aluno ────────────────────────────────────────── */
 
 /* Header com botão de exportar à direita. */
@@ -60,7 +106,6 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-card);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -188,8 +233,11 @@
   font-weight: 500;
 }
 
-.linha-evol__tt-val.tone-verde { color: #5ed896; }
-.linha-evol__tt-val.tone-vermelho { color: #f08c95; }
+/* Tooltip do gráfico, sobre fundo escuro. O delta é comparação e fica
+   neutro (R5); os dois literais claros eram a última cor de semáforo
+   escrita à mão fora da paleta. */
+.linha-evol__tt-val.tone-verde,
+.linha-evol__tt-val.tone-vermelho { color: rgba(255, 255, 255, 0.72); }
 
 .linha-evol__tt-sep {
   height: 1px;
@@ -217,12 +265,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sim-tabela__delta.tone-verde {
-  color: var(--color-green);
-}
-
+/* R5 · A COMPARAÇÃO É CINZA. O delta contra a média da turma é comparação, e
+   o sentido dele já está no sinal — verde e vermelho aqui só acrescentam uma
+   segunda escala semântica na mesma tela. */
+.sim-tabela__delta.tone-verde,
 .sim-tabela__delta.tone-vermelho {
-  color: var(--color-red);
+  color: var(--color-text-tertiary);
 }
 
 /* ─── @media print — ficha pra exportação PDF (window.print) ─────────── */
@@ -285,6 +333,13 @@
   }
 
   /* Esconde seções que não fazem sentido na impressão. */
+  /* A ficha imprime em UMA coluna. A lateral é contexto de tela — régua,
+     classificações, ações — e some junto pelo `nao-imprimir`; o que sobra
+     precisa ocupar a largura inteira da folha. */
+  .ficha-duas-colunas {
+    display: block !important;
+  }
+
   .aluno-ficha__nao-imprimir {
     display: none !important;
   }

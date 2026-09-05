@@ -22,6 +22,8 @@ Alguns `.md` descrevem um estado que já não existe. Quando divergirem do códi
 | [docs/00-tech-stack.md](docs/00-tech-stack.md) §Backend | Banco é Supabase hospedado | Postgres 16 + PostgREST em container, local e na VPS. Nada de Supabase desde 13/08/2026 |
 | [docs/00](docs/00-tech-stack.md) §Deploy | Front na Vercel, backend em Render/Fly/Railway | VPS própria na Hostinger (São Paulo), `portalsas.online`, tudo num `docker compose`. (README corrigido em 22/08) |
 | [docs/16-plano-migracao-react.md](docs/16-plano-migracao-react.md) | Migração em andamento, `web/js/` legado | **Terminada.** `web/js/` não existe mais; o front é React 19 + TS inteiro |
+| [docs/03-design-system.md](docs/03-design-system.md) | verde = acima da meta, vermelho = abaixo; sombra em card; quatro raios; um tema só | **Histórico desde 05/09/2026.** Não existe verde na interface: acima do corte é preenchido, abaixo é vazado, e a intensidade carrega a distância. Sombra morreu, raios viraram três, e existe tema escuro. A régua é [docs/brief-claude-design-coordenacao.md](docs/brief-claude-design-coordenacao.md); o que foi feito está em [docs/37](docs/37-plano-refatoracao-visual-coordenacao.md) |
+| [web/CLAUDE.md](web/CLAUDE.md) *(já corrigido)* | "`telas/Banco/` serve os dois cascos" | Não serve: o aluno tem `telas/Aluno/EstudarBanco.tsx`, e `perfil="aluno"` em `Banco.tsx` é código morto |
 
 ## O ponto mais confuso do projeto: `get_supabase()` não fala com Supabase
 
@@ -61,7 +63,10 @@ sas/
 │                 31 é a Sprint 5 (régua única, assistente com contexto,
 │                 gráficos em camadas) — e o §0 dele é o levantamento que
 │                 achou duas partes propostas já feitas sem registro;
-│                 sprints.html é a mesma coisa em página
+│                 sprints.html é a mesma coisa em página; 36 é a faixa 1 e 2
+│                 do aluno; **37 é a refatoração visual da coordenação** — a
+│                 pilha de cor, o fim do semáforo e o padrão de campo, com o
+│                 §6 dizendo o que NÃO foi verificado no browser
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no
@@ -79,7 +84,7 @@ docker compose up                        # front :8080 · API :8000 · postgrest
 docker compose run --rm migrate status   # ver migrations aplicadas/pendentes
 docker compose run --rm migrate up       # aplicar
 
-cd api && ./.venv/bin/python -m pytest tests/ -q   # 331 testes (+15 pulados)
+cd api && ./.venv/bin/python -m pytest tests/ -q   # 503 testes (+15 pulados)
 cd api && ./.venv/bin/ruff check .                 # lint
 cd web && npm test && npm run lint && npm run typecheck
 

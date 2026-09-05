@@ -36,7 +36,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.auth import hash_senha          # noqa: E402
+from app.auth import hash_senha  # noqa: E402
 from app.supabase_client import get_supabase  # noqa: E402
 
 SENHA_MINIMA = 12   # esta conta lê a base toda — e a de administrador também escreve nota

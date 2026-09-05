@@ -1,7 +1,7 @@
 // A escolha de aberta/colapsada, lembrada por SUPERFÍCIE de filtro.
 //
 // Não fica em `dominio/` porque não é regra: é acesso a `localStorage`, com
-// efeito. O precedente da casa é `telas/Aluno/pecas/tema.ts`.
+// efeito. O precedente da casa é `servicos/tema.ts`.
 //
 // ⚠️ Por superfície, não por rota. `/provas` tem DUAS faixas — Ciclos e
 // Simulados, conforme `?aba=` — e uma chave por rota faria as duas dividirem

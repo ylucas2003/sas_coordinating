@@ -5,9 +5,21 @@
 // (ITA e IME pesam as matérias de formas diferentes) e a definição de "em
 // zona de corte". Testada em painel.test.ts.
 
+import { compararPorDistancia, distanciaAoCorte } from './selo';
 import type {
-  Alerta, Aluno, AlunoClassificado, Ciclo, Simulado, TipoSimulado,
+  Alerta, Aluno, AlunoClassificado, Ciclo, CriterioClassificacao, Simulado, TipoSimulado,
 } from '../tipos/dominio';
+
+/**
+ * Como a tabela de alunos abre.
+ *
+ * `distancia` é o padrão desde que o semáforo saiu (R6): o pior primeiro. As
+ * outras duas continuam porque respondem a perguntas diferentes — `ranking` é
+ * a classificação oficial do critério, com os dois blocos e o desempate em
+ * cascata; `alfabetica` é para quando o coordenador já sabe o nome que
+ * procura.
+ */
+export type OrdenacaoPainel = 'distancia' | 'ranking' | 'alfabetica';
 
 export interface ColunaPainel {
   id: string;
@@ -393,14 +405,16 @@ export interface DadosPainel {
  * quando só uma fase está visível — a média final do ITA depende da 1ª fase.
  */
 export function montarPainel({
-  ciclo, simulados, alunos, notasPorSim, fase, ordenacao, classificacao,
+  ciclo, simulados, alunos, notasPorSim, fase, ordenacao, classificacao, criterio,
 }: {
   ciclo: Ciclo | null;
   simulados: readonly Simulado[];
   alunos: readonly Aluno[];
   notasPorSim: NotasPorSimulado;
   fase: '1' | '2';
-  ordenacao: 'ranking' | 'alfabetica';
+  ordenacao: OrdenacaoPainel;
+  /** A régua em vigor — necessária para a ordenação por distância do corte. */
+  criterio?: CriterioClassificacao | null;
   /** `GET /ciclos/{id}/classificacao` indexada por aluno. Vazia = ainda carregando. */
   classificacao: ClassificacaoPorAluno;
 }): DadosPainel {
@@ -443,7 +457,20 @@ export function montarPainel({
   const colunas = colunasExibidas(colunasFull, faseSelecionada);
 
   const alunosOrdenados = alunos.slice();
-  if (ordenacao === 'alfabetica') {
+  if (ordenacao === 'distancia') {
+    // R6 · A ORDENAÇÃO FAZ O TRABALHO QUE A COR FAZIA. Se o olho não pode
+    // achar o aluno em risco pela cor, a tela tem de ENTREGÁ-LO — o pior
+    // primeiro. Sem isto, tirar o semáforo deixaria a varredura sem mecanismo
+    // nenhum, e a proibição do verde seria temerária em vez de viável
+    // (docs/brief-claude-design-coordenacao.md §R6).
+    const dist = new Map<string, number | null>();
+    for (const a of alunos) dist.set(a.id, distanciaAoCorte(classificacao[a.id], criterio));
+    alunosOrdenados.sort(
+      (a, b) =>
+        compararPorDistancia(dist.get(a.id) ?? null, dist.get(b.id) ?? null) ||
+        a.nome.localeCompare(b.nome, 'pt-BR'),
+    );
+  } else if (ordenacao === 'alfabetica') {
     alunosOrdenados.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   } else {
     // A posição já vem com os dois blocos (não-cortados primeiro) e o

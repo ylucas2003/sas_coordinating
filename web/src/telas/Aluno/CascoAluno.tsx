@@ -23,7 +23,7 @@ import type { NomeIcone } from './pecas/Icone';
 import { Folha } from './pecas/Folha';
 import { TarjaFonte } from './pecas/TarjaFonte';
 import { fmtInteiro } from './pecas/formato';
-import { useTema } from './pecas/tema';
+import { useTema } from '../../servicos/tema';
 import { FabTioLeo } from './TioLeo/FabTioLeo';
 
 // O casco da área do aluno.

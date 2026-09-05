@@ -22,7 +22,6 @@ from typing import Any
 
 from supabase import Client
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
 

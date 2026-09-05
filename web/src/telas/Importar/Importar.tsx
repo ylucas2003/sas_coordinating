@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
+import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import * as api from '../../servicos/api';
 import { formatarDataHora, toneStatus } from '../../dominio/importacao';
 import type { UploadHistorico } from '../../dominio/importacao';
@@ -29,7 +29,7 @@ export function Importar() {
 
   return (
     <div className="tela">
-      <AbasAdmin />
+      <CabecaDeCampo titulo="Importação por planilha" para="/administracao" destino="Administração" />
 
       <div className="tela-cabecalho">
         <div>

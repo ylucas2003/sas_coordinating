@@ -1,0 +1,110 @@
+/* ─── A paleta crua ──────────────────────────────────────────────────────
+   Cada hexadecimal do projeto aparece AQUI, uma vez só, e sem semântica
+   nenhuma. Quem dá significado é `papeis.css`; quem consome são os aliases
+   (`tokens.css` para a coordenação, `aluno-tokens.css` para o aluno).
+
+   A regra que justifica o arquivo existir: enquanto os mesmos valores viviam
+   copiados em dois lugares, eles divergiam com o tempo — foi assim que as
+   primeiras gerações do desenho do aluno acabaram com sequência e barra de
+   meta inconsistentes entre os temas (aluno-tokens.css, versão anterior).
+
+   Cinza é sempre azulado: o neutro puro ao lado do navy lê como sujeira.
+
+   ⚠️ Não use `--dia-*`, `--noite-*` nem `--coord-*` direto numa tela. Eles são
+   matéria-prima. A tela lê papel (`--sas-*`) ou alias (`--alu-*`, `--color-*`).
+   A única exceção viva está comentada em `.alu-tecla--valor`.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Dia ──────────────────────────────────────────────────────────────
+     Os valores do canvas "Coordenação" (Claude Design), que por sua vez são
+     os da área do aluno mais REFERENCIA — o papel novo da coordenação. */
+  --dia-fundo: #ffffff;
+  --dia-superficie: #f4f7fc;
+  --dia-superficie-2: #eaf0fa;
+  --dia-borda: #dce6f7;
+  /* Fio entre linhas de tabela: mais claro que a borda de card, senão a
+     tabela vira grade e o olho para em cada linha. */
+  --dia-fio: rgba(92, 104, 131, 0.18);
+  --dia-acao: #1b3f8b;
+  --dia-acao-base: #12275a;
+  --dia-acao-texto: #ffffff;
+  --dia-acao-borda-texto: #1b3f8b;
+  --dia-valor: #f2c94c;
+  --dia-valor-texto: #b07d12;
+  --dia-dado: #2e6be6;
+  --dia-dado-claro: #7fb6ff;
+  --dia-dado-texto-forte: #ffffff;
+  --dia-referencia: #8a93a8;
+  --dia-referencia-fraca: rgba(138, 147, 168, 0.2);
+  --dia-sequencia: #ff6b4a;
+  --dia-alerta: #e0452f;
+  --dia-magnitude: #0f1b33;
+  --dia-texto: #16233d;
+  --dia-texto-2: #5c6883;
+  --dia-realce: rgba(46, 107, 230, 0.06);
+  --dia-grade: rgba(27, 63, 139, 0.045);
+  --dia-hachura: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 4px,
+    rgba(138, 147, 168, 0.35) 4px,
+    rgba(138, 147, 168, 0.35) 5px
+  );
+
+  /* ── Noite ────────────────────────────────────────────────────────────
+     Duas trocas em relação ao dia são intencionais, e a regra que as explica
+     é uma só: *a ação é sempre a cor de maior contraste com o fundo*. Ouro
+     sobre branco não dá botão; navy sobre quase-preto some. A magnitude
+     acompanha. Todo o resto é constante entre os temas. */
+  --noite-fundo: #050a18;
+  --noite-superficie: #0c1530;
+  --noite-superficie-2: #101c3d;
+  --noite-borda: #1b2b57;
+  --noite-fio: rgba(110, 133, 184, 0.22);
+  --noite-acao: #ffce3a;
+  --noite-acao-base: #c79a16;
+  --noite-acao-texto: #050a18;
+  --noite-acao-borda-texto: #ffce3a;
+  --noite-valor: #ffce3a;
+  --noite-valor-texto: #ffce3a;
+  --noite-dado: #2f6bff;
+  --noite-dado-claro: #7fb6ff;
+  --noite-dado-texto-forte: #ffffff;
+  --noite-referencia: #6e85b8;
+  --noite-referencia-fraca: rgba(110, 133, 184, 0.18);
+  --noite-sequencia: #ff6b4a;
+  --noite-alerta: #ff6b4a;
+  --noite-magnitude: #ffffff;
+  --noite-texto: #e6edfb;
+  --noite-texto-2: #6e85b8;
+  --noite-realce: rgba(47, 107, 255, 0.07);
+  --noite-grade: rgba(127, 182, 255, 0.05);
+  --noite-hachura: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 4px,
+    rgba(110, 133, 184, 0.3) 4px,
+    rgba(110, 133, 184, 0.3) 5px
+  );
+
+  /* A seção `--coord-*` desapareceu aqui: eram os valores que a coordenação
+     tinha e o sistema não. As sete superfícies saíram no PR de superfície e
+     forma; as sete de marca e as oito do semáforo, no do tema escuro, quando
+     passaram a ser derivadas do papel por `color-mix` em vez de existirem
+     como um segundo hexadecimal. Nenhum leitor sobrou. */
+
+  /* ── Séries categóricas ───────────────────────────────────────────────
+     Para distinguir MATÉRIA numa linha de evolução, e nada mais — não têm
+     significado de valor. Cinco, que é o teto do brief, e nenhuma delas é
+     verde nem vermelha: num gráfico de nota, essas duas voltariam a ser lidas
+     como semáforo mesmo sendo só rótulo.
+
+     São tons médios de propósito: precisam ser legíveis sobre o branco do dia
+     E sobre o quase-preto da noite, e por isso não respondem a tema. */
+  --serie-1: #2e6be6;
+  --serie-2: #8b5cf6;
+  --serie-3: #0e9aa7;
+  --serie-4: #d4548f;
+  --serie-5: #c97c2a;
+}

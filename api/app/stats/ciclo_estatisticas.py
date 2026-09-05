@@ -45,8 +45,8 @@ from supabase import Client
 from . import criterios
 from .utils import (
     como_float,
-    filtro_nota_valida,
     detectar_bimodalidade,
+    filtro_nota_valida,
     histograma_bins,
     kurtosis,
     moda_histograma,

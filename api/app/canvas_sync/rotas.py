@@ -14,6 +14,7 @@ sync roda.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -71,7 +72,7 @@ def executar_sync(_: None = Depends(exigir_scheduler_secret)) -> dict:
         # derrubar o sync, que é o trabalho principal desta rota.
         try:
             despacho = asyncio.run(despachar_se_livre())
-        except Exception as exc:   # noqa: BLE001 — acessório, nunca fatal
+        except Exception as exc:
             despacho = {"status": "erro", "detalhe": str(exc)[:200]}
         return {
             "status": "ok",
@@ -81,13 +82,13 @@ def executar_sync(_: None = Depends(exigir_scheduler_secret)) -> dict:
         }
     except Exception as exc:
         if execucao_id is not None:
-            try:
+            # A auditoria não pode mascarar o erro original: se o registro do
+            # fracasso também falhar, quem sobe é a exceção de verdade.
+            with contextlib.suppress(Exception):
                 finalizar_execucao_sync(
                     cliente, execucao_id=execucao_id, status="erro", erro_mensagem=str(exc)
                 )
-            except Exception:
-                pass  # auditoria não pode mascarar o erro original
-        raise HTTPException(status_code=500, detail=f"sync falhou: {exc}")
+        raise HTTPException(status_code=500, detail=f"sync falhou: {exc}") from exc
     finally:
         _trava_execucao.release()
 
@@ -113,7 +114,9 @@ def executar_reconcile(_: None = Depends(exigir_scheduler_secret)) -> dict:
     try:
         cliente = criar_cliente_supabase()
         execucao_id = criar_execucao_sync(cliente, tipo="backfill")
-        from ..stats import alertas as _alertas, classificacao as _classif, metricas as _metricas
+        from ..stats import alertas as _alertas
+        from ..stats import classificacao as _classif
+        from ..stats import metricas as _metricas
 
         resumo = {
             "modo": "reconcile",
@@ -127,12 +130,12 @@ def executar_reconcile(_: None = Depends(exigir_scheduler_secret)) -> dict:
         return {"status": "ok", "execucao_id": execucao_id, **resumo}
     except Exception as exc:
         if execucao_id is not None:
-            try:
+            # Mesmo motivo do sync incremental: registrar o fracasso não pode
+            # substituir o erro que o causou.
+            with contextlib.suppress(Exception):
                 finalizar_execucao_sync(
                     cliente, execucao_id=execucao_id, status="erro", erro_mensagem=str(exc)
                 )
-            except Exception:
-                pass
-        raise HTTPException(status_code=500, detail=f"reconcile falhou: {exc}")
+        raise HTTPException(status_code=500, detail=f"reconcile falhou: {exc}") from exc
     finally:
         _trava_execucao.release()

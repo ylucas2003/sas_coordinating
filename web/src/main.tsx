@@ -9,6 +9,13 @@ import { App } from './App';
 // por tela vão virando CSS Modules conforme cada tela migra; o que fica aqui
 // para sempre são tokens, base e fontes.
 import '../styles/fontes.css';
+// A pilha de cor, e a ordem dela é obrigatória: os hexadecimais crus
+// (`paleta.css`), depois os seis papéis com os três blocos de tema
+// (`papeis.css`), e só então os aliases — `tokens.css` para a coordenação e
+// `aluno-tokens.css` lá embaixo para o aluno. Alias antes de papel resolveria
+// para vazio. Ver o cabeçalho de cada um.
+import '../styles/paleta.css';
+import '../styles/papeis.css';
 import '../styles/tokens.css';
 import '../styles/base.css';
 // KaTeX vem antes do nosso `markdown.css`, que ajusta corpo e margem do que ele
@@ -23,6 +30,7 @@ import '../styles/auditoria.css';
 import '../styles/painel.css';
 import '../styles/aluno-ficha.css';
 import '../styles/filtros.css';
+import '../styles/campo.css';
 import '../styles/chat.css';
 import '../styles/edicao.css';
 // Área do aluno: tokens primeiro (os `--alu-*` dos dois temas), depois o casco,
@@ -46,6 +54,12 @@ import '../styles/banco.css';
 import '../styles/login.css';
 import '../styles/foto-perfil.css';
 import '../styles/integracoes.css';
+// Por ÚLTIMO, e é obrigatório: o `@media print` de `documento.css` remapeia a
+// paleta inteira para `--doc-*`, e blocos `:root` têm a mesma especificidade —
+// quem vem depois vence. Importado antes daqui, o documento voltaria a herdar
+// o tema da tela, e o coordenador que trabalha à noite imprimiria um dossiê
+// preto. Documento impresso não tem tema.
+import '../styles/documento.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

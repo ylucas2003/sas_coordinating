@@ -187,7 +187,7 @@ export function LinhaTemporal({
             >
               <circle
                 cx={x.toFixed(1)} cy={y.toFixed(1)} r="4"
-                fill="#fff" stroke="var(--color-navy)" strokeWidth="2"
+                fill="var(--color-surface)" stroke="var(--color-navy)" strokeWidth="2"
               />
               <title>{tooltip}</title>
             </g>

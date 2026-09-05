@@ -19,11 +19,10 @@ from __future__ import annotations
 
 import argparse
 import os
-import os
 import pathlib
 import secrets
-import tempfile
 import sys
+import tempfile
 from pathlib import Path
 
 SENHA_MINIMA = 8  # mesma regra do POST /auth/primeiro-acesso

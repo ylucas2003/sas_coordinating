@@ -25,6 +25,32 @@ from typing import Any
 
 from supabase import Client
 
+from .header import (
+    Coluna,
+    ColunaIdentificacao,
+    ColunaSimulado,
+    detectar_vestibulares_por_ciclo,
+    inferir_fase_simulados,
+    parsear_coluna,
+    parsear_section,
+)
+from .reader import PlanilhaCrua, ler_csv, ler_xlsx, parsear_decimal_br
+from .upsert import (
+    atualizar_periodo_ciclo,
+    buscar_materia_por_codigo,
+    criar_upload,
+    finalizar_upload,
+    registrar_evento,
+    upsert_alunos_em_lote,
+    upsert_ano_letivo,
+    upsert_ciclo,
+    upsert_matriculas_em_lote,
+    upsert_notas_em_lote,
+    upsert_sede,
+    upsert_simulados_em_lote,
+    upsert_turma,
+)
+
 log = logging.getLogger("sas.ingest")
 log.setLevel(logging.INFO)
 if not log.handlers:
@@ -55,32 +81,6 @@ def _emitir_etapa(
     mensagem = f"ETAPA {numero}/{TOTAL_ETAPAS}: {descricao}"
     _etapa(t0, mensagem)
     registrar_evento(cliente, upload_id=upload_id, nivel="info", mensagem=mensagem)
-
-from .header import (
-    Coluna,
-    ColunaIdentificacao,
-    ColunaSimulado,
-    detectar_vestibulares_por_ciclo,
-    inferir_fase_simulados,
-    parsear_coluna,
-    parsear_section,
-)
-from .reader import PlanilhaCrua, ler_csv, ler_xlsx, parsear_decimal_br
-from .upsert import (
-    atualizar_periodo_ciclo,
-    buscar_materia_por_codigo,
-    criar_upload,
-    finalizar_upload,
-    registrar_evento,
-    upsert_alunos_em_lote,
-    upsert_ano_letivo,
-    upsert_ciclo,
-    upsert_matriculas_em_lote,
-    upsert_notas_em_lote,
-    upsert_sede,
-    upsert_simulados_em_lote,
-    upsert_turma,
-)
 
 
 # ─── Tipos de retorno ─────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ def _processar(
     vestibulares_por_ciclo = detectar_vestibulares_por_ciclo(planilha.cabecalho)
     _etapa(
         t0,
-        f"vestibulares detectados: " +
+        "vestibulares detectados: " +
         (", ".join(f"ciclo {k}={v}" for k, v in sorted(vestibulares_por_ciclo.items())) or "nenhum"),
     )
 
@@ -621,7 +621,9 @@ def _processar(
     # ── (8-10) Stats engine: tudo é calculado e persistido em tabelas de cache,
     # pra que as telas só precisem fazer SELECT depois. Import lazy pra evitar
     # ciclos quando alguém importa o pipeline em outro contexto.
-    from ..stats import alertas as _alertas, classificacao as _classif, metricas as _metricas
+    from ..stats import alertas as _alertas
+    from ..stats import classificacao as _classif
+    from ..stats import metricas as _metricas
 
     _emitir_etapa(cliente, upload_id=upload_id, numero=8, descricao="recalculando métricas dos simulados", t0=t0)
     n_metricas = _metricas.recalcular_tudo(cliente)

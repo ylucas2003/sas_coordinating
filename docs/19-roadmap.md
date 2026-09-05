@@ -567,6 +567,40 @@ simulado e não ciclo; o extrato ignora o `:id`; e em produção não existe mar
 de placeholder — a tarja MOCK só aparece em desenvolvimento.
 
 
+### ✅ Refatoração visual da coordenação *(05/09)* — [37](37-plano-refatoracao-visual-coordenacao.md)
+
+O sistema de design que só a área do aluno tinha foi estendido à coordenação,
+em dez PRs, e o **padrão de campo** chegou às telas que empilhavam perguntas
+diferentes numa rolagem só.
+
+O que mudou de propósito: o semáforo verde/âmbar/vermelho saiu da tela inteira
+(preenchido é acima do corte, vazado é abaixo, a intensidade carrega a
+distância, o vermelho fica só na etiqueta e na falha); toda tabela de aluno
+abre por **distância do corte**, com o ordenador nomeado; Administração virou
+quatro campos e a ficha de ciclo, três; o Painel ganhou a faixa de entrada e
+perdeu dois estratos por fusão; a ficha do aluno ganhou coluna lateral de
+320px com a barra de corte do aluno reusada; e **passou a existir tema
+escuro**.
+
+Duas URLs novas, com as antigas ainda válidas: `/administracao/contas` e
+`/ciclos/:id/{calibracao,regua,comparacao}`.
+
+⚠️ **Nada foi visto rodando no browser** — a verificação exigia login de
+coordenação e não houve sessão. Contraste no tema escuro, layout a 390px e o
+dossiê antes/depois **não foram verificados**. A lista inteira está no §6 do
+[37](37-plano-refatoracao-visual-coordenacao.md), e ela é o que precisa
+acontecer antes do deploy.
+
+⚠️ **Três coisas ficaram pela metade, de propósito** (§7 do 37): a comparação
+de ciclo por sede e por turma (falta recorte no endpoint), a tarja de
+procedência unificada (um PR próprio, quatro componentes em dois produtos), e
+o Banco, que continua construído duas vezes — só que agora **sem a razão que
+justificava**, porque os dois cascos passaram a ler os mesmos papéis.
+
+De brinde, o PR 0 zerou 96 erros de ruff e 8 do Biome que estavam na `main`, e
+que faziam "portão verde" não significar nada.
+
+
 ## 4 · Decisões em aberto
 
 | Decisão | Trava | Quem decide |

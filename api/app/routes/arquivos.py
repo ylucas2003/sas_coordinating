@@ -21,12 +21,14 @@ async def baixar_arquivo(token: str = Query(..., description="JWT emitido por ge
     try:
         caminho_storage, nome_download = ler_token_download(token)
     except (JWTError, ValueError, KeyError):
-        raise HTTPException(status_code=403, detail="Link inválido ou expirado.")
+        # `from None` de propósito: o 403 é deliberadamente genérico, e encadear
+        # a causa contaria ao portador do link por que o token falhou.
+        raise HTTPException(status_code=403, detail="Link inválido ou expirado.") from None
 
     try:
         destino = resolver_caminho_local(caminho_storage)
     except (RuntimeError, ValueError):
-        raise HTTPException(status_code=403, detail="Link inválido ou expirado.")
+        raise HTTPException(status_code=403, detail="Link inválido ou expirado.") from None
 
     if not destino.is_file():
         raise HTTPException(status_code=404, detail="Arquivo não encontrado no Storage.")

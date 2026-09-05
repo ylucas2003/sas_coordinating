@@ -7,7 +7,7 @@ disparado_em desc. Monta o payload no formato esperado pelo frontend
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -49,7 +49,7 @@ def _tempo_relativo(disparado_em: str | None) -> str:
         return ""
     try:
         d = datetime.fromisoformat(disparado_em.replace("Z", "+00:00"))
-        agora = datetime.now(timezone.utc)
+        agora = datetime.now(UTC)
         delta = agora - d
         if delta.total_seconds() < 60:
             return "agora há pouco"

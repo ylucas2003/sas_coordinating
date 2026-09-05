@@ -224,7 +224,7 @@
 .btn-editar:hover {
   background: var(--color-navy);
   border-color: var(--color-navy);
-  color: #fff;
+  color: var(--color-navy-texto);
 }
 
 /* Botão de editar no header do simulado */

@@ -1,0 +1,155 @@
+/* ─── Os papéis ──────────────────────────────────────────────────────────
+   REGRA MESTRA: cor é papel, nunca decoração. Uma cor serve ao seu papel e a
+   nada mais. Não invente cor nova; use o papel que descreve o que a coisa É.
+
+     ACAO        o que se aperta: botão primário, link, aba ativa
+     VALOR       a RÉGUA — linha de corte, banda de meta, o critério em vigor
+     DADO        o valor medido: barra, ponto, linha, célula cheia, seleção
+     REFERENCIA  a comparação: histórico, média da turma, prova anterior
+     ALERTA      só a etiqueta de distância e a falha operacional
+     MAGNITUDE   todo numeral grande
+
+   Cinco desses seis são idênticos aos da área do aluno. A troca é uma só:
+   onde o aluno tem SEQUENCIA (a chama, a corrente de simulados), a
+   coordenação tem REFERENCIA — o aluno precisa de hábito, o coordenador
+   precisa de comparação (docs/brief-claude-design-coordenacao.md §Design).
+
+   Não existe verde aqui, e não existe semáforo verde-e-vermelho. Na
+   coordenação o que substitui o semáforo são as sete regras R1–R7 do brief:
+   preenchido é acima do corte, vazado é abaixo, a régua é ouro e está sempre
+   desenhada, a intensidade carrega a distância, o vermelho fica só na
+   etiqueta, a comparação é cinza, e a ORDENAÇÃO faz o trabalho que a cor
+   fazia.
+
+   ⚠️ Este arquivo é o ÚNICO lugar onde o tema é decidido. São três blocos e
+   a ordem entre eles importa; está explicada em cada um. Quem consome são os
+   aliases — nenhuma tela lê `--sas-*` direto enquanto a migração não terminar.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* ── O mapeamento padrão é o DIA ──────────────────────────────────────── */
+:root {
+  --sas-fundo: var(--dia-fundo);
+  --sas-superficie: var(--dia-superficie);
+  --sas-superficie-2: var(--dia-superficie-2);
+  --sas-borda: var(--dia-borda);
+  --sas-fio: var(--dia-fio);
+  --sas-acao: var(--dia-acao);
+  --sas-acao-base: var(--dia-acao-base);
+  --sas-acao-texto: var(--dia-acao-texto);
+  --sas-acao-borda-texto: var(--dia-acao-borda-texto);
+  --sas-valor: var(--dia-valor);
+  --sas-valor-texto: var(--dia-valor-texto);
+  --sas-dado: var(--dia-dado);
+  --sas-dado-claro: var(--dia-dado-claro);
+  --sas-dado-texto-forte: var(--dia-dado-texto-forte);
+  --sas-referencia: var(--dia-referencia);
+  --sas-referencia-fraca: var(--dia-referencia-fraca);
+  --sas-sequencia: var(--dia-sequencia);
+  --sas-alerta: var(--dia-alerta);
+  --sas-magnitude: var(--dia-magnitude);
+  --sas-texto: var(--dia-texto);
+  --sas-texto-2: var(--dia-texto-2);
+  --sas-realce: var(--dia-realce);
+  --sas-grade: var(--dia-grade);
+  --sas-hachura: var(--dia-hachura);
+
+  /* No dia a superfície leva 2px de borda; na noite, 1px. Mesma peça, dois
+     temas — quem troca é o token, não o componente. */
+  --sas-borda-l: 2px;
+}
+
+/* A preferência do sistema é o PISO, não uma terceira opção.
+
+   São dois temas e só dois. Depois que o JS carrega, `data-tema` está sempre
+   estampado na raiz (`telas/Aluno/pecas/tema.ts` o aplica no escopo do
+   módulo), e são os dois blocos abaixo que mandam. Esta media query cobre só
+   o intervalo antes disso — sem ela, quem tem o aparelho no escuro veria um
+   flash branco a cada abertura. O `:not([data-tema='dia'])` mantém a regra
+   correta caso a escolha já esteja no HTML. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='dia']) {
+    --sas-fundo: var(--noite-fundo);
+    --sas-superficie: var(--noite-superficie);
+    --sas-superficie-2: var(--noite-superficie-2);
+    --sas-borda: var(--noite-borda);
+    --sas-fio: var(--noite-fio);
+    --sas-acao: var(--noite-acao);
+    --sas-acao-base: var(--noite-acao-base);
+    --sas-acao-texto: var(--noite-acao-texto);
+    --sas-acao-borda-texto: var(--noite-acao-borda-texto);
+    --sas-valor: var(--noite-valor);
+    --sas-valor-texto: var(--noite-valor-texto);
+    --sas-dado: var(--noite-dado);
+    --sas-dado-claro: var(--noite-dado-claro);
+    --sas-dado-texto-forte: var(--noite-dado-texto-forte);
+    --sas-referencia: var(--noite-referencia);
+    --sas-referencia-fraca: var(--noite-referencia-fraca);
+    --sas-sequencia: var(--noite-sequencia);
+    --sas-alerta: var(--noite-alerta);
+    --sas-magnitude: var(--noite-magnitude);
+    --sas-texto: var(--noite-texto);
+    --sas-texto-2: var(--noite-texto-2);
+    --sas-realce: var(--noite-realce);
+    --sas-grade: var(--noite-grade);
+    --sas-hachura: var(--noite-hachura);
+    --sas-borda-l: 1px;
+  }
+}
+
+/* A escolha explícita vence os dois sentidos. Vem depois da media query de
+   propósito: mesma especificidade, e a ordem no arquivo decide. */
+:root[data-tema='noite'] {
+  --sas-fundo: var(--noite-fundo);
+  --sas-superficie: var(--noite-superficie);
+  --sas-superficie-2: var(--noite-superficie-2);
+  --sas-borda: var(--noite-borda);
+  --sas-fio: var(--noite-fio);
+  --sas-acao: var(--noite-acao);
+  --sas-acao-base: var(--noite-acao-base);
+  --sas-acao-texto: var(--noite-acao-texto);
+  --sas-acao-borda-texto: var(--noite-acao-borda-texto);
+  --sas-valor: var(--noite-valor);
+  --sas-valor-texto: var(--noite-valor-texto);
+  --sas-dado: var(--noite-dado);
+  --sas-dado-claro: var(--noite-dado-claro);
+  --sas-dado-texto-forte: var(--noite-dado-texto-forte);
+  --sas-referencia: var(--noite-referencia);
+  --sas-referencia-fraca: var(--noite-referencia-fraca);
+  --sas-sequencia: var(--noite-sequencia);
+  --sas-alerta: var(--noite-alerta);
+  --sas-magnitude: var(--noite-magnitude);
+  --sas-texto: var(--noite-texto);
+  --sas-texto-2: var(--noite-texto-2);
+  --sas-realce: var(--noite-realce);
+  --sas-grade: var(--noite-grade);
+  --sas-hachura: var(--noite-hachura);
+  --sas-borda-l: 1px;
+}
+
+:root[data-tema='dia'] {
+  --sas-fundo: var(--dia-fundo);
+  --sas-superficie: var(--dia-superficie);
+  --sas-superficie-2: var(--dia-superficie-2);
+  --sas-borda: var(--dia-borda);
+  --sas-fio: var(--dia-fio);
+  --sas-acao: var(--dia-acao);
+  --sas-acao-base: var(--dia-acao-base);
+  --sas-acao-texto: var(--dia-acao-texto);
+  --sas-acao-borda-texto: var(--dia-acao-borda-texto);
+  --sas-valor: var(--dia-valor);
+  --sas-valor-texto: var(--dia-valor-texto);
+  --sas-dado: var(--dia-dado);
+  --sas-dado-claro: var(--dia-dado-claro);
+  --sas-dado-texto-forte: var(--dia-dado-texto-forte);
+  --sas-referencia: var(--dia-referencia);
+  --sas-referencia-fraca: var(--dia-referencia-fraca);
+  --sas-sequencia: var(--dia-sequencia);
+  --sas-alerta: var(--dia-alerta);
+  --sas-magnitude: var(--dia-magnitude);
+  --sas-texto: var(--dia-texto);
+  --sas-texto-2: var(--dia-texto-2);
+  --sas-realce: var(--dia-realce);
+  --sas-grade: var(--dia-grade);
+  --sas-hachura: var(--dia-hachura);
+  --sas-borda-l: 2px;
+}

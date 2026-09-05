@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAlunos, useTurmas } from '../../hooks/consultas';
 import { Avatar } from '../ui/Avatar';
 import * as sessao from '../../servicos/sessao';
+import { useTema } from '../../servicos/tema';
 import { normalizar } from '../../util/formato';
 import { useMigalhas } from './migalhas';
 
@@ -23,6 +24,47 @@ function IconeSino() {
       <path d="M5 8.4a5 5 0 0 1 10 0c0 3.6 1.2 4.6 1.2 4.6H3.8S5 12 5 8.4Z" />
       <path d="M8.3 16a2 2 0 0 0 3.4 0" />
     </svg>
+  );
+}
+
+function IconeSol() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.6v2.4M12 19v2.4M2.6 12h2.4M19 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7" />
+    </svg>
+  );
+}
+
+function IconeLua() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2Z" />
+    </svg>
+  );
+}
+
+/**
+ * Troca de tema da coordenação.
+ *
+ * Compartilha o estado com a área do aluno (`servicos/tema.ts`): o tema é um
+ * atributo só na raiz, então não havia como serem dois. O botão diz para onde
+ * VAI, não onde está — é o que se aperta.
+ */
+function BotaoTema() {
+  const { tema, alternar } = useTema();
+  const destino = tema === 'dia' ? 'escuro' : 'claro';
+  return (
+    <button
+      className="topbar__icone-btn"
+      onClick={alternar}
+      title={`Mudar para o tema ${destino}`}
+      aria-label={`Mudar para o tema ${destino}`}
+    >
+      {tema === 'dia' ? <IconeLua /> : <IconeSol />}
+    </button>
   );
 }
 
@@ -184,6 +226,7 @@ export function Topbar() {
 
       <div className="topbar__acoes">
         <BuscaAlunos />
+        <BotaoTema />
         <Link className="topbar__icone-btn" to="/painel#alertas" title="Alertas" aria-label="Alertas">
           <IconeSino />
         </Link>

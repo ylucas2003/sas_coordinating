@@ -42,6 +42,9 @@ export function Conversa({
   const refTextarea = useRef<HTMLTextAreaElement>(null);
 
   // Thread trocou: o histórico é outro e o streaming anterior não vale mais.
+  // `thread.id` é o gatilho da troca, não uma leitura: sem ele, duas threads
+  // cujo `mensagens` chegasse com o mesmo conteúdo não reiniciariam o stream.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: gatilho, não leitura
   useEffect(() => {
     setHistorico(thread.mensagens ?? []);
     setStream(null);
@@ -52,13 +55,16 @@ export function Conversa({
   // título muda, e num efeito: chamar o setState dele de dentro do updater
   // deste componente seria atualizar um componente durante o render de outro.
   const titulo = stream?.titulo;
+  // `onTituloAtualizado` é recriada a cada render do pai; incluí-la reavisaria
+  // o pai a cada render, e só o título importa.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: só o título importa
   useEffect(() => {
     if (titulo) onTituloAtualizado(titulo);
-    // `onTituloAtualizado` é recriada a cada render do pai; só o título importa.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [titulo]);
 
   // Cola no fim a cada mudança — é o comportamento esperado de um chat.
+  // `historico` e `stream` são o gatilho do scroll, não valores lidos no corpo.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: gatilho, não leitura
   useEffect(() => {
     const lista = refLista.current;
     if (lista) lista.scrollTop = lista.scrollHeight;

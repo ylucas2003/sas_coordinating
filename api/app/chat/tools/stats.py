@@ -14,7 +14,6 @@ from supabase import Client
 from ...stats import ciclo_estatisticas, criterios, criterios_repo
 from ...stats.utils import como_float, nota_real
 
-
 # ─── estatisticas_ciclo ───────────────────────────────────────────────────
 
 def estatisticas_ciclo(

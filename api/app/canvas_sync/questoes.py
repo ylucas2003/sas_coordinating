@@ -16,7 +16,7 @@ e simulado.duracao_media_segundos + questoes_sincronizadas_em (0015).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from supabase import Client
@@ -157,7 +157,7 @@ async def sincronizar_questoes_do_quiz(
     # ── Duração média + marcador de sync ──
     submission_stats = stats.get("submission_statistics") or {}
     patch: dict[str, Any] = {
-        "questoes_sincronizadas_em": datetime.now(timezone.utc).isoformat()
+        "questoes_sincronizadas_em": datetime.now(UTC).isoformat()
     }
     duracao = _como_float(submission_stats.get("duration_average"))
     if duracao is not None:

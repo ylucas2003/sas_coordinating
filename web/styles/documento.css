@@ -1,0 +1,163 @@
+/* ─── A paleta de documento ──────────────────────────────────────────────
+   `--doc-*`: paleta clara FIXA, que não responde a tema nenhum. Nunca.
+
+   POR QUE ELA EXISTE. O projeto gera documento em quatro caminhos, e dois
+   deles herdam o CSS da página viva:
+
+     PDF da ficha       `window.print()` sobre a própria página;
+     PDF do panorama    `exportar-aluno.js` insere o nó NO documento atual,
+                        marca `body.imprimindo-panorama` e imprime — o
+                        `.panorama` é estilizado por `layout.css`, com
+                        `var(--color-*)`;
+     PNG do panorama    clona o nó para dentro de um `<foreignObject>`, que
+                        NÃO herda folha externa — por isso as variáveis vão
+                        embarcadas (`_embarcarEstilosPanorama`);
+     .doc do banco e do dossiê de ciclo
+                        `window.open('')` + CSSOM, documento novo que também
+                        não herda nada.
+
+   Os dois primeiros são o risco: no dia em que `--color-*` responder ao
+   tema, o coordenador que trabalha à noite manda para a impressora um
+   dossiê preto — sem erro, sem aviso, e provavelmente sem perceber antes de
+   a folha sair.
+
+   ⚠️ O que conserta isso é o bloco `@media print` no fim deste arquivo, e
+   não apontar regra por regra: ele remapeia a paleta inteira na hora de
+   imprimir, então qualquer tela que ganhe impressão depois já nasce
+   protegida. Documento impresso não tem tema.
+
+   Este arquivo entra DEPOIS de `tokens.css` e de `aluno-tokens.css` — é a
+   ordem que faz o remapeamento vencer.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Superfícies e texto. Papel é branco; o "fundo" da tela vira branco
+     também, porque cinza de tela vira chapado cinza na impressora. */
+  --doc-fundo: #ffffff;
+  --doc-superficie: #ffffff;
+  --doc-superficie-inset: #f6f8fc;
+  --doc-texto: #16233d;
+  --doc-texto-2: #5c6883;
+  --doc-texto-3: #8a93a8;
+  --doc-texto-fraco: #a2abbd;
+  --doc-borda: #eef1f7;
+  --doc-borda-forte: #dee5f1;
+  --doc-divisor: #f2f5fa;
+
+  /* Marca. */
+  --doc-navy: #1b3f8b;
+  --doc-navy-deep: #16336f;
+  --doc-navy-mid: #2952a3;
+  --doc-navy-light: #4a78c9;
+  --doc-navy-soft: #e7edf9;
+  --doc-navy-tint: #eaf0fb;
+  --doc-gold: #f2c94c;
+  --doc-gold-deep: #d4a82e;
+  --doc-gold-soft: #fbefc6;
+
+  /* ⚠️ O semáforo sobrevive AQUI por enquanto, e só aqui.
+     Na interface ele morre (brief §R1–R7). No documento impresso a
+     substituição — preenchido × vazado, régua de ouro, intensidade por
+     distância — precisa ser redesenhada para papel antes de trocar, e o
+     portão deste PR é justamente que o dossiê saia idêntico. Trocar as duas
+     coisas no mesmo commit tiraria a régua de comparação.
+
+     Vale registrar que o brief usa a impressão como um dos argumentos contra
+     o semáforo: ele não sobrevive ao preto e branco. A dívida é conhecida. */
+  --doc-red: #d9354a;
+  --doc-red-soft: #fbe9ec;
+  --doc-green: #2e8c5a;
+  --doc-green-soft: #e9f5ee;
+  --doc-amber: #d4a82e;
+  --doc-amber-text: #b08419;
+  --doc-amber-soft: #fbf3e2;
+  --doc-neutral-soft: #f1f3f8;
+
+  /* ── O PNG do panorama: uma TERCEIRA cópia, preservada de propósito ────
+     `_embarcarEstilosPanorama` embarca as variáveis no nó antes de clonar
+     para dentro do `<foreignObject>`, que não herda folha externa. Os
+     valores que ela usava estavam cravados no `.js` e DIVERGEM dos da tela
+     e dos do papel — oito dos onze. Trazê-los para cá dá o lugar único sem
+     mudar um pixel do PNG, que é o portão deste PR.
+
+     ⚠️ Unificar com `--doc-*` é conserto de verdade e continua pendente:
+     precisa de alguém que consiga gerar o PNG e olhar. Enquanto isso, a
+     divergência fica declarada em vez de escondida num objeto literal. */
+  --doc-png-texto: #1a1d24;
+  --doc-png-texto-2: rgba(26, 29, 36, 0.65);
+  --doc-png-texto-3: rgba(26, 29, 36, 0.45);
+  --doc-png-bg: #eef1f7;
+  --doc-png-superficie-inset: #f5f7fb;
+  --doc-png-borda: rgba(20, 30, 80, 0.06);
+  --doc-png-borda-forte: rgba(20, 30, 80, 0.12);
+  --doc-png-amber: #e89b2a;
+  /* O gráfico rasterizado usa ainda outros dois tons de cinza — quarta cópia. */
+  --doc-png-grafico-texto-2: #5a5d65;
+  --doc-png-grafico-texto-3: #73757d;
+}
+
+/* ─── O documento não tem tema ────────────────────────────────────────────
+   Vale para os dois caminhos que herdam o CSS da página: a ficha inteira e o
+   `.panorama`. Remapeia a paleta da coordenação E a do aluno, porque a ficha
+   do aluno também sai em PDF.
+   ─────────────────────────────────────────────────────────────────────── */
+@media print {
+  :root {
+    --color-bg: var(--doc-fundo);
+    --color-surface: var(--doc-superficie);
+    --color-surface-inset: var(--doc-superficie-inset);
+    --color-surface-muted: var(--doc-superficie-inset);
+    --color-text-primary: var(--doc-texto);
+    --color-text-body: var(--doc-texto);
+    --color-text-secondary: var(--doc-texto-2);
+    --color-text-tertiary: var(--doc-texto-3);
+    --color-text-faint: var(--doc-texto-fraco);
+    --color-border: var(--doc-borda);
+    --color-border-strong: var(--doc-borda-forte);
+    --color-divider: var(--doc-divisor);
+    --color-shell-border: var(--doc-borda);
+    --color-navy: var(--doc-navy);
+    --color-navy-deep: var(--doc-navy-deep);
+    --color-navy-mid: var(--doc-navy-mid);
+    --color-navy-light: var(--doc-navy-light);
+    --color-navy-soft: var(--doc-navy-soft);
+    --color-navy-tint: var(--doc-navy-tint);
+    --color-gold: var(--doc-gold);
+    --color-gold-deep: var(--doc-gold-deep);
+    --color-gold-soft: var(--doc-gold-soft);
+    --color-red: var(--doc-red);
+    --color-red-soft: var(--doc-red-soft);
+    --color-green: var(--doc-green);
+    --color-green-soft: var(--doc-green-soft);
+    --color-amber: var(--doc-amber);
+    --color-amber-text: var(--doc-amber-text);
+    --color-amber-soft: var(--doc-amber-soft);
+    --color-neutral-soft: var(--doc-neutral-soft);
+
+    /* A área do aluno: os papéis viram os valores do dia, fixos. */
+    --sas-fundo: var(--doc-fundo);
+    --sas-superficie: var(--doc-superficie);
+    --sas-superficie-2: var(--doc-superficie-inset);
+    --sas-borda: var(--doc-borda-forte);
+    --sas-fio: var(--doc-divisor);
+    --sas-acao: var(--doc-navy);
+    --sas-acao-base: var(--doc-navy-deep);
+    --sas-acao-texto: #ffffff;
+    --sas-acao-borda-texto: var(--doc-navy);
+    --sas-valor: var(--doc-gold);
+    --sas-valor-texto: var(--doc-amber-text);
+    --sas-dado: #2e6be6;
+    --sas-dado-claro: #7fb6ff;
+    --sas-dado-texto-forte: #ffffff;
+    --sas-referencia: var(--doc-texto-3);
+    --sas-referencia-fraca: rgba(138, 147, 168, 0.2);
+    --sas-sequencia: #ff6b4a;
+    --sas-alerta: var(--doc-red);
+    --sas-magnitude: #0f1b33;
+    --sas-texto: var(--doc-texto);
+    --sas-texto-2: var(--doc-texto-2);
+    --sas-realce: rgba(46, 107, 230, 0.06);
+    --sas-grade: transparent; /* a grade de fundo não vai para o papel */
+    --sas-borda-l: 1px;
+  }
+}

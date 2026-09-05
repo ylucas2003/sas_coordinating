@@ -14,7 +14,7 @@ arquivos BAIXADOS, não simulados atualizados.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from supabase import Client
@@ -114,7 +114,7 @@ async def sincronizar_arquivos_do_curso(
             )
             arquivos_baixados += 1
 
-            agora = datetime.now(timezone.utc).isoformat()
+            agora = datetime.now(UTC).isoformat()
             for pendente in alvo:
                 cliente.table("simulado").update(
                     {

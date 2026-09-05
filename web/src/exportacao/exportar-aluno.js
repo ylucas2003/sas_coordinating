@@ -55,12 +55,19 @@ export function exportarPNGGrafico(svgElement, aluno) {
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
   // Resolve variáveis CSS comuns substituindo pelo valor real.
+  //
+  // ⚠️ A borda vinha de `getPropertyValue('--color-border')` — a ÚNICA leitura
+  // de token em tempo de execução em toda a exportação, e por isso a única por
+  // onde o tema da tela entraria no arquivo salvo. Agora lê `--doc-*`, que é
+  // paleta clara fixa (documento.css). Documento impresso não tem tema.
+  const doc = (nome, alternativa) =>
+    getComputedStyle(document.documentElement).getPropertyValue(nome).trim() || alternativa;
   const variaveisResolvidas = {
-    'var(--color-border)': computado.getPropertyValue('--color-border') || '#e0e3eb',
-    'var(--color-text-tertiary)': '#73757d',
-    'var(--color-text-secondary)': '#5a5d65',
-    'var(--color-navy)': '#1b3f8b',
-    'var(--color-red, #c44)': '#d9354a',
+    'var(--color-border)': doc('--doc-png-borda', '#e0e3eb'),
+    'var(--color-text-tertiary)': doc('--doc-png-grafico-texto-3', '#73757d'),
+    'var(--color-text-secondary)': doc('--doc-png-grafico-texto-2', '#5a5d65'),
+    'var(--color-navy)': doc('--doc-navy', '#1b3f8b'),
+    'var(--color-red, #c44)': doc('--doc-red', '#d9354a'),
   };
   let svgStr = new XMLSerializer().serializeToString(clone);
   for (const [from, to] of Object.entries(variaveisResolvidas)) {
@@ -245,18 +252,23 @@ export async function exportarPanoramaPNG(dados) {
 // Injeta inline as variáveis CSS / cores básicas pra o foreignObject
 // renderizar parecido com o que aparece na tela.
 function _embarcarEstilosPanorama(no) {
+  // Os valores saem de `documento.css` (`--doc-*`), e não de literais aqui:
+  // paleta clara fixa, que não responde a tema. Os `--doc-png-*` são a cópia
+  // divergente que este caminho sempre teve — declarada lá, com o motivo.
+  const v = (nome, alternativa) =>
+    getComputedStyle(document.documentElement).getPropertyValue(nome).trim() || alternativa;
   const cores = {
-    '--color-text-primary': '#1a1d24',
-    '--color-text-secondary': 'rgba(26, 29, 36, 0.65)',
-    '--color-text-tertiary': 'rgba(26, 29, 36, 0.45)',
-    '--color-navy': '#1b3f8b',
-    '--color-bg': '#eef1f7',
-    '--color-surface-inset': '#f5f7fb',
-    '--color-border': 'rgba(20, 30, 80, 0.06)',
-    '--color-border-strong': 'rgba(20, 30, 80, 0.12)',
-    '--color-red': '#d9354a',
-    '--color-green': '#2e8c5a',
-    '--color-amber': '#e89b2a',
+    '--color-text-primary': v('--doc-png-texto', '#1a1d24'),
+    '--color-text-secondary': v('--doc-png-texto-2', 'rgba(26, 29, 36, 0.65)'),
+    '--color-text-tertiary': v('--doc-png-texto-3', 'rgba(26, 29, 36, 0.45)'),
+    '--color-navy': v('--doc-navy', '#1b3f8b'),
+    '--color-bg': v('--doc-png-bg', '#eef1f7'),
+    '--color-surface-inset': v('--doc-png-superficie-inset', '#f5f7fb'),
+    '--color-border': v('--doc-png-borda', 'rgba(20, 30, 80, 0.06)'),
+    '--color-border-strong': v('--doc-png-borda-forte', 'rgba(20, 30, 80, 0.12)'),
+    '--color-red': v('--doc-red', '#d9354a'),
+    '--color-green': v('--doc-green', '#2e8c5a'),
+    '--color-amber': v('--doc-png-amber', '#e89b2a'),
   };
   const style = Object.entries(cores).map(([k, v]) => `${k}:${v}`).join(';');
   no.setAttribute('style', `${no.getAttribute('style') || ''};${style}`);

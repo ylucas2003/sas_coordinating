@@ -237,12 +237,13 @@ export async function streamSSE(
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
 
-    let sep: number;
-    while ((sep = buffer.indexOf('\n\n')) >= 0) {
+    let sep = buffer.indexOf('\n\n');
+    while (sep >= 0) {
       const bloco = buffer.slice(0, sep);
       buffer = buffer.slice(sep + 2);
       const evento = parsearEvento(bloco);
       if (evento) onEvento(evento);
+      sep = buffer.indexOf('\n\n');
     }
   }
 

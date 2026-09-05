@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
-import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
+import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { Avatar } from '../../componentes/ui/Avatar';
 import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import { normalizar } from '../../util/formato';
@@ -143,7 +143,7 @@ export function Auditoria() {
 
   return (
     <div className="tela">
-      <AbasAdmin />
+      <CabecaDeCampo titulo="O que aconteceu" para="/administracao" destino="Administração" />
 
       <BarraFiltros
         tela="auditoria"

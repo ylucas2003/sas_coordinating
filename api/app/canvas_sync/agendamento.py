@@ -22,7 +22,6 @@ from typing import Any
 
 from supabase import Client
 
-from . import mapeador
 from .cliente import ClienteCanvas
 
 MAX_TENTATIVAS = 5

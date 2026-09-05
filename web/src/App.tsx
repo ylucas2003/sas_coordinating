@@ -5,6 +5,9 @@ import { Alunos } from './telas/Alunos/Alunos';
 import { Provas } from './telas/Provas/Provas';
 import { SimuladoFicha } from './telas/SimuladoFicha/SimuladoFicha';
 import { CicloFicha } from './telas/CicloFicha/CicloFicha';
+import { CicloCalibracao } from './telas/CicloFicha/CicloCalibracao';
+import { CicloRegua } from './telas/CicloFicha/CicloRegua';
+import { CicloComparacao } from './telas/CicloFicha/CicloComparacao';
 import { AlunoFicha } from './telas/AlunoFicha/AlunoFicha';
 import { CascoAluno } from './telas/Aluno/CascoAluno';
 import { PortaoDoOnboarding } from './telas/Aluno/Onboarding';
@@ -16,7 +19,8 @@ import { Importar } from './telas/Importar/Importar';
 import { Auditoria } from './telas/Auditoria/Auditoria';
 import { Calibracao } from './telas/Calibracao/Calibracao';
 import { Banco } from './telas/Banco/Banco';
-import { Administracao } from './telas/Administracao/Administracao';
+import { HubAdministracao } from './telas/Administracao/HubAdministracao';
+import { Contas } from './telas/Administracao/Contas';
 import { Integracoes } from './telas/Integracoes/Integracoes';
 import { SincronizacaoAulas } from './telas/Integracoes/SincronizacaoAulas';
 import { Login } from './telas/Login/Login';
@@ -81,12 +85,22 @@ function AppCoordenacao() {
         <Route path="/simulados" element={<Navigate to="/provas?aba=simulados" replace />} />
         <Route path="/simulados/:id" element={<SimuladoFicha />} />
         <Route path="/ciclos" element={<Navigate to="/provas" replace />} />
+        {/* A ficha de ciclo virou entrada + três campos (C3: cada destino é
+            tela inteira, com URL própria). `/ciclos/:id` continua sendo a
+            entrada, então nenhum link salvo quebra. */}
         <Route path="/ciclos/:id" element={<CicloFicha />} />
+        <Route path="/ciclos/:id/calibracao" element={<CicloCalibracao />} />
+        <Route path="/ciclos/:id/regua" element={<CicloRegua />} />
+        <Route path="/ciclos/:id/comparacao" element={<CicloComparacao />} />
         <Route path="/importar" element={<Importar />} />
         <Route path="/banco/*" element={<Banco perfil="coordenacao" />} />
         <Route path="/auditoria" element={<Auditoria />} />
         <Route path="/calibracao" element={<Calibracao />} />
-        <Route path="/administracao" element={<Administracao />} />
+        {/* `/administracao` era a tela de Contas e passa a ser o HUB de quatro
+            campos; Contas ganhou rota própria. Quem tiver o link antigo salvo
+            cai no hub, a um clique de distância, e não num 404. */}
+        <Route path="/administracao" element={<HubAdministracao />} />
+        <Route path="/administracao/contas" element={<Contas />} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/integracoes/aulas" element={<SincronizacaoAulas />} />
         {/* Rota desconhecida cai no painel, como o roteador antigo fazia. */}

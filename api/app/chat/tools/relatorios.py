@@ -14,16 +14,14 @@ Todas são READ-ONLY e seguem o padrão: retornam dict JSON-serializável ou
 
 from __future__ import annotations
 
-from datetime import date
-
 import statistics as st
 from collections import defaultdict
+from datetime import date
 from typing import Any
 
 from supabase import Client
 
 from ...stats.utils import como_float, nota_real
-
 
 # ─── relatorio_aluno ──────────────────────────────────────────────────────
 

@@ -4,6 +4,7 @@ import { Kpi } from '../../componentes/ui/Kpi';
 import { EdicaoCriterio } from '../../componentes/dialogos/EdicaoCriterio';
 import { SeletorCriterio } from '../../componentes/ui/SeletorCriterio';
 import { BarraFiltros, Busca, Pills, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
+import { CartaoDeEntrada } from '../../componentes/ui/Campo';
 import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import {
   RECORTE_VAZIO, cicloPadrao, ciclosNoRecorte, contagensDoRecorte, recorteCompleto, rotuloDoCiclo,
@@ -14,15 +15,16 @@ import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
 import { FaixaDecisao } from './FaixaDecisao';
 import { TabelaPainel } from './TabelaPainel';
 import {
-  estatisticasDoSimulado, montarPainel, nomeSede, normMateria,
+  contarDecisoes, estatisticasDoSimulado, montarPainel, nomeSede, normMateria,
 } from '../../dominio/painel';
 import {
-  useAlunos, useCiclos, useClassificacaoCiclo, useCriteriosDisponiveis, useNotasDoCiclo,
-  useSedes, useSimulados, useTurmas,
+  useAlertas, useAlunos, useCiclos, useClassificacaoCiclo, useCriteriosDisponiveis,
+  useNotasDoCiclo, useSedes, useSimulados, useTurmas,
 } from '../../hooks/consultas';
 import { useEditarNota } from '../../hooks/mutacoes';
 import { useRecorteDaTela } from '../../componentes/layout/migalhas';
 import { fmtNota } from '../../util/formato';
+import type { OrdenacaoPainel } from '../../dominio/painel';
 import type { AlunoClassificado, CriterioClassificacao } from '../../tipos/dominio';
 
 // Painel — a tabela alunos × matérias/fases de um ciclo.
@@ -30,15 +32,20 @@ import type { AlunoClassificado, CriterioClassificacao } from '../../tipos/domin
 // A lógica de colunas, médias e ranking vive em `dominio/painel.ts`; aqui fica
 // só o estado da tela (ciclo, filtros, busca, ordenação) e o desenho.
 
-function toneMedia(media: number | null): string {
-  if (media == null) return '';
-  return media >= 7 ? 'tone-verde' : media >= 5 ? 'tone-ambar' : 'tone-vermelho';
-}
+/** O resumo da ordenação para a faixa colapsada — curto, mas ainda nomeando. */
+const ROTULO_ORDEM_CURTO: Record<OrdenacaoPainel, string> = {
+  distancia: 'pior primeiro',
+  ranking: 'ranking',
+  alfabetica: 'A–Z',
+};
 
 export function Painel() {
   const { data: ciclos = [] } = useCiclos();
   const { data: alunos = [] } = useAlunos();
   const { data: simulados = [] } = useSimulados();
+  // Só para a faixa de entrada; a faixa de decisão faz a própria consulta, e
+  // o react-query compartilha o cache — não é uma segunda requisição.
+  const { data: alertas = [] } = useAlertas();
   const { data: sedes = [] } = useSedes();
   const { data: turmas = [] } = useTurmas();
 
@@ -49,7 +56,10 @@ export function Painel() {
   const [sedeIds, setSedeIds] = useState<ReadonlySet<string>>(new Set());
   const [turmaIds, setTurmaIds] = useState<ReadonlySet<string>>(new Set());
   const [busca, setBusca] = useState('');
-  const [ordenacao, setOrdenacao] = useState<'ranking' | 'alfabetica'>('ranking');
+  // R6 · a tabela ABRE pela distância do corte, ascendente — o pior primeiro.
+  // É o que substitui a cor como mecanismo de varredura, e é por isso que ele
+  // é o padrão e não mais uma opção na lista.
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoPainel>('distancia');
   const [fase, setFase] = useState<'1' | '2'>('1');
   // A régua do corte. 'tio-leo' é a pedagógica do colégio; ITA/IME seguem o edital.
   const [criterio, setCriterio] = useState('tio-leo');
@@ -135,8 +145,12 @@ export function Painel() {
       fase,
       ordenacao,
       classificacao,
+      criterio: classificacaoResp?.criterio ?? null,
     }),
-    [cicloAtivo, simulados, alunosFiltrados, notasPorSim, fase, ordenacao, classificacao],
+    [
+      cicloAtivo, simulados, alunosFiltrados, notasPorSim, fase, ordenacao, classificacao,
+      classificacaoResp?.criterio,
+    ],
   );
 
   // A fase escolhida pode não existir no ciclo novo — segue a que sobrou.
@@ -167,6 +181,45 @@ export function Painel() {
   }
 
   const resumo = dados.resumo;
+
+  // ─── A faixa de entrada ────────────────────────────────────────────────
+  // Três perguntas, e cada uma leva a uma tela que JÁ EXISTE. Os números são
+  // vivos (C2) e nenhum é escrito à mão: onde o dado não existe, o card
+  // mostra o esqueleto em vez de um número inventado.
+  // A contagem que era da faixa de decisão. Fica aqui porque os KPIs a
+  // mostram, e a faixa continua lendo a sua para decidir se tem o que dizer.
+  const decisoes = useMemo(
+    () => contarDecisoes(dados.alunosOrdenados, classificacao),
+    [dados.alunosOrdenados, classificacao],
+  );
+
+  const entrada = useMemo(() => {
+    const doCiclo = cicloAtivo ? simulados.filter((s) => s.cicloId === cicloAtivo.id) : [];
+    // A prova mais recente COM data — é a que a pergunta "a prova estava boa?"
+    // quer dizer, e ordenar por nome daria a ordem errada em P10 vs P9.
+    const ultima = doCiclo
+      .filter((s) => s.dataAplicacao)
+      .sort((a, b) => String(b.dataAplicacao).localeCompare(String(a.dataAplicacao)))[0];
+
+    const cortados = classificacaoResp?.cortados ?? null;
+    const total = classificacaoResp?.total ?? null;
+
+    // "Quem mudou de zona" vem do alerta de ZONA_TRANSICAO, que o motor de
+    // regras já emite. Sem alerta, não há movimento a relatar — e o card diz
+    // isso ficando no esqueleto, em vez de mostrar "0".
+    const transicao = alertas.find((a) => a.categoria === 'ZONA_TRANSICAO');
+
+    return {
+      prova: ultima
+        ? `${ultima.materia?.nome ?? ultima.nome} · ${ultima.dataAplicacao}`
+        : null,
+      provaPara: ultima ? `/simulados/${ultima.id}` : '/provas?aba=simulados',
+      ciclo: cicloAtivo && total != null
+        ? `${doCiclo.length} provas · ${cortados} de ${total} cortados`
+        : null,
+      movimento: transicao?.subtitulo ?? null,
+    };
+  }, [cicloAtivo, simulados, classificacaoResp, alertas]);
 
   return (
     <div className="tela">
@@ -292,43 +345,96 @@ export function Painel() {
               />
             ),
           },
+          // ─── A FUSÃO ─────────────────────────────────────────────────
+          // Régua, fase e ordenação eram um SEGUNDO estrato de recorte, na
+          // linha do título, empilhado sobre esta faixa. Duas faixas de
+          // recorte é uma a mais: o olho passava por quatro estratos antes de
+          // chegar ao dado. Agora são grupos daqui.
+          //
+          // ⚠️ Cada um passa `resumo` — é ele que impede um recorte em vigor
+          // de ficar invisível quando a faixa colapsa. A régua é o caso mais
+          // caro: ela muda TODA a leitura da tela, e uma régua trocada e
+          // escondida seria a pior fonte de engano do produto.
+          {
+            chave: 'regua', rotulo: 'Régua',
+            resumo: classificacaoResp?.criterio.nome ?? null,
+            corpo: (
+              <SeletorCriterio
+                criterios={criterios}
+                valor={criterio}
+                onEscolher={setCriterio}
+                onCriar={() => setCriandoRegua(true)}
+              />
+            ),
+          },
+          dados.fasesDisponiveis.length >= 2 && {
+            chave: 'fase', rotulo: 'Fase',
+            resumo: dados.faseSelecionada === '1' ? '1ª Fase' : '2ª Fase',
+            corpo: (
+              <Segmento
+                opcoes={dados.fasesDisponiveis.map((f) => ({
+                  label: f === '1' ? '1ª Fase' : '2ª Fase',
+                  value: f,
+                }))}
+                valor={dados.faseSelecionada}
+                onEscolher={setFase}
+              />
+            ),
+          },
+          {
+            chave: 'ordem', rotulo: 'Ordem',
+            resumo: ROTULO_ORDEM_CURTO[ordenacao],
+            corpo: (
+              <Segmento
+                opcoes={[
+                  { label: 'Pior primeiro', value: 'distancia' as const },
+                  { label: 'Ranking', value: 'ranking' as const },
+                  { label: 'A–Z', value: 'alfabetica' as const },
+                ]}
+                valor={ordenacao}
+                onEscolher={setOrdenacao}
+              />
+            ),
+          },
         ]}
       />
+
+      {/* A FAIXA DE ENTRADA. Rola para fora — não é sticky: o Painel é a tela
+          de varrer 900 pessoas, e a faixa existe para ser vista na chegada,
+          não para cobrar espaço permanente da tarefa dominante. Cortada por
+          PERGUNTA (C1), nunca por objeto. */}
+      <div className="campo-faixa-entrada">
+        <CartaoDeEntrada
+          olho="Calibração"
+          titulo="A prova estava boa?"
+          numeros={entrada.prova}
+          para={entrada.provaPara}
+        />
+        <CartaoDeEntrada
+          olho="Ciclo"
+          titulo="Como está fechando?"
+          numeros={entrada.ciclo}
+          para={cicloAtivo ? `/ciclos/${cicloAtivo.id}` : '/provas'}
+        />
+        <CartaoDeEntrada
+          olho="Movimento"
+          titulo="Quem mudou de zona?"
+          numeros={entrada.movimento}
+          para="/painel#alertas"
+        />
+      </div>
 
       <div className="tela-cabecalho">
         <div>
           <h1 className="tela-titulo">Panorama geral</h1>
           <p className="tela-subtitulo">
-            {cicloAtivo ? cicloAtivo.nome : 'Escolha um ciclo na faixa de filtros.'}
+            {cicloAtivo
+              ? `${cicloAtivo.nome} · ${dados.resumo?.totalSimulados ?? 0} simulados aplicados`
+              : 'Escolha um ciclo na faixa de filtros.'}
           </p>
         </div>
-
         <div className="painel-header__controles">
           <BotaoAjuda criterio={classificacaoResp?.criterio ?? null} />
-          <Segmento
-            opcoes={[
-              { label: 'Ranking', value: 'ranking' as const },
-              { label: 'A–Z', value: 'alfabetica' as const },
-            ]}
-            valor={ordenacao}
-            onEscolher={setOrdenacao}
-          />
-          {dados.fasesDisponiveis.length >= 2 && (
-            <Segmento
-              opcoes={dados.fasesDisponiveis.map((f) => ({
-                label: f === '1' ? '1ª Fase' : '2ª Fase',
-                value: f,
-              }))}
-              valor={dados.faseSelecionada}
-              onEscolher={setFase}
-            />
-          )}
-          <SeletorCriterio
-            criterios={criterios}
-            valor={criterio}
-            onEscolher={setCriterio}
-            onCriar={() => setCriandoRegua(true)}
-          />
         </div>
       </div>
 
@@ -346,13 +452,27 @@ export function Painel() {
       {resumo && (
         <div className="kpi-grid kpi-grid--cartoes">
           <Kpi rotulo="Alunos no ciclo" valor={resumo.totalAlunos} />
-          <Kpi rotulo="Simulados aplicados" valor={resumo.totalSimulados} />
-          <Kpi rotulo="Média geral" valor={fmtNota(resumo.mediaGeral)} tone={toneMedia(resumo.mediaGeral)} />
+          {/* Vindos da faixa de decisão: eram um estrato próprio, dizendo a
+              mesma coisa que esta fileira numa altura diferente. */}
+          <Kpi
+            rotulo="Perto do corte"
+            valor={decisoes.noLimite}
+            sufixo={` de ${resumo.totalAlunos}`}
+          />
+          {/* Sem tom, e é decisão (R7): a TABELA abaixo é que carrega a
+              leitura da tela, e duas escalas semânticas ao mesmo tempo é o
+              mesmo que nenhuma.
+
+              A "Média geral" tinha um ternário fixo — verde ≥7, âmbar ≥5 —
+              sem relação nenhuma com o corte em uso, enquanto a célula logo
+              abaixo usava o corte de verdade: o MESMO número podia estar
+              verde em cima e vermelho embaixo. Não foi substituído por outra
+              função de cor porque não sobra cor para ele. */}
+          <Kpi rotulo="Média geral" valor={fmtNota(resumo.mediaGeral)} />
           <Kpi
             rotulo={`Cortados · ${classificacaoResp?.criterio.nome ?? '…'}`}
             valor={resumo.cortados ?? '…'}
             sufixo={` de ${resumo.totalAlunos}`}
-            tone={resumo.cortados == null ? '' : resumo.cortados > 0 ? 'tone-vermelho' : 'tone-verde'}
           />
         </div>
       )}
@@ -371,6 +491,8 @@ export function Painel() {
             mediasVirtuais={dados.mediasVirtuais}
             mediasPorColuna={dados.mediasPorColuna}
             classificacao={classificacao}
+            criterio={classificacaoResp?.criterio ?? null}
+            ordenacao={ordenacao}
             recolhidos={recolhidos}
             onToggleLimite={
               ordenacao === 'ranking'
@@ -498,17 +620,26 @@ function LegendaCriterio({ criterio }: { criterio: CriterioClassificacao | null 
         ))}
       </ul>
       <div className="painel-help-sep" />
+      {/* A legenda explicava o semáforo. Agora explica a FORMA, que é o que a
+          célula passou a dizer: preenchido acima do corte, vazado abaixo, e a
+          distância no próprio traço. Uma legenda desatualizada é pior que
+          nenhuma — ela ensina a ler errado. */}
       <div className="painel-help-legenda">
-        <span className="painel-help-dot painel-help-dot--verde" />
-        Verde — confortável acima do corte
+        <span className="painel-help-amostra painel-help-amostra--acima" />
+        Preenchido — acima do corte; quanto mais forte, mais folga
       </div>
       <div className="painel-help-legenda">
-        <span className="painel-help-dot painel-help-dot--ambar" />
-        Âmbar — passou, mas perto do corte
+        <span className="painel-help-amostra painel-help-amostra--margem" />
+        Preenchido fraco — passou, mas perto do corte
       </div>
       <div className="painel-help-legenda">
-        <span className="painel-help-dot painel-help-dot--vermelho" />
-        Vermelho — abaixo do corte
+        <span className="painel-help-amostra painel-help-amostra--abaixo" />
+        Vazado — abaixo do corte; o traço engrossa com a distância, e o número
+        vermelho ao lado diz quanto
+      </div>
+      <div className="painel-help-legenda">
+        <span className="painel-help-amostra painel-help-amostra--sem-nota" />
+        Hachurado — sem nota lançada. Não é zero
       </div>
     </>
   );

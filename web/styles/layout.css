@@ -11,12 +11,18 @@
 
 /* ─── Card ──────────────────────────────────────────────────────────── */
 
-/* Sem borda: o cartão se separa do fundo pela sombra e pelo branco. Somar
-   fio + sombra + fundo cinza dá três marcações para a mesma aresta. */
+/* BORDA, nunca sombra. A superfície se separa do fundo pela borda e pelo
+   tom — é a regra que sozinha mais aproxima a coordenação do aluno, e a que
+   faz uma tela deixar de parecer template.
+
+   Antes era o contrário: card BRANCO sobre fundo cinza, separado por duas
+   sombras empilhadas. Com o fundo agora branco e a superfície cinza (a
+   inversão deste mesmo PR), não há profundidade a simular — a aresta é uma
+   marcação só. */
 .card {
   background: var(--color-surface);
+  border: var(--color-border-largura) solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
 }
 
 /* ─── Tela de Importar ──────────────────────────────────────────────── */
@@ -93,17 +99,44 @@
   cursor: not-allowed;
 }
 
+/* A TECLA, e SÓ no primário: 3px de borda inferior sólida que comprime ao
+   apertar. É a única peça de física do sistema — tecla em tudo deixa de
+   significar "aperte aqui", e todo o resto da interface é chapado.
+
+   3px, e não os 4px da área do aluno: quem clica trezentas vezes por dia
+   sente a diferença, e 0 perderia a peça inteira
+   (docs/brief-claude-design-coordenacao.md §Forma). Sem blur, nunca.
+
+   `margin-bottom` reserva o espaço da sombra — sem ele o elemento seguinte
+   sobe 3px quando a tecla é apertada. */
 .btn-primary,
 .btn--primary {
   background: var(--color-navy);
   border-color: var(--color-navy);
-  color: #fff;
+  color: var(--color-navy-texto);
+  box-shadow: 0 3px 0 0 var(--color-navy-deep);
+  margin-bottom: 3px;
+  transition: background 150ms, border-color 150ms, transform 80ms ease-out,
+    box-shadow 80ms ease-out;
 }
 
 .btn-primary:hover:not(:disabled),
 .btn--primary:hover:not(:disabled) {
   background: var(--color-navy-deep);
   border-color: var(--color-navy-deep);
+}
+
+.btn-primary:active:not(:disabled),
+.btn--primary:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 0 var(--color-navy-deep);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn--primary {
+    transition: background 150ms, border-color 150ms;
+  }
 }
 
 .btn--ghost {
@@ -167,12 +200,17 @@
   margin-top: 16px;
 }
 
+/* R4 · o vermelho existe para FALHA OPERACIONAL, e importação que falhou é
+   exatamente isso. Já o sucesso não precisa de verde: a barra cheia em DADO
+   é o que diz que terminou.
+   (`--color-verde` e `--color-vermelho`, sem definição em lugar nenhum, eram
+   dois tokens fantasma que só funcionavam pelo valor alternativo.) */
 .importar__status-card.tone-verde .importar__barra-fill {
-  background: var(--color-verde, #2f9e44);
+  background: var(--color-dado);
 }
 
 .importar__status-card.tone-vermelho .importar__barra-fill {
-  background: var(--color-vermelho, #d04a4a);
+  background: var(--color-red);
 }
 
 /* ─── Log vivo de eventos ───────────────────────────────────────────── */
@@ -233,19 +271,24 @@
   text-align: center;
 }
 
+/* Níveis do log de importação. Não é semáforo de desempenho: é estado
+   operacional, e o vermelho aqui é o caso (b) da R4 — a falha. O aviso perde
+   o âmbar e vira contorno, porque âmbar de aviso ao lado de âmbar de "perto
+   do corte" seriam duas linguagens com a mesma cor. */
 .importar__log-nivel.nivel-info {
-  background: var(--color-navy);
-  color: #fff;
+  background: var(--color-dado);
+  color: var(--color-dado-texto-forte);
 }
 
 .importar__log-nivel.nivel-aviso {
-  background: var(--color-ambar, #d99a2b);
-  color: #fff;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
 }
 
 .importar__log-nivel.nivel-erro {
-  background: var(--color-vermelho, #d04a4a);
-  color: #fff;
+  background: var(--color-red);
+  color: var(--color-navy-texto);
 }
 
 .importar__log-msg {
@@ -282,12 +325,12 @@
 }
 
 .tone-verde-card {
-  border-left: 4px solid var(--color-verde, #2f9e44);
+  border-left: 4px solid var(--color-dado);
   padding: 16px 18px;
 }
 
 .tone-vermelho-card {
-  border-left: 4px solid var(--color-vermelho, #d04a4a);
+  border-left: 4px solid var(--color-red);
   padding: 16px 18px;
 }
 
@@ -396,13 +439,6 @@
   border-top: 0;
 }
 
-.alert-card__bar {
-  width: 3px;
-  border-radius: 2px;
-  flex-shrink: 0;
-  align-self: stretch;
-}
-
 .alert-card__main {
   flex: 1;
   min-width: 0;
@@ -457,29 +493,30 @@
 }
 
 /* tone modifiers */
-.tone-vermelho { color: var(--color-red); }
-.tone-vermelho .alert-card__bar,
-.alert-card__bar.tone-vermelho { background: var(--color-red); }
-.tone-vermelho .alert-card__tag,
-.alert-card__tag.tone-vermelho { background: var(--color-red-soft); color: var(--color-red); }
+/* ─── R4 · O CARTÃO DE ALERTA PERDE A COR ─────────────────────────────────
+   A barra de severidade saiu do componente: a severidade agora é ORDEM (o
+   mais grave primeiro) e ETIQUETA, não uma faixa colorida na lateral. Junto
+   com R7, é o que faz o Painel parar de ter cinco coisas gritando ao mesmo
+   tempo — KPI, tag, célula, barra e delta.
 
-.tone-ambar { color: var(--color-amber); }
-.tone-ambar .alert-card__bar,
-.alert-card__bar.tone-ambar { background: var(--color-amber); }
-.tone-ambar .alert-card__tag,
-.alert-card__tag.tone-ambar { background: var(--color-amber-soft); color: var(--color-amber); }
+   As classes `tone-*` continuam existindo porque o servidor manda
+   `severidade` e várias telas passam adiante; elas só não pintam mais
+   superfície. A tag fica com o desenho neutro do sistema: contorno e texto,
+   e o que ela diz é a CATEGORIA do alerta, não a gravidade. */
+.tone-vermelho,
+.tone-ambar,
+.tone-verde,
+.tone-cinza { color: inherit; }
 
-.tone-verde { color: var(--color-green); }
-.tone-verde .alert-card__bar,
-.alert-card__bar.tone-verde { background: var(--color-green); }
-.tone-verde .alert-card__tag,
-.alert-card__tag.tone-verde { background: var(--color-green-soft); color: var(--color-green); }
-
-.tone-cinza { color: var(--color-text-secondary); }
-.tone-cinza .alert-card__bar,
-.alert-card__bar.tone-cinza { background: var(--color-border-strong); }
-.tone-cinza .alert-card__tag,
-.alert-card__tag.tone-cinza { background: var(--color-surface-inset); color: var(--color-text-secondary); }
+.alert-card__tag,
+.alert-card__tag.tone-vermelho,
+.alert-card__tag.tone-ambar,
+.alert-card__tag.tone-verde,
+.alert-card__tag.tone-cinza {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
 
 /* ─── Tabela ────────────────────────────────────────────────────────── */
 
@@ -526,9 +563,16 @@
   white-space: nowrap;
 }
 
-.tag.tone-vermelho { background: var(--color-red-soft); color: var(--color-red); }
-.tag.tone-ambar { background: var(--color-amber-soft); color: var(--color-amber-text); }
-.tag.tone-verde { background: var(--color-green-soft); color: var(--color-green); }
+/* A tag diz a CATEGORIA, não a gravidade — e categoria sem ordem semântica
+   vira contorno com rótulo, nunca cor (R4/R7). O `tone-navy` sobrevive porque
+   ali o azul é ACAO, o que se aperta, e não semáforo. */
+.tag.tone-vermelho,
+.tag.tone-ambar,
+.tag.tone-verde {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
 .tag.tone-navy { background: var(--color-navy-tint); color: var(--color-navy); }
 
 /* ─── Mini-visualizações ────────────────────────────────────────────── */
@@ -580,34 +624,61 @@
 .kpi {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
+/* O OLHO substitui o rótulo. Era 14px em caixa normal, cinza — o mesmo peso
+   visual de qualquer legenda da tela. Vira maiúscula pequena espaçada de
+   10px, que é a marca tipográfica do sistema e o que faz o numeral abaixo
+   dele parecer grande sem precisar crescer
+   (docs/brief-claude-design-coordenacao.md §Tipografia).
+
+   É a mudança mais barata do trabalho inteiro: a Plus Jakarta Sans já é
+   variável na faixa 200–800 e já está servida localmente (fontes.css).
+   Nenhum asset novo — e nenhum poderia entrar, os dados são de menores de
+   idade (CLAUDE.md, armadilha 6). */
 .kpi__rotulo {
-  font-size: 14px;
-  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: var(--color-text-tertiary);
 }
 
-/* Navy por padrão: o número é o protagonista do cartão, e o tom semântico
-   (verde/âmbar/vermelho) fica reservado para quando ele significa algo. */
+/* MAGNITUDE. O 800 com tracking negativo é a aproximação da grotesca
+   condensada que o desenho pedia; o `line-height` abaixo de 1 é o que tira a
+   folga que fazia o número flutuar dentro do cartão.
+
+   Era 34px em peso 700 — o MESMO peso do título ao lado, então a coisa mais
+   importante da tela não tinha hierarquia nenhuma.
+
+   Tabular não é detalhe: nota, média e contagem vivem em coluna, e sem isso
+   os dígitos dançam de linha para linha. */
 .kpi__valor {
-  font-size: 34px;
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--color-navy);
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  color: var(--color-magnitude);
   font-variant-numeric: tabular-nums;
 }
 
-.kpi__valor.tone-verde { color: var(--color-green); }
-.kpi__valor.tone-ambar { color: var(--color-amber-text); }
-.kpi__valor.tone-vermelho { color: var(--color-red); }
-.kpi__valor.tone-navy { color: var(--color-navy); }
+/* R7 · UMA escala semântica por tela. O numeral de KPI é sempre MAGNITUDE:
+   quem carrega a leitura é a tabela ou o gráfico abaixo dele, e duas coisas
+   gritando é o mesmo que nenhuma. As classes continuam sendo aceitas para
+   não quebrar chamador antigo, e não pintam mais nada. */
+.kpi__valor.tone-verde,
+.kpi__valor.tone-ambar,
+.kpi__valor.tone-vermelho,
+.kpi__valor.tone-navy { color: var(--color-magnitude); }
 
 .kpi__sufixo {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  margin-left: 4px;
+  font-size: 15px;
+  color: var(--color-text-tertiary);
+  margin-left: 6px;
   font-weight: 400;
+  letter-spacing: 0;
 }
 
 .kpi-grid {
@@ -619,8 +690,8 @@
 /* Cada KPI num cartão próprio — é a faixa de quatro do topo das fichas. */
 .kpi-grid--cartoes .kpi {
   background: var(--color-surface);
+  border: var(--color-border-largura) solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
   padding: 20px 22px;
 }
 
@@ -884,7 +955,7 @@
   background: var(--color-surface-inset);
 }
 
-.panorama__tag.tone-navy { background: rgba(27, 63, 139, 0.1); color: var(--color-navy); }
+.panorama__tag.tone-navy { background: color-mix(in srgb, var(--color-dado) 10%, transparent); color: var(--color-navy); }
 .panorama__tag.tone-verde { background: var(--color-green-soft); color: var(--color-green); }
 .panorama__tag.tone-ambar { background: var(--color-amber-soft); color: var(--color-amber); }
 .panorama__tag.tone-vermelho { background: var(--color-red-soft); color: var(--color-red); }
@@ -1119,9 +1190,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ciclo-hero__valor.tone-verde { color: var(--color-green); }
-.ciclo-hero__valor.tone-ambar { color: var(--color-amber); }
-.ciclo-hero__valor.tone-vermelho { color: var(--color-red); }
+/* Numeral é MAGNITUDE, sempre. O que ele significa está no rótulo e na
+   referência ao lado, não no matiz. */
+.ciclo-hero__valor.tone-verde,
+.ciclo-hero__valor.tone-ambar,
+.ciclo-hero__valor.tone-vermelho { color: var(--color-magnitude); }
 
 .ciclo-hero__sufixo {
   font-size: 16px;
@@ -1135,8 +1208,12 @@
   color: var(--color-text-tertiary);
 }
 
-.ciclo-hero__delta.tone-verde { color: var(--color-green); }
-.ciclo-hero__delta.tone-vermelho { color: var(--color-red); }
+/* R5 · A COMPARAÇÃO É CINZA. Delta é comparação com o ciclo anterior, e o
+   sentido dele já está na seta e no sinal — pintar de verde e vermelho
+   acrescenta uma segunda escala semântica na mesma tela e não acrescenta
+   informação nenhuma. */
+.ciclo-hero__delta.tone-verde,
+.ciclo-hero__delta.tone-vermelho { color: var(--color-text-tertiary); }
 
 .ciclo-hero__legenda {
   font-size: 11px;
@@ -1232,8 +1309,8 @@
   color: var(--color-text-tertiary);
 }
 
-.mini-badge__delta.tone-verde { color: var(--color-green); }
-.mini-badge__delta.tone-vermelho { color: var(--color-red); }
+.mini-badge__delta.tone-verde,
+.mini-badge__delta.tone-vermelho { color: var(--color-text-tertiary); }
 
 
 /* A régua da ficha do ciclo: fica no cabeçalho porque governa a tela inteira
@@ -1324,41 +1401,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-.mini-card__valor.tone-verde { color: var(--color-green); }
-.mini-card__valor.tone-ambar { color: var(--color-amber); }
-.mini-card__valor.tone-vermelho { color: var(--color-red); }
-.mini-card__valor.tone-navy { color: var(--color-navy); }
+/* Numeral é MAGNITUDE (R7). O `tone-navy` continua porque ali o azul é DADO,
+   o valor medido em destaque, e não semáforo. */
+.mini-card__valor.tone-verde,
+.mini-card__valor.tone-ambar,
+.mini-card__valor.tone-vermelho { color: var(--color-magnitude); }
+.mini-card__valor.tone-navy { color: var(--color-dado); }
 
 
 /* Botão dos avançados + seção colapsável. */
-.ciclo-avancado__toggle {
-  display: flex;
-  justify-content: center;
-  margin: 24px 0 8px 0;
-}
-
-.ciclo-avancado__btn {
-  padding: 10px 24px;
-  font-size: 13px;
-  font-family: inherit;
-  font-weight: 500;
-  background: var(--color-surface-inset);
-  color: var(--color-navy);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
-  cursor: pointer;
-}
-
-.ciclo-avancado__btn:hover {
-  background: var(--color-bg);
-}
-
-.ciclo-avancado__btn.is-aberto {
-  background: var(--color-navy);
-  color: white;
-  border-color: var(--color-navy);
-}
-
 .ciclo-avancado {
   background: var(--color-surface-inset);
   border-radius: var(--radius-md);
@@ -1536,8 +1587,8 @@
 
 .barra-filtros {
   background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
   padding: 14px 22px;
   display: flex;
   align-items: center;
@@ -1768,7 +1819,7 @@
 .pill.is-active {
   background: var(--color-navy);
   border-color: var(--color-navy);
-  color: #fff;
+  color: var(--color-navy-texto);
 }
 
 .pill__contagem {
@@ -1818,7 +1869,7 @@
 .aba.is-active {
   background: var(--color-navy);
   border-color: var(--color-navy);
-  color: #fff;
+  color: var(--color-navy-texto);
 }
 
 /* ─── Avatar de iniciais ────────────────────────────────────────────────
@@ -2049,4 +2100,25 @@
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
+}
+
+
+/* ─── A fonte do dossiê de ciclo ─────────────────────────────────────────
+   Montada FORA DA TELA só enquanto o dossiê é gerado, com as mesmas peças que
+   os três campos desenham. Existe porque o dossiê colhe os `<svg>` já
+   desenhados da árvore, e a entrada do ciclo deixou de desenhá-los quando a
+   tela virou três campos — e o brief é explícito: os campos dividem a leitura
+   na tela, não o documento impresso.
+
+   ⚠️ `left: -10000px` e não `display: none`: o nó PRECISA ter layout, senão
+   os `<svg>` saem com dimensão zero e o dossiê vem com gráficos vazios. A
+   largura é fixa para o gráfico não herdar a da janela.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ciclo-dossie-fonte {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  width: 1100px;
+  pointer-events: none;
 }

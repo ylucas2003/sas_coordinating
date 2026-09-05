@@ -8,6 +8,8 @@
 //
 // Bandas verticais alternadas separam ciclos visualmente.
 
+import { seloDaNota } from '../../dominio/selo';
+
 const CELL_W = 50;
 const CELL_H = 30;
 const LABEL_W = 110;
@@ -84,36 +86,59 @@ function agruparPorCiclo(simulados: SimuladoHeatmap[]): Grupo[] {
   return grupos;
 }
 
-function hexParaRgb(h: string): [number, number, number] {
-  const x = h.replace('#', '');
-  return [
-    parseInt(x.slice(0, 2), 16),
-    parseInt(x.slice(2, 4), 16),
-    parseInt(x.slice(4, 6), 16),
-  ];
-}
+/**
+ * A célula do heatmap, pelas mesmas regras da tabela (R1 e R3).
+ *
+ * ⚠️ Substitui um degradê VERMELHO → ÂMBAR → VERDE, que era o último semáforo
+ * do app e infringia duas regras de uma vez: era divergente de duas cores
+ * quando a escala tem de ser sequencial de matiz único ancorada NO CORTE, e
+ * era cor cravada em hexadecimal, que não sobreviveria ao tema escuro.
+ *
+ * Com corte, a célula é preenchida acima e vazada abaixo, e a distância modula
+ * a intensidade. Sem corte não há régua a ancorar: a célula vira uma rampa
+ * sequencial de DADO sobre a razão nota/máximo — menos informação, e é honesto
+ * que pareça menos.
+ */
+function estiloDaCelula(
+  v: number,
+  max: number,
+  corte: number | null | undefined,
+): React.CSSProperties {
+  const selo = seloDaNota(v, corte, max);
 
-function misturar(hexA: string, hexB: string, t: number): string {
-  const a = hexParaRgb(hexA);
-  const b = hexParaRgb(hexB);
-  const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
-  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-}
+  if (selo.estado === 'sem-dado') {
+    const razao = Math.max(0, Math.min(1, v / max));
+    return {
+      background: `color-mix(in srgb, var(--color-dado) ${Math.round(18 + razao * 72)}%, transparent)`,
+      color: razao > 0.55 ? 'var(--color-dado-texto-forte)' : 'var(--color-magnitude)',
+    };
+  }
 
-/** Degradê vermelho → âmbar → verde sobre a razão nota/máximo. */
-function corPorNota(v: number, max: number): string {
-  const razao = Math.max(0, Math.min(1, v / max));
-  return razao < 0.5
-    ? misturar('#d9354a', '#e89b2a', razao / 0.5)
-    : misturar('#e89b2a', '#2e8c5a', (razao - 0.5) / 0.5);
+  if (selo.estado === 'abaixo') {
+    const espessura = (1 + selo.intensidade * 1.6).toFixed(1);
+    const tinta = Math.round(30 + selo.intensidade * 55);
+    return {
+      background: 'transparent',
+      boxShadow: `inset 0 0 0 ${espessura}px color-mix(in srgb, var(--color-magnitude) ${tinta}%, transparent)`,
+      color: 'var(--color-magnitude)',
+    };
+  }
+
+  const mistura = Math.round(22 + selo.intensidade * 78);
+  return {
+    background: `color-mix(in srgb, var(--color-dado) ${mistura}%, transparent)`,
+    color: selo.intensidade > 0.5 ? 'var(--color-dado-texto-forte)' : 'var(--color-magnitude)',
+  };
 }
 
 interface Props {
   payload: PayloadHeatmap | null | undefined;
   notaMaxima?: number;
+  /** O corte da régua em vigor. Sem ele a célula não tem onde ancorar (R2). */
+  corte?: number | null;
 }
 
-export function Heatmap({ payload, notaMaxima = 10 }: Props) {
+export function Heatmap({ payload, notaMaxima = 10, corte = null }: Props) {
   if (!payload || !Array.isArray(payload.materias) || payload.materias.length === 0) {
     return <div className="empty-state">Sem notas suficientes para o heatmap.</div>;
   }
@@ -203,7 +228,7 @@ export function Heatmap({ payload, notaMaxima = 10 }: Props) {
                       <td
                         key={`${gi}-${fi}-${s.id}`}
                         className={base}
-                        style={{ background: corPorNota(v, notaMaxima), color: '#fff' }}
+                        style={estiloDaCelula(v, notaMaxima, corte)}
                         title={`${m} · ${s.rotulo || s.nome} (${s.dataAplicacao}): ${fmt(v)}`}
                       >
                         {fmt(v)}

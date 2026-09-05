@@ -23,18 +23,18 @@ from dotenv import load_dotenv
 
 load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
 
-from app.canvas_sync.cliente import ClienteCanvas          # noqa: E402
-from app.canvas_sync.sincronizar import (                  # noqa: E402
+from app.canvas_sync.cliente import ClienteCanvas  # noqa: E402
+from app.canvas_sync.sincronizar import (  # noqa: E402
     ResumoSincronizacao,
     sincronizar_ano_atual,
     sincronizar_historico_completo,
 )
-from app.config import get_settings                        # noqa: E402
-from app.ingest.upsert import (                            # noqa: E402
+from app.config import get_settings  # noqa: E402
+from app.ingest.upsert import (  # noqa: E402
     criar_execucao_sync,
     finalizar_execucao_sync,
 )
-from app.supabase_client import criar_cliente_supabase     # noqa: E402
+from app.supabase_client import criar_cliente_supabase  # noqa: E402
 
 
 async def _rodar(ano: str | None) -> ResumoSincronizacao:

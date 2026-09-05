@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
+import { corteDaMateria } from '../../dominio/criterios';
 import { LIMITES_RANKING, linhaVisivel } from '../../dominio/painel';
-import type { ClassificacaoPorAluno } from '../../dominio/painel';
+import type { ClassificacaoPorAluno, OrdenacaoPainel } from '../../dominio/painel';
+import { distanciaAoCorte, formatarDistancia, seloDaNota } from '../../dominio/selo';
 import type { TomNota } from '../../tipos/dominio';
 import type { ColunaPainel, IgnoradasPorAluno, NotasPorAluno } from '../../dominio/painel';
-import type { Aluno } from '../../tipos/dominio';
+import type { Aluno, CriterioClassificacao } from '../../tipos/dominio';
 import { fmtNota } from '../../util/formato';
 
 interface Props {
@@ -16,11 +18,23 @@ interface Props {
   mediasPorColuna: Record<string, number | null>;
   /** Veredito, motivo e cor por aluno — vem do servidor. */
   classificacao: ClassificacaoPorAluno;
+  /** A régua em vigor. É dela que sai o corte de cada matéria, e sem ela o
+      selo não tem como desenhar distância — só lado. */
+  criterio: CriterioClassificacao | null;
+  /** Qual ordenação está em vigor — R6 exige que ela seja VISÍVEL e NOMEADA. */
+  ordenacao: OrdenacaoPainel;
   recolhidos: ReadonlySet<number>;
   /** `null` fora do modo ranking — os separadores só fazem sentido ordenado. */
   onToggleLimite: ((posicao: number) => void) | null;
   onEditarNota: (alunoId: string, simuladoId: string) => void;
 }
+
+/** O nome do ordenador, como ele aparece no cabeçalho da tabela (R6). */
+const ROTULO_ORDEM: Record<OrdenacaoPainel, string> = {
+  distancia: 'distância do corte, pior primeiro',
+  ranking: 'classificação do critério',
+  alfabetica: 'nome, A–Z',
+};
 
 function classeColuna(col: ColunaPainel, base: string): string {
   return [base, col.novaFase && 'borda-nova-fase', col.destaque && 'col-destaque']
@@ -29,22 +43,77 @@ function classeColuna(col: ColunaPainel, base: string): string {
 }
 
 /**
- * A cor NÃO é decidida aqui: vem do avaliador de critérios no servidor, que
- * sabe qual é o corte da matéria na régua em uso (docs/18 §1.2). Sem tom
- * (coluna virtual, ou classificação ainda carregando) a célula fica neutra.
+ * O selo de uma nota — PREENCHIDO acima do corte, VAZADO abaixo (R1), com a
+ * intensidade carregando a distância (R3) e a etiqueta em vermelho como único
+ * alerta (R4). Ver `dominio/selo.ts`.
+ *
+ * A régua NÃO é decidida aqui. O corte vem resolvido do servidor e é lido por
+ * `corteDaMateria` — reimplementar o encadeamento em TypeScript foi o que a
+ * Sprint 2 proibiu (docs/18 §1.2).
+ *
+ * Quando não há corte aplicável — coluna virtual de média, ou classificação
+ * ainda carregando —, cai no `tom` que o servidor mandou. Ele diz o lado mas
+ * não diz a distância, então o desenho fica sem etiqueta e com intensidade
+ * fixa: é menos informação, e é honesto que pareça menos.
  */
+const INTENSIDADE_SEM_CORTE: Record<TomNota, { classe: string; intensidade: number }> = {
+  verde: { classe: 'nota-badge--acima', intensidade: 0.7 },
+  ambar: { classe: 'nota-badge--acima', intensidade: 0.15 },
+  vermelho: { classe: 'nota-badge--abaixo', intensidade: 0.5 },
+};
+
 function NotaBadge({
-  nota, tom, daTurma = false, titulo,
-}: { nota: number | null; tom?: TomNota; daTurma?: boolean; titulo?: string }) {
-  if (nota == null) return <span className="nota-badge nota-badge--vazia">—</span>;
-  const classeTom = tom ? ` nota-badge--${tom}` : '';
+  nota, tom, corte, daTurma = false, titulo,
+}: {
+  nota: number | null;
+  tom?: TomNota;
+  corte?: number | null;
+  daTurma?: boolean;
+  titulo?: string;
+}) {
+  if (nota == null) {
+    return <span className="nota-badge nota-badge--vazia" title="sem nota lançada">—</span>;
+  }
+
+  // A média da turma é REFERÊNCIA, não desempenho de ninguém (R5): fica
+  // neutra, atrás do dado, em vez de disputar a leitura com as linhas.
+  if (daTurma) {
+    return (
+      <span className="nota-badge nota-badge--media" title={titulo}>
+        {fmtNota(nota)}
+      </span>
+    );
+  }
+
+  const selo = seloDaNota(nota, corte);
+  const semRegua = selo.estado === 'sem-dado';
+  const alternativa = semRegua && tom ? INTENSIDADE_SEM_CORTE[tom] : null;
+
+  const classe = alternativa
+    ? alternativa.classe
+    : semRegua
+      ? ''
+      : `nota-badge--${selo.estado}${selo.estado === 'acima' && selo.intensidade > 0.5 ? ' nota-badge--acima-forte' : ''}`;
+  const intensidade = alternativa ? alternativa.intensidade : selo.intensidade;
+
   return (
-    <span
-      className={`nota-badge${classeTom}${daTurma ? ' nota-badge--media' : ''}`}
-      title={titulo}
-    >
-      {fmtNota(nota)}
-    </span>
+    <>
+      <span
+        className={`nota-badge ${classe}`.trimEnd()}
+        style={{ '--nota-intensidade': intensidade } as React.CSSProperties}
+        title={titulo}
+      >
+        {fmtNota(nota)}
+      </span>
+      {selo.etiqueta && (
+        // `title` e não `aria-label`: um `<span>` sem role não suporta
+        // `aria-label`, e o texto visível já é a informação — a etiqueta É o
+        // número. O `title` só acrescenta contra o quê ele é medido.
+        <span className="nota-etiqueta" title={`${selo.etiqueta} em relação ao corte da matéria`}>
+          {selo.etiqueta}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -75,10 +144,26 @@ function NotaIgnoradaBadge({ nota, motivo }: { nota: number | null; motivo: stri
 
 export function TabelaPainel({
   alunos, colunas, notasAluno, notasIgnoradas, mediasVirtuais, mediasPorColuna, classificacao,
+  criterio, ordenacao,
   recolhidos, onToggleLimite, onEditarNota,
 }: Props) {
   return (
     <div className="painel-tabela-wrap">
+      {/* R6 · o ordenador em vigor é visível e NOMEADO. Sem a cor, é a ordem
+          que entrega o aluno em risco — e uma ordem que o coordenador não sabe
+          qual é não entrega nada. */}
+      <div className="painel-tabela-ordem">
+        <span className="painel-tabela-ordem__total">
+          {alunos.length} {alunos.length === 1 ? 'aluno' : 'alunos'}
+        </span>
+        <span className="painel-tabela-ordem__pilula">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M12 5v14M7 14l5 5 5-5" />
+          </svg>
+          {ROTULO_ORDEM[ordenacao]}
+        </span>
+      </div>
       <table className="painel-tabela">
         <thead>
           <tr>
@@ -89,6 +174,9 @@ export function TabelaPainel({
                 {col.label}
               </th>
             ))}
+            <th className="painel-tabela__th-dist" rowSpan={2} title="A pior matéria contra o corte da régua em vigor">
+              Distância
+            </th>
           </tr>
           <tr>
             {colunas.map((col) => (
@@ -108,6 +196,7 @@ export function TabelaPainel({
                 <NotaBadge nota={mediasPorColuna[col.id] ?? null} daTurma />
               </td>
             ))}
+            <td className="painel-tabela__td-dist" />
           </tr>
 
           {alunos.flatMap((aluno, i) => {
@@ -159,11 +248,32 @@ export function TabelaPainel({
                         <NotaBadge
                           nota={nota}
                           tom={col.sim?.materia?.codigo ? veredito?.notas[col.sim.materia.codigo]?.tom : undefined}
+                          corte={
+                            col.virtual ? null : corteDaMateria(criterio, col.sim?.materia?.codigo)
+                          }
                         />
                       )}
                     </td>
                   );
                 })}
+                {(() => {
+                  const d = distanciaAoCorte(veredito, criterio);
+                  return (
+                    <td className="painel-tabela__td-dist">
+                      {d == null ? (
+                        <span className="painel-tabela__dist painel-tabela__dist--vazia" title="sem nota no ciclo">
+                          —
+                        </span>
+                      ) : (
+                        <span
+                          className={`painel-tabela__dist${d < 0 ? ' painel-tabela__dist--abaixo' : ''}`}
+                        >
+                          {formatarDistancia(d)}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })()}
               </tr>
             );
 

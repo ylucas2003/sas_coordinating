@@ -21,7 +21,6 @@ import logging
 import statistics as st
 from collections import defaultdict
 from datetime import date
-from typing import Any
 
 from supabase import Client
 
@@ -63,7 +62,7 @@ def avaliar_tudo(cliente: Client) -> int:
 # ─── Regras ───────────────────────────────────────────────────────────────
 
 
-def regra_queda_rendimento(cliente: Client, ctx: "_Contexto | None" = None) -> list[dict]:
+def regra_queda_rendimento(cliente: Client, ctx: _Contexto | None = None) -> list[dict]:
     """Aluno: média(últimos 3) - média(3 anteriores) <= -DELTA. Vermelho."""
     ctx = ctx or _Contexto()
     alertas: list[dict] = []
@@ -102,7 +101,7 @@ def regra_queda_rendimento(cliente: Client, ctx: "_Contexto | None" = None) -> l
     return alertas
 
 
-def regra_subida_atipica(cliente: Client, ctx: "_Contexto | None" = None) -> list[dict]:
+def regra_subida_atipica(cliente: Client, ctx: _Contexto | None = None) -> list[dict]:
     """Espelho da queda. Verde."""
     ctx = ctx or _Contexto()
     alertas: list[dict] = []
