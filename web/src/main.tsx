@@ -53,6 +53,12 @@ import '../styles/banco.css';
 import '../styles/login.css';
 import '../styles/foto-perfil.css';
 import '../styles/integracoes.css';
+// Por ÚLTIMO, e é obrigatório: o `@media print` de `documento.css` remapeia a
+// paleta inteira para `--doc-*`, e blocos `:root` têm a mesma especificidade —
+// quem vem depois vence. Importado antes daqui, o documento voltaria a herdar
+// o tema da tela, e o coordenador que trabalha à noite imprimiria um dossiê
+// preto. Documento impresso não tem tema.
+import '../styles/documento.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
