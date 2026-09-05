@@ -154,7 +154,9 @@
   color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
-  box-shadow: 2px 0 6px -2px rgba(20, 30, 80, 0.07);
+  /* A coluna congelada se separa do que passa por baixo com uma BORDA, não com
+     um degradê de sombra — mesma regra do resto do sistema. */
+  border-right: 1px solid var(--color-border);
   width: 180px;
   max-width: 180px;
 }
@@ -715,9 +717,14 @@
   flex: none;
 }
 
+/* Mesmo desenho dos outros cabeçalhos: 13px, 500, CINZA. Estava herdando o
+   `th` genérico (14px, 700, texto escuro) e competia com o dado abaixo. */
 .painel-tabela__th-dist {
   text-align: right;
   white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
 }
 
 .painel-tabela__td-dist {

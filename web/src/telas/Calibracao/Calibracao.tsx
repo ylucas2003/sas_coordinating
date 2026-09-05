@@ -51,7 +51,6 @@ export function Calibracao() {
       <div className="tela">
         <CabecaDeCampo titulo="Quanto vale cada assunto" para="/administracao" destino="Administração" />
         <div className="card">
-          <h1 className="tela-titulo">Calibração do índice de importância</h1>
           <p className="empty-state">
             Não consegui ler a calibração agora. O ranking de assuntos continua
             funcionando com o valor original — o que está indisponível é só a

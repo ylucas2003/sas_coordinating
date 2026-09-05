@@ -86,7 +86,7 @@
   border-radius: var(--radius-md);
   font-family: var(--font-family);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
   border: 1px solid transparent;
@@ -574,7 +574,15 @@
   border: 1px solid var(--color-border);
   color: var(--color-text-primary);
 }
-.tag.tone-navy { background: var(--color-navy-tint); color: var(--color-navy); }
+/* ⚠️ `tone-navy` também vira contorno. Perfil, tendência e zona são três
+   PALAVRAS de categoria que apareciam lado a lado com três desenhos
+   diferentes — "Estável" com fundo azul, "Regular" texto puro, "Risco"
+   contornado. Três tratamentos para a mesma coisa na mesma linha. */
+.tag.tone-navy {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
 
 /* ─── Mini-visualizações ────────────────────────────────────────────── */
 
@@ -1855,27 +1863,34 @@
   flex-wrap: wrap;
 }
 
+/* A aba do Kit é TRANSPARENTE com uma marca de 2px embaixo — não uma pílula
+   preenchida. Preenchida, ela competia com o botão primário e com o item
+   ativo do rail, que são as duas coisas que já usam fundo sólido. */
 .aba {
-  padding: 11px 26px;
+  padding: 11px 20px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
-  color: var(--color-navy);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   text-decoration: none;
   transition: background 150ms, color 150ms, border-color 150ms;
 }
 
 .aba:hover:not(.is-active) {
-  background: var(--color-navy-tint);
+  background: transparent;
+  border-bottom-color: var(--color-border);
+  color: var(--color-magnitude);
   text-decoration: none;
 }
 
 .aba.is-active {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  color: var(--color-navy-texto);
+  background: transparent;
+  border-bottom-color: var(--color-navy);
+  color: var(--color-magnitude);
 }
 
 /* ─── Avatar de iniciais ────────────────────────────────────────────────
@@ -2007,7 +2022,7 @@
 .camadas__degrau.is-ativo {
   color: var(--color-text-primary);
   background: var(--color-surface);
-  box-shadow: 0 1px 2px rgba(20, 30, 80, 0.08);
+  border: 1px solid var(--color-border);
 }
 
 .camadas__painel {

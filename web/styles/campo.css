@@ -129,13 +129,17 @@
   text-decoration: none;
 }
 
+/* É o TÍTULO DA TELA, e por isso tem a medida do `.tela-titulo` — 30/800.
+   Com 27/700 ele ficava MENOR que os títulos de seção da própria página, e a
+   hierarquia invertia: a seção parecia mandar na tela. */
 .campo-cabeca__titulo {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 27px;
-  font-weight: 700;
-  line-height: 1.15;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   color: var(--color-magnitude);
 }
 
@@ -201,7 +205,7 @@
   }
 
   .campo-cabeca__titulo {
-    font-size: 22px;
+    font-size: 24px;
   }
 }
 

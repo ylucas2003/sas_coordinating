@@ -133,7 +133,7 @@ export function Contas() {
 
       <div className="tela-cabecalho">
         <div>
-          <h2 className="tela-titulo">Acesso dos alunos</h2>
+          <h2 className="section__title">Acesso dos alunos</h2>
           <p className="tela-subtitulo">
             O aluno entra com a conta do Canvas, e só com ela. Quem não tem conta ligada ao
             Canvas não consegue entrar — e é no Canvas, não aqui, que isso se resolve.

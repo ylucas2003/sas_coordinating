@@ -42,7 +42,6 @@ export function Integracoes() {
 
       <div className="tela-cabecalho">
         <div>
-          <h1 className="tela-titulo">Integrações</h1>
           <p className="tela-subtitulo">
             O que o SAS troca com sistemas de fora, e se está funcionando.
           </p>

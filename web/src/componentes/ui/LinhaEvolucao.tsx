@@ -172,11 +172,11 @@ export function LinhaEvolucao({
           <>
             <line
               x1={margem.left} y1={yCorte} x2={margem.left + plotW} y2={yCorte}
-              stroke="var(--color-red)" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.7}
+              stroke="var(--color-gold)" strokeWidth={1.5} strokeDasharray="4 4" opacity={0.7}
             />
             <text
               x={margem.left + plotW - 6} y={yCorte - 4}
-              textAnchor="end" fontSize={10} fill="var(--color-red)" opacity={0.85}
+              textAnchor="end" fontSize={10} fill="var(--color-amber-text)" opacity={1}
             >
               {corteRotulo}
             </text>

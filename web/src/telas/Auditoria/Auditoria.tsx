@@ -200,7 +200,6 @@ export function Auditoria() {
 
       <div className="tela-cabecalho">
         <div>
-          <h1 className="tela-titulo">Linha do tempo</h1>
           <p className="tela-subtitulo">
             {incluirLogins
               ? 'Tudo que foi criado, alterado — e quem entrou no sistema.'

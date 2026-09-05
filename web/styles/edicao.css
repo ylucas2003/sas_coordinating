@@ -23,8 +23,12 @@
 
 .dialog {
   background: var(--color-surface);
+  /* BORDA, nunca sombra — inclusive no diálogo. A sombra de 40px de blur era
+     a última sobrevivente da regra: ela não vinha de `--shadow-float` (esse
+     token morreu), estava escrita literalmente aqui. Quem separa o diálogo do
+     que está atrás é a borda mais o véu (`.dialog-overlay`). */
+  border: var(--color-border-largura) solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 40px rgba(20, 30, 80, 0.2);
   width: 100%;
   max-width: 420px;
   /* Sem isto, um diálogo mais alto que a tela (ex.: com o teclado virtual
@@ -47,10 +51,13 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Título de diálogo é título de SEÇÃO (16/600), não texto corrente: 15/500
+   era o mesmo peso do corpo, e o diálogo abria sem nada dizendo o que ele é. */
 .dialog__titulo {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-magnitude);
   margin: 0 0 3px;
 }
 
@@ -90,20 +97,23 @@
   font-family: var(--font-family);
   font-size: 14px;
   color: var(--color-text-primary);
-  background: var(--color-surface);
+  /* `--color-bg`, não `--color-surface`: o diálogo JÁ é superfície, e o campo
+     com o mesmo fundo dela desaparecia — sobrava só o fio de 1px para dizer
+     onde se digita. */
+  background: var(--color-bg);
   box-sizing: border-box;
   outline: none;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 
 .dialog__input:focus {
-  border-color: var(--color-navy-light);
-  box-shadow: 0 0 0 3px rgba(74, 120, 201, 0.14);
+  border-color: var(--color-dado);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-dado) 16%, transparent);
 }
 
 .dialog__input--erro {
   border-color: var(--color-red) !important;
-  box-shadow: 0 0 0 3px rgba(217, 53, 74, 0.12) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-red) 14%, transparent) !important;
 }
 
 .dialog__input:disabled {
