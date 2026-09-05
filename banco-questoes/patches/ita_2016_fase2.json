@@ -1,0 +1,18 @@
+{
+  "_comentario": "Conciliacao dos leitores A e B — ita_2016_fase2 (Fisica, dissertativas). Topicos identicos nos dois leitores nas 3 questoes; a divergencia real foi a topologia do circuito da q21, decidida pela leitura da imagem da pagina.",
+  "q21": {
+    "topicos_ids": ["12.1"],
+    "confianca": "alta",
+    "observacao": "Medidores reais em circuito de corrente continua: R2, R3 e o voltimetro estao os tres em paralelo entre os mesmos nos, entao a leitura de 3,0 V e a tensao do trecho. Lei de Ohm e lei dos nos de Kirchhoff dao i_V = 0,8 - 0,3 - 0,3 = 0,2 A e R_V = 3,0/0,2 = 15 ohm."
+  },
+  "q27": {
+    "topicos_ids": ["12.1", "1.1"],
+    "confianca": "alta",
+    "observacao": "Segunda lei de Ohm (R = rho.L/A) com associacao serie-paralelo de trechos cujos comprimentos variam linearmente no tempo pelo deslize (x = v.t): trecho so com as duas barras externas, trecho de superposicao e trecho so com a barra do meio. Pede a expressao R(t), linear em t, e o esboco do grafico."
+  },
+  "q30": {
+    "topicos_ids": ["12.1", "11.1"],
+    "confianca": "alta",
+    "observacao": "Circuito RC em carga: no fechamento da chave o capacitor descarregado curto-circuita o segundo R, que esta em paralelo com ele (i = V/R); totalmente carregado, o ramo do capacitor nao conduz e restam os dois R em serie (i = V/2R)."
+  }
+}

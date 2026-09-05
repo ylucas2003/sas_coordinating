@@ -1,0 +1,7 @@
+{
+  "q11": {
+    "topicos_ids": ["13.1", "4.1"],
+    "confianca": "alta",
+    "observacao": "Força magnética sobre condutor retilíneo percorrido por corrente (F = BiL) somada à 2ª Lei de Newton: campo saindo do plano e corrente descendo em MN dão força para a esquerda e, como o gerador é de corrente constante, a fem de movimento não reduz i — força constante, aceleração constante (gabarito E). Indução aparece só como distrator: as alternativas de velocidade constante são a intuição de velocidade-limite, válida para fonte de tensão, não para fonte de corrente."
+  }
+}

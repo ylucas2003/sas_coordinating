@@ -93,10 +93,18 @@ class FiltrosQuestoes:
 
     materia: str | None = None
     vestibular: str | None = None
-    # LISTA, e não um ano: o filtro de anos é de múltipla escolha e começa com
-    # todos ligados (decisão de 02/09). `None` e lista vazia significam a mesma
-    # coisa — "todos os anos" —, porque uma lista com os trinta anos do acervo
-    # é o mesmo recorte que nenhum filtro, e é o front que colapsa um no outro.
+    # LISTA, e não um ano: o filtro de anos é de múltipla escolha. `None` e lista
+    # vazia significam a mesma coisa — "todos os anos".
+    #
+    # ⚠️ Desde 04/09 o filtro é ADITIVO (docs/35 §4): abre com NADA marcado, e o
+    # front NÃO colapsa mais a lista cheia em `None` — marcar todos os anos na
+    # mão mantém as pílulas acesas, e é a lista inteira que chega aqui. Antes
+    # (02/09) o oposto valia, e o comentário que estava aqui prometia que a
+    # lista cheia nunca chegaria. Chega.
+    #
+    # Consequência a vigiar: com o acervo em 26 anos distintos, o `in.()` do
+    # PostgREST pode receber os 26. É pouco hoje; se crescer, lembrar da
+    # armadilha 2 do CLAUDE.md — não há paginação em lugar nenhum.
     anos: list[int] | None = None
     fase: int | None = None
     topico: str | None = None

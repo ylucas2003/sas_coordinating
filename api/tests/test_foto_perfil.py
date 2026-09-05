@@ -351,7 +351,7 @@ class TestTemFotoNoLogin:
             "id": "a1", "nome": "Ana", "ativo": True, "canvas_user_id": "300",
             "foto_perfil_storage": "fotos-perfil/aluno/a1.jpg",
         }}}
-        token, tipo = auth_canvas._sessao_para(FakeCliente(db), "300")
+        token, tipo, _ = auth_canvas._sessao_para(FakeCliente(db), "300")
         assert tipo == "aluno"
         payload = jwt.decode(token, config.get_settings().jwt_secret_key, algorithms=[ALGORITHM])
         assert payload["temFoto"] is True and payload["aluno_id"] == "a1"

@@ -111,8 +111,11 @@ FASE E  os três papéis de login                  §11
 Três dependências mandam na ordem:
 
 1. **`classificar.py` antes de tudo do banco** — sem a ferramenta, §3 não roda.
-2. **As senhas antes do login** — tirar o SSO da coordenação sem redefinir a
-   senha de quem entra por lá tranca duas pessoas do lado de fora (§11.1).
+2. **O deploy antes das senhas** — e isto é o INVERSO do que este plano dizia
+   até 04/09. A versão anterior mandava redefinir as senhas primeiro; não é
+   executável, porque `criar_coordenador.py` passou a ler `papel` nos dois
+   caminhos, e a coluna só existe depois da 0045. Quem seguisse a ordem antiga
+   levaria um `42703` e não redefiniria senha nenhuma. Ver §11.1.
 3. **A missão antes da tarja** — §8 remove `missaoDoDia` da lista de mocks, o
    que diminui o que §10 vai carimbar.
 
@@ -168,8 +171,9 @@ defeito existe só na plataforma nova, que é a das provas recentes.
 3. No docstring, registrar que a conferência foi feita **contra a página**, e
    não contra o código. É o que impede o próximo teste de nascer errado igual.
 4. ⚠️ A URL é gravada pelo **importador**, não calculada por requisição.
-   Consertar a função não muda o banco: precisa de `UPDATE` nas 146 linhas ou
-   reimportação.
+   Consertar a função não muda o banco. Quem faz isso é
+   `api/scripts/recalcular_resolucao_url.py`, que reaplica `url_da_resolucao()`
+   linha a linha e é idempotente. **Passo pós-deploy** — ver §14.
 
 ---
 
@@ -504,14 +508,52 @@ pessoas.
 | coordenador | e-mail + senha | — |
 | administrador | e-mail + senha | criar logins · alterar nota no painel |
 
-### 11.1 · Primeiro passo, e é operacional
+### 11.1 · O runbook, e a ordem é o contrário do que parece
 
 **Duas** contas entram pelo Canvas hoje: Leonardo (`canvas_user_id` 289) e
 Alanno Chaves (902, login em 02/09 — usuário ativo). As duas perdem esse
-caminho quando o SSO da coordenação sair.
+caminho quando o SSO da coordenação sair, e a intuição manda redefinir a senha
+delas antes de subir.
 
-Redefinir a senha das duas **antes** de virar a chave. A ordem inversa tranca
-duas pessoas do lado de fora do próprio sistema.
+⚠️ **A intuição está errada, e este plano esteve errado até 04/09.**
+`criar_coordenador.py` lê `papel` em `_listar` e em `_gravar`, e a coluna só
+nasce com a 0045. Rodar o script antes do deploy dá `42703` e não redefine
+nada. A ordem obrigatória é:
+
+```sh
+# 1 · sobe o código E aplica a 0045 (o restart do postgrest é incondicional
+#     desde 04/09 — ver o comentário no deploy.sh)
+./infra/vps/deploy.sh --migrar
+
+# 2 · confirmar no log: "postgrest reiniciado (cache de schema)"
+
+# 3 · IMEDIATAMENTE, uma execução por conta. `-T </dev/null` não é opcional:
+#     `compose run` dentro de `ssh bash -s` engole o resto do script
+#     (CLAUDE.md, armadilha 5).
+ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
+  python -m scripts.criar_coordenador \
+  --email leonardobruno@aridesa.com.br --nome "Leonardo Bruno" \
+  --papel administrador --senha "<a combinada>" </dev/null'
+
+ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
+  python -m scripts.criar_coordenador \
+  --email alannochaves@aridesa.com.br --nome "Alanno Chaves" \
+  --senha "<outra>" </dev/null'
+```
+
+⚠️ **A JANELA SEM ADMINISTRADOR.** Entre o passo 1 e o passo 3 o sistema tem
+**zero** administradores: o `DEFAULT 'coordenador'` da 0045 faz todas as oito
+contas nascerem coordenador, e as rotas de conta e o `PATCH /notas` devolvem
+403 para todo mundo. Não é degradação silenciosa — é recusa clara —, mas
+significa que a única forma de criar o primeiro admin é o script, pela linha de
+comando. Não deixe o passo 3 para depois do almoço.
+
+⚠️ **O e-mail do Leonardo muda no passo 3.** Em produção a conta existe como
+`leonardobruno@aridesa.com` (sem `.br`). O script casa por e-mail, então rodá-lo
+com o `.com.br` CRIA UMA SEGUNDA CONTA em vez de promover a existente — e o
+histórico de auditoria fica na primeira. Corrija o e-mail da linha antes
+(`update usuario_coordenacao set email = ..., nome = ... where id = 'adc08f68-…'`),
+ou rode o script com o `.com` e corrija o e-mail depois.
 
 ### 11.2 · A conta de administrador
 
@@ -614,6 +656,51 @@ for feito, três coisas não podem faltar:
    tempo, senão link salvo por aluno quebra em silêncio.
 3. **`banco-questoes/` é 3.400 das ~5.500 ocorrências** e não roda em
    requisição nenhuma — dá para renomear em fase separada, depois do resto.
+
+---
+
+## 12b · O deploy NÃO carrega duas destas correções
+
+⚠️ Descoberto pelo crítico de completude em 04/09, e é o tipo de coisa que só
+aparece simulando a subida: **§2 e §3 são estado de BANCO**, e o `deploy.sh`
+move código, não linhas.
+
+Sem os dois passos abaixo, produção continua com as 161 URLs de resolução
+erradas e as 44 questões sem assunto — exatamente o que o "Pronto quando" deste
+plano promete ter resolvido.
+
+O §3 é o pior dos dois, porque o caminho normal **não existe** em produção:
+
+| por que o pipeline não serve | onde |
+|---|---|
+| `questoes_json/` está no `.gitignore` e o rsync usa `--filter=':- .gitignore'` | `deploy.sh:184` |
+| só `web` publica porta na stack de produção, por desenho | `infra/vps/docker-compose.yml`, CLAUDE.md armadilha 4 |
+| o contexto de build da API é `../../api`, então `banco-questoes/` não está no container | `Dockerfile` da API |
+
+Por isso a classificação passou a viajar como **dado versionado** em
+`banco-questoes/patches/` (44 questões, seis arquivos), aplicável por um script
+que roda de dentro do container.
+
+```sh
+# 1 · as URLs de resolução (161 linhas: 146 do #gallery-stage + 15 do IME 2022)
+ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
+  python -m scripts.recalcular_resolucao_url </dev/null'          # relatório
+ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
+  python -m scripts.recalcular_resolucao_url --aplicar </dev/null'
+
+# 2 · as 44 classificações
+ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
+  python -m scripts.aplicar_patches_de_classificacao </dev/null'   # relatório
+ssh sas@<vps> 'cd /opt/sas/infra/vps && docker compose run --rm -T api \
+  python -m scripts.aplicar_patches_de_classificacao --aplicar </dev/null'
+```
+
+Os dois são idempotentes e abrem em modo relatório: **rode sem a flag primeiro**
+e confira o número. O de classificação não toca questão que já tem tópico, então
+ele nunca sobrescreve uma releitura feita depois.
+
+⚠️ Depois do passo 2, reiniciar nada: são linhas, não schema. O `restart
+postgrest` do §11.4 é para a coluna nova da 0045.
 
 ---
 

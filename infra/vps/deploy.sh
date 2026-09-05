@@ -262,7 +262,6 @@ ok "imagens construídas"
 # Falha FECHADO. Migration pendente sem autorização explícita interrompe o
 # deploy aqui — a stack continua no ar com a versão anterior, que é o estado
 # seguro.
-MIGROU=0
 # `</dev/null` e `-T` NÃO são opcionais: este trecho roda via `ssh bash -s`,
 # com o script inteiro chegando por stdin. `docker compose run` lê stdin por
 # padrão — e lia o RESTO DESTE SCRIPT: tudo daqui para baixo (migrations,
@@ -276,7 +275,6 @@ echo "$saida_status" | tail -3 | sed 's/^/  /'
 if grep -q 'pendente(s)' <<<"$saida_status"; then
     if [[ "$MIGRAR" == "1" ]]; then
         docker compose run --rm -T migrate up </dev/null || { erro "migration falhou — nada foi trocado"; exit 1; }
-        MIGROU=1
         ok "migrations aplicadas"
     else
         erro "há migration pendente e o deploy não foi autorizado a aplicá-la"
@@ -295,10 +293,20 @@ ok "containers no ar"
 # O PostgREST lê o schema UMA vez, no boot, e o cacheia. Sem este restart as
 # tabelas e colunas novas voltam 404 — e o 404 parece bug de código
 # (docs/14 §6.6).
-if [[ "$MIGROU" == "1" ]]; then
-    docker compose restart postgrest </dev/null
-    ok "postgrest reiniciado (cache de schema)"
-fi
+#
+# ⚠️ INCONDICIONAL, e isso é decisão, não descuido. Até 04/09 o restart só
+# acontecia quando ESTA execução aplicava migration (`MIGROU == 1`), e a
+# pergunta certa é outra: "o schema mudou desde que o postgrest bootou?".
+# Um deploy que morresse entre o `up -d` acima e este restart — ssh caindo,
+# Ctrl-C, `up -d` demorando — deixava o operador reexecutando o script, e aí
+# o `migrate status` dizia "schema em dia", `MIGROU` ficava 0 e o restart
+# NUNCA acontecia. O cache seguia sem conhecer a coluna nova indefinidamente,
+# com o deploy declarando sucesso.
+#
+# O preço de rodar sempre são ~2 s. O preço de pular é a armadilha 1 do
+# CLAUDE.md num sistema que parece no ar (docs/35 §13).
+docker compose restart postgrest </dev/null
+ok "postgrest reiniciado (cache de schema)"
 
 # ── Esperar o uvicorn atender ────────────────────────────────────────────
 # Por que --resolve em vez de http://127.0.0.1: desde a Etapa 5 a porta 80

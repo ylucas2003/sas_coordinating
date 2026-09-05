@@ -207,21 +207,34 @@ async def callback(
     # coordenação (docs/35 §11.6). Aluno já vem ligado pelo sync, então para
     # ele o vínculo nunca foi necessário.
     cliente = get_supabase()
-    token, tipo = _sessao_para(cliente, canvas_user_id)
+    token, tipo, ator_id = _sessao_para(cliente, canvas_user_id)
     if token is None:
         auditar(cliente, "login_falhou", canal="acesso", ator_tipo="canvas",
                 ator_id=canvas_user_id, ip=ip, detalhe={"motivo": "sem_conta_no_sas"})
         return RedirectResponse("/login?canvas=sem-conta")
 
-    auditar(cliente, "login_ok", canal="acesso", ator_tipo=tipo, ator_id=canvas_user_id,
-            ip=ip, detalhe={"via": "canvas"})
+    # ⚠️ `ator_id` é o id do aluno NO SAS, nunca o número do Canvas. A trilha é
+    # cruzada por esse id em dois lugares — a coluna "Último login" da tela de
+    # administração (`administracao.py::_ultimo_login_por_aluno`) e o avatar da
+    # tela de auditoria —, e os dois casam com `aluno.id`. Gravar o número do
+    # Canvas aqui fazia a coluna dizer "nunca" para TODO aluno, para sempre:
+    # enquanto existiu login por matrícula era ele que gravava o id certo, e
+    # esse ramo saiu em 04/09 (docs/35 §11.5). O número do Canvas continua na
+    # trilha, mas como detalhe — que é o papel dele.
+    auditar(cliente, "login_ok", canal="acesso", ator_tipo=tipo, ator_id=ator_id,
+            ip=ip, detalhe={"via": "canvas", "canvas_user_id": canvas_user_id})
     # O front lê o token do fragmento (#), que não vai ao servidor nem fica
     # em log de acesso, grava na sessão e limpa a URL.
     return RedirectResponse(f"/login/canvas#token={token}&tipo={tipo}&proximo={proximo}")
 
 
-def _sessao_para(cliente, canvas_user_id: str) -> tuple[str | None, str | None]:
-    """JWT do SAS para o ALUNO dono desse canvas_user_id.
+def _sessao_para(
+    cliente, canvas_user_id: str
+) -> tuple[str | None, str | None, str | None]:
+    """JWT do SAS para o ALUNO dono desse canvas_user_id, com o id dele.
+
+    Devolve TRÊS coisas, e a terceira é o id do aluno no SAS — não o do Canvas.
+    Quem chama precisa dele para a auditoria; ver o ⚠️ no `callback`.
 
     O ramo do coordenador saiu em 04/09 (docs/35 §11.6). Ele vinha ANTES do
     aluno de propósito, porque um coordenador também matriculado em curso
@@ -244,5 +257,5 @@ def _sessao_para(cliente, canvas_user_id: str) -> tuple[str | None, str | None]:
             "sub": a["id"], "tipo": "aluno", "nome": a["nome"], "aluno_id": a["id"],
             "temFoto": a.get("foto_perfil_storage") is not None,
         })
-        return token, "aluno"
-    return None, None
+        return token, "aluno", a["id"]
+    return None, None, None

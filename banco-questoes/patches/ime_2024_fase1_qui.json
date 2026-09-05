@@ -1,0 +1,63 @@
+{
+  "_comentario": "Conciliacao de dois leitores independentes — ime_2024_fase1_qui (IME 2024, Fase 1, Quimica, Q31-Q40). Todos os IDs conferidos contra config/taxonomia-quimica.json no formato X.Y.",
+
+  "q31": {
+    "topicos_ids": ["10.1"],
+    "confianca": "alta",
+    "observacao": "Pilha galvanica: usa os potenciais-padrao de reducao (Ex = -1,85 V, Ey = -2,93 V) para identificar que X e o catodo e Y o anodo, o sentido do fluxo de eletrons e as semirreacoes corretas (gabarito D, itens IV e V)."
+  },
+
+  "q32": {
+    "topicos_ids": ["9.1", "11.5", "11.2"],
+    "confianca": "alta",
+    "observacao": "Esterificacao de Fischer tratada como equilibrio: extrai Kc = 5,44 da conversao de 87,5% na proporcao molar 1:2 e reaplica na mistura equimolar, obtendo 70% e ester como grupo funcional do produto (gabarito C)."
+  },
+
+  "q33": {
+    "topicos_ids": ["5.1", "4.1"],
+    "confianca": "alta",
+    "observacao": "Ebulioscopia e crioscopia somadas: DeltaT = 100 + (Ke + Kc)·W, com a molalidade escrita como W = massa/(M·m), isolando a massa de sacarose = M·m·(DeltaT - 100)/(Ke + Kc) (gabarito A)."
+  },
+
+  "q34": {
+    "topicos_ids": ["10.1", "3.1", "3.2", "4.1"],
+    "confianca": "alta",
+    "observacao": "Eletrolise da agua em meio de H2SO4: a titulacao da a concentracao final (0,0102 M), o acido conservado converte essa concentracao em volume final (~1800 L), a queda de volume da a agua consumida (~200 L) e o volume molar nas CNTP fecha em ~375 m3 de H2 + O2 (gabarito C)."
+  },
+
+  "q35": {
+    "topicos_ids": ["11.2", "11.6", "1.3"],
+    "confianca": "alta",
+    "observacao": "Estrutura de proteinas: alfa-aminoacidos e ligacao peptidica na primaria (citosina e base nitrogenada, nao aminoacido — item I falso), ligacoes de hidrogenio na secundaria, interacoes hidrofobicas/ionicas e pontes dissulfeto na terciaria e desnaturacao da quaternaria (gabarito D); o item V erra a cor da reacao xantoproteica."
+  },
+
+  "q36": {
+    "topicos_ids": ["7.1", "9.2", "5.1"],
+    "confianca": "alta",
+    "observacao": "Quatro afirmativas independentes: trabalho de expansao contra a atmosfera em bequer aberto (I falso), pH de acido forte a 1e-8 mol/L com autoionizacao da agua (II falso), ebulicao NAO constante de solucao de sacarose (III falso) e DeltaH = DeltaU na combustao do metano porque Delta-n gasoso e zero (IV verdadeiro, gabarito D)."
+  },
+
+  "q37": {
+    "topicos_ids": ["3.1"],
+    "confianca": "alta",
+    "observacao": "Estequiometria de sais hidratados: os 360 kg perdidos sao a agua de hidratacao (10 H2O por formula, 2 kmol de sais no total) e o sistema com as massas molares anidras da a razao molar Na2SO4/Na2CO3 = 0,71 (gabarito E)."
+  },
+
+  "q38": {
+    "topicos_ids": ["6.1", "7.1", "9.1"],
+    "confianca": "alta",
+    "observacao": "Reducao do FeO por C e por CO: DeltaH pelas entalpias de formacao (reacao 1 endotermica, +161,4 kJ; reacao 2 exotermica, -11,1 kJ), DeltaS pelas entropias-padrao e DeltaG = DeltaH - T·DeltaS para julgar espontaneidade a 450 K; DeltaG = 0 da T = 11100/17,7 = 627 K, onde a reacao 2 atinge o equilibrio dinamico (gabarito B)."
+  },
+
+  "q39": {
+    "topicos_ids": ["11.4", "11.5", "11.2"],
+    "confianca": "alta",
+    "observacao": "Estereoquimica de tres reacoes desenhadas na figura: adicao de HCN ao 2-metilbutanal criando um segundo centro quiral (alfa e beta sao diastereomeros, opticamente ativos), anidrido intramolecular impossivel no diacido trans do ciclobutano (gabarito B, a reacao 2 nao ocorre) e adicao anti de Br2 ao acido maleico (cis) dando o par de enantiomeros, nao a forma meso."
+  },
+
+  "q40": {
+    "topicos_ids": ["2.1", "1.1"],
+    "confianca": "alta",
+    "observacao": "Serie de decaimento U-238 -> Pb-206: leis de Soddy para emissoes alfa e beta (uma alfa + duas beta devolve o isotopo U-234) e nocao de fissil; a alternativa incorreta atribui a estabilidade NUCLEAR do chumbo a sua distribuicao eletronica (gabarito E)."
+  }
+}

@@ -66,18 +66,23 @@ class TestSessaoPara:
         }
 
     def test_aluno(self):
-        token, tipo = auth_canvas._sessao_para(FakeCliente(self._db()), "300")
+        token, tipo, ator_id = auth_canvas._sessao_para(FakeCliente(self._db()), "300")
         assert tipo == "aluno" and token
+        # O id do SAS, e NUNCA o "300" do Canvas: é por ele que a coluna
+        # "Último login" e o avatar da auditoria casam a trilha com o aluno.
+        # Enquanto isto gravou o número do Canvas, a coluna dizia "nunca" para
+        # todo mundo (docs/35 §11.5).
+        assert ator_id == "a1"
 
     def test_coordenacao_nao_entra_pelo_canvas(self):
         """A regra nova (docs/35 §11.6): o id 100 é de uma conta de
         coordenação ATIVA e mesmo assim não abre sessão. Quem é da coordenação
         entra por e-mail + senha, e só."""
-        assert auth_canvas._sessao_para(FakeCliente(self._db()), "100") == (None, None)
+        assert auth_canvas._sessao_para(FakeCliente(self._db()), "100") == (None, None, None)
 
     def test_aluno_inativo_nao_entra(self):
-        assert auth_canvas._sessao_para(FakeCliente(self._db()), "400") == (None, None)
+        assert auth_canvas._sessao_para(FakeCliente(self._db()), "400") == (None, None, None)
 
     def test_identidade_sem_conta_e_recusada(self):
         """O Canvas diz quem é; o SAS decide quem entra. Sem linha, sem sessão."""
-        assert auth_canvas._sessao_para(FakeCliente(self._db()), "999") == (None, None)
+        assert auth_canvas._sessao_para(FakeCliente(self._db()), "999") == (None, None, None)
