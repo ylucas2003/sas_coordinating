@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
 
 import { Avatar } from '../../componentes/ui/Avatar';
 import { useLiga, useProximoSimulado, useSequencia, useXp } from '../../dados/aluno';
-import * as api from '../../servicos/api';
 import * as sessao from '../../servicos/sessao';
 import { Estudar } from './Estudar';
 import { EstudarBanco } from './EstudarBanco';
@@ -59,7 +57,7 @@ function sair() {
 export function CascoAluno() {
   const nome = sessao.nome();
   const primeiro = nome.split(' ')[0] || nome;
-  const [conta, setConta] = useState<'fechada' | 'menu' | 'senha'>('fechada');
+  const [conta, setConta] = useState<'fechada' | 'menu'>('fechada');
 
   const { data: sequencia } = useSequencia();
   const { data: xp } = useXp();
@@ -185,8 +183,7 @@ export function CascoAluno() {
 
       <FabTioLeo />
 
-      {conta === 'menu' && <FolhaDaConta onFechar={() => setConta('fechada')} onSenha={() => setConta('senha')} />}
-      {conta === 'senha' && <FolhaTrocarSenha onFechar={() => setConta('fechada')} />}
+      {conta === 'menu' && <FolhaDaConta onFechar={() => setConta('fechada')} />}
     </div>
   );
 }
@@ -257,7 +254,7 @@ function ColunaLateral() {
 
 // ─── Conta ───────────────────────────────────────────────────────────────
 
-function FolhaDaConta({ onFechar, onSenha }: { onFechar: () => void; onSenha: () => void }) {
+function FolhaDaConta({ onFechar }: { onFechar: () => void }) {
   const { tema, trocar } = useTema();
 
   return (
@@ -297,75 +294,17 @@ function FolhaDaConta({ onFechar, onSenha }: { onFechar: () => void; onSenha: ()
         </div>
       </fieldset>
 
-      <button type="button" className="alu-conta__linha" onClick={onSenha}>
-        <Icone nome="cadeado" tamanho={18} />
-        Trocar senha
-      </button>
-
+      {/* Não há "Trocar senha" aqui desde 04/09 (docs/35 §11.5): o aluno entra
+          só pelo Canvas, e `POST /me/senha` saiu junto. A folha continuava
+          aceitando os três campos e respondia "Senha atual incorreta" para
+          todo aluno que nunca teve hash — e, para os poucos com hash antigo,
+          era pior: dizia "Senha alterada." e gravava uma credencial que não
+          autentica em lugar nenhum. A senha que dá acesso é a do Canvas, e o SAS
+          não a lê nem a escreve. */}
       <button type="button" className="alu-conta__linha" onClick={sair}>
         <Icone nome="sair" tamanho={18} />
         Sair da conta
       </button>
-    </Folha>
-  );
-}
-
-function FolhaTrocarSenha({ onFechar }: { onFechar: () => void }) {
-  const [atual, setAtual] = useState('');
-  const [nova, setNova] = useState('');
-  const [confirmar, setConfirmar] = useState('');
-  const [erro, setErro] = useState('');
-  const [ok, setOk] = useState(false);
-
-  const trocar = useMutation({
-    mutationFn: (corpo: { senha_atual: string; senha_nova: string }) => api.trocarSenhaMe(corpo),
-  });
-
-  async function enviar(ev: React.FormEvent) {
-    ev.preventDefault();
-    setErro('');
-    setOk(false);
-    if (nova.length < 8) return setErro('A nova senha precisa ter pelo menos 8 caracteres.');
-    if (nova !== confirmar) return setErro('As senhas não conferem.');
-
-    try {
-      await trocar.mutateAsync({ senha_atual: atual, senha_nova: nova });
-      setOk(true);
-      window.setTimeout(onFechar, 900);
-    } catch (e) {
-      setErro((e as Error).message || 'Não foi possível trocar a senha.');
-    }
-  }
-
-  const campo = (rotulo: string, valor: string, set: (v: string) => void) => (
-    <label className="alu-conta__campo">
-      <span className="alu-conta__rotulo">{rotulo}</span>
-      <input
-        className="alu-campo"
-        type="password"
-        autoComplete="new-password"
-        value={valor}
-        onChange={(e) => set(e.target.value)}
-      />
-    </label>
-  );
-
-  return (
-    <Folha aberta titulo="Trocar senha" altura="meio" onFechar={onFechar}>
-      <form
-        onSubmit={enviar}
-        style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
-        id="alu-form-senha"
-      >
-        {campo('Senha atual', atual, setAtual)}
-        {campo('Nova senha (mínimo 8 caracteres)', nova, setNova)}
-        {campo('Confirmar nova senha', confirmar, setConfirmar)}
-        {erro && <p className="alu-erro">{erro}</p>}
-        {ok && <p className="alu-ok">Senha alterada.</p>}
-        <button className="alu-tecla alu-tecla--larga" type="submit" disabled={trocar.isPending}>
-          Salvar
-        </button>
-      </form>
     </Folha>
   );
 }

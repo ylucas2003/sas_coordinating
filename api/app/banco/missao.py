@@ -13,12 +13,17 @@ Daí as três regras deste módulo:
   2. **O sorteio é determinístico pela DATA**, e a data é a de America/Fortaleza
      (docs/35 §9.3). Em UTC o desafio viraria às 21h — e como todos veem o
      mesmo, viraria para todo mundo junto, bem na hora do estudo.
-  3. **Só entra tópico com 10 questões OBJETIVAS ou mais.** O `totalQuestoes` da
-     taxonomia conta dissertativa, e a fila de treino filtra dissertativa fora
-     (`Treino.tsx::respondivel`): cortar pelo número cru deixaria passar tópico
-     que promete 10 e entrega menos — a mesma classe de bug que este módulo
-     existe para consertar. Medido em 04/09: 58 dos 65 tópicos são elegíveis
-     (Física 18/18 · Matemática 17/21 · Química 23/26).
+  3. **Só entra tópico com 10 questões RESPONDÍVEIS ou mais** — respondível é o
+     que a fila de treino aceita, e são TRÊS condições, não uma
+     (`Treino.tsx::respondivel`, lido em 04/09): não ser dissertativa, ter
+     gabarito não vazio e ter ao menos uma alternativa. O `totalQuestoes` da
+     taxonomia não olha nenhuma delas; cortar por ele — ou só por dissertativa —
+     deixaria passar tópico que promete 10 e entrega menos, a mesma classe de
+     bug que este módulo existe para consertar. Medido em 04/09 no banco de
+     desenvolvimento: 58 dos 65 tópicos passam (Física 18/18 · Matemática 17/21
+     · Química 23/26). Pela contagem anterior, que só descartava dissertativa,
+     eram 59 — Química 11.3 ("Ácidos e Bases Orgânicas") prometia 10 e a fila
+     entregava 9.
 
 ⚠️ A missão NÃO é personalizada, e isso é o desenho, não uma etapa faltando.
 Era a personalização — `importância × (1 − meu acerto)`, docs/24 §4.5 — que a
@@ -90,50 +95,73 @@ def missao_do_dia(cliente: Client, dia: date | None = None) -> MissaoDoDia | Non
     ele — o convite "escolha um assunto para treinar". Um 500 aqui viraria uma
     faixa de erro no herói da tela por causa de dado que ninguém prometeu.
     """
-    objetivas_por_topico = contar_objetivas_por_topico(cliente)
-    elegiveis = topicos_elegiveis(cliente, objetivas_por_topico)
+    ids_por_topico = ids_respondiveis_por_topico(cliente)
+    elegiveis = topicos_elegiveis(cliente, ids_por_topico)
     if not elegiveis:
         return None
 
     escolhido = sortear(elegiveis, dia or hoje_na_escola())
-    objetivas_da_materia = sum(
-        quantas
-        for (materia, _), quantas in objetivas_por_topico.items()
-        if materia == escolhido["materia"]
-    )
+
+    # UNIÃO dos ids da matéria, e não soma das contagens por tópico: 564 das
+    # 1.410 questões respondíveis do acervo estão em dois ou mais tópicos da
+    # MESMA matéria (medido em 04/09), e a soma contaria cada uma delas uma vez
+    # por tópico. O denominador inflava ~40% (Matemática: 738 ligações para 510
+    # questões) e a frase impressa dizia "questões" mostrando uma proporção de
+    # ligações — encolhida em torno de 30%.
+    ids_da_materia: set[str] = set()
+    for (materia, _), ids in ids_por_topico.items():
+        if materia == escolhido["materia"]:
+            ids_da_materia |= ids
+
     return MissaoDoDia(
         materia=escolhido["materia"],
         topicoCodigo=escolhido["codigo"],
         nome=escolhido["nome"],
         quantidade=QUESTOES_DA_MISSAO,
-        razao=_razao(escolhido, objetivas_da_materia),
+        razao=_razao(escolhido, len(ids_da_materia)),
     )
 
 
 # ─── Elegibilidade ───────────────────────────────────────────────────────
 
 
-def contar_objetivas_por_topico(cliente: Client) -> dict[tuple[str, str], int]:
-    """{(materia, codigo): quantas questões OBJETIVAS} — o lastro de cada tópico.
+def ids_respondiveis_por_topico(cliente: Client) -> dict[tuple[str, str], set[str]]:
+    """{(materia, codigo): ids das questões que a FILA DE TREINO aceita}.
 
-    Conjunto de ids, e não contagem de ligações: uma questão mista tem uma linha
-    por tópico, e contar linhas dentro do mesmo tópico é o que faria duas
-    ligações duplicadas inflarem o lastro sem nada na tela dizendo.
+    Respondível é o que `Treino.tsx::respondivel` deixa entrar na sessão, e são
+    três condições: `dissertativa = false`, gabarito não vazio e ao menos uma
+    alternativa. Contar só a primeira — como a versão anterior desta função
+    fazia — devolve um lastro maior do que a sessão consegue entregar: no acervo
+    de 04/09 são 92 objetivas que a fila descarta, 70 sem gabarito e 22 sem
+    alternativa. Prometer 10 sobre elas é a mentira de docs/35 §9.1 com outra
+    roupa: o cartão promete um número que a sessão não tem como cumprir.
+
+    Devolve os IDS, e não a contagem: uma questão tem uma linha por tópico, e é
+    o conjunto que deixa quem chama juntar tópicos — o denominador da razão faz
+    isso — sem contar ninguém duas vezes.
 
     Sem `.limit()` e sem paginação, como todo agregador de `app/banco/`: leitura
     truncada aqui devolveria um lastro menor do que o real e o tópico sumiria do
     sorteio sem erro nenhum (armadilha 2 do CLAUDE.md).
     """
-    objetivas = {
+    respondiveis = {
         linha["id"]
         for linha in (
             cliente.table("questao_vestibular")
-            .select("id")
+            # A alternativa é tabela filha (0028), não coluna: vem por embed do
+            # PostgREST, como em `consultas.py`. Só a letra — o que importa aqui
+            # é existir alguma, e o texto multiplicaria o payload por nada.
+            .select("id, gabarito, questao_vestibular_alternativa(letra)")
             .eq("dissertativa", False)
             .execute()
             .data
             or []
         )
+        # `.strip()` porque é assim que `dominio/banco.ts::temGabarito` decide:
+        # gabarito em branco não é letra a conferir, e a sessão pararia numa
+        # questão sem correção possível.
+        if (linha.get("gabarito") or "").strip()
+        and (linha.get("questao_vestibular_alternativa") or [])
     }
 
     ligacoes = (
@@ -146,15 +174,17 @@ def contar_objetivas_por_topico(cliente: Client) -> dict[tuple[str, str], int]:
 
     ids_por_topico: dict[tuple[str, str], set[str]] = defaultdict(set)
     for ligacao in ligacoes:
-        if ligacao["questao_id"] in objetivas:
+        if ligacao["questao_id"] in respondiveis:
             ids_por_topico[(ligacao["materia"], ligacao["topico_codigo"])].add(
                 ligacao["questao_id"]
             )
-    return {chave: len(ids) for chave, ids in ids_por_topico.items()}
+    # `dict` e não o defaultdict: quem consulta um tópico sem lastro deve levar
+    # o default explícito, não criar chave nova por leitura.
+    return dict(ids_por_topico)
 
 
 def topicos_elegiveis(
-    cliente: Client, objetivas_por_topico: dict[tuple[str, str], int]
+    cliente: Client, ids_por_topico: dict[tuple[str, str], set[str]]
 ) -> list[dict[str, Any]]:
     """Os tópicos que podem ser sorteados, em ordem canônica e estável.
 
@@ -174,16 +204,21 @@ def topicos_elegiveis(
         .data
         or []
     )
+    lastro = {
+        (linha["materia"], linha["codigo"]): len(
+            ids_por_topico.get((linha["materia"], linha["codigo"]), set())
+        )
+        for linha in linhas
+    }
     elegiveis = [
         {
             "materia": linha["materia"],
             "codigo": linha["codigo"],
             "nome": linha["nome"],
-            "objetivas": objetivas_por_topico.get((linha["materia"], linha["codigo"]), 0),
+            "respondiveis": lastro[(linha["materia"], linha["codigo"])],
         }
         for linha in linhas
-        if objetivas_por_topico.get((linha["materia"], linha["codigo"]), 0)
-        >= QUESTOES_DA_MISSAO
+        if lastro[(linha["materia"], linha["codigo"])] >= QUESTOES_DA_MISSAO
     ]
     indice_da_ordem = {
         (linha["materia"], linha["codigo"]): int(linha.get("ordem") or 0) for linha in linhas
@@ -233,7 +268,7 @@ def _permutacao_do_ciclo(quantos: int, ciclo: int) -> list[int]:
 # ─── A razão ─────────────────────────────────────────────────────────────
 
 
-def _razao(escolhido: dict[str, Any], objetivas_da_materia: int) -> str:
+def _razao(escolhido: dict[str, Any], respondiveis_da_materia: int) -> str:
     """Por que este assunto — e só o que é verificável.
 
     A frase antiga tinha duas metades ("Cai em 7% da prova do ITA. Você acerta
@@ -241,13 +276,18 @@ def _razao(escolhido: dict[str, Any], objetivas_da_materia: int) -> str:
     pessoal e não existe num desafio igual para todos (docs/35 §9.3).
 
     O denominador é a MATÉRIA, e não o acervo inteiro: "3% de tudo que já caiu"
-    misturaria Física com Química e não se leria sozinho.
+    misturaria Física com Química e não se leria sozinho. E é o MESMO conjunto
+    do numerador — questões que dá para treinar, não todas as objetivas —,
+    porque régua diferente nas duas pontas daria uma proporção que não é de
+    coisa nenhuma.
     """
-    fatia = escolhido["objetivas"] / objetivas_da_materia if objetivas_da_materia else 0
+    fatia = (
+        escolhido["respondiveis"] / respondiveis_da_materia if respondiveis_da_materia else 0
+    )
     percentual = round(fatia * 100)
     quanto = f"{percentual}%" if percentual >= 1 else "menos de 1%"
     return (
-        f"{quanto} das questões objetivas de {escolhido['materia']} no acervo de ITA e IME "
-        f"são deste assunto — {escolhido['objetivas']} no total. "
+        f"{quanto} das questões de {escolhido['materia']} que dá para treinar no acervo "
+        f"de ITA e IME são deste assunto — {escolhido['respondiveis']} no total. "
         "O desafio de hoje é o mesmo para toda a turma."
     )

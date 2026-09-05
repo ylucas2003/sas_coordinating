@@ -59,14 +59,6 @@ export const FONTES: Fonte[] = [
     telas: ['casco', 'Jornada'],
   },
   {
-    chave: 'trocarSenha',
-    estado: 'real',
-    descricao: 'Troca da própria senha',
-    doc: 'api/app/routes/me.py',
-    rotaFutura: 'POST /me/senha',
-    telas: ['casco (folha da conta)'],
-  },
-  {
     chave: 'fotoDePerfil',
     estado: 'real',
     descricao: 'Foto de perfil do aluno, por rota autenticada',
@@ -230,12 +222,16 @@ export const FONTES: Fonte[] = [
     rotaFutura: 'GET/POST /chat/threads…',
     telas: ['Tio Léo'],
   },
+  // A entrada do ALUNO é só o SSO do Canvas desde 04/09 (docs/35 §11.5): a
+  // matrícula + senha e o `/auth/primeiro-acesso` saíram, e `POST /auth/login`
+  // recusa `tipo == "aluno"` (routes/auth.py). Fica na linha porque a tela de
+  // Login continua sendo uma só — o outro lado dela é a coordenação.
   {
     chave: 'autenticacao',
     estado: 'real',
-    descricao: 'Login por matrícula e senha, primeiro acesso e SSO do Canvas',
-    doc: 'api/app/routes/auth.py',
-    rotaFutura: 'POST /auth/login · /auth/primeiro-acesso · /auth/canvas',
+    descricao: 'SSO do Canvas para o aluno — a coordenação entra por senha, na mesma tela',
+    doc: 'api/app/routes/auth_canvas.py',
+    rotaFutura: 'GET /auth/canvas/iniciar · /auth/canvas/callback · POST /auth/login (coordenação)',
     telas: ['Login'],
   },
 

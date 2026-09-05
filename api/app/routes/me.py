@@ -16,9 +16,8 @@ decisão inteira refeita, não descomentando uma rota.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
 
-from ..auth import get_current_aluno, hash_senha, verificar_senha
+from ..auth import get_current_aluno
 from ..stats.aluno_dados import (
     detalhe_simulado_do_aluno,
     evolucao_do_aluno,
@@ -42,39 +41,20 @@ def _ou_404(resultado: dict) -> dict:
 
 
 # ── Conta ─────────────────────────────────────────────────────────────────
-
-
-class TrocarSenhaBody(BaseModel):
-    senha_atual: str
-    senha_nova: str
-
-    @field_validator("senha_nova")
-    @classmethod
-    def _senha_minima(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("a senha precisa ter pelo menos 8 caracteres")
-        return v
-
-
-@router.post("/senha")
-async def me_trocar_senha(body: TrocarSenhaBody, user: dict = Depends(get_current_aluno)) -> dict:
-    cliente = get_supabase()
-    resp = (
-        cliente.table("aluno")
-        .select("id, senha_hash")
-        .eq("id", user["aluno_id"])
-        .limit(1)
-        .execute()
-    )
-    # 400 (não 401): o http-client do front desloga a sessão em qualquer 401,
-    # e errar a senha atual não pode derrubar o aluno logado.
-    if not resp.data or not verificar_senha(body.senha_atual, resp.data[0].get("senha_hash")):
-        raise HTTPException(status_code=400, detail="Senha atual incorreta")
-
-    cliente.table("aluno").update(
-        {"senha_hash": hash_senha(body.senha_nova)}
-    ).eq("id", user["aluno_id"]).execute()
-    return {"ok": True}
+# A rota POST /me/senha SAIU em 04/09 (docs/35 §11.5), junto com a folha
+# "Trocar senha" da área do aluno (`telas/Aluno/CascoAluno.tsx`).
+#
+# Ela não estava só obsoleta, estava quebrada dos dois lados: para quem nunca
+# teve hash — a maioria — `verificar_senha(atual, None)` é False, então ela
+# respondia "Senha atual incorreta" sempre; e para os poucos com hash antigo
+# funcionava, dizia "Senha alterada." e gravava uma credencial que não
+# autentica em lugar nenhum, porque o aluno entra só pelo Canvas.
+#
+# Com ela fora, nenhuma ROTA escreve mais em `aluno.senha_hash` — a outra que
+# escrevia era `/alunos/{id}/resetar-acesso`, extinta no mesmo dia. Sobrou só
+# `scripts/criar_acesso.py --matricula`, que grava um hash que hoje não
+# autentica ninguém (ver o docstring de `app/auth.py`). A coluna fica com o que
+# já tinha: apagar perde dado e não devolve nada.
 
 
 # ── Perfil e dados (proxies das funções de /alunos) ───────────────────────

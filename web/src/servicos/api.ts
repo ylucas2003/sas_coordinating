@@ -31,12 +31,10 @@ export const ssoCanvasDisponivel = () => get<{ disponivel: boolean }>('/auth/can
 export const login = (corpo: { tipo: string; usuario: string; senha: string }) =>
   post<RespostaAutenticacao>('/auth/login', corpo);
 
-/**
- * Primeiro acesso: o aluno cria a própria senha validando matrícula +
- * e-mail do Canvas. Devolve o mesmo shape do login — entra direto.
- */
-export const primeiroAcesso = (corpo: { matricula: string; email: string; senha_nova: string }) =>
-  post<RespostaAutenticacao>('/auth/primeiro-acesso', corpo);
+// `primeiroAcesso` SAIU em 04/09 (docs/35 §11.5), com a rota
+// `POST /auth/primeiro-acesso` que ela chamava: o aluno entra só pelo Canvas e
+// não há senha de aluno para criar. Ver `routes/auth.py` para a lápide do lado
+// do servidor.
 
 // ─── Alertas ─────────────────────────────────────────────────────────────
 
@@ -53,9 +51,10 @@ export const heatmapAluno = (id: string) => get<unknown>(`/alunos/${enc(id)}/hea
 export const alunosSimilares = (id: string, k = 5) =>
   get<unknown[]>(`/alunos/${enc(id)}/similares${qs({ k })}`);
 
-/** Zera a senha do aluno e libera um novo primeiro acesso (ação da staff). */
-export const resetarAcessoAluno = (id: string, corpo: { email?: string } = {}) =>
-  post<unknown>(`/alunos/${enc(id)}/resetar-acesso`, corpo);
+// `resetarAcessoAluno` SAIU em 04/09 com `POST /alunos/{id}/resetar-acesso`
+// (docs/35 §11.5, lápide em `routes/alunos.py`). Aluno sem acesso é aluno sem
+// `canvas_user_id`, e isso se resolve no Canvas — a listagem de quem entra
+// continua em `acessosDeAlunos`, mais abaixo.
 
 export interface RespostaFoto {
   fotoDataUrl: string | null;
@@ -74,13 +73,10 @@ export const streakMe = () => get<{ count: number; label: string }>('/me/streak'
 export const listarSimuladosMe = () => get<unknown[]>('/me/simulados');
 export const obterSimuladoMe = (id: string) => get<unknown>(`/me/simulado/${enc(id)}`);
 export const questoesSimuladoMe = (id: string) => get<unknown>(`/me/simulado/${enc(id)}/questoes`);
-/**
- * URL assinada, de curta duração, para o PDF da prova como foi aplicada. Rota
- * pronta desde sempre e sem tela até a área do aluno nova (docs/29 §A.5) — a
- * URL não se guarda em cache porque expira.
- */
-export const arquivoSimuladoMe = (id: string) =>
-  get<{ url: string; nomeArquivo: string }>(`/me/simulado/${enc(id)}/arquivo`);
+// `arquivoSimuladoMe` SAIU em 04/09 com `GET /me/simulado/{id}/arquivo`
+// (docs/35 §8b) — ela devolvia URL assinada do PDF da prova, e este projeto já
+// teve vulnerabilidade nascida de token de download (PR #7). A lápide inteira
+// está no docstring de `routes/me.py`.
 export const evolucaoMe = () => get<{ ciclos: unknown[]; materias: unknown }>('/me/evolucao');
 export const insightMe = () =>
   get<{
@@ -89,8 +85,8 @@ export const insightMe = () =>
     cicloNome: string | null;
     bullets: string[];
   }>('/me/insight');
-export const trocarSenhaMe = (corpo: { senha_atual: string; senha_nova: string }) =>
-  post<unknown>('/me/senha', corpo);
+// `trocarSenhaMe` SAIU em 04/09 com `POST /me/senha` (docs/35 §11.5): sem
+// senha de aluno, a folha só sabia responder "Senha atual incorreta".
 
 /**
  * Foto de perfil — a MESMA rota para aluno e coordenação (routes/foto_perfil.py

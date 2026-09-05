@@ -16,7 +16,7 @@
      `npm test` falha se esta seção divergir do registro. Para mudar,
      mude o registro e rode `npm run inventario` dentro de web/. -->
 
-## 1 · LIGADO — 22 fontes
+## 1 · LIGADO — 21 fontes
 
 O endpoint existe e a tela consome de verdade. Nada aqui é mock.
 
@@ -34,7 +34,6 @@ O endpoint existe e a tela consome de verdade. Nada aqui é mock.
 | Fonte | O que é | Rota que alimenta | Em que telas aparece |
 |---|---|---|---|
 | `aluno` | Nome, turma, e-mail e foto do aluno logado | `GET /me` | casco, Jornada |
-| `trocarSenha` | Troca da própria senha | `POST /me/senha` | casco (folha da conta) |
 | `fotoDePerfil` | Foto de perfil do aluno, por rota autenticada | `GET/PUT/DELETE /me/foto` | casco |
 | `simulados` | Simulados do aluno com nota, delta contra o próprio padrão e média da turma | `GET /me/simulados` | Hoje, Provas, Jornada |
 | `simulado` | Ficha de um simulado: posição, percentil e comparação com grupos | `GET /me/simulado/{id}` | Hoje, Provas, Ficha do simulado |
@@ -53,7 +52,7 @@ O endpoint existe e a tela consome de verdade. Nada aqui é mock.
 | `origemDaResolucao` | Se a resolução é do professor do Ari ou foi gerada por LLM no pipeline | `resolucaoOrigem em GET /banco/questoes` | Questão em tela cheia, Sessão de treino |
 | `missaoDoDia` | O assunto do dia com 10 questões — o herói da aba Hoje, igual para toda a turma | `GET /missao/hoje` | Hoje, Sessão de treino |
 | `conversaTioLeo` | Threads, streaming SSE e as 6 tools do aluno | `GET/POST /chat/threads…` | Tio Léo |
-| `autenticacao` | Login por matrícula e senha, primeiro acesso e SSO do Canvas | `POST /auth/login · /auth/primeiro-acesso · /auth/canvas` | Login |
+| `autenticacao` | SSO do Canvas para o aluno — a coordenação entra por senha, na mesma tela | `GET /auth/canvas/iniciar · /auth/canvas/callback · POST /auth/login (coordenação)` | Login |
 | `respostaNoTreino` | A alternativa que o aluno escolheu no treino e se ela bate com o gabarito | `PUT /banco/estudo/{id} · alternativaEscolhida` | Sessão de treino, Resumo do treino |
 
 ## 2 · DADO EXISTE, ROTA NÃO — 6 fontes

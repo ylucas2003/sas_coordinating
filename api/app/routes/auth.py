@@ -23,11 +23,12 @@ from collections import defaultdict
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request
+from postgrest.exceptions import APIError
 from pydantic import BaseModel
 
 from ..auditoria import registrar as auditar
 from ..auth import PAPEIS_DE_COORDENACAO, criar_token, verificar_senha
-from ..supabase_client import get_supabase
+from ..supabase_client import ClienteDados, get_supabase
 
 log = logging.getLogger("sas.auth")
 
@@ -76,6 +77,58 @@ _ERRO_ALUNO_ENTRA_PELO_CANVAS = (
     "tela de login. Não existe mais senha de aluno no SAS."
 )
 
+# O que o login precisa da conta, sem o `papel` — ver `_buscar_conta`.
+_COLUNAS_DA_CONTA = "id, nome, senha_hash, ativo, foto_perfil_storage"
+
+# `undefined_column` do Postgres (42703), que o PostgREST repassa como 400 e o
+# postgrest-py levanta como APIError. Verificado contra o PostgREST v12.2.3 do
+# compose: pedir uma coluna que a tabela não tem devolve
+# {"code":"42703", "message":"column usuario_coordenacao.papel does not exist"}.
+_ERRO_COLUNA_INEXISTENTE = "42703"
+
+
+def _buscar_conta(cliente: ClienteDados, email: str) -> dict | None:
+    """A conta de coordenação com esse e-mail, com `papel` quando a coluna existe.
+
+    O segundo SELECT existe porque a coluna `papel` (migration 0045) pode
+    simplesmente não estar na base contra a qual esta API roda: depois de
+    `migrations/0045_papel_usuario_coordenacao.down.sql`, numa base restaurada
+    de backup anterior a 04/09, ou num ambiente onde o `migrate up` ainda não
+    passou — o banco do compose de desenvolvimento está exatamente assim em
+    04/09 (`_migracoes_aplicadas` para na 0044), então quem subir esta branch
+    localmente sem `migrate up` cai aqui. Nesse estado o PostgREST recusa o
+    select INTEIRO com 42703, e o APIError sobe antes de qualquer tratamento
+    de papel: sem este retry, `/auth/login` devolve 500
+    para a coordenação inteira, que é justamente quem não tem segunda porta —
+    o aluno entra pelo Canvas, ela não.
+
+    Volta a linha sem a chave `papel`, e quem chama já trata a ausência como
+    coordenador — o papel menos poderoso.
+    """
+    try:
+        resp = (
+            cliente.table("usuario_coordenacao")
+            .select(f"{_COLUNAS_DA_CONTA}, papel")
+            .eq("email", email)
+            .limit(1)
+            .execute()
+        )
+    except APIError as erro:
+        if erro.code != _ERRO_COLUNA_INEXISTENTE:
+            raise
+        log.warning(
+            "usuario_coordenacao.papel nao existe nesta base (a 0045 nao esta "
+            "aplicada) — entrando como coordenador"
+        )
+        resp = (
+            cliente.table("usuario_coordenacao")
+            .select(_COLUNAS_DA_CONTA)
+            .eq("email", email)
+            .limit(1)
+            .execute()
+        )
+    return resp.data[0] if resp.data else None
+
 
 @router.post("/login")
 async def login(body: LoginBody, request: Request) -> dict:
@@ -95,14 +148,7 @@ async def login(body: LoginBody, request: Request) -> dict:
     # "coordenador" — é o que torna auditoria possível.
     cliente = get_supabase()
     email = body.usuario.strip().lower()
-    resp = (
-        cliente.table("usuario_coordenacao")
-        .select("id, nome, senha_hash, ativo, papel, foto_perfil_storage")
-        .eq("email", email)
-        .limit(1)
-        .execute()
-    )
-    usuario = resp.data[0] if resp.data else None
+    usuario = _buscar_conta(cliente, email)
     if not usuario or not usuario.get("ativo"):
         auditar(cliente, "login_falhou", ator_tipo="coordenador",
                 ator_id=email, ip=ip, detalhe={"motivo": "inexistente_ou_inativo"})
@@ -112,9 +158,12 @@ async def login(body: LoginBody, request: Request) -> dict:
                 ator_id=email, ip=ip, detalhe={"motivo": "senha_incorreta"})
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    # Fail-closed: papel desconhecido (ou NULL, numa base sem a 0045 aplicada)
-    # vale como coordenador. O CHECK da 0045 impede isso no banco; aqui é o
-    # cinto, para uma linha estranha não virar administrador por acidente.
+    # Fail-closed: papel desconhecido vale como coordenador — o papel MENOS
+    # poderoso. São dois casos, e os dois chegam aqui: a linha veio sem a chave
+    # `papel` (o fallback de `_buscar_conta`, base sem a 0045) ou veio com um
+    # valor que o guard não reconhece. O CHECK da 0045 impede o segundo no
+    # banco; isto aqui é o cinto, para uma linha estranha não virar
+    # administrador por acidente.
     papel = usuario.get("papel")
     if papel not in PAPEIS_DE_COORDENACAO:
         papel = "coordenador"

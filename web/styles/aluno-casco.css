@@ -416,7 +416,11 @@
   text-align: center;
 }
 
-/* ── A tarja de fonte (só em desenvolvimento) ─────────────────────────── */
+/* ── A tarja de fonte — ELA APARECE EM PRODUÇÃO ───────────────────────── */
+/* Não é mais enfeite de desenvolvimento: em 04/09 o
+   `if (!import.meta.env.DEV) return null` saiu de `TarjaFonte.tsx` (docs/35
+   §10), e desde então quem vê estas marcas é o aluno. Mexer aqui é mexer na
+   tela de ~900 pessoas. */
 
 .alu-tarja {
   position: absolute;
@@ -888,12 +892,6 @@
   margin: 0;
 }
 
-.alu-ok {
-  font-size: 13px;
-  color: var(--alu-dado);
-  font-weight: 600;
-  margin: 0;
-}
 
 /* ── Widgets da coluna lateral ────────────────────────────────────────── */
 

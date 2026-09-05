@@ -3,10 +3,17 @@
 Quem entra, e por onde (docs/35 §11):
 
 - **Aluno**: só pelo Canvas (`routes/auth_canvas.py`). Não existe mais senha de
-  aluno no SAS — o ramo `tipo == "aluno"` de `/auth/login` e a rota
-  `/auth/primeiro-acesso` saíram em 04/09. `verificar_senha` continua aqui
-  porque a coordenação usa, e `aluno.senha_hash` continua na tabela com os
-  hashes que já existiam: apagar coluna perde dado sem ganhar nada.
+  aluno no SAS — saíram em 04/09 o ramo `tipo == "aluno"` de `/auth/login`, a
+  rota `/auth/primeiro-acesso`, `/alunos/{id}/resetar-acesso` e `POST /me/senha`
+  (docs/35 §11.5). `verificar_senha` e `hash_senha` continuam aqui porque a
+  coordenação usa.
+  ⚠️ `aluno.senha_hash` virou FÓSSIL: guarda os hashes que já existiam, nenhuma
+  rota autentica por ela nem escreve nela — `/administracao/alunos-acesso` só a
+  lê como histórico (`primeiroAcessoFeito`) —, e o único escritor que restou é
+  o script de operação `scripts/criar_acesso.py --matricula`, que hoje grava
+  uma senha que não abre porta nenhuma. Quem for mexer ali: o caminho de acesso do
+  aluno é o `canvas_user_id`, não esta coluna. Ela fica porque apagar perde
+  dado sem ganhar nada.
 - **Coordenação**: e-mail + senha na tabela `usuario_coordenacao` (0021), com
   o `papel` da 0045 dizendo o que a conta pode a mais.
 - **Scheduler** (hoje o cron do VPS; o nome EventBridge é resíduo da migração):
