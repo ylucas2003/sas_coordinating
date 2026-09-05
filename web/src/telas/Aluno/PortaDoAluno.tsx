@@ -101,9 +101,13 @@ export function PortaDoAluno({ ssoCanvas, avisoCanvas, onIrParaCoordenacao }: Pr
             </p>
           )}
 
+          {/* Mesma correção do texto de `?canvas=sem-conta` no Login: o acesso
+              do aluno não é "liberado" por ninguém aqui dentro nem casado por
+              e-mail — ele nasce da matrícula no curso de simulados, que o sync
+              lê do Canvas a cada 5 min (05/09/2026). */}
           <p className="porta__ajuda">
-            Se o Canvas disser que você não tem acesso ao SAS, peça à coordenação para liberar
-            o seu — com o mesmo e-mail que está na sua conta do Canvas.
+            Se o Canvas disser que você não tem acesso ao SAS, confira com a coordenação a sua
+            matrícula no curso de simulados do ITA/IME — é dela que sai a lista de alunos daqui.
           </p>
 
           <button type="button" className="porta__coordenacao" onClick={onIrParaCoordenacao}>

@@ -161,6 +161,14 @@ class Query:
                 criados.append(linha)
             return Resp(criados)
         if self.op == "upsert":
+            # O upsert do PostgREST aceita lista — é assim que o sync grava
+            # aluno e matrícula (uma requisição por lote, não uma por aluno).
+            if isinstance(self.payload, list):
+                saida = []
+                for um in self.payload:
+                    q = Query(self.db, self.tabela, "upsert", um, **self.kw)
+                    saida.extend(q.execute().data)
+                return Resp(saida)
             item = dict(self.payload)
             # `on_conflict` pode ser COMPOSTO — "aluno_id,questao_id" é a PK de
             # `questao_estudo_aluno` (0029). A versão anterior comparava
@@ -182,8 +190,12 @@ class Query:
                 id_ = tuple(item.get(c) for c in chaves)
             else:
                 id_ = str(uuid.uuid4())
-            if len(chaves) == 1 and chaves[0] == "id":
-                item.setdefault("id", id_)
+            # Todo upsert devolve a linha com `id` — é dele que o sync monta
+            # matricula_turma a partir do lote de alunos, e que o ingest
+            # encadeia sede → turma. Tabela de chave composta sem coluna `id`
+            # no schema real (questao_estudo_aluno) ganha um id inócuo aqui:
+            # ninguém lê o que não existe no schema.
+            item.setdefault("id", id_ if isinstance(id_, str) else str(uuid.uuid4()))
             tabela[id_] = {**tabela.get(id_, {}), **item}
             return Resp([tabela[id_]])
         if self.op == "delete":

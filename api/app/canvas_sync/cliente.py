@@ -160,7 +160,12 @@ class ClienteCanvas:
             f"/courses/{course_id}/enrollments",
             params={
                 "type[]": ["StudentEnrollment"],
-                "state[]": ["active", "completed"],
+                # "invited" = convite ainda não aceito. Entra porque a conta do
+                # Canvas já existe e o aluno consegue logar nela — deixá-lo de
+                # fora repetia, em menor escala, o buraco das sections
+                # ignoradas (28 alunos no curso de 2026, 04/09/2026).
+                # "inactive"/"deleted" continuam fora: são matrícula desligada.
+                "state[]": ["active", "completed", "invited"],
                 "include[]": ["avatar_url"],
             },
         )
