@@ -345,7 +345,7 @@ O "P" de PWA não existe: sem `manifest.webmanifest`, sem `theme-color`, sem
 | `manifest.webmanifest` | `display: standalone`, cores vindas de `tokens.css` |
 | Ícones | 192, 512 e um **maskable** 512. `assets/sas-logo.png` é 201×88 — pequeno demais; provavelmente precisa do original vetorial |
 | `<meta name="theme-color">` | a barra do navegador acompanha a identidade |
-| Nome | ⚠️ o `<title>` é hoje **"SAS · coordenação ITM"**. Na tela inicial de um aluno isso está errado — o manifest precisa de `name`/`short_name` que façam sentido para ele |
+| Nome | ⚠️ o `<title>` é hoje **"SAS · coordenação ITA/IME"**. Na tela inicial de um aluno isso está errado — o manifest precisa de `name`/`short_name` que façam sentido para ele |
 | `vite-plugin-pwa` | dependência de **build**, não de runtime: não acrescenta terceiro à página, então passa na regra 6 |
 
 **Fora do escopo:** service worker com cache offline. Cachear tela de nota é

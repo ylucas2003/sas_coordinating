@@ -1,6 +1,6 @@
 ## SAS · web
 
-Frontend da coordenação ITM e da área do aluno. **React + TypeScript, build com Vite.**
+Frontend da coordenação ITA/IME e da área do aluno. **React + TypeScript, build com Vite.**
 
 ## Rodar localmente
 

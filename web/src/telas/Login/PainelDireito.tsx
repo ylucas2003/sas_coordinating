@@ -1,5 +1,4 @@
-import { MODOS } from './modos';
-import type { Modo } from './modos';
+import { ROTULOS_COORDENACAO } from './modos';
 
 import ariLogo from '../../../assets/ari-logo-branca.png';
 import sasLogo from '../../../assets/sas-logo.png';
@@ -12,9 +11,16 @@ const ESTATISTICAS = [
   { num: '12,4', em: 'mil', label: 'Alunos ativos' },
 ];
 
-/** Coluna institucional do login: marca, selo e a manchete que muda com o modo. */
-export function PainelDireito({ modo, geracao }: { modo: Modo; geracao: number }) {
-  const m = MODOS[modo];
+/**
+ * Coluna institucional do login: marca, selo e manchete.
+ *
+ * ⚠️ Não recebe mais `modo`. A manchete mudava com ele, mas esta coluna só é
+ * desenhada no lado da coordenação — o lado do aluno é a `PortaDoAluno`, que
+ * ocupa a tela inteira. Com o formulário do aluno fora (docs/35 §11.5) o
+ * `modo` aqui tinha um único valor possível.
+ */
+export function PainelDireito({ geracao }: { geracao: number }) {
+  const m = ROTULOS_COORDENACAO;
 
   return (
     <div className="lp-right">

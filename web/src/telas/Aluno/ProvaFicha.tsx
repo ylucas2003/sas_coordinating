@@ -1,23 +1,25 @@
-import { useEffect, useState } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 
 import {
   type GruposComparacao,
   type QuestaoDoAluno,
-  useArquivoDoSimulado,
   useQuestoesDoSimulado,
   useSimulado,
 } from '../../dados/aluno';
-import { ErroApi } from '../../servicos/http';
 import { Bloco } from './pecas/Bloco';
 import { FichaXp, Icone } from './pecas/Icone';
 import { fmt, fmtDataLonga, fmtDelta, fmtDuracao, fmtInteiro } from './pecas/formato';
 
 // A FICHA DE UM SIMULADO — a nota, contra quem, e questão por questão.
 //
-// Três fontes, as três REAIS: `/me/simulado/{id}`, `/me/simulado/{id}/questoes`
-// e `/me/simulado/{id}/arquivo`. A última estava pronta e sem tela nenhuma
-// desde sempre (docs/29 §A.5) e entra aqui pela primeira vez.
+// Duas fontes, as duas REAIS: `/me/simulado/{id}` e `/me/simulado/{id}/questoes`.
+//
+// ⚠️ Havia uma terceira, e ela SAIU em 04/09 (docs/35 §8b): o botão "Abrir a
+// prova" pedia uma URL assinada de vida curta em `/me/simulado/{id}/arquivo` e
+// abria o PDF em aba nova. O pedido foi tirar o acesso do aluno à prova, e a
+// ROTA saiu junto com o botão — porta fechada é melhor que porta sem maçaneta,
+// ainda mais neste projeto, que já teve uma vulnerabilidade nascida de token de
+// download (PR #7).
 //
 // ⚠️ A rota das questões distingue DOIS silêncios diferentes, e juntá-los num
 // "sem dados" apagaria a informação mais útil: `temGabarito: false` é o simulado
@@ -102,12 +104,14 @@ export function ProvaFicha() {
           </div>
         </dl>
 
+        {/* Uma ação só desde 04/09, e a barra continua sendo barra: o extrato
+            é o caminho para "de onde veio esta nota", e era ele que dividia
+            espaço com o "Abrir a prova" (docs/35 §8b). */}
         <div className="alu-provas__acoes">
           <NavLink className="alu-tecla alu-tecla--valor" to={`/provas/${s.id}/extrato`}>
             <FichaXp tamanho={18} />
             Ver o extrato
           </NavLink>
-          <BotaoDaProva id={s.id} />
         </div>
       </Bloco>
 
@@ -123,79 +127,6 @@ function VoltarParaProvas() {
       <Icone nome="voltar" tamanho={16} />
       Provas
     </NavLink>
-  );
-}
-
-// ─── O PDF da prova ──────────────────────────────────────────────────────
-
-/**
- * "Abrir a prova".
- *
- * A consulta só liga no clique, e o `enabled` do hook existe justamente para
- * isso: a URL é assinada e de vida curta, então pedir uma que ninguém vai abrir
- * é gastar assinatura à toa e guardar a resposta é servir um 403 depois.
- *
- * ⚠️ O PDF NUNCA é embutido — pdf.js está fora por decisão (docs/27 §6). Ele
- * abre em aba nova, no leitor do próprio aparelho.
- */
-function BotaoDaProva({ id }: { id: string }) {
-  const [pediu, setPediu] = useState(false);
-  const [bloqueada, setBloqueada] = useState(false);
-  const arquivo = useArquivoDoSimulado(id, pediu);
-
-  const url = arquivo.data?.url;
-
-  useEffect(() => {
-    if (!url) return;
-    // A abertura automática só funciona quando o navegador ainda enxerga o
-    // clique que a originou. Como a URL chega DEPOIS da requisição, o Safari e
-    // o Chrome do celular costumam bloquear — por isso o retorno de
-    // `window.open` é conferido e um link de verdade fica na tela como saída.
-    const janela = window.open(url, '_blank', 'noopener');
-    if (!janela) setBloqueada(true);
-  }, [url]);
-
-  // 404 aqui é sempre "esta prova não tem arquivo publicado": a rota já garante
-  // que o aluno tem nota no simulado antes de olhar o storage
-  // (aluno_dados.py::arquivo_do_simulado_do_aluno). Dizer isso é melhor que
-  // sumir com o botão sem explicação.
-  if (arquivo.isError) {
-    const semArquivo = arquivo.error instanceof ErroApi && arquivo.error.status === 404;
-    return (
-      <p className="alu-provas__aviso">
-        {semArquivo
-          ? 'A prova em PDF ainda não foi publicada para este simulado.'
-          : 'Não deu para abrir a prova agora. Tente de novo em instantes.'}
-      </p>
-    );
-  }
-
-  if (url) {
-    return (
-      <span className="alu-provas__pdf">
-        <a className="alu-tecla alu-tecla--fantasma" href={url} target="_blank" rel="noreferrer">
-          <Icone nome="documento" tamanho={18} />
-          Abrir a prova
-        </a>
-        {bloqueada && (
-          <span className="alu-provas__aviso">
-            O navegador bloqueou a aba nova — toque no botão para abrir.
-          </span>
-        )}
-      </span>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className="alu-tecla alu-tecla--fantasma"
-      disabled={pediu}
-      onClick={() => setPediu(true)}
-    >
-      <Icone nome="documento" tamanho={18} />
-      {pediu ? 'Abrindo…' : 'Abrir a prova'}
-    </button>
   );
 }
 

@@ -138,8 +138,19 @@ export interface Alerta {
   sparkline: number[];
 }
 
-/** Quem está logado — decidido pelo tipo do JWT, guardado no sessionStorage. */
-export type TipoSessao = 'aluno' | 'coordenador';
+/**
+ * Quem está logado, guardado no sessionStorage (docs/35 §11).
+ *
+ * São TRÊS papéis e duas portas: o aluno entra só pelo Canvas, a coordenação
+ * só por e-mail + senha, e o administrador é uma conta de coordenação que pode
+ * mais — criar login e alterar nota pelo painel.
+ *
+ * ⚠️ No JWT o administrador continua com `tipo: "coordenador"` e um claim
+ * `papel` separado; é o front que junta os dois num valor só, porque aqui a
+ * pergunta é sempre "o que esta pessoa vê". Ver `servicos/sessao.ts` e o ⚠️ de
+ * `api/app/auth.py`.
+ */
+export type TipoSessao = 'aluno' | 'coordenador' | 'administrador';
 
 // ─── Respostas de estatística ────────────────────────────────────────────
 // Formatos devolvidos pelas rotas de análise. Não são entidades do banco:
@@ -378,8 +389,8 @@ export interface UsuarioCoordenacao {
   ativo: boolean;
   criado_em?: string;
   ultimo_login_em: string | null;
-  /** id no Canvas — liga a conta ao SSO. `null` = só e-mail + senha. */
-  canvas_user_id: string | null;
+  /** 'coordenador' ou 'administrador' (migration 0045). */
+  papel: string;
   temFoto: boolean;
 }
 
@@ -388,7 +399,12 @@ export interface AcessoAluno {
   nome: string;
   matricula: string | null;
   email: string | null;
+  /** Tem `canvas_user_id`. Desde 04/09 é o que decide se o aluno consegue entrar. */
   temCanvas: boolean;
+  /**
+   * Histórico: tinha senha no SAS antes de a senha de aluno acabar. Congelado
+   * em 04/09 e nunca mais muda — não use para decidir nada (docs/35 §11.5).
+   */
   primeiroAcessoFeito: boolean;
   temFoto: boolean;
   ultimoLoginEm: string | null;
@@ -396,6 +412,9 @@ export interface AcessoAluno {
 
 export interface PainelAcessos {
   total: number;
+  /** Quantos conseguem entrar hoje. O resto está de fora até o Canvas ligar. */
+  comCanvas: number;
+  /** Fóssil do tempo da senha de aluno — ver `AcessoAluno.primeiroAcessoFeito`. */
   comAcesso: number;
   alunos: AcessoAluno[];
 }

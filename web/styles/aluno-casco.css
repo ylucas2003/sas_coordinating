@@ -64,7 +64,13 @@
    seis papéis, e é de propósito.
 
    O asset é nosso e é servido da nossa origem: nada de CDN (regra 6 do
-   CLAUDE.md, dados de menores de idade). */
+   CLAUDE.md, dados de menores de idade).
+
+   ⚠️ Há UMA exceção à troca por tema: dentro de `.porta` (o login) a marca é
+   sempre branca, porque a cena do amanhecer é escura nos dois temas. Quem
+   manda lá é `aluno-login.css`, e a regra de lá precisa de mais peso que as
+   três abaixo para vencer — mexer na especificidade destas quebra o login
+   (docs/35 §8). */
 .alu-marca {
   --marca-cor: #1b3f8b;
   width: 62px;
@@ -410,7 +416,11 @@
   text-align: center;
 }
 
-/* ── A tarja de fonte (só em desenvolvimento) ─────────────────────────── */
+/* ── A tarja de fonte — ELA APARECE EM PRODUÇÃO ───────────────────────── */
+/* Não é mais enfeite de desenvolvimento: em 04/09 o
+   `if (!import.meta.env.DEV) return null` saiu de `TarjaFonte.tsx` (docs/35
+   §10), e desde então quem vê estas marcas é o aluno. Mexer aqui é mexer na
+   tela de ~900 pessoas. */
 
 .alu-tarja {
   position: absolute;
@@ -882,12 +892,6 @@
   margin: 0;
 }
 
-.alu-ok {
-  font-size: 13px;
-  color: var(--alu-dado);
-  font-weight: 600;
-  margin: 0;
-}
 
 /* ── Widgets da coluna lateral ────────────────────────────────────────── */
 

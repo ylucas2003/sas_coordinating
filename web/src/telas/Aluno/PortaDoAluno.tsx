@@ -1,9 +1,3 @@
-import { useState } from 'react';
-
-import * as api from '../../servicos/api';
-import { ErroApi } from '../../servicos/http';
-import { Icone } from './pecas/Icone';
-
 // A PORTA DO ALUNO — a tela de login inteira, não só uma ilustração.
 //
 // É a ÚNICA tela do produto que pode ser ilustrada, e o motivo da ilustração é
@@ -17,10 +11,23 @@ import { Icone } from './pecas/Icone';
 // escala — não são duas decisões (brief §Restrições).
 //
 // ⚠️ ESTA TELA SUBSTITUI O LOGIN INTEIRO quando o modo é 'aluno'. O modo
-// 'coordenador' segue renderizando o `.lp` institucional de `Login.tsx`, sem
-// uma linha alterada — são ~900 alunos contra uma dúzia de coordenadores, e por
-// isso o padrão é esta porta, com a passagem para o outro lado num link
-// discreto no rodapé.
+// 'coordenador' segue renderizando o `.lp` institucional de `Login.tsx` — são
+// ~900 alunos contra uma dúzia de coordenadores, e por isso o padrão é esta
+// porta, com a passagem para o outro lado num link discreto no rodapé.
+//
+// ⚠️ NÃO HÁ MAIS FORMULÁRIO AQUI (docs/35 §11.5). Saíram os dois: o de
+// matrícula + senha e o de "primeiro acesso / esqueci a senha". O aluno entra
+// só pelo Canvas, com a conta que ele já usa nas aulas — não existe mais senha
+// de aluno no SAS para digitar, criar ou redefinir.
+//
+// O que sobrou tem de PARECER UMA PORTA, e não o resto de uma tela que tinha
+// mais coisa. É por isso que o painel não é só um botão solto: ele diz de qual
+// conta se trata (a mesma do Canvas), o que fazer quando o Canvas recusa, e
+// quem procurar. O texto ocupa o lugar que os campos ocupavam — de propósito.
+//
+// ⚠️ Consequência que veio junto e não tem contorno: Canvas fora do ar =
+// ninguém entra. É o que o `else` do botão precisa dizer com todas as letras,
+// em vez de sumir e deixar a porta vazia.
 //
 // ⚠️ NÃO existe gancho de retorno personalizado ("sua sequência de 12 está
 // esperando"), embora ele apareça na imagem de referência. A ausência é
@@ -33,17 +40,7 @@ import { Icone } from './pecas/Icone';
 // "2.693 questões"): não vêm de dado nenhum, e a régua do brief é explícita —
 // nenhum número institucional inventado.
 
-/** O mesmo shape que `/auth/login` e `/auth/primeiro-acesso` devolvem. */
-export interface DadosDeSessao {
-  access_token: string;
-  tipo: string;
-  nome: string;
-  aluno_id?: string;
-  temFoto: boolean;
-}
-
 interface Props {
-  onEntrar: (dados: DadosDeSessao) => void;
   /** O botão do Canvas só existe se o servidor tiver a Developer Key. */
   ssoCanvas: boolean;
   /** Aviso de volta do SSO ("o Canvas recusou o login…"), quando houver. */
@@ -51,18 +48,7 @@ interface Props {
   onIrParaCoordenacao: () => void;
 }
 
-/**
- * Os dois links do rodapé caem no MESMO formulário, e isso não é atalho: a
- * rota `/auth/primeiro-acesso` serve os dois casos, porque a validação é a
- * mesma — matrícula mais o e-mail do Canvas (`api/app/routes/auth.py`). O que
- * muda é só o que o aluno acha que está fazendo, e é por isso que o título e o
- * botão mudam junto.
- */
-type Formulario = 'login' | 'primeiro-acesso' | 'esqueci';
-
-export function PortaDoAluno({ onEntrar, ssoCanvas, avisoCanvas, onIrParaCoordenacao }: Props) {
-  const [formulario, setFormulario] = useState<Formulario>('login');
-
+export function PortaDoAluno({ ssoCanvas, avisoCanvas, onIrParaCoordenacao }: Props) {
   return (
     <div className="porta">
       <div className="porta__cena-caixa">
@@ -72,7 +58,10 @@ export function PortaDoAluno({ onEntrar, ssoCanvas, avisoCanvas, onIrParaCoorden
           {/* A marca do colégio, não um selo inventado. A versão branca é a
               que o repositório já tem e é exatamente a que este fundo pede. */}
           <span className="alu-marca alu-marca--grande" role="img" aria-label="Colégio Ari de Sá" />
-          <span className="porta__marca-sub">Turma ITM</span>
+          {/* "ITM" não existe em lugar nenhum do dado: a `trilha` das turmas
+              reais é ITA e o `section_original` vem do Canvas como "3o ITA AD"
+              / "3o ITA MF" (docs/35 §7). */}
+          <span className="porta__marca-sub">Turma ITA/IME</span>
         </div>
 
         <h1 className="porta__manchete">
@@ -84,22 +73,38 @@ export function PortaDoAluno({ onEntrar, ssoCanvas, avisoCanvas, onIrParaCoorden
 
       <div className="porta__painel">
         <div className="porta__painel-interno">
-          {avisoCanvas && <p className="porta__erro">{avisoCanvas}</p>}
-
-          {formulario === 'login' ? (
-            <FormularioDeEntrada
-              ssoCanvas={ssoCanvas}
-              onEntrar={onEntrar}
-              onPrimeiroAcesso={() => setFormulario('primeiro-acesso')}
-              onEsqueci={() => setFormulario('esqueci')}
-            />
-          ) : (
-            <FormularioDeSenha
-              esqueci={formulario === 'esqueci'}
-              onEntrar={onEntrar}
-              onVoltar={() => setFormulario('login')}
-            />
+          {avisoCanvas && (
+            <p className="porta__erro" role="alert">
+              {avisoCanvas}
+            </p>
           )}
+
+          <div className="porta__cabecalho">
+            <h2 className="porta__titulo">Entrar</h2>
+            <p className="porta__ajuda">
+              Você entra com a <b>mesma conta do Canvas</b> que usa nas aulas. Não há senha
+              separada aqui — se já estiver logado no Canvas, a porta abre direto.
+            </p>
+          </div>
+
+          {ssoCanvas ? (
+            /* Link, e não `fetch`: o browser precisa NAVEGAR até o Canvas e
+               voltar. É o que faz "quem já está logado no Canvas entra
+               direto" funcionar. */
+            <a className="alu-tecla alu-tecla--larga" href="/api/auth/canvas/iniciar?proximo=/">
+              Entrar com o Canvas
+            </a>
+          ) : (
+            <p className="porta__erro" role="alert">
+              O login pelo Canvas está fora do ar no momento, e ele é o único caminho de entrada
+              do aluno. Tente de novo em alguns minutos.
+            </p>
+          )}
+
+          <p className="porta__ajuda">
+            Se o Canvas disser que você não tem acesso ao SAS, peça à coordenação para liberar
+            o seu — com o mesmo e-mail que está na sua conta do Canvas.
+          </p>
 
           <button type="button" className="porta__coordenacao" onClick={onIrParaCoordenacao}>
             Sou da coordenação
@@ -107,248 +112,6 @@ export function PortaDoAluno({ onEntrar, ssoCanvas, avisoCanvas, onIrParaCoorden
         </div>
       </div>
     </div>
-  );
-}
-
-// ─── Formulários ─────────────────────────────────────────────────────────
-
-/** Um 401 sem `detail` viraria "POST /auth/login → 401" — texto de log, não de tela. */
-function mensagemDeErro(erro: unknown, padrao: string): string {
-  if (erro instanceof ErroApi && erro.message && !erro.message.includes('→')) return erro.message;
-  return padrao;
-}
-
-function FormularioDeEntrada({
-  ssoCanvas,
-  onEntrar,
-  onPrimeiroAcesso,
-  onEsqueci,
-}: {
-  ssoCanvas: boolean;
-  onEntrar: (dados: DadosDeSessao) => void;
-  onPrimeiroAcesso: () => void;
-  onEsqueci: () => void;
-}) {
-  const [matricula, setMatricula] = useState('');
-  const [senha, setSenha] = useState('');
-  const [verSenha, setVerSenha] = useState(false);
-  const [erro, setErro] = useState('');
-  const [enviando, setEnviando] = useState(false);
-
-  async function enviar(ev: React.FormEvent) {
-    ev.preventDefault();
-    setErro('');
-    setEnviando(true);
-    try {
-      onEntrar(await api.login({ tipo: 'aluno', usuario: matricula.trim(), senha }));
-    } catch (e) {
-      setErro(mensagemDeErro(e, 'Matrícula ou senha incorreta. Confira e tente de novo.'));
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  return (
-    <form className="porta__form" noValidate onSubmit={enviar}>
-      <Campo
-        rotulo="Matrícula"
-        tipo="text"
-        placeholder="sua matrícula"
-        autoComplete="username"
-        valor={matricula}
-        onChange={setMatricula}
-      />
-
-      <label className="porta__campo">
-        <span className="porta__rotulo">Senha</span>
-        <span className="porta__campo-caixa">
-          <input
-            className="porta__input"
-            type={verSenha ? 'text' : 'password'}
-            placeholder="sua senha"
-            autoComplete="current-password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-          />
-          <button
-            type="button"
-            className="porta__olho"
-            onClick={() => setVerSenha((v) => !v)}
-            aria-label={verSenha ? 'Ocultar a senha' : 'Mostrar a senha'}
-          >
-            <Icone nome={verSenha ? 'olho_fechado' : 'olho'} tamanho={20} />
-          </button>
-        </span>
-      </label>
-
-      {erro && (
-        <p className="porta__erro" role="alert">
-          {erro}
-        </p>
-      )}
-
-      <button className="alu-tecla alu-tecla--larga" type="submit" disabled={enviando}>
-        {enviando ? 'Entrando…' : 'Entrar'}
-      </button>
-
-      {/* Link, e não `fetch`: o browser precisa NAVEGAR até o Canvas e voltar.
-          É o que faz "quem já está logado no Canvas entra direto" funcionar. */}
-      {ssoCanvas && (
-        <a className="alu-tecla alu-tecla--fantasma alu-tecla--larga" href="/api/auth/canvas/iniciar?proximo=/">
-          Entrar com o Canvas
-        </a>
-      )}
-
-      <p className="porta__links">
-        <button type="button" className="porta__link" onClick={onPrimeiroAcesso}>
-          Primeiro acesso
-        </button>
-        <span aria-hidden="true">·</span>
-        <button type="button" className="porta__link" onClick={onEsqueci}>
-          Esqueci a senha
-        </button>
-      </p>
-    </form>
-  );
-}
-
-/**
- * Criar a primeira senha, ou redefinir a esquecida — o mesmo formulário e a
- * mesma rota (ver o comentário do tipo `Formulario`).
- *
- * ⚠️ Todas as falhas do servidor devolvem a MESMA mensagem, de propósito: é o
- * que impede a tela de dizer se uma matrícula existe ou se o e-mail está certo
- * (`auth.py`). Não "melhore" o erro aqui distinguindo os casos.
- */
-function FormularioDeSenha({
-  esqueci,
-  onEntrar,
-  onVoltar,
-}: {
-  esqueci: boolean;
-  onEntrar: (dados: DadosDeSessao) => void;
-  onVoltar: () => void;
-}) {
-  const [matricula, setMatricula] = useState('');
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [confirmar, setConfirmar] = useState('');
-  const [erro, setErro] = useState('');
-  const [enviando, setEnviando] = useState(false);
-
-  async function enviar(ev: React.FormEvent) {
-    ev.preventDefault();
-    setErro('');
-    if (!matricula.trim() || !email.trim()) return setErro('Preencha a matrícula e o e-mail.');
-    if (senha.length < 8) return setErro('A senha precisa ter pelo menos 8 caracteres.');
-    if (senha !== confirmar) return setErro('As senhas não conferem.');
-
-    setEnviando(true);
-    try {
-      onEntrar(
-        await api.primeiroAcesso({
-          matricula: matricula.trim(),
-          email: email.trim(),
-          senha_nova: senha,
-        }),
-      );
-    } catch (e) {
-      setErro(mensagemDeErro(e, 'Não foi possível validar seus dados.'));
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  return (
-    <form className="porta__form" noValidate onSubmit={enviar}>
-      <div className="porta__cabecalho">
-        <h2 className="porta__titulo">{esqueci ? 'Redefinir a senha' : 'Primeiro acesso'}</h2>
-        <p className="porta__ajuda">
-          Confirme sua matrícula e o e-mail que está no Canvas, e escolha uma senha nova.
-        </p>
-      </div>
-
-      <Campo
-        rotulo="Matrícula"
-        tipo="text"
-        placeholder="sua matrícula"
-        autoComplete="username"
-        valor={matricula}
-        onChange={setMatricula}
-      />
-      <Campo
-        rotulo="E-mail cadastrado no Canvas"
-        tipo="email"
-        placeholder="seu e-mail institucional"
-        autoComplete="email"
-        valor={email}
-        onChange={setEmail}
-      />
-      <Campo
-        rotulo="Nova senha"
-        tipo="password"
-        placeholder="mínimo 8 caracteres"
-        autoComplete="new-password"
-        valor={senha}
-        onChange={setSenha}
-      />
-      <Campo
-        rotulo="Confirmar a nova senha"
-        tipo="password"
-        placeholder="repita a senha"
-        autoComplete="new-password"
-        valor={confirmar}
-        onChange={setConfirmar}
-      />
-
-      {erro && (
-        <p className="porta__erro" role="alert">
-          {erro}
-        </p>
-      )}
-
-      <button className="alu-tecla alu-tecla--larga" type="submit" disabled={enviando}>
-        {enviando ? 'Validando…' : 'Criar senha e entrar'}
-      </button>
-
-      <p className="porta__links">
-        <button type="button" className="porta__link" onClick={onVoltar}>
-          Voltar para o login
-        </button>
-      </p>
-    </form>
-  );
-}
-
-function Campo({
-  rotulo,
-  tipo,
-  placeholder,
-  autoComplete,
-  valor,
-  onChange,
-}: {
-  rotulo: string;
-  tipo: string;
-  placeholder: string;
-  autoComplete: string;
-  valor: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="porta__campo">
-      <span className="porta__rotulo">{rotulo}</span>
-      <span className="porta__campo-caixa">
-        <input
-          className="porta__input"
-          type={tipo}
-          placeholder={placeholder}
-          autoComplete={autoComplete}
-          value={valor}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </span>
-    </label>
   );
 }
 

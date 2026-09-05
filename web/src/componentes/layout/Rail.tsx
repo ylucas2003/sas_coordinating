@@ -27,7 +27,7 @@ export function Rail() {
         </span>
         <span className="rail__marca-texto">
           <span className="rail__marca-nome">SAS</span>
-          <span className="rail__marca-sub">coordenação ITM</span>
+          <span className="rail__marca-sub">coordenação ITA/IME</span>
         </span>
       </NavLink>
 

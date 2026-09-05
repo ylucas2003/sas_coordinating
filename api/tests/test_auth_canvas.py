@@ -1,9 +1,16 @@
-"""SSO pelo Canvas — o que dá para provar sem a Developer Key (docs/18 §4.2).
+"""SSO pelo Canvas — a porta única do aluno (docs/18 §4.2, docs/35 §11.5).
 
-O fluxo de redirect só é verificável de ponta a ponta com client_id/secret
-reais. O que se prova aqui: o `state` (CSRF) é assinado, expira, e nunca
-vira open redirect; e o mapeamento canvas_user_id → sessão prefere
-coordenador a aluno e recusa quem não existe.
+O fluxo de redirect inteiro só é verificável com client_id/secret reais (e foi:
+rodou em produção em 04/09). O que se prova aqui é o que não depende do Canvas:
+o `state` (CSRF) é assinado, expira e nunca vira open redirect; e o mapeamento
+canvas_user_id → sessão devolve ALUNO, e só aluno.
+
+⚠️ Este arquivo tinha cinco testes a mais, e todos provavam coisas que
+deixaram de existir: `_sessao_para` preferindo coordenador a aluno, e
+`_ligar_coordenador_pelo_email` casando conta de coordenação pelo e-mail no
+primeiro login. Os dois eram o SSO da coordenação, que saiu (docs/35 §11.6).
+No lugar deles entra o teste que fixa a regra nova: id de coordenação não abre
+sessão nenhuma por aqui.
 """
 
 from __future__ import annotations
@@ -51,65 +58,31 @@ class TestSessaoPara:
         return {
             "usuario_coordenacao": {
                 "c1": {"id": "c1", "nome": "Leo", "ativo": True, "canvas_user_id": "100"},
-                "c2": {"id": "c2", "nome": "Ex", "ativo": False, "canvas_user_id": "200"},
             },
             "aluno": {
                 "a1": {"id": "a1", "nome": "Ana", "ativo": True, "canvas_user_id": "300"},
-                "a2": {"id": "a2", "nome": "Dup", "ativo": True, "canvas_user_id": "100"},
+                "a2": {"id": "a2", "nome": "Inativa", "ativo": False, "canvas_user_id": "400"},
             },
         }
 
-    def test_coordenador_antes_de_aluno(self):
-        """Um coordenador também matriculado em curso entra como coordenador."""
-        token, tipo = auth_canvas._sessao_para(FakeCliente(self._db()), "100")
-        assert tipo == "coordenador" and token
-
     def test_aluno(self):
-        token, tipo = auth_canvas._sessao_para(FakeCliente(self._db()), "300")
+        token, tipo, ator_id = auth_canvas._sessao_para(FakeCliente(self._db()), "300")
         assert tipo == "aluno" and token
+        # O id do SAS, e NUNCA o "300" do Canvas: é por ele que a coluna
+        # "Último login" e o avatar da auditoria casam a trilha com o aluno.
+        # Enquanto isto gravou o número do Canvas, a coluna dizia "nunca" para
+        # todo mundo (docs/35 §11.5).
+        assert ator_id == "a1"
 
-    def test_coordenador_inativo_nao_entra(self):
-        assert auth_canvas._sessao_para(FakeCliente(self._db()), "200") == (None, None)
+    def test_coordenacao_nao_entra_pelo_canvas(self):
+        """A regra nova (docs/35 §11.6): o id 100 é de uma conta de
+        coordenação ATIVA e mesmo assim não abre sessão. Quem é da coordenação
+        entra por e-mail + senha, e só."""
+        assert auth_canvas._sessao_para(FakeCliente(self._db()), "100") == (None, None, None)
+
+    def test_aluno_inativo_nao_entra(self):
+        assert auth_canvas._sessao_para(FakeCliente(self._db()), "400") == (None, None, None)
 
     def test_identidade_sem_conta_e_recusada(self):
         """O Canvas diz quem é; o SAS decide quem entra. Sem linha, sem sessão."""
-        assert auth_canvas._sessao_para(FakeCliente(self._db()), "999") == (None, None)
-
-
-class TestLigarPeloEmail:
-    """Primeiro login pelo Canvas de quem ainda não tem canvas_user_id: casa
-    pelo e-mail e grava. O Canvas é simulado — o que se prova é a regra."""
-
-    def _db(self):
-        return {"usuario_coordenacao": {
-            "c1": {"id": "c1", "email": "leo@ari.com", "ativo": True, "canvas_user_id": None},
-            "c2": {"id": "c2", "email": "ex@ari.com", "ativo": False, "canvas_user_id": None},
-            "c3": {"id": "c3", "email": "ja@ari.com", "ativo": True, "canvas_user_id": "55"},
-        }, "evento_auditoria": {}}
-
-    def _com_email(self, monkeypatch, email):
-        async def fake(_id): return email
-        monkeypatch.setattr(auth_canvas.identidade, "email_pelo_id", fake)
-
-    def test_liga_conta_ativa_sem_id(self, monkeypatch):
-        import asyncio
-        db = self._db(); self._com_email(monkeypatch, "leo@ari.com")
-        assert asyncio.run(auth_canvas._ligar_coordenador_pelo_email(FakeCliente(db), "7387", None))
-        assert db["usuario_coordenacao"]["c1"]["canvas_user_id"] == "7387"
-
-    def test_nao_liga_inativa(self, monkeypatch):
-        import asyncio
-        db = self._db(); self._com_email(monkeypatch, "ex@ari.com")
-        assert not asyncio.run(auth_canvas._ligar_coordenador_pelo_email(FakeCliente(db), "1", None))
-
-    def test_nao_sobrescreve_quem_ja_tem_id(self, monkeypatch):
-        """Dois usuários do Canvas com o mesmo e-mail não podem disputar uma conta."""
-        import asyncio
-        db = self._db(); self._com_email(monkeypatch, "ja@ari.com")
-        assert not asyncio.run(auth_canvas._ligar_coordenador_pelo_email(FakeCliente(db), "99", None))
-        assert db["usuario_coordenacao"]["c3"]["canvas_user_id"] == "55"
-
-    def test_canvas_fora_do_ar_nao_liga(self, monkeypatch):
-        import asyncio
-        db = self._db(); self._com_email(monkeypatch, None)
-        assert not asyncio.run(auth_canvas._ligar_coordenador_pelo_email(FakeCliente(db), "7387", None))
+        assert auth_canvas._sessao_para(FakeCliente(self._db()), "999") == (None, None, None)

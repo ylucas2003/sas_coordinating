@@ -1,6 +1,6 @@
 ## SAS · api
 
-Backend da interface de coordenação ITM. **FastAPI + Supabase**.
+Backend da interface de coordenação ITA/IME. **FastAPI + Supabase**.
 
 > **Status:** scaffold inicial. As rotas existem com schemas Pydantic corretos, mas todas devolvem listas vazias / 404 — as queries no Supabase serão implementadas quando o banco for criado. Ver decisões pendentes 2, 3, 9, 10 e 11 em [../docs/06-open-questions.md](../docs/06-open-questions.md).
 

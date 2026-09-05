@@ -1,4 +1,4 @@
-"""Painel de administrador — gerenciar quem entra (docs/18 §4.6).
+"""Painel de administrador — gerenciar quem entra (docs/18 §4.6, docs/35 §11.7).
 
 Pedido pela coordenação em 21/08 ("vai ter um acesso para administrador?
 para poder gerenciar os logins?") e confirmado como prioridade em 22/08.
@@ -10,7 +10,14 @@ provisionamento, pela tela:
   * contas de coordenação: criar, renomear, desativar, redefinir senha;
   * alunos: quem já fez primeiro acesso, quem nunca entrou.
 
-Duas regras que não são detalhe:
+⚠️ **O arquivo é DIVIDIDO, não promovido inteiro.** O router exige coordenação
+(o piso); só as rotas de CONTA exigem administrador, uma a uma. A listagem de
+acesso dos alunos é trabalho diário de coordenação — promovê-la junto tiraria
+da coordenação uma tela que ela usa e ninguém pediu que saísse (docs/35 §11.7).
+A listagem das contas também fica no piso: sem ela a tela não teria o que
+desenhar, e ler quem tem login não é o mesmo que criar login.
+
+Três regras que não são detalhe:
 
   1. **Nunca apagar.** Desativar preserva a autoria na trilha de auditoria
      (evento_auditoria.ator_id aponta para cá). Uma conta apagada viraria um
@@ -21,6 +28,10 @@ Duas regras que não são detalhe:
      PBKDF2-SHA256 de mão única: depois disto ninguém, nem o sistema, lê a
      senha de volta. Por isso "ver a senha do aluno" (pedido de 21/08,
      19h15) não existe — existe redefinir.
+  3. **Conta de coordenação não se liga mais ao Canvas por aqui.** O botão
+     "Ligar ao Canvas" e o campo `canvas_user_id` saíram em 04/09 junto com o
+     SSO da coordenação (docs/35 §11.6): eles existiam só para habilitar aquele
+     login. A COLUNA fica — apagar perde dado —, mas deixou de ter efeito.
 """
 
 from __future__ import annotations
@@ -33,10 +44,16 @@ from pydantic import BaseModel, field_validator
 
 from .. import storage
 from ..auditoria import registrar as auditar
-from ..auth import get_current_coordenador, hash_senha
-from ..canvas_sync import identidade
+from ..auth import (
+    PAPEIS_DE_COORDENACAO,
+    get_current_administrador,
+    get_current_coordenador,
+    hash_senha,
+)
 from ..supabase_client import get_supabase
 
+# O PISO: nada aqui é público, e nada aqui é de aluno. O que exige
+# administrador diz isso na própria rota — ver o ⚠️ do docstring.
 router = APIRouter(
     prefix="/administracao",
     tags=["administracao"],
@@ -56,9 +73,18 @@ def _ip(request: Request) -> str | None:
 class CriarCoordenadorBody(BaseModel):
     email: str
     nome: str
-    # id do usuário no Canvas — é o que liga a conta ao SSO (0026). Opcional:
-    # sem ele a conta entra só por e-mail + senha.
-    canvas_user_id: str | None = None
+    # Default "coordenador" porque é o caso de quase toda conta: administrador
+    # é uma só (docs/35 §11.2). Quem esquecer o campo cria a conta MENOS
+    # poderosa, que é o lado seguro do esquecimento.
+    papel: str = "coordenador"
+
+    @field_validator("papel")
+    @classmethod
+    def _papel_conhecido(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v not in PAPEIS_DE_COORDENACAO:
+            raise ValueError("papel deve ser 'coordenador' ou 'administrador'")
+        return v
 
     # Sem `EmailStr` de propósito: puxaria email-validator (e dnspython) para
     # a imagem por causa de um campo. O que importa aqui é "tem @ e domínio"
@@ -83,7 +109,10 @@ class CriarCoordenadorBody(BaseModel):
 class EditarCoordenadorBody(BaseModel):
     nome: str | None = None
     ativo: bool | None = None
-    canvas_user_id: str | None = None
+    # `papel` NÃO entra aqui de propósito: promover alguém é decisão de
+    # operação, feita com a coordenação junto por
+    # `scripts/criar_coordenador.py --papel`, e não um menu ao lado de
+    # "Renomear". Promover por engano dá a uma conta o poder de alterar nota.
 
 
 @router.get("/coordenadores")
@@ -94,7 +123,7 @@ async def listar_coordenadores() -> list[dict]:
     linhas = (
         cliente.table("usuario_coordenacao")
         .select(
-            "id, email, nome, ativo, criado_em, ultimo_login_em, canvas_user_id, "
+            "id, email, nome, ativo, papel, criado_em, ultimo_login_em, "
             "foto_perfil_storage"
         )
         .order("nome")
@@ -107,13 +136,21 @@ async def listar_coordenadores() -> list[dict]:
     return linhas
 
 
-@router.post("/coordenadores", status_code=201)
+@router.post(
+    "/coordenadores",
+    status_code=201,
+    dependencies=[Depends(get_current_administrador)],
+)
 async def criar_coordenador(
     body: CriarCoordenadorBody,
     request: Request,
-    coordenador: dict = Depends(get_current_coordenador),
+    administrador: dict = Depends(get_current_administrador),
 ) -> dict:
-    """Cria a conta com senha sorteada. A senha volta UMA vez, aqui."""
+    """Cria a conta com senha sorteada. A senha volta UMA vez, aqui.
+
+    Admin-only: criar login é o poder de dar acesso à base inteira de menores
+    de idade a quem a pessoa quiser (docs/35 §11.7).
+    """
     cliente = get_supabase()
     email = body.email.lower()
     existente = (
@@ -122,18 +159,16 @@ async def criar_coordenador(
     if existente.data:
         raise HTTPException(status_code=409, detail=f"Já existe conta para {email}.")
 
-    # Ninguém precisa saber o id do Canvas: com o e-mail o SAS pergunta lá.
-    # Se o Canvas não souber (ou souber dois), fica em branco e o primeiro
-    # login pelo Canvas liga sozinho pelo e-mail (auth_canvas.py).
-    canvas_user_id = body.canvas_user_id or await identidade.id_pelo_email(email)
-
+    # O `canvas_user_id` NÃO é mais procurado nem gravado aqui: ele só servia
+    # para habilitar o login pelo Canvas da coordenação, que saiu (docs/35
+    # §11.6). A conta nasce entrando por e-mail + senha, e é o único jeito.
     senha = secrets.token_urlsafe(12)
     linha = (
         cliente.table("usuario_coordenacao")
         .insert(
             {
-                "email": email, "nome": body.nome, "senha_hash": hash_senha(senha), "ativo": True,
-                "canvas_user_id": canvas_user_id,
+                "email": email, "nome": body.nome, "senha_hash": hash_senha(senha),
+                "ativo": True, "papel": body.papel,
             },
             returning="representation",
         )
@@ -142,24 +177,27 @@ async def criar_coordenador(
 
     auditar(
         cliente, "coordenador_criado", canal="acesso",
-        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        ator_tipo="coordenador", ator_id=administrador.get("sub"),
         recurso=f"coordenador/{linha['id']}", ip=_ip(request),
-        detalhe={"email": email, "nome": body.nome, "canvas_user_id": canvas_user_id},
+        detalhe={"email": email, "nome": body.nome, "papel": body.papel},
     )
     return {
         "id": linha["id"], "email": email, "nome": body.nome, "ativo": True,
-        "canvas_user_id": canvas_user_id,
+        "papel": body.papel,
         # Única vez que a senha aparece. Não vai para a auditoria.
         "senha_inicial": senha,
     }
 
 
-@router.patch("/coordenadores/{usuario_id}")
+@router.patch(
+    "/coordenadores/{usuario_id}",
+    dependencies=[Depends(get_current_administrador)],
+)
 async def editar_coordenador(
     usuario_id: str,
     body: EditarCoordenadorBody,
     request: Request,
-    coordenador: dict = Depends(get_current_coordenador),
+    administrador: dict = Depends(get_current_administrador),
 ) -> dict:
     """Renomear ou (des)ativar. Ninguém desativa a si mesmo — senão a última
     conta da casa se tranca do lado de fora."""
@@ -167,10 +205,8 @@ async def editar_coordenador(
     patch: dict = {}
     if body.nome is not None and body.nome.strip():
         patch["nome"] = body.nome.strip()
-    if body.canvas_user_id is not None:
-        patch["canvas_user_id"] = body.canvas_user_id.strip() or None
     if body.ativo is not None:
-        if body.ativo is False and usuario_id == coordenador.get("sub"):
+        if body.ativo is False and usuario_id == administrador.get("sub"):
             raise HTTPException(status_code=422, detail="Você não pode desativar a própria conta.")
         patch["ativo"] = body.ativo
     if not patch:
@@ -187,54 +223,30 @@ async def editar_coordenador(
 
     auditar(
         cliente, "coordenador_editado", canal="acesso",
-        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        ator_tipo="coordenador", ator_id=administrador.get("sub"),
         recurso=f"coordenador/{usuario_id}", ip=_ip(request), detalhe=patch,
     )
     linha = atualizado[0]
     return {k: linha[k] for k in ("id", "email", "nome", "ativo", "ultimo_login_em") if k in linha}
 
 
-@router.post("/coordenadores/{usuario_id}/ligar-canvas")
-async def ligar_canvas(
-    usuario_id: str,
-    request: Request,
-    coordenador: dict = Depends(get_current_coordenador),
-) -> dict:
-    """Procura o id do Canvas pelo e-mail da conta e grava. É o botão
-    "Ligar ao Canvas" — a pessoa não digita número nenhum."""
-    cliente = get_supabase()
-    linha = (
-        cliente.table("usuario_coordenacao").select("id, email").eq("id", usuario_id)
-        .limit(1).execute().data
-    )
-    if not linha:
-        raise HTTPException(status_code=404, detail="conta não encontrada")
-    canvas_user_id = await identidade.id_pelo_email(linha[0]["email"])
-    if not canvas_user_id:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"O Canvas não tem exatamente um usuário com o e-mail {linha[0]['email']}. "
-                "Confira se o e-mail da conta é o mesmo do Canvas."
-            ),
-        )
-    cliente.table("usuario_coordenacao").update({"canvas_user_id": canvas_user_id}).eq(
-        "id", usuario_id
-    ).execute()
-    auditar(
-        cliente, "coordenador_editado", canal="acesso",
-        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
-        recurso=f"coordenador/{usuario_id}", ip=_ip(request),
-        detalhe={"canvas_user_id": canvas_user_id, "via": "busca por e-mail"},
-    )
-    return {"id": usuario_id, "canvas_user_id": canvas_user_id}
+# A rota POST /coordenadores/{id}/ligar-canvas ("Ligar ao Canvas") SAIU em
+# 04/09. Ela procurava o id do Canvas pelo e-mail e gravava em
+# `canvas_user_id`, e o único efeito disso era habilitar o login pelo Canvas
+# para a conta — que é exatamente o que a coordenação deixou de ter (docs/35
+# §11.6). Sem o SSO, o botão gravava um número que ninguém lê. A coluna
+# permanece na tabela com o que já estava lá; só não se escreve mais nela
+# por aqui.
 
 
-@router.post("/coordenadores/{usuario_id}/redefinir-senha")
+@router.post(
+    "/coordenadores/{usuario_id}/redefinir-senha",
+    dependencies=[Depends(get_current_administrador)],
+)
 async def redefinir_senha_coordenador(
     usuario_id: str,
     request: Request,
-    coordenador: dict = Depends(get_current_coordenador),
+    administrador: dict = Depends(get_current_administrador),
 ) -> dict:
     """Sorteia uma senha nova. Volta UMA vez; o titular troca no primeiro uso."""
     cliente = get_supabase()
@@ -249,7 +261,7 @@ async def redefinir_senha_coordenador(
         raise HTTPException(status_code=404, detail="conta não encontrada")
     auditar(
         cliente, "senha_redefinida", canal="acesso",
-        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        ator_tipo="coordenador", ator_id=administrador.get("sub"),
         recurso=f"coordenador/{usuario_id}", ip=_ip(request),
     )
     return {"id": usuario_id, "senha_nova": senha}
@@ -260,11 +272,21 @@ async def redefinir_senha_coordenador(
 
 @router.get("/alunos-acesso")
 async def acessos_de_alunos() -> dict:
-    """Quem já fez o primeiro acesso e quem nunca entrou (docs/18 §4.6).
+    """Quem consegue entrar e quem não consegue (docs/18 §4.6, docs/35 §11.5).
 
     "Quando o aluno faz isso, aparece na tela de gerenciamento do
-    coordenador" (21/08, 19h15). `senha_hash IS NOT NULL` é o sinal de
-    primeiro acesso feito; o último login vem da trilha de auditoria.
+    coordenador" (21/08, 19h15). Continua sendo trabalho diário de
+    coordenação, e por isso NÃO exige administrador.
+
+    ⚠️ A pergunta que esta tela responde MUDOU em 04/09. Antes era "quem já
+    criou senha" (`senha_hash IS NOT NULL`); com a senha de aluno extinta,
+    ninguém vai criar mais nenhuma, e esse número virou fóssil: ele congela no
+    valor de 04/09 para sempre. A pergunta viva agora é **quem tem
+    `canvas_user_id`** — é o único caminho de entrada que existe, então aluno
+    sem ele é aluno que não entra, e é a lista que a coordenação precisa ver.
+
+    `primeiroAcessoFeito` continua no corpo por ser histórico verdadeiro (quem
+    tinha senha antes da virada), mas quem decide é `temCanvas`.
     """
     cliente = get_supabase()
     alunos: list[dict] = []
@@ -302,6 +324,7 @@ async def acessos_de_alunos() -> dict:
     ]
     return {
         "total": len(linhas),
+        "comCanvas": sum(1 for l in linhas if l["temCanvas"]),
         "comAcesso": sum(1 for l in linhas if l["primeiroAcessoFeito"]),
         "alunos": linhas,
     }

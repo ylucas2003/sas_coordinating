@@ -2,7 +2,10 @@
 
 > **Origem:** canvas `SAS — Coordenação ITM` no Claude Design
 > ([projeto `bd06bdc2`](https://claude.ai/design/p/bd06bdc2-3409-4958-8bf3-b4682bd839d8)),
-> desenhado em 23/08/2026 e importado no mesmo dia. Sete telas: Painel,
+> desenhado em 23/08/2026 e importado no mesmo dia. (O nome do canvas é o
+> daquela data; a turma passou a se chamar **ITA/IME** em 04/09/2026 —
+> [35 §7](35-plano-correcoes.md). O literal fica para o canvas seguir
+> achável.) Sete telas: Painel,
 > Alunos, Provas (Ciclos e Simulados), Banco, Administração, ficha de simulado
 > e a lista de alertas.
 >

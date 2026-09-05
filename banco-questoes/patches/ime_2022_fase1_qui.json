@@ -1,0 +1,84 @@
+{
+  "q31": {
+    "topicos_ids": [
+      "10.1",
+      "7.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Pilha Fe/Al: monta a celula pelos potenciais-padrao (n = 6, E0cel = 1,22 V), calcula dG0 = -nFE0 = -706 kJ/mol e decide quem corroi — o aluminio, que e o anodo."
+  },
+  "q32": {
+    "topicos_ids": [
+      "3.1",
+      "3.2"
+    ],
+    "confianca": "alta",
+    "observacao": "Combustao completa de C2H2 em vaso rigido e fechado: estequiometria exata (125 mol de O2 para 50 mol de C2H2, 175 mol -> 150 mol), massa especifica constante por conservacao de massa e pressao parcial da agua por Dalton (200 kPa)."
+  },
+  "q33": {
+    "topicos_ids": [
+      "8.1",
+      "9.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Conceitos de catalise: efeito de superficie do V2O5 (catalise heterogenea), catalisador abaixa a energia de ativacao e e regenerado — e a afirmativa falsa so cai sabendo que catalisador NAO desloca o equilibrio."
+  },
+  "q34": {
+    "topicos_ids": [
+      "9.3",
+      "1.1",
+      "1.2",
+      "1.4"
+    ],
+    "confianca": "alta",
+    "observacao": "Identifica PbCl2 cruzando quatro pistas: anion isoeletronico do argonio (distribuicao eletronica), Kps = S(2S)^2 que so vale para sal MX2, hidroxido do cation como base fraca e metal de alta densidade na tabela periodica."
+  },
+  "q35": {
+    "topicos_ids": [
+      "11.6",
+      "11.2"
+    ],
+    "confianca": "media",
+    "observacao": "Bioquimica dos acidos nucleicos: nucleosideo x nucleotideo, bases puricas x pirimidicas, ligacao fosfodiester (nao peptidica) e os tres RNAs da sintese proteica; sem bloco de bioquimica na taxonomia, mapeado em polimeros naturais + funcoes nitrogenadas/proteinas."
+  },
+  "q36": {
+    "topicos_ids": [
+      "8.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Le a superficie de energia potencial (mapa de contorno) de A + BC -> AB + C: a regiao hachurada esta no ponto de sela sobre a trajetoria da reacao, ou seja, o complexo ativado."
+  },
+  "q37": {
+    "topicos_ids": [
+      "11.5",
+      "11.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Diels-Alder termica: reconhece o ciclopentadieno como dieno conjugado e uma dupla isolada do cicloexa-1,4-dieno como dienofilo, descartando os distratores de [2+2] e de gaiola (as alternativas sao so desenhos)."
+  },
+  "q38": {
+    "topicos_ids": [
+      "11.5",
+      "11.2",
+      "11.4"
+    ],
+    "confianca": "alta",
+    "observacao": "Prednisona -> prednisolona: a cetona em C11 vira alcool (reducao), o que acrescenta um carbono quiral, e nenhuma das duas estruturas tem ester — so cetona e alcool."
+  },
+  "q39": {
+    "topicos_ids": [
+      "3.2",
+      "1.3"
+    ],
+    "confianca": "alta",
+    "observacao": "Desvio da idealidade pela equacao de van der Waals: significado fisico de a (forcas atrativas intermoleculares) e de b (volume excluido, menor para o metano do que para o propano)."
+  },
+  "q40": {
+    "topicos_ids": [
+      "3.2",
+      "9.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Compara a pressao de dois reatores rigidos com o gatilho das valvulas: Clapeyron a 1102 K para os gases da hidrazina ja decomposta (mols dados no enunciado) e Kc = Kp(RT)^2 para achar [NH3] e somar as concentracoes do equilibrio da amonia."
+  }
+}

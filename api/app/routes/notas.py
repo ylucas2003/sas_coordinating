@@ -1,8 +1,15 @@
-"""Rotas de edição manual de notas pelo coordenador.
+"""Edição manual de nota pelo painel — **só o administrador** (docs/35 §11.7).
 
 PATCH /notas/{aluno_id}/{simulado_id}
     Corrige a nota de um aluno num simulado — no SAS sempre; no Canvas só se
-    o coordenador pedir (`sincronizar_canvas`).
+    quem edita pedir (`sincronizar_canvas`).
+
+⚠️ **Este PATCH não é a única porta que escreve nota, e fechá-lo não fecha as
+outras.** O ingest de planilha (`app/ingest/`) e o sync do Canvas
+(`app/canvas_sync/`) gravam `nota` por caminhos próprios, e continuam abertos
+a quem pode disparar um upload ou um sync. O pedido da coordenação foi
+"alterar notas no painel", então só o painel mudou — dito em voz alta para
+ninguém concluir que a nota virou intocável.
 
 Até a migration 0024 a ordem era "Canvas primeiro, banco depois, e falha
 aborta": a edição só sobrevivia se estivesse no Canvas, porque o sync trazia
@@ -24,13 +31,17 @@ from pydantic import BaseModel, model_validator
 from supabase import Client
 
 from ..auditoria import registrar as auditar
-from ..auth import get_current_coordenador
+from ..auth import get_current_administrador, get_current_coordenador
 from ..canvas_sync import escrita
 from ..stats.classificacao import recalcular_tudo as recalcular_classificacoes
 from ..stats.metricas import corte_aplicavel, recalcular_simulado
 from ..stats.utils import como_float
 from ..supabase_client import get_supabase
 
+# O piso é coordenação; a rota que existe hoje sobe para administrador na
+# própria assinatura. Fica assim, e não com o router inteiro promovido, porque
+# o próximo endpoint de nota que nascer aqui (uma leitura, um recálculo) não
+# tem por que herdar a restrição da EDIÇÃO.
 router = APIRouter(
     prefix="/notas",
     tags=["notas"],
@@ -63,15 +74,18 @@ def _course_id_do_simulado(simulado: dict) -> str | None:
     return ((ciclo.get("ano_letivo") or {}) or {}).get("canvas_course_id")
 
 
-@router.patch("/{aluno_id}/{simulado_id}")
+@router.patch(
+    "/{aluno_id}/{simulado_id}",
+    dependencies=[Depends(get_current_administrador)],
+)
 async def editar_nota(
     aluno_id: str,
     simulado_id: str,
     body: PatchNotaBody,
     request: Request,
-    coordenador: dict = Depends(get_current_coordenador),
+    administrador: dict = Depends(get_current_administrador),
 ) -> dict:
-    """Corrige a nota de um aluno num simulado.
+    """Corrige a nota de um aluno num simulado. Só o administrador.
 
     Aceita pontuacao bruta (mesma escala do simulado, ex.: 12 de 20) e/ou
     presente. Se presente=false, pontuacao deve ser null.
@@ -143,7 +157,7 @@ async def editar_nota(
             "pontuacao_sas": pontuacao_nova,
             "presente": presente_novo,
             "editada_em": agora,
-            "editada_por": coordenador.get("sub"),
+            "editada_por": administrador.get("sub"),
         },
         on_conflict="aluno_id,simulado_id",
     ).execute()
@@ -163,7 +177,11 @@ async def editar_nota(
     # de "tentou e falhou" daqui a três meses (docs/18 §3.3).
     auditar(
         cliente, "nota_editada", canal="nota",
-        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
+        # `ator_tipo` continua "coordenador" mesmo com o ator sendo o
+        # administrador: ele nomeia a TABELA do ator (`usuario_coordenacao`), e
+        # é assim que `routes/auditoria.py` resolve o nome de quem fez. Quem
+        # podia fazer está na 0045, não aqui.
+        ator_tipo="coordenador", ator_id=administrador.get("sub"),
         recurso=f"nota/{aluno_id}/{simulado_id}",
         ip=request.client.host if request.client else None,
         detalhe={

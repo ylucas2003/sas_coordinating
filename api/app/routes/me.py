@@ -4,16 +4,21 @@ O aluno só consegue ver os próprios dados: o JWT carrega o aluno_id e os
 handlers repassam para as extrações de stats/aluno_dados.py (compartilhadas
 com as tools do chat do aluno) sem expor o ID na URL nem permitir acesso a
 outros alunos.
+
+⚠️ `GET /simulado/{id}/arquivo` SAIU em 04/09 (docs/35 §8b), junto com o botão
+"Abrir a prova" da ficha do aluno. Não foi só o botão: a rota devolvia uma URL
+assinada de vida curta, e uma porta que ninguém mais abre continua sendo uma
+porta — este projeto já teve uma vulnerabilidade nascida de token de download
+(PR #7). Se a prova em PDF voltar a ser entregue ao aluno, ela volta com a
+decisão inteira refeita, não descomentando uma rota.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
 
-from ..auth import get_current_aluno, hash_senha, verificar_senha
+from ..auth import get_current_aluno
 from ..stats.aluno_dados import (
-    arquivo_do_simulado_do_aluno,
     detalhe_simulado_do_aluno,
     evolucao_do_aluno,
     payload_insight_ciclo,
@@ -22,7 +27,6 @@ from ..stats.aluno_dados import (
     streak_do_aluno,
 )
 from ..stats.insight_aluno import gerar_para_aluno_ciclo
-from ..storage import gerar_url_download_arquivo
 from ..supabase_client import get_supabase
 from .alunos import heatmap_aluno, obter_aluno, trajetoria_aluno
 
@@ -37,39 +41,20 @@ def _ou_404(resultado: dict) -> dict:
 
 
 # ── Conta ─────────────────────────────────────────────────────────────────
-
-
-class TrocarSenhaBody(BaseModel):
-    senha_atual: str
-    senha_nova: str
-
-    @field_validator("senha_nova")
-    @classmethod
-    def _senha_minima(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("a senha precisa ter pelo menos 8 caracteres")
-        return v
-
-
-@router.post("/senha")
-async def me_trocar_senha(body: TrocarSenhaBody, user: dict = Depends(get_current_aluno)) -> dict:
-    cliente = get_supabase()
-    resp = (
-        cliente.table("aluno")
-        .select("id, senha_hash")
-        .eq("id", user["aluno_id"])
-        .limit(1)
-        .execute()
-    )
-    # 400 (não 401): o http-client do front desloga a sessão em qualquer 401,
-    # e errar a senha atual não pode derrubar o aluno logado.
-    if not resp.data or not verificar_senha(body.senha_atual, resp.data[0].get("senha_hash")):
-        raise HTTPException(status_code=400, detail="Senha atual incorreta")
-
-    cliente.table("aluno").update(
-        {"senha_hash": hash_senha(body.senha_nova)}
-    ).eq("id", user["aluno_id"]).execute()
-    return {"ok": True}
+# A rota POST /me/senha SAIU em 04/09 (docs/35 §11.5), junto com a folha
+# "Trocar senha" da área do aluno (`telas/Aluno/CascoAluno.tsx`).
+#
+# Ela não estava só obsoleta, estava quebrada dos dois lados: para quem nunca
+# teve hash — a maioria — `verificar_senha(atual, None)` é False, então ela
+# respondia "Senha atual incorreta" sempre; e para os poucos com hash antigo
+# funcionava, dizia "Senha alterada." e gravava uma credencial que não
+# autentica em lugar nenhum, porque o aluno entra só pelo Canvas.
+#
+# Com ela fora, nenhuma ROTA escreve mais em `aluno.senha_hash` — a outra que
+# escrevia era `/alunos/{id}/resetar-acesso`, extinta no mesmo dia. Sobrou só
+# `scripts/criar_acesso.py --matricula`, que grava um hash que hoje não
+# autentica ninguém (ver o docstring de `app/auth.py`). A coluna fica com o que
+# já tinha: apagar perde dado e não devolve nada.
 
 
 # ── Perfil e dados (proxies das funções de /alunos) ───────────────────────
@@ -115,18 +100,6 @@ async def me_simulado(simulado_id: str, user: dict = Depends(get_current_aluno))
 async def me_simulado_questoes(simulado_id: str, user: dict = Depends(get_current_aluno)):
     """Resultado questão a questão do aluno num simulado (dados do Canvas)."""
     return _ou_404(questoes_do_aluno_no_simulado(get_supabase(), user["aluno_id"], simulado_id))
-
-
-@router.get("/simulado/{simulado_id}/arquivo")
-async def me_simulado_arquivo(simulado_id: str, user: dict = Depends(get_current_aluno)):
-    """URL assinada (curta duração) pro PDF da prova como foi aplicada."""
-    dados = _ou_404(
-        arquivo_do_simulado_do_aluno(get_supabase(), user["aluno_id"], simulado_id)
-    )
-    url = gerar_url_download_arquivo(
-        dados["caminhoStorage"], nome_download=f"{dados['nomeArquivo']}.pdf"
-    )
-    return {"url": url, "nomeArquivo": dados["nomeArquivo"]}
 
 
 @router.get("/evolucao")

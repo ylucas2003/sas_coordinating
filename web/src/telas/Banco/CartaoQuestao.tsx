@@ -218,8 +218,11 @@ export function CartaoQuestao({
             </span>
           ))}
           {questao.topicos.length === 0 && (
-            // Uma das 40 sem classificação: aparece dizendo o que é, em vez de
-            // parecer uma questão sem assunto por acaso (docs/22 §8, risco 3).
+            // Questão ainda sem classificação: aparece dizendo o que é, em vez
+            // de parecer uma questão sem assunto por acaso (docs/22 §8, risco
+            // 3). Sem número: eram 40, viraram 44 e a faixa de classificação
+            // de docs/35 §3 as leva a zero — quantas são se conta no banco, e
+            // nunca aqui (docs/35 §3.3).
             <span className="banco-questao__topico banco-questao__topico--incerto">
               Sem assunto classificado
             </span>

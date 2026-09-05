@@ -174,7 +174,7 @@ export function Alunos() {
 
       <div className="tela-cabecalho">
         <div>
-          <h1 className="tela-titulo">Alunos da turma ITM</h1>
+          <h1 className="tela-titulo">Alunos da turma ITA/IME</h1>
           <p className="tela-subtitulo">
             {isPending
               ? 'Carregando…'

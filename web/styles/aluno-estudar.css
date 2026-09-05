@@ -573,13 +573,86 @@ a.alu-est-elo-quieto:hover {
   flex: none;
 }
 
+/* ─── MATÉRIA E ASSUNTO, NO CENTRO ────────────────────────────────────────
+   Os dois primários saíram da coluna lateral em 04/09 (docs/35 §5). A coluna
+   rola por dentro (`max-height` + `overflow-y: auto`, lá embaixo); rolada, ela
+   escondia o grupo MATÉRIA e deixava à vista o ASSUNTO dizendo "escolha uma
+   matéria primeiro" — a instrução apontando para um controle fora da tela. E
+   matéria não é filtro qualquer: é o que DESTRAVA o assunto.
+
+   Aqui não há contêiner que role: o bloco é do fluxo da página, e o aviso fica
+   a uma linha das pílulas que ele manda tocar. Vale nos dois tamanhos de tela
+   — no celular este é o único centro que existe (docs/28 §4). */
+
+.alu-foco {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: 16px;
+  min-width: 0;
+}
+
+/* O botão que abre a lista de assuntos. Largura toda e rótulo à esquerda: ele
+   é o campo que mostra o assunto ESCOLHIDO quando a lista está fechada, e um
+   botão de largura própria faria o nome longo ("Tabela Periódica e
+   Propriedades dos Elementos") esticar a caixa a cada troca. */
+.alu-foco__escolher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--alu-toque);
+  padding: 10px 14px;
+  border: 1px solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  background: transparent;
+  color: var(--alu-texto);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.alu-foco__escolher.is-ativa {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+.alu-foco__escolher-texto {
+  min-width: 0;
+}
+
+/* A lista rola por DENTRO, e o botão que a abriu fica parado acima dela: é
+   exatamente a diferença entre este contêiner e a coluna lateral que causou o
+   bug — aqui o gatilho e o aviso nunca saem da tela. São até 26 assuntos por
+   matéria, e sem o teto eles empurrariam as questões para baixo da dobra.
+   O padding é para o anel de foco do teclado não ser cortado pelo overflow. */
+.alu-foco__assuntos {
+  max-height: 42vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 3px;
+}
+
 /* ─── AS DUAS COLEÇÕES ────────────────────────────────────────────────────
    Controle segmentado, e não pílula removível: uma das duas está SEMPRE ativa,
    porque as duas metades do acervo se leem de formas diferentes (0031/0033) e
    a tela precisa dizer qual está mostrando.
 
    `fieldset` sem borda nem padding — ele está aqui pela semântica de grupo, e
-   o `legend` é só para leitor de tela. */
+   o `legend` é só para leitor de tela.
+
+   ⚠️ O MESMO controle é montado DUAS vezes, e o CSS escolhe qual aparece: no
+   celular a do centro (`--centro`, os dois lado a lado, no fluxo), no desktop a
+   do painel lateral (`--painel`, empilhados). É o preço de a coleção ter
+   descido para a coluna (docs/35 §5) sem sumir do celular, onde não existe
+   coluna — e o que não se pode perder no caminho é o "como é" de cada uma: é
+   ele que explica a diferença entre as duas leituras do acervo. */
 
 .alu-colecoes {
   display: flex;
@@ -588,6 +661,11 @@ a.alu-est-elo-quieto:hover {
   padding: 0;
   margin: 0;
   min-width: 0;
+}
+
+/* A do painel só existe no desktop; a regra de baixo, na media query, a liga. */
+.alu-colecoes--painel {
+  display: none;
 }
 
 .alu-colecao {
@@ -1786,16 +1864,44 @@ a.alu-est-elo-quieto:hover {
 }
 
 @media (min-width: 900px) {
+  /* A do centro sai, e a do painel entra: o mesmo controle, montado duas vezes
+     (ver o ⚠️ lá em cima). */
+  .alu-colecoes--centro {
+    display: none;
+  }
+
+  .alu-colecoes--painel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Empilhados, e não lado a lado: em 204px úteis os dois cartões dividiriam
+     100px cada e o "como é" viraria quatro linhas de palavra quebrada. De pé
+     eles cabem inteiros — e o "como é" é o que explica a diferença entre as
+     duas leituras do acervo, então ele não podia virar dica de mouse. */
+  .alu-colecoes--painel .alu-colecao {
+    /* `flex: none` porque, em coluna, o `flex: 1` da regra base zeraria a
+       altura de base dos dois e deixaria o texto por conta do `min-height`. */
+    flex: none;
+  }
+
   .alu-painel-filtros {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
     width: 236px;
     flex: none;
     padding: 16px;
     background: var(--alu-superficie);
     border: var(--alu-borda-largura) solid var(--alu-borda);
     border-radius: var(--alu-raio);
-    /* Acompanha a rolagem da lista: com trinta pílulas de assunto, um painel
-       estático sairia da tela justo quando o aluno quisesse trocar o recorte. */
+    /* Acompanha a rolagem da lista: com as 28 pílulas de ano, um painel
+       estático sairia da tela justo quando o aluno quisesse trocar o recorte.
+       ⚠️ Rolar por dentro é o que empurrava matéria e assunto para fora da
+       tela; por isso os dois saíram daqui (docs/35 §5), e o que ficou é
+       coleção, vestibular, fase e ano — grupos que não instruem uns aos
+       outros e podem sair de vista sem deixar uma frase órfã. */
     position: sticky;
     top: 24px;
     max-height: calc(100dvh - 48px);

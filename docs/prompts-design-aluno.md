@@ -560,7 +560,7 @@ The scene, from back to front:
 
 Overlaid at the top left of the illustration: a plain circular seal placeholder
 32px wide, and beside it "SAS" in small uppercase letterspaced white with
-"Colégio Ari de Sá · Turma ITM" beneath in dim blue 10px.
+"Colégio Ari de Sá · Turma ITA/IME" beneath in dim blue 10px.
 
 Centred over the lower third of the illustration, the headline in heavy condensed
 grotesque, white, two lines, 40px: "Todo dia acima da linha".
@@ -583,7 +583,7 @@ stacked:
 - two quiet dim links side by side separated by a middot: "Primeiro acesso" ·
   "Esqueci a senha";
 - three tiny readings divided by vertical hairlines, dim uppercase labels with
-  white values: "TURMA ITM / 900 ALUNOS" · "BANCO / 2.693 QUESTÕES" ·
+  white values: "TURMA ITA/IME / 900 ALUNOS" · "BANCO / 2.693 QUESTÕES" ·
   "SIMULADOS / 5 CICLOS".
 ```
 
@@ -1020,7 +1020,7 @@ The scene, from back to front:
 
 Overlaid at the top left: a plain circular seal placeholder 40px wide with "SAS"
 beside it in small uppercase letterspaced white and "Colégio Ari de Sá · Turma
-ITM" beneath in dim blue. Overlaid across the lower third, the headline in heavy
+ITA/IME" beneath in dim blue. Overlaid across the lower third, the headline in heavy
 condensed grotesque white on two lines at 56px: "Todo dia acima da linha".
 
 RIGHT COLUMN, 40% of the width, the ground colour, with the form centred
@@ -1040,7 +1040,7 @@ vertically in a 360px column:
 - two quiet dim links side by side separated by a middot: "Primeiro acesso" ·
   "Esqueci a senha";
 - three tiny readings divided by vertical hairlines, dim uppercase labels with
-  white values: "TURMA ITM / 900 ALUNOS" · "BANCO / 2.693 QUESTÕES" ·
+  white values: "TURMA ITA/IME / 900 ALUNOS" · "BANCO / 2.693 QUESTÕES" ·
   "SIMULADOS / 5 CICLOS".
 ```
 

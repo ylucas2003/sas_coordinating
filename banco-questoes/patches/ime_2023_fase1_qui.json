@@ -1,0 +1,85 @@
+{
+  "q31": {
+    "topicos_ids": [
+      "11.5",
+      "11.1",
+      "11.2"
+    ],
+    "confianca": "alta",
+    "observacao": "Sequencia de reacoes organicas: acilacao de Friedel-Crafts (benzeno + cloreto de propanoila/AlCl3), cloracao do anel dirigida a meta pelo grupo acila, desidratacao do butan-1-ol com H2SO4 a quente e adicao de HBr com peroxido (anti-Markovnikov); a resposta e a nomenclatura IUPAC da cetona aromatica, do alceno e do haleto."
+  },
+  "q32": {
+    "topicos_ids": [
+      "1.1",
+      "1.2"
+    ],
+    "confianca": "alta",
+    "observacao": "Le o diagrama de orbitais do cation trivalente ([Ar] 4s1 3d10 4p0 = 29 eletrons), devolve as 3 cargas para chegar a Z = 32 e localiza o elemento (Ge) no esboco da tabela periodica."
+  },
+  "q33": {
+    "topicos_ids": [
+      "1.6",
+      "1.3"
+    ],
+    "confianca": "alta",
+    "observacao": "Conta oxigenios de ponte e terminais na unidade de repeticao da cadeia dupla de tetraedros SiO4 do crisotilo e fecha a carga em (Si4O11)6n-: e leitura de estrutura de solido covalente e de ligacao Si-O compartilhada, nao calculo estequiometrico."
+  },
+  "q34": {
+    "topicos_ids": [
+      "10.1",
+      "4.1",
+      "3.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Eletrolise de solucao aquosa de H2SO4 (quem se decompoe e a agua, nao o acido): os 4 mol de acido se conservam, a 8 mol/L o volume final cai para 0,5 L e revela 1,5 L de agua consumida; a alternativa D ainda cobra massa molar (4 mol x 98 g/mol = 392 g)."
+  },
+  "q35": {
+    "topicos_ids": [
+      "11.2",
+      "11.4",
+      "11.3"
+    ],
+    "confianca": "alta",
+    "observacao": "Aminoacidos e proteinas: ligacao peptidica, carater anfotero (Bronsted-Lowry) e bases nitrogenadas do RNA; a alternativa INCORRETA depende de ver que a glicina nao tem carbono quiral e por isso nao e opticamente ativa."
+  },
+  "q36": {
+    "topicos_ids": [
+      "3.2",
+      "3.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Compara P = nRT/V em cinco recipientes rigidos de mesmo volume: converte massa em mol pela massa molar (inclusive a massa molar media do ar) e multiplica pela temperatura absoluta de cada caso."
+  },
+  "q37": {
+    "topicos_ids": [
+      "12.1",
+      "3.1",
+      "10.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Volumetria de oxirreducao com KMnO4 em duas alicotas: a razao 1:5 da equacao ionica separa o Cr2+ original do cromo total (apos reducao pelo Fe metalico) e devolve as duas concentracoes molares."
+  },
+  "q38": {
+    "topicos_ids": [
+      "6.1",
+      "9.1",
+      "7.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Tira o coeficiente angular do grafico ln p(H2) x 1/T do equilibrio Ca(s) + H2(g) = CaH2(s), com K = 1/pH2, e converte por van't Hoff no calor de producao de 1 mol do hidreto a pressao constante (~ -37 kJ); a tag 7.1 cobre a relacao dG0 = -RT lnK, de onde van't Hoff sai."
+  },
+  "q39": {
+    "topicos_ids": [
+      "2.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Aplica as leis de Soddy a serie 238U -> 234Th -> 234Pa -> 234U -> 230Th: so as etapas com queda de 4 unidades de massa sao emissao alfa, e cada alfa vira 1 mol de He."
+  },
+  "q40": {
+    "topicos_ids": [
+      "9.1"
+    ],
+    "confianca": "alta",
+    "observacao": "Equilibrio heterogeneo BaCO3(s) = BaO(s) + CO2(g): a mesma temperatura o Kp fixa a quantidade de CO2 (a adicao e reconsumida) e o aquecimento desloca a decomposicao endotermica para a direita, aumentando o gas."
+  }
+}

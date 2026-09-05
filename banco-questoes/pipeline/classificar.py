@@ -47,10 +47,20 @@ from pathlib import Path
 PROJETO_ROOT = Path(__file__).resolve().parent.parent
 DIR_QUESTOES_JSON = PROJETO_ROOT / "questoes_json"
 
+# ⚠️ Estes nomes JÁ ESTIVERAM ERRADOS, e o erro custou caro: o mapa ficou com os
+# nomes de antes da migração de 22/08 (`taxonomia.json`, `taxonomia_quimica.json`,
+# `taxonomia_matematica.json`) enquanto o disco passou a ter os três com hífen e
+# sufixo de matéria. Resultado: `FileNotFoundError` em QUALQUER matéria — a
+# ferramenta emudeceu, ninguém percebeu, e as provas que chegaram depois disso
+# entraram no banco sem classificação (docs/35 §3.1).
+#
+# Continuam escritos à mão porque são três e mudam de década em década — o que
+# mudou é que `carregar_taxonomia` agora falha DIZENDO o que existe em config/,
+# em vez de estourar um FileNotFoundError cru.
 TAXONOMIA_POR_MATERIA = {
-    "Física":     "taxonomia.json",
-    "Química":    "taxonomia_quimica.json",
-    "Matemática": "taxonomia_matematica.json",
+    "Física":     "taxonomia-fisica.json",
+    "Química":    "taxonomia-quimica.json",
+    "Matemática": "taxonomia-matematica.json",
 }
 
 
@@ -64,8 +74,18 @@ def materia_da_prova(prova_id: str) -> str:
 
 
 def carregar_taxonomia(materia: str = "Física") -> dict:
-    nome_arquivo = TAXONOMIA_POR_MATERIA.get(materia, "taxonomia.json")
+    nome_arquivo = TAXONOMIA_POR_MATERIA.get(materia, "taxonomia-fisica.json")
     path = PROJETO_ROOT / "config" / nome_arquivo
+    # Erro explícito em vez de FileNotFoundError cru: foi um arquivo renomeado
+    # sem o mapa acompanhar que deixou esta ferramenta muda por duas semanas
+    # (docs/35 §3.1). Quem cair aqui de novo lê o que existe no diretório.
+    if not path.exists():
+        existentes = sorted(p.name for p in (PROJETO_ROOT / "config").glob("taxonomia*.json"))
+        raise SystemExit(
+            f"Taxonomia de {materia} não encontrada: {path}\n"
+            f"O diretório config/ tem: {', '.join(existentes) or '(nenhuma)'}\n"
+            f"Se um arquivo foi renomeado, atualize TAXONOMIA_POR_MATERIA."
+        )
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
@@ -86,14 +106,24 @@ def indice_topicos(taxonomia: dict) -> dict[str, dict]:
 
 
 def imprimir_taxonomia_resumida(taxonomia: dict, materia: str = "Física"):
-    """Imprime a taxonomia em formato compacto, pronto para o Claude consumir."""
-    print(f"### TAXONOMIA DE {materia.upper()} DO ITA ###")
+    """Imprime a taxonomia em formato compacto, pronto para quem for classificar.
+
+    ⚠️ TODA subárea sai com o id VISÍVEL, mesmo quando é a única do bloco e
+    repete o nome dele. Antes a linha era omitida nesse caso, e o que sobrava na
+    tela era só o cabeçalho do bloco — "6. Termoquímica". Quem lia copiava `6`,
+    que **não é código de tópico**: `indice_topicos` monta o índice só com as
+    subáreas, então `aplicar` rejeitava, e no banco a FK de
+    `questao_vestibular_topico` recusaria de qualquer jeito.
+
+    O bloco é agrupamento, a subárea é o código. Imprimir os dois no mesmo
+    formato numérico convidava a confundir um com o outro — por isso o
+    cabeçalho do bloco agora não termina em ponto (docs/35 §3.1).
+    """
+    print(f"### TAXONOMIA DE {materia.upper()} — use SEMPRE o código X.Y da subárea ###")
     for bloco in taxonomia["blocos"]:
-        print(f"\n{bloco['id']}. {bloco['nome']}")
+        print(f"\n[bloco {bloco['id']}] {bloco['nome']}")
         for sub in bloco["subareas"]:
-            # Só mostra o id e nome se houver mais de uma subárea ou nome diferente
-            if len(bloco["subareas"]) > 1 or sub["nome"] != bloco["nome"]:
-                print(f"   {sub['id']} {sub['nome']}")
+            print(f"   {sub['id']} {sub['nome']}")
 
 
 def modo_listar(prova_id: str):

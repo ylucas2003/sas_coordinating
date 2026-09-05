@@ -299,9 +299,20 @@ export function combinarEstatisticas(
 
 // ─── O filtro de anos ────────────────────────────────────────────────────
 //
-// É MÚLTIPLO, e começa com TODOS ligados (decisão de 02/09). A combinação das
-// duas coisas obriga a uma convenção, porque "todos ligados" e "nenhum filtro"
-// são o mesmo recorte com duas representações possíveis:
+// É MÚLTIPLO e ADITIVO: nada aceso quer dizer "todos os anos", e tocar 2025
+// acende só 2025 (decisão de 04/09, docs/35 §4).
+//
+// Reverte a decisão de 02/09, que abria as pílulas todas acesas. Ela cobrava
+// dois preços que só o uso mostrou:
+//
+//   · a MESMA ausência de filtro era desenhada de dois jeitos no mesmo painel
+//     — Vestibular e Fase abrem apagados e significam "todos", e o Ano abria
+//     aceso significando a mesma coisa, quarenta pixels abaixo;
+//   · o gesto ficava SUBTRATIVO, sozinho na tela: com tudo aceso, tocar 2025
+//     REMOVIA 2025, e ver só 2025 exigia apagar 27 pílulas. Não havia caminho
+//     de um toque para o recorte mais pedido.
+//
+// A convenção da URL não mudou:
 //
 //   undefined   todos os anos — o filtro não está em vigor
 //   [2024,2019] só estes
@@ -313,38 +324,44 @@ export function combinarEstatisticas(
 // excluiria 2026 em silêncio no dia em que ele fosse importado.
 
 /**
- * Quais anos aparecem MARCADOS, dado o recorte e os anos que existem.
+ * Quais anos aparecem MARCADOS, dado o recorte.
  *
- * É a tradução da convenção acima para a tela: sem filtro, todas as pílulas
- * acendem. Sem isto, "todos por padrão" viraria uma fileira apagada que diz ao
- * aluno que nada está selecionado — quando na verdade tudo está.
+ * Sem filtro, NENHUM — e é isso que se quer dizer. A pílula apagada passou a
+ * significar aqui o mesmo que nos outros grupos da mesma faixa ("não estou
+ * filtrando por isto"), e é o que devolve ao primeiro toque o sentido de somar
+ * em vez de subtrair.
+ *
+ * Continua existindo, em vez de virar um `new Set(...)` solto em cada tela,
+ * porque é aqui que a convenção "ausente = todos" está escrita: as duas cascas
+ * (coordenação e aluno) filtram o mesmo acervo pela mesma regra.
  */
-export function anosMarcados(
-  selecionados: readonly number[] | undefined,
-  disponiveis: readonly number[],
-): Set<number> {
-  return new Set(selecionados ?? disponiveis);
+export function anosMarcados(selecionados: readonly number[] | undefined): Set<number> {
+  return new Set(selecionados ?? []);
 }
 
 /**
  * O novo recorte ao tocar num ano. Devolve `undefined` para "todos".
  *
- * Duas bordas, e as duas são decisão de produto:
+ * Três bordas, e as três são decisão de produto:
  *
+ *  · **O primeiro toque ACENDE só aquele ano.** É o recorte mais pedido — "só
+ *    2025" — e ele passou a custar um toque em vez de vinte e sete.
  *  · **Desmarcar o último volta para TODOS.** "Nenhum ano" é um recorte que só
  *    produz tela vazia, sempre — um beco sem informação. E o gesto de apagar a
  *    última marca é o que as pessoas fazem para recomeçar, então ele limpa o
  *    filtro em vez de zerar a tela.
- *  · **Marcar o último que faltava colapsa para TODOS.** Sem isso a URL
- *    carregaria os trinta anos do acervo para dizer o mesmo que dizer nada — e
- *    o link deixaria de valer para o ano que entrar depois.
+ *  · **Marcar todos na mão MANTÉM aceso** (decisão de 04/09). Até 02/09 isso
+ *    colapsava para `undefined` para encurtar a URL; com o gesto aditivo, o
+ *    colapso apagaria à vista as pílulas que o aluno acabou de acender — a
+ *    tela desfazendo o trabalho dele. O preço é uma URL longa que exclui em
+ *    silêncio o ano importado depois; quem paga é o link, não quem olha a tela.
  */
 export function alternarAno(
   selecionados: readonly number[] | undefined,
   disponiveis: readonly number[],
   ano: number,
 ): number[] | undefined {
-  const marcados = anosMarcados(selecionados, disponiveis);
+  const marcados = anosMarcados(selecionados);
   if (marcados.has(ano)) marcados.delete(ano);
   else marcados.add(ano);
 
@@ -354,8 +371,8 @@ export function alternarAno(
   // de graça, sem depender de o chamador tê-lo ordenado.
   const validos = disponiveis.filter((a) => marcados.has(a));
 
-  // Os dois extremos são o mesmo recorte — "todos" — e a mesma representação.
-  if (validos.length === 0 || validos.length === disponiveis.length) return undefined;
+  // O único colapso que sobrou: nenhum ano marcado É o recorte "todos".
+  if (validos.length === 0) return undefined;
 
   return [...validos].sort((a, b) => b - a);
 }

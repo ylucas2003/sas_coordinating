@@ -1,22 +1,22 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import * as api from '../../servicos/api';
 import { useRemoverFotoDeAluno } from '../../hooks/mutacoes';
 import type { Aluno } from '../../tipos/dominio';
 
 /**
- * O aluno cria a própria senha validando matrícula + e-mail do Canvas. Aqui a
- * coordenação corrige o e-mail e libera um novo primeiro acesso (zera a senha)
- * quando o aluno perde o acesso ou está sem e-mail cadastrado.
+ * O que a coordenação vê e opera do acesso de UM aluno, na ficha dele.
+ *
+ * O campo de e-mail e o botão "Liberar primeiro acesso" SAÍRAM em 04/09
+ * (docs/35 §11.5), com a rota `POST /alunos/{id}/resetar-acesso` que eles
+ * chamavam: não existe mais senha de aluno para zerar. Sobrou aqui a única
+ * ação que continua de pé — tirar do ar uma foto de perfil imprópria.
+ *
+ * O botão da foto aparece só quando há foto, em vez de aparecer cinza: é a
+ * mesma regra que `telas/Administracao/Administracao.tsx` (~281) aplica à
+ * coluna de administrador — botão desabilitado convida a clicar e ensina a
+ * esperar recusa da tela.
  */
 export function AcessoDoAluno({ aluno }: { aluno: Aluno }) {
-  const [email, setEmail] = useState('');
   const [status, setStatus] = useState('');
-
-  const resetar = useMutation({
-    mutationFn: (corpo: { email?: string }) =>
-      api.resetarAcessoAluno(aluno.id, corpo) as Promise<{ email?: string }>,
-  });
   const removerFoto = useRemoverFotoDeAluno();
 
   async function tirarFoto() {
@@ -33,49 +33,28 @@ export function AcessoDoAluno({ aluno }: { aluno: Aluno }) {
     }
   }
 
-  async function liberar() {
-    const confirmado = window.confirm(
-      'Zerar a senha deste aluno? Ele precisará criar uma nova pelo "Primeiro acesso" na tela de login.',
-    );
-    if (!confirmado) return;
-
-    setStatus('');
-    try {
-      const corpo = email.trim() ? { email: email.trim() } : {};
-      const resp = await resetar.mutateAsync(corpo);
-      setStatus(
-        `Acesso liberado. E-mail para validação: ${resp.email || '— (sem e-mail; corrija acima)'}.`,
-      );
-    } catch (e) {
-      setStatus(`Erro ao liberar acesso: ${(e as Error).message}`);
-    }
-  }
-
   return (
     <section className="card aluno-ficha__nao-imprimir">
       <div className="section">
         <div className="section__title">Acesso do aluno</div>
         <div className="section__subtitle">
-          {`E-mail do Canvas: ${aluno.email || '— não cadastrado'}. O aluno usa matrícula + este e-mail para criar a senha na tela de login.`}
+          O aluno entra <b>só pelo Canvas</b>. Quem não consegue entrar é quem não tem conta
+          ligada no Canvas, e isso se resolve lá — não há nada a liberar aqui. Quem tem e quem
+          não tem está em Administração › Contas, na seção “Acesso dos alunos”.
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            className="dialog__input"
-            type="email"
-            style={{ maxWidth: 320 }}
-            placeholder={aluno.email || 'e-mail não cadastrado — informe para corrigir'}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <button className="btn" disabled={resetar.isPending} onClick={liberar}>
-            Liberar primeiro acesso
-          </button>
-          {aluno.temFoto && (
+        {/* O e-mail continua na ficha porque ainda serve para uma coisa: é o
+            endereço do lembrete de simulado (lembretes/aplicacoes/aluno_simulado.py).
+            Quem o preenche é o sync do Canvas (canvas_sync/sincronizar.py). */}
+        <div className="section__subtitle">
+          {`E-mail do Canvas: ${aluno.email || '— não cadastrado'} — usado para o lembrete de simulado, não para entrar.`}
+        </div>
+        {aluno.temFoto && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn btn--ghost" disabled={removerFoto.isPending} onClick={tirarFoto}>
               Remover foto de perfil
             </button>
-          )}
-        </div>
+          </div>
+        )}
         {status && <div className="section__subtitle" style={{ marginTop: 8 }}>{status}</div>}
       </div>
     </section>

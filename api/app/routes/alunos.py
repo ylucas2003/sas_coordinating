@@ -14,7 +14,6 @@ import statistics as st
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
 
 from .. import storage
 from ..auditoria import registrar as auditar
@@ -446,51 +445,16 @@ def _distancia(a: list[float | None], b: list[float | None]) -> float | None:
 
 
 # ─── Acesso do aluno (área do aluno) ─────────────────────────────────────
-
-
-class ResetarAcessoBody(BaseModel):
-    email: str | None = None  # corrige o e-mail do Canvas quando divergente/ausente
-
-
-@router.post("/{aluno_id}/resetar-acesso")
-async def resetar_acesso_aluno(
-    aluno_id: str,
-    body: ResetarAcessoBody,
-    request: Request,
-    coordenador: dict = Depends(get_current_coordenador),
-) -> dict:
-    """Zera a senha do aluno, liberando um novo "primeiro acesso".
-
-    Fallback da coordenação para alunos sem e-mail no Canvas (ou com e-mail
-    divergente): opcionalmente grava o e-mail correto junto.
-    """
-    cliente = get_supabase()
-    resp = (
-        cliente.table("aluno")
-        .select("id, email")
-        .eq("id", aluno_id)
-        .limit(1)
-        .execute()
-    )
-    if not resp.data:
-        raise HTTPException(status_code=404, detail=f"aluno {aluno_id} não encontrado")
-
-    patch: dict = {"senha_hash": None}
-    if body.email and body.email.strip():
-        patch["email"] = body.email.strip().lower()
-    cliente.table("aluno").update(patch).eq("id", aluno_id).execute()
-
-    # Prometido pelo COMMENT da 0022 e nunca gravado. Quem zerou a senha de
-    # quem é exatamente o tipo de pergunta que a trilha existe para responder.
-    auditar(
-        cliente, "acesso_resetado", canal="acesso",
-        ator_tipo="coordenador", ator_id=coordenador.get("sub"),
-        recurso=f"aluno/{aluno_id}",
-        ip=request.client.host if request.client else None,
-        detalhe={"email_alterado": "email" in patch},
-    )
-
-    return {"ok": True, "email": patch.get("email") or resp.data[0].get("email")}
+# A rota POST /alunos/{id}/resetar-acesso SAIU em 04/09 (docs/35 §11.5).
+#
+# Ela zerava `aluno.senha_hash` para liberar um novo "primeiro acesso", e era o
+# fallback da coordenação para quem perdia a senha ou estava sem e-mail no
+# Canvas. Com o aluno entrando SÓ pelo Canvas, não há senha para zerar nem
+# primeiro acesso para liberar: aluno sem acesso é aluno sem `canvas_user_id`,
+# e isso se resolve no Canvas, não aqui.
+#
+# A coluna `aluno.senha_hash` fica com o que já tinha — apagar perde dado e não
+# devolve nada.
 
 
 # ─── Foto de perfil (visão da coordenação) ───────────────────────────────

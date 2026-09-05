@@ -1,0 +1,52 @@
+{
+  "q01": {
+    "topicos_ids": ["10.1", "3.1", "1.2"],
+    "confianca": "alta",
+    "observacao": "Eletrolise ignea de MCl2: Q = i.t = 9648 C dao 0,1 mol de eletrons e, com 2 e- por mol de M, 0,05 mol de metal; a massa molar 4,38/0,05 = 87,6 g/mol identifica o estroncio na tabela periodica (grupo 2, coerente com o sal MCl2)."
+  },
+  "q02": {
+    "topicos_ids": ["11.5", "11.2", "11.1"],
+    "confianca": "alta",
+    "observacao": "Cadeia de reacoes organicas a partir de C5H11Cl: eliminacao (desidro-halogenacao) gera o alceno B, a ozonolise que produz formaldeido denuncia a dupla terminal e a hidratacao de Markovnikov leva ao alcool terciario C, inerte ao KMnO4 em meio acido."
+  },
+  "q03": {
+    "topicos_ids": ["11.2", "11.1", "11.6", "3.1"],
+    "confianca": "alta",
+    "observacao": "Da razao atomica 6:10:1 com dois oxigenios fecha a formula molecular C12H20O2 e monta a estrutura plana do acetato de linalila (ester de dieno nao conjugado) pelas pistas de cadeia; depois escreve a poliadicao na dupla mais substituida."
+  },
+  "q04": {
+    "topicos_ids": ["9.2", "4.1", "3.1"],
+    "confianca": "alta",
+    "observacao": "Equilibrio ionico de acido fraco: do pH-alvo 4 e do Ka = 2,0x10-5 do acido acetico tira a concentracao analitica minima e converte em massa (massa molar 60 g/mol) para os 200.000 L da piscina de decantacao."
+  },
+  "q05": {
+    "topicos_ids": ["6.1", "3.1"],
+    "confianca": "alta",
+    "observacao": "Termoquimica de combustao a pressao constante com agua liquida: pela proporcao 1 CH4 : 2 O2, as massas queimadas ficam proporcionais as energias liberadas e a razao m1/m2 sai 1 sem precisar do valor da entalpia de combustao."
+  },
+  "q06": {
+    "topicos_ids": ["12.1", "11.2", "3.1", "3.2"],
+    "confianca": "alta",
+    "observacao": "Volumetria de neutralizacao (3 mmol de NaOH para 0,18 g de acido) cruzada com a massa molar 60 g/mol obtida da densidade de vapor 30 vezes a do hidrogenio, identificando o acido acetico e pedindo nome e estrutura."
+  },
+  "q07": {
+    "topicos_ids": ["7.1", "6.1", "3.1"],
+    "confianca": "alta",
+    "observacao": "Energia livre de Gibbs do cobre solido e liquido em funcao de T (GS = GL da a temperatura e a entalpia de fusao) somada a entalpia global das tres etapas por Hess e a estequiometria de 213,36 kg de Cu, para dimensionar as placas solares de 2 MJ/h."
+  },
+  "q08": {
+    "topicos_ids": ["1.3"],
+    "confianca": "alta",
+    "observacao": "Ligacao deficiente em eletrons: conta os 50 eletrons de valencia do anion dodecaborato (B12H12)2- contra os 84 que as 42 ligacoes tipicas de 2 centros e 2 eletrons do icosaedro exigiriam, e pede a deficiencia percentual."
+  },
+  "q09": {
+    "topicos_ids": ["4.1", "9.2", "9.1", "3.2"],
+    "confianca": "alta",
+    "observacao": "Lei de Henry sobre a pressao parcial tirada dos 545 ppm molares (Dalton) para o CO2 dissolvido, Ka1 do acido carbonico para o pH da agua pura e Le Chatelier para o efeito da temperatura sobre a ionizacao."
+  },
+  "q10": {
+    "topicos_ids": ["2.1"],
+    "confianca": "alta",
+    "observacao": "Serie radioativa: balanceia as emissoes alfa e beta pelas leis de Soddy, identifica a familia 4n+3 (serie do actinio) e calcula a constante de decaimento e a vida-media do nuclideo Z a partir da meia-vida de 4 s."
+  }
+}

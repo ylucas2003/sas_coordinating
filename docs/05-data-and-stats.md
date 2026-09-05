@@ -30,7 +30,9 @@ Simulado ──── 1:N ──── NotaAluno (nota total + nota por matéria
 
 **Turma**
 - id
-- nome (ex: "3ª série A — ITM")
+- nome — ⚠️ no schema que existe hoje não há coluna `nome`: a turma é `serie` +
+  `trilha` + `section_original` ("3o ITA AD", "3o ITA MF"), os três vindos do
+  Canvas. A turma se chama **ITA/IME** desde 04/09/2026 ([35 §7](35-plano-correcoes.md))
 - sede (referência)
 - anoLetivo
 - alunos (lista)

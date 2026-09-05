@@ -1,5 +1,18 @@
-// Os dois modos de acesso. Mudam o texto da coluna esquerda, o rótulo do
-// campo de usuário e o `tipo` enviado ao backend.
+// As DUAS portas da tela de login — e só uma delas tem formulário.
+//
+// `Modo` diz qual porta está aberta, não quem a pessoa é: 'aluno' renderiza a
+// `PortaDoAluno` inteira (que hoje é só o botão do Canvas) e 'coordenador'
+// renderiza o `.lp` institucional com e-mail + senha.
+//
+// ⚠️ Os rótulos abaixo são só do lado da COORDENAÇÃO. Havia um par para o
+// aluno até 04/09, com `fieldLabel: 'Matrícula'` e "Entrar no painel do
+// aluno" — texto de um formulário que deixou de existir quando o aluno passou
+// a entrar só pelo Canvas (docs/35 §11.5). Ficaria como dado morto dizendo o
+// contrário do que a tela faz, então saiu junto.
+//
+// O terceiro papel (administrador) NÃO aparece aqui: ele entra pela mesma
+// porta e pelo mesmo formulário da coordenação, e quem o distingue é o `papel`
+// que volta do servidor (`servicos/sessao.ts`).
 
 export type Modo = 'aluno' | 'coordenador';
 
@@ -19,35 +32,18 @@ export interface RotulosModo {
   rightSub: string;
 }
 
-export const MODOS: Record<Modo, RotulosModo> = {
-  aluno: {
-    label: 'Acesso · aluno',
-    hl1: 'Sua jornada,',
-    hlEm: 'medida',
-    hl2: ' a cada passo.',
-    subtitle:
-      'Veja cada simulado, cada nota e cada avanço até a sua aprovação. Sua devolutiva, sua evolução, seu painel.',
-    fieldLabel: 'Matrícula',
-    placeholder: 'matrícula ou e-mail institucional',
-    submitText: 'Entrar no painel do aluno',
-    rightHl: ['A tradição que aprova.', 'Agora, acompanhada', 'com '],
-    rightHlEm: 'precisão.',
-    rightSub:
-      'Cada simulado ganha contexto, cada nota vira direção e cada aluno acompanha sua evolução até a aprovação.',
-  },
-  coordenador: {
-    label: 'Acesso · coordenação',
-    hl1: 'Gestão clara,',
-    hlEm: 'decisões',
-    hl2: ' com profundidade.',
-    subtitle:
-      'Acompanhe dados individuais e gerais, compare turmas, ciclos e desempenhos, identifique alertas e transforme informação em ação pedagógica.',
-    fieldLabel: 'Usuário',
-    placeholder: 'usuário institucional',
-    submitText: 'Entrar no painel da coordenação',
-    rightHl: ['Diagnóstico que organiza', 'a visão. Dados que orientam', 'a '],
-    rightHlEm: 'decisão.',
-    rightSub:
-      'Do aluno individual ao panorama da rede, a plataforma cruza resultados, evidencia prioridades e apoia intervenções pedagógicas com clareza.',
-  },
+export const ROTULOS_COORDENACAO: RotulosModo = {
+  label: 'Acesso · coordenação',
+  hl1: 'Gestão clara,',
+  hlEm: 'decisões',
+  hl2: ' com profundidade.',
+  subtitle:
+    'Acompanhe dados individuais e gerais, compare turmas, ciclos e desempenhos, identifique alertas e transforme informação em ação pedagógica.',
+  fieldLabel: 'Usuário',
+  placeholder: 'usuário institucional',
+  submitText: 'Entrar no painel da coordenação',
+  rightHl: ['Diagnóstico que organiza', 'a visão. Dados que orientam', 'a '],
+  rightHlEm: 'decisão.',
+  rightSub:
+    'Do aluno individual ao panorama da rede, a plataforma cruza resultados, evidencia prioridades e apoia intervenções pedagógicas com clareza.',
 };

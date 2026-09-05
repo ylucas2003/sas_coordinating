@@ -4,6 +4,12 @@
 Funções síncronas — o client Supabase é síncrono; os handlers FastAPI são
 async só por convenção e delegam para cá. Situações de "não encontrado"
 retornam {"erro": "..."} (as tools mostram ao LLM; as rotas convertem em 404).
+
+⚠️ `arquivo_do_simulado_do_aluno` SAIU em 04/09 com a rota que a chamava
+(docs/35 §8b): o aluno deixou de ter o botão "Abrir a prova", e a extração que
+resolvia o caminho do PDF no Storage foi junto para a porta não ficar entreaberta
+— ver o cabeçalho de routes/me.py. `simulado.arquivo_storage_path` continua no
+banco e continua servindo a coordenação; o que saiu é o caminho do ALUNO até ele.
 """
 
 from __future__ import annotations
@@ -424,45 +430,6 @@ def questoes_do_aluno_no_simulado(
         "erros": erros,
         "emBranco": em_branco,
         "questoes": itens,
-    }
-
-
-def arquivo_do_simulado_do_aluno(
-    cliente: Client, aluno_id: str, simulado_id: str
-) -> dict[str, Any]:
-    """Path do PDF da prova no Storage — mesma resposta de
-    GET /me/simulado/{id}/arquivo. Só o path/nome; gerar a signed URL é
-    responsabilidade da rota (I/O de Storage não mora nesse módulo)."""
-    # O aluno só consulta simulados em que tem nota (mesma guarda das outras
-    # extrações deste módulo).
-    nota_resp = (
-        cliente.table("nota")
-        .select("aluno_id")
-        .eq("aluno_id", aluno_id)
-        .eq("simulado_id", simulado_id)
-        .eq("presente", True)
-        .limit(1)
-        .execute()
-    )
-    if not nota_resp.data:
-        return {"erro": "Nota não encontrada para este simulado"}
-
-    sim_resp = (
-        cliente.table("simulado")
-        .select("nome, arquivo_storage_path")
-        .eq("id", simulado_id)
-        .limit(1)
-        .execute()
-    )
-    if not sim_resp.data:
-        return {"erro": "Simulado não encontrado"}
-    sim = sim_resp.data[0]
-    if not sim.get("arquivo_storage_path"):
-        return {"erro": "Arquivo do simulado ainda não disponível"}
-
-    return {
-        "caminhoStorage": sim["arquivo_storage_path"],
-        "nomeArquivo": sim["nome"],
     }
 
 

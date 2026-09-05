@@ -10,7 +10,12 @@ import {
   FolhaDaPaginaInteira,
   usePaginaInteiraExplicada,
 } from './pecas/FolhaDaPaginaInteira';
-import { FolhaFiltros, PainelDeFiltros } from './pecas/FolhaFiltros';
+import {
+  FiltrosDeMateriaEAssunto,
+  FolhaFiltros,
+  PainelDeFiltros,
+  SeletorDeColecao,
+} from './pecas/FolhaFiltros';
 import type { RotulosDeFiltro } from './pecas/FolhaFiltros';
 import { Icone } from './pecas/Icone';
 import { MATERIAS_COM_TAXONOMIA, fmtInteiro } from './pecas/formato';
@@ -34,20 +39,27 @@ import { MATERIAS_COM_TAXONOMIA, fmtInteiro } from './pecas/formato';
 // caderno, com as questões vizinhas junto — e é por isso que o cartão de lá tem
 // tarja dizendo qual número procurar, e esta tela tem uma folha explicando por
 // quê. Sem isso o aluno acha que abriu a questão errada.
+//
+// ⚠️ ONDE CADA FILTRO MORA mudou em 04/09 (docs/35 §5): matéria e assunto
+// subiram para o CENTRO, no lugar dos cartões de coleção, e a coleção desceu
+// para a coluna lateral. Matéria é o que destrava o assunto, e na coluna — que
+// rola por dentro — ela saía da tela deixando à vista o aviso "escolha uma
+// matéria primeiro", que apontava para um controle que já não estava lá.
+// No celular não existe coluna (docs/28 §4): lá a coleção fica no fluxo, logo
+// abaixo dos dois primários, e a folha do rodapé guarda só o resto.
 
 /** A página da listagem. O mesmo padrão da rota (`POR_PAGINA_PADRAO` = 20). */
 const POR_PAGINA = 20;
 
-/** Os seis recortes removíveis. A busca fica fora: ela mora no campo, sempre
+/** Os cinco recortes removíveis. A busca fica fora: ela mora no campo, sempre
  *  visível, e não vira pílula. A coleção também fica fora — ela é um controle
  *  segmentado próprio, sempre visível, e nunca "nenhuma". */
 const CHAVES_DE_FILTRO = ['materia', 'vestibular', 'anos', 'fase', 'topico'] as const;
 type ChaveDeFiltro = (typeof CHAVES_DE_FILTRO)[number];
 
-const COLECOES: { id: ColecaoBanco; nome: string; comoE: string }[] = [
-  { id: 'recentes', nome: 'Recentes', comoE: 'recorte da questão' },
-  { id: 'arquivo', nome: 'Arquivo', comoE: 'página inteira do caderno' },
-];
+/** Os que a FOLHA do celular guarda. Matéria e assunto não estão lá: ficam no
+ *  centro, à vista (docs/35 §5). */
+const CHAVES_DA_FOLHA: readonly ChaveDeFiltro[] = ['vestibular', 'anos', 'fase'];
 
 /** Quantas colunas o desktop mostra. No celular é sempre uma. */
 type Colunas = 1 | 2;
@@ -265,18 +277,24 @@ export function EstudarBanco() {
     [acervo, porQuestao],
   );
 
-  // A explicação da página inteira abre na primeira lista que TRAZ uma questão
-  // em modo página — em contexto, e não ao entrar na aba. Onboarding disparado
-  // longe da coisa que ele explica é onboarding que ninguém lê.
-  const temPaginaInteira = useMemo(() => lista.some((q) => q.extraidoPor === 'pagina'), [lista]);
+  // A explicação da página inteira abre AO ENTRAR NO BANCO, uma vez por sessão
+  // (decisão de 04/09, docs/35 §6). Antes esperava a primeira lista que
+  // trouxesse questão em modo página, para chegar "em contexto" — mas o
+  // Arquivo é a metade maior do acervo, então o contexto é a aba inteira, e
+  // esperar a lista fazia a folha aparecer por cima de questões que o aluno já
+  // tinha começado a ler.
   const { explicarSePrimeiraVez } = explicacao;
   useEffect(() => {
-    if (temPaginaInteira) explicarSePrimeiraVez();
-  }, [temPaginaInteira, explicarSePrimeiraVez]);
+    explicarSePrimeiraVez();
+  }, [explicarSePrimeiraVez]);
 
   const total = questoes.data?.total ?? 0;
   const temMais = lista.length < total;
   const ativos = CHAVES_DE_FILTRO.filter((c) => filtros[c] !== undefined);
+  // O contador do botão "Filtros" conta só o que a folha guarda: matéria e
+  // assunto estão no centro, à vista, e somá-los aqui prometeria dentro da
+  // folha um recorte que não está lá.
+  const ativosNaFolha = ativos.filter((c) => CHAVES_DA_FOLHA.includes(c));
   const temRecorte = ativos.length > 0 || buscaAdiada.trim() !== '';
   const outra: ColecaoBanco = colecao === 'recentes' ? 'arquivo' : 'recentes';
 
@@ -321,9 +339,17 @@ export function EstudarBanco() {
 
       <div className="alu-banco">
         {/* A coluna fixa só existe no desktop (o CSS a esconde no celular),
-            onde há largura ao lado da lista. No celular a mesma capacidade sobe
-            do rodapé, pela folha — ver o comentário de `FolhaFiltros`. */}
-        <PainelDeFiltros filtros={filtros} onAplicar={aplicarRecorte} />
+            onde há largura ao lado da lista. Ela guarda os SECUNDÁRIOS —
+            coleção, vestibular, fase e ano; matéria e assunto ficam no centro.
+            No celular a mesma capacidade sobe do rodapé, pela folha — ver o
+            comentário de `FolhaFiltros`. */}
+        <PainelDeFiltros
+          filtros={filtros}
+          rotulos={rotulos}
+          colecao={colecao}
+          onTrocarColecao={trocarColecao}
+          onAplicar={aplicarRecorte}
+        />
 
         <div className="alu-banco__corpo">
           {/* Os dois grupos convivem numa barra só. No celular eles empilham —
@@ -361,14 +387,14 @@ export function EstudarBanco() {
                 um botão que abre o que já está aberto é ruído. */}
             <button
               type="button"
-              className={`alu-est-filtrar${ativos.length ? ' is-ativo' : ''}`}
+              className={`alu-est-filtrar${ativosNaFolha.length ? ' is-ativo' : ''}`}
               aria-expanded={folhaAberta}
               onClick={() => setFolhaAberta(true)}
             >
               <Icone nome="filtro" tamanho={18} />
               Filtros
-              {ativos.length > 0 && (
-                <span className="alu-est-filtrar__contagem">{ativos.length}</span>
+              {ativosNaFolha.length > 0 && (
+                <span className="alu-est-filtrar__contagem">{ativosNaFolha.length}</span>
               )}
             </button>
 
@@ -427,31 +453,18 @@ export function EstudarBanco() {
           </div>
           </div>
 
-          {/* As duas coleções. Controle segmentado, e não pílula removível: uma
-              das duas está sempre ativa, porque as duas metades do acervo se
-              leem de formas diferentes e a tela precisa dizer qual está
-              mostrando. O subtítulo é a CONTAGEM REAL de cada uma — é ela que
-              diz ao aluno que o Arquivo é a metade maior. */}
-          <fieldset className="alu-colecoes">
-            <legend className="alu-so-leitor">Coleção do acervo</legend>
-            {COLECOES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`alu-colecao${c.id === colecao ? ' is-ativa' : ''}`}
-                aria-pressed={c.id === colecao}
-                onClick={() => trocarColecao(c.id)}
-              >
-                <span className="alu-colecao__nome">{c.nome}</span>
-                {/* A aba diz COMO a coleção se lê — a diferença estrutural
-                    entre as duas (0031/0033), que não muda com importação
-                    nova. Quantas são fica na linha abaixo: repetir o número
-                    aqui e ali daria ao aluno dois lugares para conferir a
-                    mesma coisa. */}
-                <span className="alu-colecao__como">{c.comoE}</span>
-              </button>
-            ))}
-          </fieldset>
+          {/* MATÉRIA E ASSUNTO, no slot que era dos cartões de coleção
+              (docs/35 §5). São os dois primários: matéria é o que destrava o
+              assunto, e o aviso que manda escolher uma agora fica a uma linha
+              das pílulas que ele cita. Vale nos dois tamanhos de tela — no
+              celular este É o centro. */}
+          <FiltrosDeMateriaEAssunto filtros={filtros} onAplicar={aplicarRecorte} />
+
+          {/* A coleção, no celular. No desktop ela vive no painel lateral e o
+              CSS esconde esta cópia — mas no celular não há painel, e enfiá-la
+              na folha do rodapé tiraria da vista o controle que diz COMO a
+              lista atrás se lê. Uma das duas está sempre ativa. */}
+          <SeletorDeColecao colecao={colecao} onTrocar={trocarColecao} variante="centro" />
 
       {ativos.length > 0 && (
         <ul className="alu-est-pilulas">

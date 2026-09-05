@@ -1,10 +1,12 @@
-"""Login pelo Canvas — OAuth2 por redirect (docs/18 §4.2).
+"""Login pelo Canvas — OAuth2 por redirect (docs/18 §4.2, docs/35 §11.5).
 
 Por que o Canvas é o provedor de identidade: 876 de 876 alunos ativos já
-têm `canvas_user_id`, e só 1 tem senha no SAS (22/08/2026). A escola já
+têm `canvas_user_id`, e só 1 tinha senha no SAS (22/08/2026). A escola já
 provisionou e verificou essas contas; pedir CPF + nome + RA para "ver se o
 cara está falando a verdade" (coordenação, 21/08 19h15) seria refazer o que
 o Canvas fez.
+
+Desde 04/09 este é o **único** caminho de entrada do aluno, e é só do aluno.
 
 O fluxo, em três passos, nenhum deles com JS de terceiro no front:
 
@@ -12,8 +14,8 @@ O fluxo, em três passos, nenhum deles com JS de terceiro no front:
                                `state` assinado (CSRF).
   GET /auth/canvas/callback  → troca o `code` por token servidor-a-servidor,
                                pergunta "quem é você?" ao Canvas, acha o
-                               aluno/coordenador no banco e devolve o JWT
-                               do SAS num redirect para o front.
+                               aluno no banco e devolve o JWT do SAS num
+                               redirect para o front.
   "já logado entra direto"   → é o próprio redirect: o browser leva a
                                sessão do Canvas e volta sem tela nenhuma.
 
@@ -23,12 +25,21 @@ O que este módulo NÃO faz, de propósito:
     (e é o painel de administrador que gerencia isso — docs/18 §4.6).
   * não guarda o access_token do Canvas: é usado uma vez e descartado. O
     SAS continua agindo no Canvas com o token de Admin, como sempre.
-  * não substitui matrícula + senha: é o fallback quando o Canvas está
-    fora do ar, senão ninguém entra — nem a coordenação.
+  * **não serve a coordenação.** Saiu em 04/09 (docs/35 §11.6): a coordenação
+    entra por e-mail + senha, e só por isso. A coluna
+    `usuario_coordenacao.canvas_user_id` FICA — apagar perde dado —, mas
+    deixou de valer para login, e o vínculo automático por e-mail no primeiro
+    acesso saiu junto.
 
-⚠️ Escrito ANTES de existir a Developer Key. Está completo, mas só pode ser
-   verificado de ponta a ponta quando `CANVAS_CLIENT_ID`/`SECRET` existirem
-   (docs/18 §0.3). A única parte provada sem ela é o `state` assinado.
+⚠️ **O SSO foi testado em produção em 04/09 e funciona.** Este aviso substitui
+   o anterior, escrito antes de existir a Developer Key, que dizia que o fluxo
+   "só pode ser verificado quando CANVAS_CLIENT_ID/SECRET existirem" e que a
+   senha era o fallback quando o Canvas caísse. As duas coisas deixaram de ser
+   verdade: a chave existe, e a senha do aluno não existe mais.
+
+⚠️ **A consequência nova, e ela é permanente:** Canvas fora do ar = NENHUM
+   aluno entra. Não há segunda porta. Para a coordenação continua havendo, e é
+   por isso que ela ficou do lado da senha.
 """
 
 from __future__ import annotations
@@ -46,7 +57,6 @@ from jose import JWTError, jwt
 
 from ..auditoria import registrar as auditar
 from ..auth import ALGORITHM, criar_token
-from ..canvas_sync import identidade
 from ..config import get_settings
 from ..supabase_client import get_supabase
 
@@ -189,47 +199,50 @@ async def callback(
         log.warning("canvas não disse quem é o usuário (sem id no token nem em /users/self)")
         return RedirectResponse("/login?canvas=falhou")
 
-    # 4. Quem entra? O Canvas disse quem é; o banco diz se entra e como.
+    # 4. Quem entra? O Canvas disse quem é; o banco diz se entra.
+    #
+    # Não há mais nada a tentar quando o id não é de aluno nenhum. O vínculo
+    # automático por e-mail que ficava aqui existia só para a coordenação —
+    # ele ligava a conta ao Canvas no primeiro login — e saiu com o SSO da
+    # coordenação (docs/35 §11.6). Aluno já vem ligado pelo sync, então para
+    # ele o vínculo nunca foi necessário.
     cliente = get_supabase()
-    token, tipo = _sessao_para(cliente, canvas_user_id)
-    if token is None:
-        # Ninguém tem esse id ainda. Se o e-mail do Canvas bater com uma conta
-        # da coordenação, liga agora — é o que dispensa qualquer pessoa de
-        # procurar o id na URL do perfil (canvas_sync/identidade.py).
-        ligado = await _ligar_coordenador_pelo_email(cliente, canvas_user_id, ip)
-        if ligado:
-            token, tipo = _sessao_para(cliente, canvas_user_id)
+    token, tipo, ator_id = _sessao_para(cliente, canvas_user_id)
     if token is None:
         auditar(cliente, "login_falhou", canal="acesso", ator_tipo="canvas",
                 ator_id=canvas_user_id, ip=ip, detalhe={"motivo": "sem_conta_no_sas"})
         return RedirectResponse("/login?canvas=sem-conta")
 
-    auditar(cliente, "login_ok", canal="acesso", ator_tipo=tipo, ator_id=canvas_user_id,
-            ip=ip, detalhe={"via": "canvas"})
+    # ⚠️ `ator_id` é o id do aluno NO SAS, nunca o número do Canvas. A trilha é
+    # cruzada por esse id em dois lugares — a coluna "Último login" da tela de
+    # administração (`administracao.py::_ultimo_login_por_aluno`) e o avatar da
+    # tela de auditoria —, e os dois casam com `aluno.id`. Gravar o número do
+    # Canvas aqui fazia a coluna dizer "nunca" para TODO aluno, para sempre:
+    # enquanto existiu login por matrícula era ele que gravava o id certo, e
+    # esse ramo saiu em 04/09 (docs/35 §11.5). O número do Canvas continua na
+    # trilha, mas como detalhe — que é o papel dele.
+    auditar(cliente, "login_ok", canal="acesso", ator_tipo=tipo, ator_id=ator_id,
+            ip=ip, detalhe={"via": "canvas", "canvas_user_id": canvas_user_id})
     # O front lê o token do fragmento (#), que não vai ao servidor nem fica
     # em log de acesso, grava na sessão e limpa a URL.
     return RedirectResponse(f"/login/canvas#token={token}&tipo={tipo}&proximo={proximo}")
 
 
-def _sessao_para(cliente, canvas_user_id: str) -> tuple[str | None, str | None]:
-    """JWT do SAS para o dono desse canvas_user_id: coordenador antes de
-    aluno, porque um coordenador pode também estar matriculado em curso."""
-    coord = (
-        cliente.table("usuario_coordenacao")
-        .select("id, nome, ativo, foto_perfil_storage")
-        .eq("canvas_user_id", canvas_user_id)
-        .limit(1)
-        .execute()
-        .data
-    )
-    if coord and coord[0].get("ativo"):
-        u = coord[0]
-        token = criar_token({
-            "sub": u["id"], "tipo": "coordenador", "nome": u["nome"],
-            "temFoto": u.get("foto_perfil_storage") is not None,
-        })
-        return token, "coordenador"
+def _sessao_para(
+    cliente, canvas_user_id: str
+) -> tuple[str | None, str | None, str | None]:
+    """JWT do SAS para o ALUNO dono desse canvas_user_id, com o id dele.
 
+    Devolve TRÊS coisas, e a terceira é o id do aluno no SAS — não o do Canvas.
+    Quem chama precisa dele para a auditoria; ver o ⚠️ no `callback`.
+
+    O ramo do coordenador saiu em 04/09 (docs/35 §11.6). Ele vinha ANTES do
+    aluno de propósito, porque um coordenador também matriculado em curso
+    entraria como aluno — hoje esse caso deixou de existir pelo outro lado:
+    quem é da coordenação simplesmente não entra por aqui, e se a conta dela
+    também for aluno no Canvas, entra como aluno mesmo. Quem precisa do painel
+    usa e-mail + senha.
+    """
     aluno = (
         cliente.table("aluno")
         .select("id, nome, ativo, foto_perfil_storage")
@@ -244,31 +257,5 @@ def _sessao_para(cliente, canvas_user_id: str) -> tuple[str | None, str | None]:
             "sub": a["id"], "tipo": "aluno", "nome": a["nome"], "aluno_id": a["id"],
             "temFoto": a.get("foto_perfil_storage") is not None,
         })
-        return token, "aluno"
-    return None, None
-
-
-async def _ligar_coordenador_pelo_email(cliente, canvas_user_id: str, ip: str | None) -> bool:
-    """Primeiro login pelo Canvas de uma conta ainda sem canvas_user_id:
-    casa pelo e-mail e grava. Só coordenação — aluno já vem ligado do sync,
-    e um aluno sem linha é recusa mesmo (o SAS decide quem entra)."""
-    email = await identidade.email_pelo_id(canvas_user_id)
-    if not email:
-        return False
-    conta = (
-        cliente.table("usuario_coordenacao")
-        .select("id, ativo, canvas_user_id")
-        .eq("email", email)
-        .limit(1)
-        .execute()
-        .data
-    )
-    if not conta or not conta[0].get("ativo") or conta[0].get("canvas_user_id"):
-        return False
-    cliente.table("usuario_coordenacao").update({"canvas_user_id": canvas_user_id}).eq(
-        "id", conta[0]["id"]
-    ).execute()
-    auditar(cliente, "coordenador_editado", canal="acesso", ator_tipo="coordenador",
-            ator_id=conta[0]["id"], recurso=f"coordenador/{conta[0]['id']}", ip=ip,
-            detalhe={"canvas_user_id": canvas_user_id, "via": "primeiro login pelo canvas"})
-    return True
+        return token, "aluno", a["id"]
+    return None, None, None

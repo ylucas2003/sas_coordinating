@@ -14,29 +14,52 @@ import { Folha } from './Folha';
 // aluno abre "Trigonometria · ITA 2011" e vê três questões, duas delas de outro
 // assunto. Sem esta folha ele conclui que o filtro está quebrado.
 //
-// ⚠️ Aparece UMA vez, na primeira lista que traz questão em modo página — não
-// ao entrar na aba. Onboarding fora de contexto é onboarding que ninguém lê. O
-// "?" da tarja reabre para sempre, porque quem pulou da primeira vez precisa
-// de um caminho de volta.
+// ⚠️ Aparece UMA VEZ POR SESSÃO, AO ENTRAR NO BANCO (decisão de 04/09,
+// docs/35 §6). Até então aparecia uma vez e nunca mais, por aparelho, e na
+// primeira lista que trouxesse questão em modo página — o argumento era que
+// onboarding fora de contexto ninguém lê. O uso desmentiu as duas metades: o
+// acervo do Arquivo é a maioria das questões, então o contexto é a aba
+// inteira; e "uma vez para sempre" quer dizer que o aluno que viu a folha em
+// março não a tem mais quando volta em setembro sem lembrar por que a prova
+// vem inteira.
+//
+// ⚠️ Ressalva registrada, de olhos abertos: para quem abre o banco todo dia,
+// folha que volta toda sessão vira ruído, e o preço do ruído é o aluno
+// aprender a fechar folha sem ler — o que queima a próxima folha que importar.
+// Se incomodar, voltar a "uma vez" é trocar `sessionStorage` por
+// `localStorage` nesta linha.
+//
+// O "?" da tarja reabre a folha quando o aluno quiser, na sessão em que ele já
+// a fechou.
 
 /**
- * O "não mostrar de novo" mora no `localStorage`, e não no banco.
+ * O "já vi" mora no `sessionStorage`, e não no banco nem no `localStorage`.
  *
  * É preferência de leitura, não dado do aluno: não vale uma coluna, uma
- * migration nem uma ida ao servidor no caminho crítico da tela. O preço é que
- * ela é por aparelho — quem trocar de celular vê a explicação outra vez, o que
- * é o erro barato dos dois.
+ * migration nem uma ida ao servidor no caminho crítico da tela. E a chave da
+ * SESSÃO é o que faz a folha voltar quando o aluno volta — ela morre com a
+ * aba, que é literalmente "nova sessão".
  *
- * ⚠️ `localStorage` levanta exceção em modo privativo de alguns navegadores.
+ * ⚠️ O acessor levanta exceção em modo privativo de alguns navegadores.
  * Falhar aqui derrubaria a lista de questões inteira por causa de um aviso, e
  * por isso toda leitura e escrita é protegida — sem valor guardado, a folha
  * aparece de novo, que é o comportamento seguro.
  */
 const CHAVE = 'sas:aluno:pagina-inteira-explicada';
 
+// A mesma chave ficou órfã no `localStorage` de ~900 aparelhos, gravada pela
+// regra antiga. Some na carga do módulo, e não a cada leitura: é limpeza de uma
+// vez só, não regra de leitura. Deixá-la lá não mudaria o comportamento, mas
+// guardaria para sempre um "não mostrar de novo" que ninguém mais lê.
+try {
+  window.localStorage.removeItem(CHAVE);
+} catch {
+  // Sem armazenamento não há o que limpar.
+}
+
 function jaExplicado(): boolean {
   try {
-    return window.localStorage.getItem(CHAVE) === '1';
+    return window.sessionStorage.getItem(CHAVE) === '1';
   } catch {
     return false;
   }
@@ -44,9 +67,8 @@ function jaExplicado(): boolean {
 
 export function usePaginaInteiraExplicada() {
   const [aberta, setAberta] = useState(false);
-  const [visto, setVisto] = useState(jaExplicado);
 
-  /** Chamada quando a lista traz a primeira questão em modo página. */
+  /** Chamada ao entrar no banco. Abre só se a sessão ainda não viu. */
   const explicarSePrimeiraVez = useCallback(() => {
     if (jaExplicado()) return;
     setAberta(true);
@@ -54,23 +76,30 @@ export function usePaginaInteiraExplicada() {
 
   const reabrir = useCallback(() => setAberta(true), []);
 
-  const fechar = useCallback((naoMostrarDeNovo: boolean) => {
+  /**
+   * Fechar é fechar, venha do "Entendi", do X ou do Esc.
+   *
+   * O antigo par "Entendi" / "Ver de novo depois" só fazia sentido quando o
+   * "Entendi" valia para sempre: escolher entre nunca mais e mais uma vez era
+   * uma escolha de verdade. Com a marca valendo uma sessão, "ver de novo
+   * depois" é o que já acontece amanhã — o segundo botão virou uma pergunta
+   * sem consequência, e saiu.
+   */
+  const fechar = useCallback(() => {
     setAberta(false);
-    if (!naoMostrarDeNovo) return;
-    setVisto(true);
     try {
-      window.localStorage.setItem(CHAVE, '1');
+      window.sessionStorage.setItem(CHAVE, '1');
     } catch {
-      // Sem armazenamento a folha volta na próxima abertura. É chato, não é bug.
+      // Sem armazenamento a folha volta na próxima entrada. É chato, não é bug.
     }
   }, []);
 
-  return { aberta, visto, explicarSePrimeiraVez, reabrir, fechar };
+  return { aberta, explicarSePrimeiraVez, reabrir, fechar };
 }
 
 interface Props {
   aberta: boolean;
-  onFechar: (naoMostrarDeNovo: boolean) => void;
+  onFechar: () => void;
 }
 
 export function FolhaDaPaginaInteira({ aberta, onFechar }: Props) {
@@ -79,7 +108,7 @@ export function FolhaDaPaginaInteira({ aberta, onFechar }: Props) {
       aberta={aberta}
       titulo="Por que a prova vem inteira"
       altura="meio"
-      onFechar={() => onFechar(false)}
+      onFechar={onFechar}
       className="alu-folha-pagina"
     >
       <div className="alu-onb">
@@ -135,15 +164,12 @@ export function FolhaDaPaginaInteira({ aberta, onFechar }: Props) {
           você procura está ali, junto de outras. Todo cartão avisa qual número procurar.
         </p>
 
-        <button type="button" className="alu-tecla alu-tecla--larga" onClick={() => onFechar(true)}>
+        {/* Um botão só. O "Ver de novo depois" saiu com a regra que o
+            sustentava: a folha volta na próxima sessão de qualquer jeito, e
+            oferecer a escolha entre "entendi" e "de novo depois" prometeria uma
+            diferença que não existe mais (docs/35 §6). */}
+        <button type="button" className="alu-tecla alu-tecla--larga" onClick={onFechar}>
           Entendi
-        </button>
-        <button
-          type="button"
-          className="alu-tecla alu-tecla--fantasma alu-tecla--larga"
-          onClick={() => onFechar(false)}
-        >
-          Ver de novo depois
         </button>
       </div>
     </Folha>
