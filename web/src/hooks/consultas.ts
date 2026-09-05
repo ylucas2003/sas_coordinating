@@ -14,6 +14,12 @@ import type { PayloadHeatmap } from '../componentes/ui/Heatmap';
 import { algumEmAndamento } from '../dominio/gravacoes';
 import type { NotaDoPainel, NotasPorSimulado } from '../dominio/painel';
 import type { Ciclo, Simulado } from '../tipos/dominio';
+import type { DiaDoCalendario, Refeicao } from '../tipos/cantina';
+// A chave vem de `hooks/cantina.ts`, e não de uma nova daqui: o dia da
+// coordenação lê a MESMA rota do calendário do mês, e duas chaves para a mesma
+// resposta fariam a tela do dia ignorar a invalidação que a publicação de um
+// cardápio dispara.
+import { chavesCantina } from './cantina';
 
 /**
  * Chaves de cache. Centralizadas para a invalidação conseguir alcançar um
@@ -57,12 +63,57 @@ export interface OpcoesConsulta {
   habilitada?: boolean;
 }
 
+/**
+ * A lista de alunos — e, desde a fase 4 do docs/39, ela já vem com **as três
+ * médias** (`aluno.medias`: do ano, do primeiro ciclo e do último, cada uma
+ * aberta em Matemática, Física e Química) e com os **direitos de refeição**
+ * (`aluno.direitos`).
+ *
+ * As duas coisas são do servidor: derivar as médias aqui custaria baixar as
+ * notas dos 900 a cada carregamento, e o recorte de "qual é o primeiro ciclo e
+ * qual é o último" é decisão dele, não da tela — ver `useRotulosDasMedias`.
+ *
+ * ⚠️ A restrição alimentar NÃO está aqui e não deve ser buscada em paralelo:
+ * é dado de saúde de menor e mora na tela de direitos da cantina (docs/38 §2.6).
+ */
 export function useAlunos({ habilitada = true }: OpcoesConsulta = {}) {
   return useQuery({
     queryKey: chaves.alunos,
     queryFn: () => api.listarAlunos(),
     enabled: habilitada,
   });
+}
+
+/** Como nomear as três colunas de média nesta carga. */
+export interface RotulosDasMedias {
+  /** `'2026'` — o ano letivo vigente. */
+  ano: string | null;
+  /** `'1º Ciclo · ITA'` — o ciclo que o servidor escolheu como o primeiro. */
+  primeiroCiclo: string | null;
+  ultimoCiclo: string | null;
+}
+
+/**
+ * Os rótulos das três colunas de média, tirados da própria carga.
+ *
+ * Existe para as telas não perguntarem ao servidor uma segunda vez qual é o
+ * ciclo: o rótulo viaja dentro de `aluno.medias`, junto do número que ele
+ * nomeia, e é isso que impede a coluna de dizer "1º Ciclo" enquanto soma outro.
+ * Aqui só se lê o primeiro aluno que já tem médias — todos carregam o mesmo
+ * rótulo, porque o recorte é o mesmo para a lista inteira.
+ *
+ * Tudo `null` enquanto carrega, e também quando nenhum ciclo do ano começou —
+ * aí a coluna existe e não tem o que nomear, e o cabeçalho degrada em vez de
+ * inventar um "Ciclo 1" que ninguém aplicou.
+ */
+export function useRotulosDasMedias(opcoes: OpcoesConsulta = {}): RotulosDasMedias {
+  const { data } = useAlunos(opcoes);
+  const comMedias = (data ?? []).find((aluno) => aluno.medias?.ano.referencia != null);
+  return {
+    ano: comMedias?.medias?.ano.referencia ?? null,
+    primeiroCiclo: comMedias?.medias?.primeiroCiclo.referencia ?? null,
+    ultimoCiclo: comMedias?.medias?.ultimoCiclo.referencia ?? null,
+  };
 }
 
 export function useSimulados() {
@@ -237,6 +288,62 @@ export function useNotasDoCiclo(ciclo: Ciclo | null | undefined, simulados: read
       const mapa: NotasPorSimulado = {};
       ids.forEach((id, i) => { mapa[id] = resultados[i] ?? []; });
       return mapa;
+    },
+  });
+}
+
+// ─── O dia da cantina, na coordenação (docs/39 · fase 5) ─────────────────
+
+/** As duas refeições de um dia, cada uma podendo não existir. */
+export interface DiaDaCantina {
+  /** ISO `YYYY-MM-DD` — o mesmo dia que veio na URL. */
+  data: string;
+  /**
+   * `null` = **não há cardápio** para esta refeição neste dia, que é diferente
+   * de "cardápio vazio". O servidor não manda dia sem cardápio (é ele que
+   * evitaria desenhar a grade do mês por nós), então a ausência é a lacuna, e é
+   * a tela que a nomeia.
+   */
+  almoco: DiaDoCalendario | null;
+  janta: DiaDoCalendario | null;
+  /** Nem almoço nem janta lançados — o dia inteiro em branco. */
+  vazio: boolean;
+}
+
+/**
+ * O dia da cantina para a tela `/cantina/:data`.
+ *
+ * **Não existe rota nova para isto**, e é de propósito:
+ * `GET /administracao/cantina/calendario?de=X&ate=X` já devolve as duas
+ * refeições de um dia como LINHAS SEPARADAS — uma por cardápio, ordenadas por
+ * (data, refeição). Pedir a janela de um dia só é a consulta do dia, e uma rota
+ * dedicada seria uma segunda definição de "o que é um dia de cantina".
+ *
+ * O detalhe de cada refeição (blocos, contagem de produção, lista do balcão)
+ * continua sendo `useCardapioNaCoordenacao(id)`, um id por vez — o `id` que
+ * sai daqui é o que se passa para ele.
+ *
+ * ⚠️ Para o número de "quantos têm direito" a esta refeição, conte por
+ * `useAlunos()` (`aluno.direitos`), **não** por `useDireitos()`: o painel de
+ * direitos traz a restrição alimentar de cada aluno junto, e puxá-lo só para
+ * ter uma contagem carregaria dado de saúde de menor numa tela que não o pede
+ * (docs/38 §2.6).
+ */
+export function useDiaDaCantina(data: string | null | undefined) {
+  const dia = data ?? '';
+  return useQuery({
+    queryKey: chavesCantina.calendarioCoord(dia, dia),
+    enabled: !!data,
+    queryFn: () => api.calendarioNaCoordenacao(dia, dia),
+    // Mesma janela do calendário do mês: a contagem de pedidos muda o dia
+    // inteiro enquanto o prazo está aberto.
+    staleTime: 60 * 1000,
+    select: (linhas: DiaDoCalendario[]): DiaDaCantina => {
+      const de = (refeicao: Refeicao) =>
+        linhas.find((l) => l.data === dia && l.refeicao === refeicao) ?? null;
+      const almoco = de('almoco');
+      const janta = de('janta');
+      return { data: dia, almoco, janta, vazio: !almoco && !janta };
     },
   });
 }

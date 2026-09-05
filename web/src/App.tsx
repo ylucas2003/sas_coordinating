@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 
 import { AppShell } from './componentes/layout/AppShell';
@@ -28,8 +29,10 @@ import { Login } from './telas/Login/Login';
 import { LoginCantina } from './telas/Login/LoginCantina';
 import { CallbackCanvas } from './telas/Login/CallbackCanvas';
 import { CascoCantina } from './telas/Cantina/CascoCantina';
-import { CantinaCoordenacao, CardapioNaCoordenacao } from './telas/Cantina/NaCoordenacao';
-import { AdministracaoCantina } from './telas/Administracao/Cantina';
+import {
+  CalendarioNaCoordenacao, CardapioNaCoordenacao, DiaNaCoordenacao, HubDaCantina,
+} from './telas/Cantina/NaCoordenacao';
+import { AcessoDaCantina, DireitosDaCantina } from './telas/Administracao/Cantina';
 import { ChatLauncher } from './componentes/chat/ChatLauncher';
 import { LimiteDeErro } from './componentes/LimiteDeErro';
 import { LembreteFotoPerfil } from './componentes/perfil/LembreteFotoPerfil';
@@ -117,11 +120,35 @@ function AppCoordenacao() {
         <Route path="/administracao/contas" element={<Contas />} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/integracoes/aulas" element={<SincronizacaoAulas />} />
-        {/* A cantina em modo LEITURA. A coordenação vê o cardápio e os
-            pedidos; publicar é da cantina, que tem casco próprio (docs/38 §6). */}
-        <Route path="/cantina" element={<CantinaCoordenacao />} />
+        {/* CANTINA — o hub e as quatro portas (docs/39 fase 5).
+
+            A coordenação LÊ o cardápio e ESCREVE só duas coisas: quem tem
+            direito e quem lança. Publicar é da cantina, que tem casco próprio
+            (docs/38 §6) — não há rota de edição de cardápio aqui, e é por isso
+            que nenhuma destas telas oferece uma.
+
+            ⚠️ `/cantina/cardapios`, `/cantina/direitos` e `/cantina/acesso`
+            convivem com `/cantina/:data` sem ambiguidade porque o roteador
+            ranqueia segmento ESTÁTICO acima de dinâmico, independentemente da
+            ordem em que as rotas aparecem aqui. A ordem abaixo é para quem lê,
+            não para o casamento — mas não invente um `:data` que colida com
+            uma das três palavras, porque aí a palavra ganha em silêncio. */}
+        <Route path="/cantina" element={<HubDaCantina />} />
+        <Route path="/cantina/cardapios" element={<CalendarioNaCoordenacao />} />
+        <Route path="/cantina/direitos" element={<DireitosDaCantina />} />
+        <Route
+          path="/cantina/acesso"
+          element={<SoAdministrador><AcessoDaCantina /></SoAdministrador>}
+        />
+        {/* O dia inteiro, com as duas refeições — é o destino do card do
+            Painel, que pula o hub para o caminho diário caber em um clique. */}
+        <Route path="/cantina/:data" element={<DiaNaCoordenacao />} />
         <Route path="/cantina/:data/:refeicao" element={<CardapioNaCoordenacao />} />
-        <Route path="/administracao/cantina" element={<AdministracaoCantina />} />
+        {/* A tela antiga se dividiu em duas. O link salvo cai no hub, que é o
+            único destino válido para os DOIS papéis: quem não é administrador
+            não tem `/cantina/acesso`, e mandá-lo para lá seria trocar um link
+            velho por um beco. */}
+        <Route path="/administracao/cantina" element={<Navigate to="/cantina" replace />} />
         {/* Rota desconhecida cai no painel, como o roteador antigo fazia. */}
         <Route path="*" element={<Navigate to="/painel" replace />} />
       </Routes>
@@ -149,6 +176,20 @@ function AppCoordenacao() {
 function ReguaAbsorvidaPelaFicha() {
   const { id } = useParams();
   return <Navigate to={`/ciclos/${id}`} replace />;
+}
+
+/**
+ * `/cantina/acesso` é escrita exclusiva do administrador, e o portão é aqui.
+ *
+ * O hub já não desenha o card para quem não pode — o card SOME, não fica cinza.
+ * Este é o outro lado da mesma decisão: quem chega pela URL (link colado,
+ * histórico, um papel que mudou desde ontem) é levado ao hub, e não a uma tela
+ * que monta para depois dar 403. Tela que monta para dar erro ensina a pessoa a
+ * desconfiar do produto (docs/38 §1.1).
+ */
+function SoAdministrador({ children }: { children: ReactNode }) {
+  if (!sessao.ehAdministrador()) return <Navigate to="/cantina" replace />;
+  return <>{children}</>;
 }
 
 /**

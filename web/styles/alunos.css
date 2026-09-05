@@ -1,0 +1,477 @@
+/* ─── A lista de 900 — `telas/Alunos/Alunos.tsx` ──────────────────────────
+   A tela mais nua da coordenação: uma pergunta só — quem são eles e como
+   estão — e uma tabela que precisa aguentar novecentas linhas sem paginação,
+   sem teto e sem "carregar mais" (CLAUDE.md, armadilha 2: um teto truncaria a
+   leitura em silêncio e as estatísticas ficariam erradas sem erro).
+
+   Três decisões carregam o arquivo inteiro:
+
+   1. A ESCALA SEMÂNTICA É UMA SÓ (R7) — a nota contra o corte. Ela vem de
+      `.nota-badge` (hoje em `ciclo.css`, vocabulário compartilhado) e da
+      trajetória, que divide com ela a régua de 0 a 10. Zona, tendência e
+      perfil perderam as tags coloridas e viraram palavra em texto secundário;
+      direitos de refeição são FORMA — pílula com glifo, sem cor semântica.
+
+   2. SÓ A TABELA ROLA. A tela ocupa a altura da janela e o cabeçalho fica
+      grudado, porque é ele que carrega a contagem em vigor e a ordem em vigor.
+      Um cabeçalho que sobe embora deixa 900 linhas sem quem as explique.
+
+   3. BORDA, NUNCA SOMBRA; três raios; alvo de toque de 44px. É a régua da
+      casa, e vale aqui como em toda superfície.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* ── A tela ocupa a janela ────────────────────────────────────────────────
+   A conta é do casco, não é arbitrária: `--topbar-h` da barra de cima e os
+   66px de respiro de `.casco__main` (26 em cima, 40 embaixo). Com isto o
+   documento não rola — quem rola é `.alunos-caixa`, e a `<thead>` gruda nela.
+
+   `min-height` para a caixa não virar uma fresta em janela baixa: abaixo
+   disso a página volta a rolar, que é preferível a uma tabela de duas linhas. */
+.alunos-tela {
+  height: calc(100dvh - var(--topbar-h) - 66px);
+  min-height: 620px;
+}
+
+/* ── Cabeçalho: identidade à esquerda, régua à direita ──────────────────── */
+
+.alunos-cabecalho {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  flex: none;
+}
+
+.alunos-cabecalho__texto {
+  flex: 1;
+  min-width: 260px;
+}
+
+/* ── A régua em vigor, dita com todas as letras (R2) ──────────────────────
+   Contorno em OURO porque é régua, e ouro é o papel da régua no sistema
+   inteiro. Não é botão e não abre nada: trocar a régua é decisão do ciclo, e
+   acontece na ficha dele. */
+
+.alunos-regua {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: none;
+  max-width: 520px;
+  padding: 9px 15px;
+  border: 1px solid var(--sas-valor);
+  border-radius: var(--radius-md);
+  color: var(--sas-valor);
+}
+
+.alunos-regua svg {
+  flex: none;
+}
+
+.alunos-regua__titulo {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--sas-valor-texto);
+}
+
+.alunos-regua__sub {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--sas-texto-2);
+}
+
+/* Régua ausente é ausência de informação, não falha operacional: enquanto a
+   consulta não volta, o estado honesto é "ainda não sei", e vermelho aqui
+   gastaria o único alerta da tela num carregamento (R4). */
+.alunos-regua--sem {
+  border-color: var(--sas-borda);
+  color: var(--sas-referencia);
+}
+
+.alunos-regua--sem .alunos-regua__titulo {
+  color: var(--sas-texto-2);
+}
+
+/* ── A caixa que rola ────────────────────────────────────────────────────
+   Rola nos DOIS eixos, e é ela o scrollport da `<thead>` grudada. Um
+   `overflow-x` sozinho faria o eixo vertical virar `auto` sem altura
+   definida, e o `position: sticky` do cabeçalho não teria a que se prender. */
+
+.alunos-caixa {
+  flex: 1;
+  min-height: 240px;
+  overflow: auto;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+/* ── A tabela ────────────────────────────────────────────────────────────
+   `border-collapse: separate` de propósito: com `collapse`, as bordas de uma
+   célula `sticky` são desenhadas pela tabela e ficam para trás na rolagem — o
+   cabeçalho gruda e o fio de baixo dele não. */
+
+.alunos-tabela {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.alunos-tabela thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 60px;
+  padding: 6px 8px;
+  vertical-align: bottom;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  /* Cabeçalho de tabela é CINZA: ele nomeia, não mede. */
+  color: var(--sas-referencia);
+  background: var(--sas-superficie);
+  border-bottom: 1px solid var(--sas-borda);
+}
+
+/* A coluna ordenada é a única do cabeçalho que ganha o tom de magnitude —
+   é assim que o ordenador em vigor fica visível sem gastar cor (R6). */
+.alunos-tabela thead th[aria-sort='ascending'],
+.alunos-tabela thead th[aria-sort='descending'] {
+  color: var(--sas-magnitude);
+}
+
+.alunos-tabela tbody td {
+  height: 46px;
+  padding: 0 8px;
+  text-align: center;
+  /* O fio entre linhas é mais claro que a borda da caixa: a grade guia o olho
+     na horizontal sem virar malha que compete com os selos. */
+  border-bottom: 1px solid var(--sas-fio);
+}
+
+.alunos-tabela tbody tr:hover td {
+  background: var(--sas-realce);
+}
+
+/* ── A coluna do aluno, congelada à esquerda ─────────────────────────────
+   Ela é o eixo da leitura: numa rolagem horizontal de doze colunas de nota, o
+   nome é o que diz de quem é a linha. Fundo OPACO — `--sas-realce` é
+   translúcido, e sem a camada as notas passariam por baixo. */
+
+.alunos-tabela__th-aluno,
+.alunos-tabela__td-aluno {
+  position: sticky;
+  left: 0;
+  width: 248px;
+  min-width: 248px;
+  text-align: left;
+  background: var(--sas-superficie);
+}
+
+.alunos-tabela__th-aluno {
+  z-index: 4;
+  padding: 6px 14px 8px;
+  border-right: 1px solid var(--sas-fio);
+}
+
+.alunos-tabela__td-aluno {
+  z-index: 1;
+  padding: 0 14px;
+  border-right: 1px solid var(--sas-fio);
+}
+
+.alunos-tabela tbody tr:hover .alunos-tabela__td-aluno {
+  background: linear-gradient(var(--sas-realce), var(--sas-realce)), var(--sas-superficie);
+}
+
+/* A LINHA DE ONDE SE SAIU, ao voltar de uma ficha em revisão.
+   Marca de posição, não de estado do aluno: fio no lado esquerdo da coluna
+   congelada, sem preencher a linha — preencher a poria na mesma escala das
+   notas, que é a única cor que esta tela gasta (R7). */
+.alunos-linha--visto .alunos-tabela__td-aluno {
+  box-shadow: inset 3px 0 0 0 var(--sas-dado);
+}
+
+/* A CONTAGEM EM VIGOR mora no cabeçalho da coluna do nome, e não numa faixa
+   acima da tabela: a faixa rolaria para fora, e a contagem é justamente o que
+   não pode sumir numa lista sem paginação. */
+.alunos-tabela__contagem {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sas-magnitude);
+}
+
+.alunos-tabela__ordem {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--sas-texto-2);
+}
+
+.alunos-linha__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--sas-texto);
+  text-decoration: none;
+}
+
+.alunos-linha__link:hover {
+  color: var(--sas-magnitude);
+  text-decoration: none;
+}
+
+.alunos-linha__nomes {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.alunos-linha__nome {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.alunos-linha__origem {
+  font-size: 11px;
+  color: var(--sas-texto-2);
+}
+
+/* ── Botões de ordenar ───────────────────────────────────────────────────
+   44px de altura em todos: o cabeçalho é o controle mais clicado da tela. */
+
+.alunos-tabela__ordenar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.alunos-tabela__ordenar--so-seta {
+  min-width: 28px;
+  justify-content: center;
+  padding: 0;
+}
+
+.alunos-tabela__ordenar--sub {
+  justify-content: center;
+  width: 100%;
+}
+
+.alunos-tabela__seta {
+  font-size: 9px;
+  color: var(--sas-texto-2);
+}
+
+th[aria-sort='ascending'] .alunos-tabela__seta,
+th[aria-sort='descending'] .alunos-tabela__seta {
+  color: var(--sas-magnitude);
+}
+
+/* ── Os três grupos de média ─────────────────────────────────────────────
+   O nome é o botão de EXPANDIR e a seta ao lado é o de ORDENAR: dois alvos,
+   duas ações, e nenhuma delas escondida atrás da outra. A referência ("2026",
+   "1º Ciclo · ITA") desce para a segunda linha porque ela vem do servidor e é
+   o que impede a coluna de dizer um ciclo enquanto soma outro. */
+
+.alunos-grupo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.alunos-grupo__abrir {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alunos-grupo__abrir svg {
+  flex: none;
+  color: var(--sas-dado);
+}
+
+.alunos-grupo__rotulo {
+  line-height: 1.2;
+}
+
+.alunos-grupo__ref {
+  flex-basis: 100%;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--sas-texto-2);
+}
+
+/* Larguras: o grupo fechado cabe numa nota de quatro caracteres; a subcoluna
+   de matéria é mais estreita porque só carrega o selo e a etiqueta. */
+.alunos-col--grupo {
+  width: 128px;
+  min-width: 128px;
+}
+
+.alunos-col--sub {
+  width: 88px;
+  min-width: 88px;
+}
+
+/* O bloco aberto ganha fundo próprio: é o que o faz ler como UM grupo aberto,
+   e não como quatro colunas soltas de nota. No cabeçalho o realce vai em
+   camada sobre a superfície, senão o translúcido deixaria as linhas passarem
+   por baixo da `<thead>` grudada. */
+.alunos-col--dentro {
+  background: var(--sas-realce);
+}
+
+.alunos-tabela thead th.alunos-col--dentro {
+  background: linear-gradient(var(--sas-realce), var(--sas-realce)), var(--sas-superficie);
+}
+
+.alunos-col--inicio {
+  border-left: 1px solid var(--sas-dado);
+}
+
+.alunos-col--fim {
+  border-right: 1px solid var(--sas-dado);
+}
+
+/* O corte que DIVERGE do comum, colado no nome da matéria (R2). */
+.alunos-tabela__corte {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sas-valor-texto);
+}
+
+.alunos-tabela__td-nota .nota-etiqueta {
+  margin-left: 4px;
+}
+
+/* ── Trajetória ──────────────────────────────────────────────────────────
+   Escala compartilhada de 0 a 10 com o corte desenhado — o que a coluna diz
+   está no cabeçalho, uma vez, e não repetido 900 vezes ao lado de cada curva. */
+
+.alunos-tabela__th-traj,
+.alunos-tabela__td-traj {
+  width: 156px;
+  min-width: 156px;
+  text-align: left;
+}
+
+.alunos-tabela__td-traj {
+  padding: 0 12px;
+}
+
+.alunos-tabela__td-traj .sparkline {
+  display: block;
+}
+
+.alunos-tabela__nota-de-rodape {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--sas-texto-2);
+}
+
+/* ── As quatro colunas quietas ───────────────────────────────────────────
+   Zona, tendência, perfil e direitos. Elas não competem com o selo: são
+   palavra em texto secundário, e o trabalho delas é ORDENAR (R6). */
+
+.alunos-tabela__th-palavra,
+.alunos-tabela__td-palavra {
+  width: 118px;
+  min-width: 118px;
+  text-align: left;
+}
+
+.alunos-tabela__td-palavra {
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+.alunos-tabela__th-palavra {
+  padding-left: 4px;
+}
+
+.alunos-direitos {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* Pílula de CADASTRO: contorno neutro, glifo em referência, sem preenchimento.
+   Quem almoça na escola não está melhor nem pior do que quem não almoça, e
+   pintá-la na escala das notas inventaria uma leitura que não existe. */
+.alunos-direito {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px 4px 7px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sas-texto);
+}
+
+.alunos-direito svg {
+  flex: none;
+  color: var(--sas-referencia);
+}
+
+/* O que não tem dado nenhum. Nunca "0" no lugar de "não sei". */
+.alunos-quieto {
+  font-size: 12px;
+  color: var(--sas-referencia);
+}
+
+/* ── Celular ─────────────────────────────────────────────────────────────
+   Abaixo de 760px o casco troca o rail por barra inferior e muda o respiro do
+   `<main>`, então a conta de altura de lá em cima deixa de valer. A tela volta
+   a rolar inteira e a tabela rola na horizontal dentro da caixa — a varredura
+   de 900 linhas é tarefa de mesa, e o celular aqui é consulta. */
+
+@media (max-width: 760px) {
+  .alunos-tela {
+    height: auto;
+    min-height: 0;
+  }
+
+  .alunos-caixa {
+    min-height: 0;
+  }
+
+  .alunos-regua {
+    max-width: none;
+  }
+}

@@ -365,6 +365,41 @@
    aparece sozinho, sem dizer por que hoje ele existe, é a mesma pergunta que
    o coordenador já não sabia responder. */
 
+/* O botão da tela, e ele é UM desenho só — o fixo da linha do título e os
+   condicionais da faixa. Dois desenhos diriam que são dois tipos de ação, e
+   não são: a diferença entre eles é QUANDO existem, e isso já está dito pelo
+   lugar em que cada um mora. */
+.prova-botao {
+  flex: none;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--sas-texto);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+}
+
+.prova-botao:hover:not(:disabled) {
+  background: var(--sas-superficie-2);
+  border-color: var(--sas-dado);
+}
+
+.prova-botao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prova-botao:focus-visible {
+  outline: 2px solid var(--sas-dado-claro);
+  outline-offset: 2px;
+}
+
 .prova-condicoes {
   display: flex;
   flex-direction: column;
@@ -384,44 +419,20 @@
 .prova-condicao__motivo {
   flex: 1;
   min-width: 12rem;
+  margin: 0;
   font-size: 13px;
   line-height: 1.5;
   color: var(--sas-texto);
 }
 
-.prova-condicao__botao {
-  flex: none;
-  height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--sas-borda);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--sas-texto);
-  font-family: var(--font-family);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 150ms, border-color 150ms;
-}
-
-.prova-condicao__botao:hover:not(:disabled) {
-  background: var(--sas-superficie-2);
-  border-color: var(--sas-dado);
-}
-
-.prova-condicao__botao:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* A ÚNICA condição que é falha operacional — o Canvas recusou. É o caso do
    R4: alerta na moldura e na letra do botão, e em mais nada. */
 .prova-condicao--falha,
-.prova-condicao--falha .prova-condicao__botao {
+.prova-condicao--falha .prova-botao {
   border-color: var(--sas-alerta);
 }
 
-.prova-condicao--falha .prova-condicao__botao {
+.prova-condicao--falha .prova-botao {
   color: var(--sas-alerta-texto);
 }
 
@@ -445,6 +456,7 @@
 }
 
 .prova-ressalva__olho {
+  margin: 0;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -552,9 +564,13 @@
   border-bottom: 1px solid var(--sas-borda);
 }
 
+/* `<h2>` de verdade — a tela precisa de sumário para quem navega por
+   cabeçalho. O que sai é só a margem do agente do usuário: o olho é uma
+   marca tipográfica de 10px, não um título de 24. */
 .prova-bloco__olho {
   flex: 1;
   min-width: 0;
+  margin: 0;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -571,6 +587,7 @@
 }
 
 .prova-bloco__dica {
+  margin: 0;
   font-size: 12px;
   line-height: 1.5;
   color: var(--sas-texto-2);
@@ -581,12 +598,21 @@
 }
 
 /* A tabela vai até a borda do card: linha de tabela com respiro lateral
-   próprio vira uma segunda moldura dentro da primeira. */
+   próprio vira uma segunda moldura dentro da primeira.
+
+   O `overflow-x: auto` faz dois trabalhos: dá à tabela a própria rolagem
+   horizontal (a de quebra tem cinco colunas e a 390px elas não cabem — o que
+   nunca pode rolar é o corpo da página), e de quebra recorta o realce de
+   hover da última linha, que é retangular e vazaria pelo canto arredondado do
+   card. */
 .prova-bloco__corpo--tabela {
   padding: 0;
+  overflow-x: auto;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .prova-bloco__vazio {
+  margin: 0;
   padding: 18px 20px 20px;
   font-size: 13px;
   line-height: 1.55;
@@ -598,6 +624,15 @@
    Cinco KPIs em cartões próprios (`.kpi-grid--cartoes`, layout.css), e
    embaixo a linha que a tabela de notas cobra: ausência não é zero. */
 
+.prova-numeros {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Ela é uma nota sobre os dois KPIs vizinhos, e por isso REFERÊNCIA: os dois
+   convidam à conta errada — somar ausentes a presentes e dividir a soma das
+   notas por esse total. */
 .prova-aviso-ausencia {
   margin: 0;
   font-size: 12px;
@@ -630,38 +665,39 @@
   font-variant-numeric: tabular-nums;
 }
 
+
+/* ── O ELO QUE COBRE A LINHA ───────────────────────────────────────────
+   As três tabelas desta tela navegavam por `onClick` num `<tr>`: uma camada
+   de clique invisível, sem teclado, sem foco, sem botão do meio e sem "abrir
+   em nova aba". A tabela de notas ainda carregava, POR CIMA disso, um "Ver →"
+   e um "Editar" — três alvos concorrentes na mesma linha, dois deles
+   redundantes, segurados por duas colunas de cabeçalho vazio.
+
+   O elo é um `<Link>` de verdade cuja área de clique é o `::after` dele. O
+   alvo continua sendo a linha inteira, e tudo o que um link tem volta de
+   graça. Onde não há destino, não há elo: um link que não navega é a promessa
+   quebrada mais barata de escrever e a mais cara de descobrir. */
+
+.prova-notas tbody tr,
+.prova-quebra-tabela tbody tr {
+  /* Sem isto o `::after` do elo se ancoraria no card em vez da linha.
+     `position: relative` em `<tr>` é suportado em todos os motores desde
+     2021. */
+  position: relative;
+}
+
 .prova-quebra-tabela tbody tr[data-navegavel='sim'] {
   cursor: pointer;
 }
 
-
-/* ── O anexo: as notas individuais ─────────────────────────────────────
-   Três alvos de clique concorrentes moravam nesta linha — a linha inteira
-   navegava (sem nenhuma marca de que navegava), mais um "Ver →" e um
-   "Editar", e duas colunas de cabeçalho vazio para segurá-los.
-
-   Agora são DOIS, os dois nomeados na dica do cabeçalho: a linha abre o
-   aluno, a nota abre a edição. E a linha virou um `<Link>` de verdade — a
-   camada invisível é o `::after` dele, não um `onClick` num `<tr>` —, o que
-   devolve teclado, foco, botão do meio e "abrir em nova aba" de graça. */
-
-.prova-notas tbody tr {
-  /* O `::after` do elo cobre a linha inteira, e sem isto ele se ancoraria no
-     card. `position: relative` em `<tr>` é suportado em todos os motores
-     desde 2021. */
-  position: relative;
+/* Realce de hover é promessa de clique. A quebra por sede não abre nada — não
+   existe ficha de sede —, então a linha dela não pisca: uma linha que acende
+   e não leva a lugar nenhum é a mesma frustração do "Ver →" que saiu daqui. */
+.prova-quebra-tabela tbody tr[data-navegavel='nao']:hover {
+  background: transparent;
 }
 
-.prova-notas tbody td {
-  padding: 3px 20px;
-  height: 52px;
-}
-
-.prova-notas thead th {
-  padding: 12px 20px;
-}
-
-.prova-notas__elo {
+.prova-elo {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -670,13 +706,14 @@
   text-decoration: none;
 }
 
-.prova-notas__elo::after {
+.prova-elo::after {
   content: '';
   position: absolute;
   inset: 0;
 }
 
-.prova-notas tbody tr:hover .prova-notas__elo {
+.prova-notas tbody tr:hover .prova-elo,
+.prova-quebra-tabela tbody tr:hover .prova-elo {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -684,14 +721,28 @@
 /* O foco tem de aparecer na LINHA, não no texto: o alvo real é a linha
    inteira, e um anel só em volta do nome mentiria sobre o tamanho do que vai
    ser ativado. */
-.prova-notas__elo:focus-visible {
+.prova-elo:focus-visible {
   outline: none;
 }
 
-.prova-notas__elo:focus-visible::after {
+.prova-elo:focus-visible::after {
   outline: 2px solid var(--sas-dado-claro);
   outline-offset: -2px;
   border-radius: var(--radius-sm);
+}
+
+
+/* ── O anexo: as notas individuais ─────────────────────────────────────
+   Sobraram DOIS alvos, e os dois estão nomeados na dica do cabeçalho: a linha
+   abre o aluno, a nota abre a edição. */
+
+.prova-notas tbody td {
+  padding: 3px 20px;
+  height: 52px;
+}
+
+.prova-notas thead th {
+  padding: 12px 20px;
 }
 
 /* Sem foto de aluno em lugar nenhum — o SAS não guarda imagem de menor de
@@ -718,7 +769,11 @@
   white-space: nowrap;
 }
 
-.prova-notas__nota {
+/* `th`/`td` no seletor porque `.data-table thead th` alinha à esquerda com
+   especificidade maior que a de uma classe sozinha — sem isto o cabeçalho
+   "Nota" fica à esquerda e a coluna de chips à direita. */
+.prova-notas th.prova-notas__nota,
+.prova-notas td.prova-notas__nota {
   text-align: right;
   white-space: nowrap;
 }

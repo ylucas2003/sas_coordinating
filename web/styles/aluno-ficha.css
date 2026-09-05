@@ -23,19 +23,16 @@
    três defeitos que o sprint mobile só achou em runtime. */
 .ficha-coluna {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .ficha-lateral {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   min-width: 0;
-}
-
-.ficha-lateral__tags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 @media (max-width: 1180px) {
@@ -44,26 +41,445 @@
   }
 }
 
-/* ─── Ficha individual do aluno ────────────────────────────────────────── */
+/* ─── A HIERARQUIA DENTRO DA COLUNA ──────────────────────────────────────
+   Eram onze superfícies empilhadas — seis na principal, cinco na lateral —,
+   todas com a mesma borda, o mesmo raio e o mesmo peso. Numa tela de LEITURA
+   longa isso vira listra: nada domina, e o olho recomeça a cada bloco.
 
-/* Header com botão de exportar à direita. */
-.aluno-ficha__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 24px 4px;
+   São dois níveis, e quem os separa é a SUPERFÍCIE, não o tamanho da letra:
+
+     `.ficha-peca--primaria`  preenchida, com a borda de tema (`--sas-borda-l`,
+                              2px de dia e 1px de noite). Uma por coluna: a
+                              evolução na principal, a barra de corte na
+                              lateral. São as duas coisas que a pessoa veio ver.
+     `.ficha-peca`            contorno de 1px sobre o fundo do papel. Apoio:
+                              histórico, heatmap, classificações, parecidos,
+                              cobertura, acesso.
+
+   O OLHO (10px em caixa alta) fica em `--sas-texto-2` nos dois níveis, e não
+   em `--sas-dado` como a prancheta desenha: azul é o papel do valor MEDIDO
+   (R3/R7), e esta tela já gasta azul no heatmap, na barra de corte e na linha
+   de evolução. Rótulo de seção não é medida nenhuma — é a mesma decisão que o
+   Kit tomou para o KPI (`layout.css`, `.kpi__rotulo`).
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ficha-peca {
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
 }
 
-.aluno-ficha__header-info {
+.ficha-peca--primaria {
+  border-width: var(--sas-borda-l);
+  background: var(--sas-superficie);
+  padding: 18px 20px;
+}
+
+.ficha-olho {
+  display: block;
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+/* O gráfico em camadas entra sem `titulo` próprio: quem nomeia a peça é o
+   olho acima dele, e dois desenhos de título em blocos vizinhos é o mesmo
+   defeito de hierarquia um degrau abaixo. */
+.ficha-olho + .camadas {
+  margin-top: 12px;
+}
+
+/* Só para leitor de tela — a mesma técnica de `.alu-so-leitor`, com o prefixo
+   da tela porque a folha do aluno não é carregada na coordenação. Existe para
+   o número que tem rótulo no olho da coluna mas nenhum no item da lista:
+   cabeçalho de lista não vira nome acessível de linha. */
+.ficha-so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ficha-peca__cabeca {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.ficha-peca__nota {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sas-texto-2);
+}
+
+/* A peça que é TABELA não tem respiro próprio: linha de tabela com margem
+   lateral vira uma segunda moldura dentro da primeira. O respiro é o padding
+   da célula, e a faixa do título ganha o dela. */
+.ficha-peca--tabela {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ficha-peca__cabeca--faixa {
+  margin: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--sas-borda);
+}
+
+.ficha-tabela {
+  overflow-x: auto;
+}
+
+.ficha-peca__nota--bloco {
+  display: block;
+  margin: 9px 0 0;
+}
+
+/* O motivo de NÃO haver seletor de régua nesta tela. Tracejado porque não é
+   dado nem ação: é a tela explicando uma ausência que, calada, lê como
+   funcionalidade esquecida. */
+.ficha-porque {
+  margin: 14px 0 0;
+  padding: 11px 13px;
+  border: 1px dashed var(--sas-borda);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sas-texto-2);
+}
+
+/* ─── O cabeçalho da ficha ───────────────────────────────────────────────
+   Chevron de 44px, identidade, a barra de revisão e o exportar — numa linha
+   só, sem card em volta. Card aqui punha a identidade no mesmo peso do
+   gráfico, e ela é etiqueta, não conteúdo.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ficha-cabeca {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 2px 0;
+}
+
+.ficha-cabeca__voltar {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  color: var(--sas-magnitude);
+  transition: background 120ms;
+}
+
+.ficha-cabeca__voltar:hover {
+  background: var(--sas-superficie-2);
+}
+
+.ficha-cabeca__quem {
+  flex: 1;
+  min-width: 200px;
+}
+
+.ficha-cabeca__id {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.ficha-cabeca__nome {
+  margin: 4px 0 0;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--sas-magnitude);
+}
+
+.ficha-cabeca__onde {
+  margin: 7px 0 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+@media (max-width: 560px) {
+  .ficha-cabeca__nome {
+    font-size: 22px;
+  }
+}
+
+/* ─── A REVISÃO EM SEQUÊNCIA ─────────────────────────────────────────────
+   O recorte que a pessoa montou na lista, vivo dentro da ficha: "aluno 4 de
+   23", anterior e próximo. Sem ela, revisar vinte alunos custa quarenta
+   navegações e a posição na lista se perde a cada volta
+   (docs/39 §3 · fase 4; `dominio/revisaoEmSequencia.ts`).
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ficha-revisao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 5px 5px 5px 14px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-md);
+}
+
+.ficha-revisao__texto {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ficha-revisao__posicao {
+  font-size: 13px;
+  color: var(--sas-texto);
+}
+
+.ficha-revisao__passo {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  color: var(--sas-magnitude);
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.ficha-revisao__passo:hover:not(:disabled) {
+  background: var(--sas-superficie-2);
+}
+
+/* Fim do recorte. Some do caminho sem sumir do lugar: a barra não pode
+   encolher justamente no aluno em que a pessoa precisa perceber que acabou. */
+.ficha-revisao__passo:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+/* A faixa de filtros não é peça: é o RECORTE das duas peças abaixo. O
+   componente foi escrito para viver dentro de um card (padding e linha de
+   base próprios) — fora dele, a linha vira um traço solto. */
+.ficha-recorte .sim-filtros {
+  padding: 0;
+  border-bottom: 0;
+}
+
+/* ─── Como ele se comporta ───────────────────────────────────────────────
+   Perfil, tendência e zona eram três tags contornadas lado a lado, e nenhuma
+   delas se explica sozinha — perfil é a mais sutil e a que menos gente
+   entende. Viraram palavra + o que a palavra quer dizer.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ficha-classificacoes {
+  margin: 0;
+}
+
+.ficha-classificacao {
+  margin-top: 11px;
+  padding-top: 11px;
+  border-top: 1px solid var(--sas-fio);
+}
+
+.ficha-classificacao__rotulo {
+  font-size: 11px;
+  color: var(--sas-texto-2);
+}
+
+/* `<dd>` nasce com recuo de 40px no navegador — sem este reset a coluna de
+   320px perde um oitavo da largura para uma margem que ninguém pediu. */
+.ficha-classificacao__valor {
+  margin: 7px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--sas-texto);
+}
+
+.ficha-classificacao__explica {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--sas-texto-2);
+}
+
+/* ─── Alunos com desempenho parecido ─────────────────────────────────────
+   Era uma tabela de seis colunas com "Distância: 0,42" na primeira e a linha
+   inteira clicável por `onClick` num `<tr>` — invisível para o teclado. Agora
+   é lista de links, e a distância virou a ORDEM (R6), não uma coluna.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* O nome da coluna da direita, uma vez só. Sem ele são dois números de média
+   na mesma linha — o relativo, na frase de semelhança, e o absoluto, em
+   negrito —, e nada diz qual é qual. É também o lugar exato onde ficava a
+   "Distância: 0,42" que esta seção deixou de imprimir. */
+.ficha-parecidos__legenda {
+  margin: 12px 0 0;
+  text-align: right;
+}
+
+.ficha-parecidos {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.ficha-parecido {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 8px;
+  margin: 0 -8px;
+  border-top: 1px solid var(--sas-fio);
+  border-radius: var(--radius-md);
+  color: var(--sas-texto);
+  text-decoration: none;
+  transition: background 120ms;
+}
+
+.ficha-parecido:hover {
+  background: var(--sas-superficie-2);
+}
+
+.ficha-parecido__iniciais {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--sas-texto-2);
+}
+
+.ficha-parecido__quem {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.aluno-ficha__header-info .screen-breadcrumb,
-.aluno-ficha__header-info .screen-title,
-.aluno-ficha__header-info .screen-subtitle {
-  padding: 0;
+.ficha-parecido__nome {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ficha-parecido__semelhanca {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--sas-texto-2);
+}
+
+.ficha-parecido__media {
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sas-magnitude);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Sem simulado nenhum ────────────────────────────────────────────────
+   A chegada de todo aluno novo. Era o gráfico vazio, o heatmap vazio e a
+   barra de corte vazia, um embaixo do outro — três vazios seguidos leem como
+   falha do sistema, e não como "ainda não houve prova".
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ficha-vazia {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding: 26px;
+}
+
+.ficha-vazia__texto {
+  flex: 1;
+  min-width: 260px;
+}
+
+.ficha-vazia__titulo {
+  margin: 14px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--sas-magnitude);
+}
+
+.ficha-vazia__corpo {
+  margin: 12px 0 0;
+  max-width: 560px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sas-texto-2);
+}
+
+.ficha-vazia__acoes {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+/* Os dois convites são `<Link>`, e `.btn` foi escrito para `<button>`. */
+.ficha-vazia__acoes .btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.ficha-vazia__grade {
+  flex: none;
+  max-width: 100%;
+  height: auto;
+}
+
+/* A única ação da lateral: largura inteira e alvo de 44px, como toda tecla
+   da coluna estreita. */
+.ficha-acesso__botao {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+}
+
+/* A saída barata da ação irreversível, à esquerda do par de botões — o rodapé
+   do diálogo alinha à direita, e é o `auto` que empurra a dica para o outro
+   canto sem mexer na peça compartilhada. */
+.ficha-foto__dica {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--sas-texto-2);
 }
 
 /* ─── Botão Exportar (dropdown leve) ───────────────────────────────────── */
@@ -304,15 +720,22 @@
     padding: 0 !important;
   }
 
-  .card {
+  /* No papel a superfície não separa nada: o que separa é o espaço em
+     branco. Os dois níveis de peça viram o mesmo bloco sem borda. */
+  .card,
+  .ficha-peca,
+  .ficha-peca--primaria {
     box-shadow: none !important;
     border: 0 !important;
     background: transparent !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
     page-break-inside: avoid;
     margin-bottom: 12px !important;
   }
 
-  .screen-stack {
+  .screen-stack,
+  .ficha-coluna {
     gap: 8px !important;
   }
 

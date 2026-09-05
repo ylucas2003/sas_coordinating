@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 
 import { CartaoDeCampo, EloQuieto } from '../../componentes/ui/Campo';
-import { useAuditoria, useCoordenadores, usePainelGravacoes } from '../../hooks/consultas';
-import { useCalendarioNaCoordenacao, useDireitos } from '../../hooks/cantina';
+import { useAlunos, useAuditoria, useCoordenadores, usePainelGravacoes } from '../../hooks/consultas';
+import { useCalendarioNaCoordenacao } from '../../hooks/cantina';
 import { isoDoDia } from '../../dominio/cantina';
 import { useParametroDeImportancia } from '../../hooks/banco';
 import { resumoAndamento, situacaoDe } from '../../dominio/gravacoes';
@@ -28,6 +28,12 @@ import { resumoAndamento, situacaoDe } from '../../dominio/gravacoes';
 // 18h de hoje — aparece na tela de ENTRADA, que é onde uma falha precisa
 // aparecer. Sem isso, para descobrir que a cantina esqueceu o dia seguinte
 // seria preciso entrar, escolher o mês e procurar (docs/38 §6).
+//
+// ⚠️ E ele aponta para o HUB da cantina (`/cantina`), não para uma das telas de
+// lá. É este card que impede o hub de ficar órfão — o que já aconteceu uma vez
+// nesta parte do produto, quando o card passou a apontar direto para o
+// calendário e a tela de contas só era alcançável digitando a URL (f96e961).
+// O caminho existe nos dois sentidos: o chevron do hub volta para cá.
 //
 // ⚠️ A rota `/administracao` era a tela de Contas e passa a ser este hub;
 // Contas mudou para `/administracao/contas`. Quem tiver o link antigo salvo
@@ -58,7 +64,12 @@ function diasDesde(iso: string | null): number | null {
  * de um menu.
  */
 function useResumoDaCantina() {
-  const { data: painel, isLoading: carregandoDireitos, isError: erroDireitos } = useDireitos();
+  // ⚠️ `useAlunos()`, e **não** `useDireitos()`. Os dois sabem quantos alunos
+  // têm direito; só um deles traz junto a RESTRIÇÃO ALIMENTAR de cada um, que
+  // é dado de saúde de menor (docs/38 §2.6). Puxar o painel de direitos para
+  // ter uma contagem carregaria o dado mais sensível do produto numa tela que
+  // não o mostra — e ele passaria a viajar em toda visita à Administração.
+  const { data: alunos, isLoading: carregandoAlunos, isError: erroAlunos } = useAlunos();
   // Só amanhã, e não o mês: a pergunta do card é sobre o próximo dia letivo.
   const amanha = useMemo(() => {
     const d = new Date();
@@ -67,8 +78,15 @@ function useResumoDaCantina() {
   }, []);
   const { data: dias, isLoading: carregandoDias, isError: erroDias } = useCalendarioNaCoordenacao(amanha, amanha);
 
+  const comDireito = useMemo(() => {
+    // `Aluno.direitos` é opcional, e "não veio" não é "ninguém tem": sem o
+    // campo em nenhuma linha, a metade do direito simplesmente não aparece.
+    if (!alunos?.some((a) => a.direitos != null)) return null;
+    return alunos.filter((a) => a.ativo && a.direitos?.length).length;
+  }, [alunos]);
+
   const texto = useMemo(() => {
-    if (!painel && !dias) return null;
+    if (!comDireito && !dias) return null;
     const partes: string[] = [];
     // "Publicado" é aberto OU fechado: os dois são cardápio que existe para o
     // aluno. Rascunho não conta — ele não aparece para ninguém.
@@ -76,14 +94,14 @@ function useResumoDaCantina() {
       (d) => d.estado === 'aberto' || d.estado === 'fechado' || d.estado === 'sem-refeicao',
     ).length;
     if (dias && publicados === 0) partes.push('cardápio de amanhã não lançado');
-    if (painel?.comDireito) partes.push(`${painel.comDireito} alunos com direito`);
+    if (comDireito) partes.push(`${comDireito} alunos com direito`);
     return partes.length ? partes.join(' · ') : null;
-  }, [painel, dias]);
+  }, [comDireito, dias]);
 
   // Falha de consulta NÃO vira "0": um número errado é pior que nenhum.
   return {
-    texto: erroDireitos || erroDias ? null : texto,
-    carregando: carregandoDireitos || carregandoDias,
+    texto: erroAlunos || erroDias ? null : texto,
+    carregando: carregandoAlunos || carregandoDias,
   };
 }
 
@@ -186,10 +204,10 @@ export function HubAdministracao() {
       </div>
 
       <div className="campo-grade">
-        {/* Vai para o CALENDÁRIO, e não para a tela de contas: a resposta à
-            pergunta do card é o mês lançado, não a lista de quem lança. As
-            contas e o direito ficam a um link de lá — e o caminho existe nos
-            dois sentidos, senão uma das duas telas fica órfã. */}
+        {/* Vai para o HUB da cantina, e não direto para o calendário: de lá
+            saem as três portas (cardápios, direitos e — só para administrador —
+            as contas). Apontar para uma delas foi o que deixou as outras duas
+            alcançáveis só pela URL, e é o motivo de o hub existir. */}
         <CartaoDeCampo
           olho="Cantina"
           titulo="A cantina está em dia?"

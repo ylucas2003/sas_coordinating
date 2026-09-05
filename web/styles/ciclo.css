@@ -1,3 +1,547 @@
+/* ═══ A FICHA DE CICLO ════════════════════════════════════════════════════
+   Duas metades, e é de propósito que estejam no mesmo arquivo: elas dividem
+   uma rolagem só.
+
+   A primeira é a CHEGADA — identidade, régua, KPIs e os dois campos —, cujo
+   trabalho inteiro é caber numa faixa, para o cabeçalho da tabela aparecer
+   sem rolagem. A segunda é a VARREDURA, mais abaixo.
+
+   O raciocínio da divisão está no cabeçalho de `telas/CicloFicha/CicloFicha.tsx`;
+   aqui ficam as medidas, que saem da prancheta de Provas (telas `ciclo`,
+   `rolado` e `vazio`).
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.ciclo-chegada {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ─── A tira grudada no topo — o estado ROLADO ────────────────────────────
+   Os campos ENCOLHEM, não descem. Virar rodapé seria escondê-los, e eles são
+   perguntas que o coordenador não sabe que quer fazer; o que ele perde na
+   troca é a monumentalidade (glifo de 70px, título de 27px) e o que ganha é
+   presença permanente enquanto varre — com a régua junto, que é a única forma
+   de saber contra o que a tabela está sendo lida.
+
+   `top` é a altura da topbar, que também é sticky (`casco.css`). O `z-index`
+   fica abaixo dos 40 dela e acima dos 3 da coluna congelada da tabela.
+
+   As margens negativas levam a tira até a borda do `<main>` — ela lê como
+   extensão da topbar, e não como um cartão flutuando sobre o conteúdo.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ciclo-tira {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 -28px;
+  padding: 12px 28px;
+  background: var(--sas-fundo);
+  border-bottom: var(--sas-borda-l) solid var(--sas-borda);
+}
+
+.ciclo-tira__nome {
+  flex: none;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--sas-magnitude);
+}
+
+/* A régua, em ouro e com o traço tracejado que a representa no resto do
+   sistema. Aqui ela é LEITURA, não controle: trocar de régua se faz na
+   chegada, e um segundo seletor da mesma coisa em duas alturas é a fonte de
+   engano que a R2 existe para fechar. */
+.ciclo-tira__regua {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--sas-valor);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sas-valor-texto);
+}
+
+.ciclo-tira__campos {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.ciclo-tira__campo {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.ciclo-tira__campo:hover {
+  border-color: var(--sas-dado);
+  text-decoration: none;
+}
+
+.ciclo-tira__campo svg {
+  flex: none;
+  color: var(--sas-dado);
+}
+
+/* O número vivo (C2), em peso normal: o que o botão promete é a pergunta; o
+   número só diz se vale abrir hoje. */
+.ciclo-tira__resumo {
+  font-weight: 400;
+  color: var(--sas-texto-2);
+}
+
+
+/* ─── A linha da identidade ──────────────────────────────────────────────
+   Nome, vestibular e período à esquerda; a régua e o dossiê à direita. O
+   `flex-wrap` é o que salva a linha a 1100px — ela quebra em duas em vez de
+   espremer o seletor de régua até ele virar ilegível. */
+
+.ciclo-identidade {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.ciclo-identidade__texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.ciclo-identidade__linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ciclo-identidade__nome {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--sas-magnitude);
+}
+
+/* ITA e IME correm em paralelo e o coordenador cuida dos dois: a pílula é
+   neutra de propósito — ela IDENTIFICA, não classifica, e um matiz por
+   vestibular reinventaria a cor categórica que a R7 tirou. */
+.ciclo-identidade__vestibular {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 11px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--sas-texto);
+}
+
+.ciclo-identidade__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 11px;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.ciclo-progresso {
+  width: 120px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--sas-referencia-fraca);
+  overflow: hidden;
+}
+
+.ciclo-progresso__feito {
+  display: block;
+  height: 100%;
+  background: var(--sas-dado);
+}
+
+.ciclo-identidade__acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  flex-wrap: wrap;
+}
+
+/* ─── A LENTE — a régua de corte, e por que ela tem moldura ───────────────
+   R2 · a régua é ouro e está sempre desenhada. A moldura existe para separá-la
+   das pílulas de filtro que ficam logo abaixo, coladas na tabela: um filtro
+   PENEIRA linhas, a régua muda o que cada linha DIZ. Trocá-la recalcula os
+   quatro KPIs, os dois campos e cada célula da tabela.
+
+   Sem a moldura e o rótulo, ela seria mais um `<select>` numa fileira de
+   controles — e uma régua trocada e despercebida é a pior fonte de engano do
+   produto.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ciclo-lente {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--sas-valor);
+  border-radius: var(--radius-sm);
+}
+
+.ciclo-lente__olho {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-valor-texto);
+}
+
+
+/* ─── A faixa: KPIs à esquerda, campos à direita ─────────────────────────
+   Os quatro KPIs eram uma fileira larga e viraram uma grade 2×2 — nenhum
+   número saiu, eles só pararam de ocupar a largura inteira. É essa
+   reorganização que abre os 520px da coluna dos campos sem empurrar a tabela
+   para fora da dobra.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ciclo-faixa {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.ciclo-kpis {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.ciclo-kpi {
+  padding: 13px 15px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+.ciclo-kpi__olho {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+.ciclo-kpi__numero {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 11px;
+}
+
+/* MAGNITUDE, sem cor semântica: a tabela abaixo é que carrega a leitura da
+   tela, e duas escalas semânticas ao mesmo tempo é o mesmo que nenhuma (R7).
+   O que dá hierarquia ao numeral é o peso, não o matiz. */
+.ciclo-kpi__valor {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  color: var(--sas-magnitude);
+  font-variant-numeric: tabular-nums;
+}
+
+.ciclo-kpi__sufixo {
+  font-size: 14px;
+  color: var(--sas-texto-2);
+}
+
+/* R5 · a comparação é cinza, atrás do dado. Ela some quando o servidor não
+   manda delta — "% zona crítica" não tem comparação no payload, e um "—" ali
+   se leria como "não variou". */
+.ciclo-kpi__referencia {
+  margin-top: 9px;
+  font-size: 12px;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Carregando: as quatro caixas vazias na medida certa, para a faixa não pular
+   quando os números chegam. Nunca um número chutado (C2). */
+.ciclo-kpis--esqueleto .ciclo-kpi {
+  min-height: 96px;
+  background: var(--sas-superficie-2);
+  border-style: dashed;
+}
+
+/* A falha das estatísticas NÃO derruba a tela: a tabela não depende delas, e
+   some-la junto seria transformar um erro de um endpoint em tela vazia. */
+.ciclo-kpis-erro {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 16px 18px;
+  border: 1px solid var(--sas-alerta);
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sas-alerta-texto);
+}
+
+
+/* ─── Os campos, na faixa fina ───────────────────────────────────────────
+   O mesmo `CartaoDeCampo` de sempre, remodelado pelo pai: horizontal, glifo
+   de 40px à ESQUERDA (`order`), título de 19px, e os dois esticando para
+   fechar a altura da grade de KPIs ao lado.
+
+   O custo está registrado na prancheta e é aceito: eles perdem
+   monumentalidade e ganham presença permanente. Se ocupassem meia tela, a
+   varredura — que é a tarefa dominante do dia — pagaria a conta todo dia.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ciclo-campos {
+  width: 520px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ciclo-campos .campo-cartao {
+  flex: 1;
+  align-items: center;
+  min-height: 0;
+  padding: 14px 18px;
+  gap: 16px;
+}
+
+.ciclo-campos .campo-cartao__glifo {
+  /* Antes do texto, e centrado: o glifo do card grande mora no canto inferior
+     direito, que numa faixa de 92px de altura não é canto nenhum. */
+  order: -1;
+  align-self: center;
+  margin-top: 0;
+  width: 40px;
+  height: 40px;
+}
+
+.ciclo-campos .campo-cartao__texto {
+  align-self: center;
+}
+
+.ciclo-campos .campo-cartao__titulo {
+  font-size: 19px;
+  line-height: 1.15;
+}
+
+.ciclo-campos .campo-cartao__sub {
+  font-size: 13px;
+}
+
+/* O chevron do card: desenhado com duas bordas em vez de um `<svg>` porque
+   ele não é conteúdo — quem nomeia o destino é o título, e o componente é
+   compartilhado com telas onde este afordance não existe. */
+.ciclo-campos .campo-cartao::after {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--sas-referencia);
+  border-right: 2px solid var(--sas-referencia);
+  transform: rotate(45deg);
+}
+
+
+/* ─── O rodapé da chegada — a ressalva e o atalho ────────────────────────
+   O elo quieto das pendências fica aqui porque precisa ser lido ANTES da
+   tabela: quem passou não tem resposta honesta enquanto houver prova sem nota
+   lançada. A TAREFA — a lista e o envio em lote — fica depois da tabela, no
+   destino deste elo. */
+
+.ciclo-rodape-chegada {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ciclo-ate-a-tabela {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--sas-texto);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ciclo-ate-a-tabela:hover {
+  border-color: var(--sas-dado);
+}
+
+.ciclo-ate-a-tabela svg {
+  color: var(--sas-dado);
+}
+
+/* Os dois destinos de rolagem param abaixo da topbar E da tira — senão o
+   cabeçalho da tabela e o título das pendências chegam escondidos. */
+.ciclo-tabela,
+.ciclo-ancora {
+  scroll-margin-top: calc(var(--topbar-h) + 76px);
+}
+
+/* O bloco de pendências SOME sozinho quando não há nada pendente — ele
+   consulta e decide. A âncora precisa sobreviver a isso sem cobrar o vão de
+   20px da coluna, e `:empty` é o que faz o invólucro desaparecer junto sem
+   desmontá-lo: desmontar levaria embora o diálogo de resultado do envio em
+   lote, que é justamente o que zera a contagem. */
+.ciclo-ancora:empty {
+  display: none;
+}
+
+
+/* ─── O ciclo sem nenhuma prova aplicada ─────────────────────────────────
+   Ver a nota em `CicloFicha.tsx::CicloSemProva`: a tela mostrava quatro
+   travessões e três cards dizendo "ainda não", que são quatro buracos e não
+   informação.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ciclo-vazio {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  flex-wrap: wrap;
+  max-width: 1060px;
+  padding: 32px 0;
+}
+
+.ciclo-vazio__texto {
+  flex: 1;
+  min-width: 280px;
+}
+
+.ciclo-vazio__olho {
+  margin: 26px 0 0;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+.ciclo-vazio__titulo {
+  margin: 16px 0 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--sas-magnitude);
+}
+
+.ciclo-vazio__corpo {
+  margin: 14px 0 0;
+  max-width: 520px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--sas-texto-2);
+}
+
+.ciclo-vazio__acoes {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+.ciclo-vazio__nota {
+  margin: 22px 0 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+.ciclo-vazio__desenho {
+  flex: none;
+}
+
+
+/* ─── Celular e telas estreitas ──────────────────────────────────────────
+   A coluna de 520px dos campos não cabe ao lado dos KPIs abaixo de ~1200px:
+   ela desce inteira, e os campos continuam sendo campos. A tira some — a
+   1080px o nome do ciclo, a régua e dois botões não cabem numa linha, e uma
+   tira que quebra em três linhas come a tabela que ela existe para proteger.
+   ─────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1200px) {
+  .ciclo-faixa {
+    flex-direction: column;
+  }
+
+  .ciclo-campos {
+    width: auto;
+  }
+}
+
+@media (max-width: 1080px) {
+  .ciclo-tira {
+    display: none;
+  }
+
+  .ciclo-tabela,
+  .ciclo-ancora {
+    scroll-margin-top: calc(var(--topbar-h) + 12px);
+  }
+}
+
+@media (max-width: 760px) {
+  .ciclo-kpis {
+    gap: 10px;
+  }
+
+  .ciclo-identidade__nome {
+    font-size: 22px;
+  }
+
+  .ciclo-vazio {
+    gap: 24px;
+    padding: 16px 0;
+  }
+}
+
+
 /* ─── A varredura de um ciclo — alunos × simulados ────────────────────────
    O CSS de `telas/CicloFicha/TabelaDoCiclo.tsx`, que era
    `telas/Painel/TabelaPainel.tsx` e mudou de casa (docs/39 §PRECEDÊNCIA): a
@@ -391,6 +935,10 @@
    "Química 3,2 — mínimo 4,0 (ITA §4.6.6.5)" diz qual matéria e qual mínimo,
    que é o que o coordenador precisa para decidir se chama o aluno. Uma célula
    vermelha não diria nada disso (R4/R7).
+
+   ⚠️ `.ciclo-regua__motivo` dividia estas regras e SAIU: a tela dela foi
+   apagada na mesma passagem, e uma classe que só a tela morta usava é CSS que
+   ninguém remove depois porque ninguém sabe mais se está em uso.
    ─────────────────────────────────────────────────────────────────────── */
 
 .painel-tabela__th-situacao {
@@ -404,8 +952,7 @@
   width: 190px;
 }
 
-.painel-tabela__td-situacao,
-.ciclo-regua__motivo {
+.painel-tabela__td-situacao {
   padding: 0 12px;
   font-size: 12px;
   color: var(--sas-texto);
@@ -656,4 +1203,325 @@
 
 .painel-corte__btn:hover {
   color: var(--sas-acao) !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   O MAPA DA CALIBRAÇÃO — `telas/CicloFicha/CicloCalibracao.tsx`
+   ═══════════════════════════════════════════════════════════════════════
+
+   Doze histogramas numa tela é o risco óbvio da pergunta "a prova estava
+   boa?". A prancheta (artboard Provas, tela `calibracao`) resolve com
+   pequenos múltiplos de ESCALA COMPARTILHADA — o denominador único vem de
+   `dominio/mapaDoCiclo.ts` e entra no `Histograma` por `picoCompartilhado`.
+
+   E a matéria fora do padrão ganha destaque por TAMANHO e POSIÇÃO, nunca por
+   cor: ela vem primeiro na grade (a ordenação é o ordenador da R6) e ocupa
+   três colunas em vez de duas. Cor aqui reinventaria o semáforo — e é o que a
+   refatoração inteira existe para desfazer.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* O subtítulo alinha com o TÍTULO, não com o chevron: recuado pelos 44px do
+   alvo de toque mais o vão da `.campo-cabeca`.
+
+   A margem negativa desconta o `gap: 20px` da `.tela` para chegar aos 9px que
+   a prancheta desenha. Ela é deliberada: com o vão inteiro o subtítulo fica
+   equidistante do título e da faixa abaixo, e passa a ler como um bloco
+   próprio em vez de como a segunda linha do título. */
+.ciclo-mapa__intro,
+.ciclo-comparacao__intro {
+  margin: -11px 0 0;
+  padding-left: 58px;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+/* ── R6 · a faixa que declara o ordenador ─────────────────────────────── */
+
+.ciclo-mapa__faixa {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--sas-borda);
+}
+
+.ciclo-mapa__ordem {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+.ciclo-mapa__ordem strong {
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.ciclo-mapa__ordenadores {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ciclo-mapa__ordenador {
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--sas-texto);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ciclo-mapa__ordenador[aria-pressed='true'] {
+  border-color: var(--sas-dado);
+  background: var(--sas-realce);
+  font-weight: 600;
+}
+
+.ciclo-mapa__sem-ordenador,
+.ciclo-mapa__escala {
+  font-size: 12px;
+  color: var(--sas-referencia);
+}
+
+.ciclo-mapa__escala {
+  flex-basis: 100%;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── A grade dos múltiplos ────────────────────────────────────────────── */
+
+.ciclo-mapa {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.ciclo-mapa__cartao {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px;
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
+  text-align: left;
+  text-decoration: none;
+  transition: border-color 150ms, transform 120ms;
+}
+
+.ciclo-mapa__cartao--destaque {
+  grid-column: span 3;
+}
+
+a.ciclo-mapa__cartao:hover {
+  border-color: var(--sas-dado);
+  text-decoration: none;
+}
+
+a.ciclo-mapa__cartao:active {
+  transform: translateY(2px);
+}
+
+/* Superfície de LEITURA, não link desligado: o bloco que agrega duas provas
+   não tem ficha para abrir, e prometer navegação que não acontece é a promessa
+   quebrada mais cara de descobrir. */
+.ciclo-mapa__cartao--inerte {
+  border-style: dashed;
+  background: transparent;
+}
+
+.ciclo-mapa__topo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ciclo-mapa__materia {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sas-magnitude);
+}
+
+.ciclo-mapa__fase {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Altura reservada mesmo quando a frase é curta: sem isso os cartões de uma
+   linha e os de duas desalinham os gráficos, e a comparação de alturas — que é
+   o motivo da escala compartilhada — some no desalinho. */
+.ciclo-mapa__frase {
+  min-height: 30px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--sas-texto-2);
+}
+
+/* ⚠️ A legenda do `Histograma` é escondida AQUI, e só aqui. Ela nomeia média,
+   mediana e "abaixo é vazado" uma vez por gráfico — o que está certo num
+   gráfico sozinho e vira doze repetições numa grade de doze. O cartão imprime
+   os mesmos três números no rodapé, e a frase da forma é dita uma vez só, na
+   faixa acima da grade. Esconder é preferível a mudar a peça: ela é a MESMA da
+   ficha da prova, e é dessa igualdade que a tela depende. */
+.ciclo-mapa__cartao .histograma__legenda {
+  display: none;
+}
+
+.ciclo-mapa__cartao .histograma__container {
+  gap: 0;
+}
+
+.ciclo-mapa__rodape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.ciclo-mapa__corte {
+  color: var(--sas-valor-texto);
+  font-weight: 600;
+}
+
+.ciclo-mapa__nota {
+  font-size: 11px;
+  color: var(--sas-referencia);
+}
+
+/* ── O delta entre as fases ───────────────────────────────────────────── */
+
+.ciclo-mapa__delta {
+  color: var(--sas-referencia);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1200px) {
+  .ciclo-mapa {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .ciclo-mapa__cartao--destaque {
+    grid-column: span 4;
+  }
+}
+
+@media (max-width: 760px) {
+  .ciclo-mapa {
+    grid-template-columns: 1fr;
+  }
+
+  .ciclo-mapa__cartao,
+  .ciclo-mapa__cartao--destaque {
+    grid-column: span 1;
+  }
+
+  .ciclo-mapa__intro,
+  .ciclo-comparacao__intro {
+    padding-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ciclo-mapa__cartao {
+    transition: none;
+  }
+
+  a.ciclo-mapa__cartao:active {
+    transform: none;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SEDE × SEDE — `telas/CicloFicha/CicloComparacao.tsx`
+   ═══════════════════════════════════════════════════════════════════════
+
+   R5 em estado puro: a média da prova inteira é REFERÊNCIA — cinza, atrás —, e
+   as sedes são o dado que passa por cima dela. Nenhuma cor categórica: duas
+   sedes em dois matizes seriam o semáforo de volta por outra porta, e o olho
+   aprenderia em duas telas qual dos dois matizes é "o ruim". O que separa uma
+   sede da outra é a POSIÇÃO no trilho e o rótulo escrito.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.ciclo-sedes {
+  display: flex;
+  flex-direction: column;
+}
+
+.ciclo-sedes__linha {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(140px, 0.7fr);
+  align-items: center;
+  gap: 8px 18px;
+  padding: 10px 0;
+  border-top: 1px solid var(--sas-fio);
+}
+
+.ciclo-sedes__prova {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-height: 44px;
+  color: inherit;
+}
+
+.ciclo-sedes__nome {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sas-dado);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ciclo-sedes__contexto {
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
+.ciclo-sedes__trilho {
+  max-width: 100%;
+  height: auto;
+}
+
+.ciclo-sedes__diferenca,
+.ciclo-sedes__vazio {
+  font-size: 12px;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.ciclo-sedes__vazio {
+  color: var(--sas-referencia);
+}
+
+/* R4 · o vermelho da FALHA operacional. Uma linha em branco no lugar disto
+   seria lida como "as sedes estão iguais", que é o oposto do que aconteceu. */
+.ciclo-sedes__falha {
+  font-size: 12px;
+  color: var(--sas-alerta-texto);
+}
+
+@media (max-width: 900px) {
+  .ciclo-sedes__linha {
+    grid-template-columns: 1fr;
+  }
 }
