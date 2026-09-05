@@ -129,21 +129,37 @@ async def _sincronizar_curso_simulados(
     # ── (1) Sections → sede/turma ──
     sections = await canvas.listar_sections(course_id)
     turma_por_section_id: dict[str, str] = {}
+    nome_curso = (curso.get("name") or "").strip()
     for section in sections:
         nome_section = (section.get("name") or "").strip()
         parsed = parsear_section(nome_section)
-        if parsed.serie is None and parsed.sede_codigo != "ONLINE":
-            # Sections fora do padrão ("2022", "AFA", nome de curso colado...)
-            # não geram turma — matrículas nelas ficam sem matricula_turma.
-            resumo.avisos.append(f"Section '{nome_section}' fora do padrão — turma não criada.")
-            continue
-        sede_id = upsert_sede(cliente, codigo=parsed.sede_codigo, modalidade=parsed.modalidade)
+        # TODA section vira turma (decisão de 04/09/2026). Antes, só as que
+        # casavam com "{série}o {trilha} {sede}" entravam, e a matrícula nas
+        # outras era pulada logo abaixo: 521 dos 1.079 alunos do curso de 2026
+        # não existiam no SAS — sem lista, sem estatística e sem login, porque
+        # estavam em "AD Online", "MF Online", "PB", "Escolas Parceiras SAS"
+        # ou "Proposito (Objetivo)".
+        if nome_section == nome_curso:
+            # A section default do Canvas herda o nome do curso. Uma sede só
+            # para ela, senão nasce "2026_3O_ITA_IME_SIMULADOS" todo ano.
+            codigo_sede, nome_sede = "SEM_SECTION", "Sem section no Canvas"
+        else:
+            codigo_sede, nome_sede = parsed.sede_codigo, parsed.nome_sede
+        if parsed.serie is None:
+            resumo.avisos.append(
+                f"Section '{nome_section}' não declara série/trilha — turma criada como sede própria."
+            )
+        sede_id = upsert_sede(
+            cliente, codigo=codigo_sede, modalidade=parsed.modalidade, nome=nome_sede
+        )
         turma_id = upsert_turma(
             cliente,
             sede_id=sede_id,
             ano_letivo_id=ano_letivo_id,
             serie=parsed.serie or 0,
-            trilha=parsed.trilha or "ONLINE",
+            # "INDEFINIDA" é o mesmo default do ingest — série e trilha só
+            # existem quando o nome da section as declara.
+            trilha=parsed.trilha or "INDEFINIDA",
             section_original=nome_section,
         )
         turma_por_section_id[str(section["id"])] = turma_id

@@ -305,11 +305,20 @@ class SectionParsed:
     trilha: str | None
     sede_codigo: str
     modalidade: Literal["presencial", "online"]
+    nome_sede: str
 
 
 # `trilha` aceita "/" porque as Sections do Canvas vêm como "3o ITA/IME AD"
 # (a planilha sempre trouxe trilha singular, "3o ITA AD" — ambos casam).
 PADRAO_SECTION = re.compile(r"^(?P<serie>\d+)o\s+(?P<trilha>[\w/]+)\s+(?P<sede>\w+)$", re.IGNORECASE)
+
+# Código de sede para Section fora do padrão. `sede.codigo` é chave natural do
+# upsert: parêntese e acento de "Proposito (Objetivo)" não podem entrar nela.
+_FORA_DO_CODIGO = re.compile(r"[^A-Z0-9]+")
+
+
+def _codigo_de_sede(nome: str) -> str:
+    return _FORA_DO_CODIGO.sub("_", remover_acentos(nome).upper()).strip("_") or "SEM_NOME"
 
 
 def parsear_section(section: str) -> SectionParsed:
@@ -317,26 +326,41 @@ def parsear_section(section: str) -> SectionParsed:
     (3, trilha, 'AD', 'presencial').
 
     Casos especiais:
-      - 'Online' → sede_codigo='ONLINE', modalidade='online'.
-      - Qualquer outra string fora do padrão cai como sede de código igual ao
-        próprio Section (uppercase) e modalidade presencial.
+      - 'Online' → sede 'ONLINE', série 0, trilha 'ONLINE'. Explícito, e não
+        None, para o ingest e o sync caírem na MESMA turma — a que existe
+        desde 2025 com 327 alunos. Cada um tinha seu próprio default e eles
+        não batiam ("INDEFINIDA" contra "ONLINE").
+      - Qualquer outra fora do padrão ('AD Online', 'PB', 'Escolas Parceiras
+        SAS', 'Proposito (Objetivo)') vira **sede própria**, com o nome
+        original como rótulo: são recortes que a coordenação lê como unidade,
+        e o Canvas não declara série nem trilha deles. Sede própria também é
+        o que impede a colisão em turma(sede, ano, série, trilha) — 'AD
+        Online' cairia em cima de '3o ITA AD' se herdasse a sede AD.
     """
     valor = section.strip()
     if remover_acentos(valor) == "online":
-        return SectionParsed(serie=None, trilha=None, sede_codigo="ONLINE", modalidade="online")
+        return SectionParsed(
+            serie=0, trilha="ONLINE", sede_codigo="ONLINE",
+            modalidade="online", nome_sede="ONLINE",
+        )
 
     m = PADRAO_SECTION.match(valor)
     if m:
+        sede = m.group("sede").upper()
         return SectionParsed(
             serie=int(m.group("serie")),
             trilha=m.group("trilha").upper(),
-            sede_codigo=m.group("sede").upper(),
+            sede_codigo=sede,
             modalidade="presencial",
+            nome_sede=sede,
         )
 
     return SectionParsed(
         serie=None,
         trilha=None,
-        sede_codigo=valor.upper().replace(" ", "_"),
-        modalidade="presencial",
+        sede_codigo=_codigo_de_sede(valor),
+        # "AD Online"/"MF Online" são turmas online de uma sede presencial —
+        # a modalidade vem do nome, que é tudo que o Canvas dá.
+        modalidade="online" if "online" in remover_acentos(valor) else "presencial",
+        nome_sede=valor,
     )

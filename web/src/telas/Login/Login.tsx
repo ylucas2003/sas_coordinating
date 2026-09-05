@@ -49,16 +49,21 @@ export function Login() {
     // Sem "ou entre com matrícula e senha": essa saída não existe mais.
     falhou: 'O Canvas não confirmou o login. Tente de novo em alguns instantes.',
     // A recusa certa (o SAS decide quem entra), dita de um jeito que ensina o
-    // que fazer. A versão anterior — "Procure a coordenação" — mandava a
-    // pessoa embora sem dizer o que pedir (docs/33 §6).
+    // que fazer — e o que ensinava até 05/09 não existia. "Peça a um
+    // coordenador para criar seu acesso com o mesmo e-mail" é verdade para
+    // conta de COORDENAÇÃO (POST /administracao/coordenadores casa por
+    // e-mail); para aluno não há rota que crie nada, e o painel de acesso é
+    // só leitura. Quem cria aluno é o sync do Canvas, a partir da matrícula
+    // no curso de simulados — e é isso que a mensagem manda conferir. Depois
+    // do §11.6, este botão é só da porta do aluno, então o texto é para ele.
     //
     // ⚠️ Sem ecoar o e-mail na mensagem, embora ele fosse o texto mais útil
     // possível: ele viajaria na query string, e query string entra em
     // histórico de navegador e em log de acesso do nginx.
     'sem-conta':
-      'Sua conta do Canvas ainda não tem acesso ao SAS. Peça a um coordenador para criar seu '
-      + 'acesso usando o mesmo e-mail da sua conta do Canvas — o Canvas diz quem você é, mas o '
-      + 'acesso ao SAS é criado aqui dentro.',
+      'Sua conta do Canvas não está na lista de alunos do SAS. A lista vem da sua matrícula no '
+      + 'curso de simulados do ITA/IME no Canvas: matrícula nova leva alguns minutos para chegar '
+      + 'aqui. Se a sua já está lá, fale com a coordenação.',
   }[params.get('canvas') ?? ''] ?? null;
   const [modo, setModo] = useState<Modo>('aluno');
   // Chave de animação: mudar de modo reinicia a transição de entrada do texto.

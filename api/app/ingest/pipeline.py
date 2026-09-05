@@ -450,6 +450,7 @@ def _processar(
             cliente,
             codigo=section_parsed.sede_codigo,
             modalidade=section_parsed.modalidade,
+            nome=section_parsed.nome_sede,
         )
         if sede_id not in sedes_vistas:
             resumo.sedes_processadas += 1
