@@ -21,7 +21,7 @@ import type {
   RespostaNoTreino,
   TaxonomiaMateria,
 } from '../../dados/aluno';
-import { ehDissertativa, temGabarito } from '../../dominio/banco';
+import { ehDissertativa, letrasDaQuestao, temGabarito } from '../../dominio/banco';
 import { Icone } from './pecas/Icone';
 import { TarjaFonte } from './pecas/TarjaFonte';
 import { MATERIAS_COM_TAXONOMIA } from './pecas/formato';
@@ -81,16 +81,10 @@ function materiaDoBanco(nome: string | null | undefined): MateriaBanco | null {
   return MATERIAS_COM_TAXONOMIA.find((m) => m === nome) ?? null;
 }
 
-/** As alternativas chegam como `Record<letra, texto>` — ou `null` na dissertativa. */
-function alternativasEmOrdem(questao: QuestaoVestibular): Array<[string, string]> {
-  if (!questao.alternativas) return [];
-  return Object.entries(questao.alternativas).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
-}
-
 /** Só entra na fila o que dá para RESPONDER: com alternativa e com letra a
  *  conferir. Sem isso a sessão pararia numa questão que não tem o que corrigir. */
 function respondivel(questao: QuestaoVestibular): boolean {
-  return !ehDissertativa(questao) && temGabarito(questao) && alternativasEmOrdem(questao).length > 0;
+  return !ehDissertativa(questao) && temGabarito(questao) && letrasDaQuestao(questao).length > 0;
 }
 
 export function Treino() {
@@ -434,15 +428,19 @@ export function Treino() {
                 a seguinte. */}
             <Enunciado key={questao.id} questao={questao} />
 
+            {/* Só as LETRAS. O texto que ficava ao lado era a transcrição do
+                LaTeX com as barras de fração perdidas ("Δx = 3Vi 2A 11mg
+                50PatmA+55mg"), repetindo pior o que a imagem acima já mostra
+                impresso. Uma fileira também devolve à questão a altura que as
+                cinco linhas ocupavam. */}
             <ul className="alu-treino__alternativas">
-              {alternativasEmOrdem(questao).map(([letra, texto]) => (
+              {letrasDaQuestao(questao).map((letra) => (
                 <li key={letra}>
                   <Alternativa
                     letra={letra}
-                    texto={texto}
                     escolhida={escolha === letra}
                     conferido={conferido}
-                    correta={gabarito === letra.toUpperCase()}
+                    correta={gabarito === letra}
                     onEscolher={() => setEscolha(letra)}
                   />
                 </li>
@@ -606,9 +604,15 @@ function Esqueleto() {
   return (
     <div className="alu-treino__esqueleto" aria-hidden="true">
       <span className="alu-treino__esqueleto-imagem" />
-      <span className="alu-treino__esqueleto-linha" />
-      <span className="alu-treino__esqueleto-linha" />
-      <span className="alu-treino__esqueleto-linha" />
+      {/* Cinco quadrados numa fileira, a forma que as alternativas têm agora:
+          três linhas empilhadas anunciariam um layout que não vem mais. */}
+      <div className="alu-treino__esqueleto-fileira">
+        <span className="alu-treino__esqueleto-linha" />
+        <span className="alu-treino__esqueleto-linha" />
+        <span className="alu-treino__esqueleto-linha" />
+        <span className="alu-treino__esqueleto-linha" />
+        <span className="alu-treino__esqueleto-linha" />
+      </div>
     </div>
   );
 }
@@ -756,24 +760,27 @@ function Enunciado({ questao }: { questao: QuestaoVestibular }) {
 }
 
 /**
- * Uma alternativa: bloco tocável com a letra num quadrado à esquerda.
+ * Uma alternativa: o quadrado da letra, e só.
  *
  * Leva a tecla de 4px porque É tocável — e todo o resto da tela é chapado, que
  * é o que faz a tecla continuar significando "aperte aqui" (docs/24 §7.1).
  *
- * Depois de conferida: a correta fica PREENCHIDA na cor DADO e a escolhida
- * errada fica VAZADA com fio ALERTA (o brief). Vazio é vazado.
+ * Os quatro estados, sem cor nova: neutro na superfície; escolhida VAZADA com
+ * fio DADO; depois de conferida a correta fica PREENCHIDA na cor DADO e a que
+ * enganou fica VAZADA com fio ALERTA (o brief). Vazio é vazado.
+ *
+ * ⚠️ O `aria-label` não é enfeite: um botão cujo conteúdo é a letra "A" é
+ * anunciado como "A", e quem usa leitor de tela não tem a imagem para deduzir
+ * do que se trata.
  */
 function Alternativa({
   letra,
-  texto,
   escolhida,
   conferido,
   correta,
   onEscolher,
 }: {
   letra: string;
-  texto: string;
   escolhida: boolean;
   conferido: boolean;
   correta: boolean;
@@ -789,11 +796,11 @@ function Alternativa({
       type="button"
       className={classes.join(' ')}
       aria-pressed={escolhida}
+      aria-label={`Alternativa ${letra}`}
       disabled={conferido}
       onClick={onEscolher}
     >
       <span className="alu-alternativa__letra">{letra}</span>
-      <span className="alu-alternativa__texto">{texto}</span>
     </button>
   );
 }

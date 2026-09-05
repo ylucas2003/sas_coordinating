@@ -16,6 +16,11 @@ import { Icone } from './Icone';
 //
 // No desktop a folha vira painel à direita e deixa de ser modal — a página
 // continua utilizável, e aí a regra do docs/10 volta a valer.
+//
+// ⚠️ A DO TIO LÉO É A EXCEÇÃO NA FORMA, não na mecânica: no desktop ela é um
+// cartão flutuante de 400×620 no canto, e não a faixa de altura total. Quem faz
+// isso é `.alu-tioleo.alu-folha` em aluno-tioleo.css, escopado para não
+// arrastar as outras quatro folhas junto. Continua não-modal.
 
 export type AlturaDaFolha = 'espiada' | 'meio' | 'cheio';
 

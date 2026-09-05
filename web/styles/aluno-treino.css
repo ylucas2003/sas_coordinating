@@ -212,33 +212,46 @@
 
 /* ── As alternativas ──────────────────────────────────────────────────── */
 
+/* UMA FILEIRA, não uma pilha. Desde que a linha passou a ser só a letra, cinco
+   blocos de largura total deixariam quatro quintos de cada um vazios — e é
+   justamente essa altura que a imagem do enunciado precisa para crescer.
+   Nada aqui fixa o número de letras: são cinco quase sempre, mas o acervo tem
+   questão cuja transcrição só rendeu quatro (`letrasDaQuestao`). */
 .alu-treino__alternativas {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  justify-content: center;
 }
 
-/* Bloco TOCÁVEL, e por isso leva a tecla de 4px — o resto da tela é chapado,
+/* ⚠️ FLEX, E NÃO GRID, e o teto vai no item. Um `grid-auto-columns` de 108px
+   não é track flexível: a 390px ele não encolhe, a fileira passa de 570px e
+   estica o corpo inteiro — a imagem do enunciado vai junto e vaza a viewport.
+   `flex: 1 1 0` cresce até o teto no desktop, onde `justify-content: center`
+   centraliza o conjunto, e encolhe parelho no celular, onde sobram 65px para
+   cada uma. */
+.alu-treino__alternativas > li {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 108px;
+}
+
+/* Quadrado TOCÁVEL, e por isso leva a tecla de 4px — o resto da tela é chapado,
    que é o que faz a tecla continuar significando "aperte aqui" (docs/24 §7.1,
    regra 1). Sem blur, nunca. */
 .alu-alternativa {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  display: grid;
+  place-items: center;
   width: 100%;
   min-height: 56px;
-  padding: 11px 13px;
-  text-align: left;
+  padding: 11px 8px;
   background: var(--alu-superficie);
   border: var(--alu-borda-largura) solid var(--alu-borda);
   border-radius: var(--alu-raio-pequeno);
   color: var(--alu-texto);
   font: inherit;
-  font-size: 15px;
-  line-height: 1.5;
   cursor: pointer;
   box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-borda);
   margin-bottom: var(--alu-tecla);
@@ -261,38 +274,24 @@
   box-shadow: none;
 }
 
+/* Sem moldura própria: quem é o quadrado agora é o botão, e um quadrado dentro
+   do outro só somaria traço. Aqui ficou a tipografia. */
 .alu-alternativa__letra {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  border: 1.5px solid var(--alu-borda);
-  background: transparent;
-  color: var(--alu-texto-2);
-  font-size: 14px;
+  font-size: 19px;
   font-weight: 800;
-  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--alu-texto-2);
 }
 
-.alu-alternativa__texto {
-  min-width: 0;
-  /* Alternativa de Matemática vem com fórmula colada; sem isto ela empurra a
-     linha e o corpo passa a rolar na horizontal. */
-  overflow-wrap: anywhere;
-}
-
-/* Escolhida, antes de conferir: borda DADO e a letra preenchida. */
+/* Escolhida, antes de conferir: VAZADA com fio DADO — a preenchida é a resposta
+   certa, e as duas não podem ter a mesma forma. */
 .alu-alternativa.is-escolhida {
   border-color: var(--alu-dado);
   box-shadow: 0 var(--alu-tecla) 0 0 var(--alu-dado);
 }
 
 .alu-alternativa.is-escolhida .alu-alternativa__letra {
-  background: var(--alu-dado);
-  border-color: var(--alu-dado);
-  color: #ffffff;
+  color: var(--alu-dado);
 }
 
 /* A correta, depois de conferir: PREENCHIDA na cor DADO. */
@@ -303,8 +302,6 @@
 }
 
 .alu-alternativa.is-correta .alu-alternativa__letra {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.6);
   color: #ffffff;
 }
 
@@ -317,7 +314,6 @@
 }
 
 .alu-alternativa.is-enganou .alu-alternativa__letra {
-  border-color: var(--alu-alerta);
   color: var(--alu-alerta);
 }
 
@@ -384,6 +380,19 @@
 
 .alu-treino__esqueleto-linha {
   height: 56px;
+}
+
+/* O esqueleto imita a FORMA do que vem — e o que vem agora é uma fileira. */
+.alu-treino__esqueleto-fileira {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.alu-treino__esqueleto-fileira > .alu-treino__esqueleto-linha {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 108px;
 }
 
 /* `prefers-reduced-motion` já é honrado por `aluno-tokens.css`, que zera
@@ -614,6 +623,18 @@
   .alu-treino-resumo__corpo,
   .alu-questao-cheia__corpo {
     padding: 24px 16px 32px;
+  }
+
+  /* A COLUNA DA SESSÃO É MAIOR QUE A DO CASCO, e só a dela. O PNG do enunciado
+     tem 1571px de largura natural: a 640px o aluno lia a questão a 40% da
+     resolução que existe, e é ela — não o texto — que ele precisa enxergar
+     (docs/28 §6). O casco continua em `--alu-coluna` porque lá o conteúdo é
+     texto, e linha longa demais se lê pior.
+     Corpo e base andam juntos: são larguras independentes, e destravar uma só
+     desalinharia o RESPONDER da questão. */
+  .alu-treino__corpo,
+  .alu-treino__base {
+    max-width: 860px;
   }
 
   .alu-treino-resumo__acoes {

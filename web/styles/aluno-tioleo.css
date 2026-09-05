@@ -1,5 +1,5 @@
 /* ─── Tio Léo — o mentor do aluno ────────────────────────────────────────
-   Folha no celular, painel lateral de 400px no desktop. A mecânica das duas
+   Folha no celular, CARTÃO FLUTUANTE de 400×620 no desktop. A mecânica das duas
    está em `Folha.tsx` e em aluno-casco.css; o que este arquivo faz é vestir a
    CONVERSA — que é a mesma da coordenação (`componentes/chat/`) — com a
    linguagem do aluno.
@@ -791,4 +791,54 @@
   font-size: 12px;
   line-height: 1.5;
   color: var(--alu-texto-2);
+}
+
+/* ─── Desktop: cartão flutuante, e não a faixa colada na borda ───────────
+   A geometria é a do artboard desktop de `sas-rea-do-aluno/project/Área do
+   aluno.dc.html` (linha 2025): 400×620, cantos de 20px, borda em toda a volta
+   e sombra. O que estava no ar era a folha genérica do casco esticada em
+   `100dvh` contra a direita da janela — uma faixa, não uma janela de conversa.
+
+   ⚠️ ESCOPADO EM `.alu-tioleo` DE PROPÓSITO. `.alu-folha` também veste a folha
+   da conta, a de filtros do Estudar, a da página inteira e a de listas; sem o
+   escopo, as quatro virariam cartão junto. E `.alu-tioleo.alu-folha` (0,2,0)
+   vence `.alu-folha` (0,1,0) do casco sem precisar de `!important`.
+
+   Continua NÃO-MODAL: quem apaga o véu e devolve o clique ao fundo é
+   `.alu-folha-fundo` no casco, e nada aqui o traz de volta. O docs/10 pede o
+   chat sem bloqueio, e o artboard também não tem véu — o cartão flutua sobre a
+   página, que segue utilizável (docs/27 §8).
+   ─────────────────────────────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  .alu-tioleo.alu-folha {
+    /* O que o cartão NÃO pode ocupar na vertical: 24px de folga em cima, os
+       56px do FAB embaixo com 14px de respiro, e mais 24px até a borda. */
+    --alu-tioleo-folga: 118px;
+
+    /* O fundo é `align-items: stretch` para servir à faixa; o cartão desce
+       sozinho para o canto sem mexer na regra compartilhada. */
+    align-self: flex-end;
+    width: 400px;
+    max-width: 400px;
+    /* 620px é a altura do artboard. O `min()` é o que impede o cartão de
+       vazar num notebook de 768px de altura, onde 620 + folga não cabem. */
+    height: min(620px, calc(100dvh - var(--alu-tioleo-folga)));
+    max-height: calc(100dvh - var(--alu-tioleo-folga));
+    /* ANCORADO ACIMA DO FAB, e não a 24px do fundo como no artboard: lá o botão
+       de abrir mora na barra lateral, aqui ele é o flutuante do canto
+       (`.alu-fab`: 56px a 24px da borda). Esconder o FAB enquanto a conversa
+       está aberta não é opção — é para ele que `Folha` devolve o foco ao
+       fechar, e sem ele quem usa teclado é jogado no topo do documento
+       (FabTioLeo.tsx). */
+    margin: 0 24px calc(24px + 56px + 14px) 0;
+    border: 1px solid var(--alu-borda);
+    border-radius: 20px;
+    /* Sem `overflow`, o composer da conversa quadraria os cantos de baixo. */
+    overflow: hidden;
+    /* A sombra do artboard é `rgba(3, 6, 16, .45)`, medida no tema NOITE; no
+       dia ela vira uma mancha. O tom é o mesmo que o casco já usa na folha
+       (aluno-casco.css), com a difusão do artboard. */
+    box-shadow: 0 24px 60px rgba(5, 10, 24, 0.24);
+  }
 }

@@ -9,7 +9,8 @@ import { Folha } from '../pecas/Folha';
 import { Icone } from '../pecas/Icone';
 import { fmtDataCurta } from '../pecas/formato';
 
-// A folha do Tio Léo — bottom sheet no celular, painel lateral no desktop.
+// A folha do Tio Léo — bottom sheet no celular, cartão flutuante de 400×620 no
+// desktop (a geometria do artboard; o CSS está em aluno-tioleo.css).
 //
 // A MÁQUINA DE CONVERSA É A MESMA da coordenação (`Conversa`, `agente.py`); o
 // que muda é a casca e o perfil, exatamente o que `perfis.py` já faz com

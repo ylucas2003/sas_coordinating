@@ -9,6 +9,7 @@ import {
   combinarEstatisticas,
   ehDissertativa,
   filtrarQuestoes,
+  letrasDaQuestao,
   ordenarPorProva,
   reordenar,
   resumoRecorrencia,
@@ -103,6 +104,61 @@ describe('temGabarito e ehDissertativa', () => {
   it('trata gabarito em branco como ausente', () => {
     expect(temGabarito(questao({ id: 'q3', gabarito: '   ' }))).toBe(false);
     expect(temGabarito(questao({ id: 'q4', gabarito: null }))).toBe(false);
+  });
+});
+
+describe('letrasDaQuestao', () => {
+  it('devolve A–E quando a prova veio inteira', () => {
+    const q = questao({
+      id: 'q1',
+      alternativas: { A: 'a', B: 'b', C: 'c', D: 'd', E: 'e' },
+      gabarito: 'C',
+    });
+    expect(letrasDaQuestao(q)).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+
+  // O caso que motivou a função: `ita_2019_fase1_q12` tem A, C, D e E no banco
+  // e gabarito B. Sem completar a série, o botão da resposta certa não existe e
+  // o aluno é obrigado a errar.
+  it('devolve o botão do gabarito quando a transcrição o perdeu', () => {
+    const q = questao({
+      id: 'ita_2019_fase1_q12',
+      alternativas: { A: 'a', C: 'c', D: 'd', E: 'e' },
+      gabarito: 'B',
+    });
+    expect(letrasDaQuestao(q)).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+
+  // `ime_2024_fase1_mat_q06`: transcritas A–D, gabarito E.
+  it('estende a série até o gabarito quando ele passa da última transcrita', () => {
+    const q = questao({
+      id: 'ime_2024_fase1_mat_q06',
+      alternativas: { A: 'a', B: 'b', C: 'c', D: 'd' },
+      gabarito: 'E',
+    });
+    expect(letrasDaQuestao(q)).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+
+  // O buraco no meio some, mas o teto não sobe sozinho: sem sinal de que existe
+  // uma quinta alternativa, inventar E seria oferecer o que a prova não mostra.
+  it('não inventa letra acima da última necessária', () => {
+    const q = questao({
+      id: 'ita_2015_fase1_qui_q18',
+      alternativas: { A: 'a', C: 'c', D: 'd' },
+      gabarito: 'B',
+    });
+    expect(letrasDaQuestao(q)).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('não tem letra a oferecer na dissertativa', () => {
+    const q = questao({ id: 'q5', dissertativa: true, alternativas: null, gabarito: null });
+    expect(letrasDaQuestao(q)).toEqual([]);
+  });
+
+  // Gabarito ausente ou sujo não pode encolher nem estourar a série.
+  it('ignora gabarito em branco', () => {
+    const q = questao({ id: 'q6', alternativas: { A: 'a', B: 'b', C: 'c' }, gabarito: '  ' });
+    expect(letrasDaQuestao(q)).toEqual(['A', 'B', 'C']);
   });
 });
 
