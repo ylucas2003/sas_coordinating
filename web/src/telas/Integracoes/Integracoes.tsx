@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
+import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { usePainelGravacoes } from '../../hooks/consultas';
 import { resumoAndamento, situacaoDe } from '../../dominio/gravacoes';
 
@@ -36,7 +36,7 @@ export function Integracoes() {
 
   return (
     <div className="tela">
-      <AbasAdmin />
+      <CabecaDeCampo titulo="O Canvas está de pé?" para="/administracao" destino="Administração" />
 
       <div className="tela-cabecalho">
         <div>

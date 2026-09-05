@@ -30,6 +30,7 @@ import '../styles/auditoria.css';
 import '../styles/painel.css';
 import '../styles/aluno-ficha.css';
 import '../styles/filtros.css';
+import '../styles/campo.css';
 import '../styles/chat.css';
 import '../styles/edicao.css';
 // Área do aluno: tokens primeiro (os `--alu-*` dos dois temas), depois o casco,

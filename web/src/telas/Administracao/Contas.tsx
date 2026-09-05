@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Campo, Dialogo, Linha2 } from '../../componentes/dialogos/Dialogo';
-import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
+import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import { Kpi } from '../../componentes/ui/Kpi';
@@ -43,7 +43,7 @@ function fmtQuando(iso: string | null | undefined): string {
 
 type FiltroAcesso = 'com' | 'sem';
 
-export function Administracao() {
+export function Contas() {
   const { data: coordenadores = [] } = useCoordenadores();
   const { data: acessos } = useAcessosDeAlunos();
   // Lido uma vez: o papel vem do login e não muda no meio da sessão.
@@ -78,11 +78,10 @@ export function Administracao() {
 
   return (
     <div className="tela">
-      <AbasAdmin />
+      <CabecaDeCampo titulo="Quem tem acesso" para="/administracao" destino="Administração" />
 
       <div className="tela-cabecalho">
         <div>
-          <h1 className="tela-titulo">Contas da coordenação</h1>
           <p className="tela-subtitulo">Quem pode entrar no painel. Contas não são apagadas: desativar preserva a autoria na auditoria.</p>
           {/*
             O modelo está certo; o produto é que não contava (docs/25 §3). As

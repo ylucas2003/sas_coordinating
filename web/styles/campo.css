@@ -1,0 +1,204 @@
+/* ─── O padrão de campo ──────────────────────────────────────────────────
+   Os cards-que-abrem-tela, a cabeça com chevron e o elo quieto. Comentário
+   das regras C1–C5 em `componentes/ui/Campo.tsx`.
+
+   A anatomia vem do canvas: olho em caixa alta, título de 27px em peso 800
+   com tracking negativo, subtítulo de 14px em REFERENCIA, e o glifo de 70×70
+   em traço 1.4 na cor DADO, alinhado ao canto inferior direito.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.campo-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.campo-cartao {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 186px;
+  padding: 20px;
+  background: var(--color-surface);
+  border: var(--color-border-largura) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 150ms, transform 80ms ease-out;
+}
+
+.campo-cartao:hover {
+  border-color: var(--color-dado);
+  text-decoration: none;
+}
+
+/* Afunda 2px, e não os 3px da tecla do botão primário: um bloco do tamanho de
+   um cartão inteiro descendo 3px parece solto. */
+.campo-cartao:active {
+  transform: translateY(2px);
+}
+
+.campo-cartao__texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.campo-cartao__olho {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: var(--color-text-tertiary);
+}
+
+.campo-cartao__titulo {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--color-magnitude);
+}
+
+.campo-cartao__sub {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Carregando: esqueleto, nunca spinner — e nunca um número chutado, que
+   envelhece calado (C2). */
+.campo-cartao__esqueleto {
+  height: 13px;
+  width: 62%;
+  border-radius: 4px;
+  background: var(--color-surface-inset);
+}
+
+.campo-cartao__glifo {
+  flex: none;
+  align-self: flex-end;
+  margin-top: auto;
+  color: var(--color-dado);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campo-cartao {
+    transition: border-color 150ms;
+  }
+  .campo-cartao:active {
+    transform: none;
+  }
+}
+
+/* ─── A cabeça do campo (C4) ─────────────────────────────────────────────
+   Chevron e título NA MESMA LINHA. Um "← Voltar" em linha própria empurra o
+   título para fora da dobra a 390px, e o título é o que diz onde a pessoa
+   está.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.campo-cabeca {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.campo-cabeca__voltar {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-magnitude);
+  background: transparent;
+  transition: background 150ms, border-color 150ms;
+}
+
+.campo-cabeca__voltar:hover {
+  background: var(--color-surface-inset);
+  border-color: var(--color-dado);
+  text-decoration: none;
+}
+
+.campo-cabeca__titulo {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--color-magnitude);
+}
+
+.campo-cabeca__acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ─── O elo quieto (C5) ──────────────────────────────────────────────────
+   Link discreto abaixo dos cards, com contagem. Quem some quando está vazio é
+   o componente, não o CSS — ver `EloQuieto`.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.campo-elo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--color-dado);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.campo-elo__contagem {
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.campo-elo-nota {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.campo-elos {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* A 390px o card perde altura mínima: quatro cards de 186px viram uma rolagem
+   longa antes de o primeiro dado aparecer. */
+@media (max-width: 640px) {
+  .campo-grade {
+    grid-template-columns: 1fr;
+  }
+
+  .campo-cartao {
+    min-height: 0;
+    padding: 16px;
+  }
+
+  .campo-cartao__titulo {
+    font-size: 22px;
+  }
+
+  .campo-cartao__glifo {
+    width: 48px;
+    height: 48px;
+  }
+
+  .campo-cabeca__titulo {
+    font-size: 22px;
+  }
+}

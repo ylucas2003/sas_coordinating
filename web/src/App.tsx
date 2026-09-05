@@ -16,7 +16,8 @@ import { Importar } from './telas/Importar/Importar';
 import { Auditoria } from './telas/Auditoria/Auditoria';
 import { Calibracao } from './telas/Calibracao/Calibracao';
 import { Banco } from './telas/Banco/Banco';
-import { Administracao } from './telas/Administracao/Administracao';
+import { HubAdministracao } from './telas/Administracao/HubAdministracao';
+import { Contas } from './telas/Administracao/Contas';
 import { Integracoes } from './telas/Integracoes/Integracoes';
 import { SincronizacaoAulas } from './telas/Integracoes/SincronizacaoAulas';
 import { Login } from './telas/Login/Login';
@@ -86,7 +87,11 @@ function AppCoordenacao() {
         <Route path="/banco/*" element={<Banco perfil="coordenacao" />} />
         <Route path="/auditoria" element={<Auditoria />} />
         <Route path="/calibracao" element={<Calibracao />} />
-        <Route path="/administracao" element={<Administracao />} />
+        {/* `/administracao` era a tela de Contas e passa a ser o HUB de quatro
+            campos; Contas ganhou rota própria. Quem tiver o link antigo salvo
+            cai no hub, a um clique de distância, e não num 404. */}
+        <Route path="/administracao" element={<HubAdministracao />} />
+        <Route path="/administracao/contas" element={<Contas />} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/integracoes/aulas" element={<SincronizacaoAulas />} />
         {/* Rota desconhecida cai no painel, como o roteador antigo fazia. */}

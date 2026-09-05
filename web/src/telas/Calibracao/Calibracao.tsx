@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { AbasAdmin } from '../../componentes/layout/AbasAdmin';
+import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { useGirarBotaoDeImportancia, useParametroDeImportancia } from '../../hooks/banco';
 import { useTituloDaTela } from '../../componentes/layout/migalhas';
 
@@ -41,7 +41,7 @@ export function Calibracao() {
     setJanela(String(data.janelaTendenciaAnos));
   }, [data]);
 
-  if (isLoading) return <div className="tela"><AbasAdmin /><p>Carregando…</p></div>;
+  if (isLoading) return <div className="tela"><CabecaDeCampo titulo="Quanto vale cada assunto" para="/administracao" destino="Administração" /><p>Carregando…</p></div>;
 
   // ⚠️ Falha NUNCA vira tela vazia: sem o parâmetro, o índice continua saindo
   // com o valor de fábrica (o servidor garante isso), e é isso que a mensagem
@@ -49,7 +49,7 @@ export function Calibracao() {
   if (isError || !data) {
     return (
       <div className="tela">
-        <AbasAdmin />
+        <CabecaDeCampo titulo="Quanto vale cada assunto" para="/administracao" destino="Administração" />
         <div className="card">
           <h1 className="tela-titulo">Calibração do índice de importância</h1>
           <p className="empty-state">
@@ -70,7 +70,7 @@ export function Calibracao() {
 
   return (
     <div className="tela">
-      <AbasAdmin />
+      <CabecaDeCampo titulo="Quanto vale cada assunto" para="/administracao" destino="Administração" />
 
       <div className="card">
         <div className="tela-cabecalho">
