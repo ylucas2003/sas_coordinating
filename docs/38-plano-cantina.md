@@ -504,6 +504,20 @@ desenho de [Contas.tsx](../web/src/telas/Administracao/Contas.tsx): em cima as
 contas da cantina; embaixo a lista de alunos com o direito, com busca, filtro
 por refeição e **seleção múltipla** para a concessão em lote.
 
+⚠️ **A cantina como ESTABELECIMENTO tem ciclo de vida próprio, e ele mora aqui**
+— criar, renomear, ajustar a regra de prazo e desativar. A primeira escrita
+esqueceu disso: o botão era só "Nova conta" e ficava escondido atrás de "já
+existe cantina", então a PRIMEIRA cantina não tinha como nascer. A tela dizia
+"crie a cantina antes de criar contas" e não oferecia onde — estado vazio que
+dá uma instrução sem oferecer o caminho é pior que estado vazio mudo.
+
+⚠️ **Desativar a CANTINA não é desativar as contas dela uma a uma.**
+`_login_da_cantina` confere `cantina.ativo` além de `usuario_cantina.ativo`,
+então desligar o estabelecimento tranca todo mundo de uma vez — inclusive uma
+conta criada depois. É o botão para "a cantina saiu do colégio", não para "a
+Dona Maria saiu de férias". Nenhum dos dois apaga linha: a linha apagada
+viraria um uuid sem nome em `cardapio.criado_por` e na trilha de auditoria.
+
 ⚠️ Depois de §8.0.3 esta é a **primeira tela da coordenação em que as duas
 metades são de escrita exclusiva do administrador**. Para o coordenador comum
 ela é uma tela de leitura inteira — e precisa ser desenhada como tal, não como

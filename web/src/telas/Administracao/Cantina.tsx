@@ -8,11 +8,11 @@ import { Kpi } from '../../componentes/ui/Kpi';
 import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import { ROTULO_DA_REFEICAO } from '../../dominio/cantina';
 import {
-  useCantinas, useConcederDireito, useCriarContaDeCantina, useDireitos,
-  useEditarContaDeCantina, useRedefinirSenhaDeCantina, useSalvarRestricao,
+  useCantinas, useConcederDireito, useCriarCantina, useCriarContaDeCantina, useDireitos,
+  useEditarCantina, useEditarContaDeCantina, useRedefinirSenhaDeCantina, useSalvarRestricao,
 } from '../../hooks/cantina';
 import * as sessao from '../../servicos/sessao';
-import type { AlunoComDireito, Refeicao } from '../../tipos/cantina';
+import type { AlunoComDireito, CantinaAdmin, Refeicao } from '../../tipos/cantina';
 import { normalizar } from '../../util/formato';
 
 // A CANTINA na administração — duas metades, e as DUAS são de escrita
@@ -44,7 +44,9 @@ export function AdministracaoCantina() {
   const [filtros, setFiltros] = useState<ReadonlySet<string>>(new Set());
   const [busca, setBusca] = useState('');
   const [selecao, setSelecao] = useState<ReadonlySet<string>>(new Set());
-  const [criandoConta, setCriandoConta] = useState(false);
+  const [criandoConta, setCriandoConta] = useState<string | null>(null);
+  // `null` fechado · `'nova'` criando · a cantina em si quando editando.
+  const [editandoCantina, setEditandoCantina] = useState<CantinaAdmin | 'nova' | null>(null);
   const [editandoRestricao, setEditandoRestricao] = useState<AlunoComDireito | null>(null);
   // A senha sorteada aparece UMA vez, aqui, e nunca mais — é o contrato da
   // rota. Fica até o administrador fechar, para ele copiar com calma.
@@ -97,9 +99,14 @@ export function AdministracaoCantina() {
       <section className="card">
         <header className="tela-cabecalho">
           <h2 className="tela-subtitulo">Quem lança o cardápio</h2>
-          {souAdministrador && cantinas.length > 0 && (
-            <button type="button" className="btn" onClick={() => setCriandoConta(true)}>
-              Nova conta
+          {/* ⚠️ NÃO fica escondido atrás de "existe cantina": era assim, e o
+              resultado é que a PRIMEIRA cantina não tinha como nascer — a tela
+              dizia "crie a cantina antes de criar contas" e não oferecia onde.
+              Um estado vazio que dá uma instrução sem oferecer o caminho é pior
+              que um estado vazio mudo. */}
+          {souAdministrador && (
+            <button type="button" className="btn" onClick={() => setEditandoCantina('nova')}>
+              Nova cantina
             </button>
           )}
         </header>
@@ -108,7 +115,7 @@ export function AdministracaoCantina() {
           <p className="cant-vazio">
             Nenhuma cantina cadastrada ainda.
             {souAdministrador
-              ? ' Crie a cantina antes de criar contas.'
+              ? ' Comece por "Nova cantina" — as contas de acesso vêm depois dela.'
               : ' Peça ao administrador do SAS para cadastrar.'}
           </p>
         )}
@@ -120,11 +127,32 @@ export function AdministracaoCantina() {
               {!cantina.ativo && <span className="cant-tarja">inativa</span>}
             </h3>
             <p className="cant-sub">
+              {/* A REGRA da casa, que pré-preenche cada cardápio novo. Não é o
+                  prazo: o prazo é do dia, e a cantina troca no editor. */}
               Prazo padrão: {cantina.prazo_padrao_dias_antes === 0
                 ? 'no próprio dia'
                 : `${cantina.prazo_padrao_dias_antes} dia(s) antes`}
               {' '}às {cantina.prazo_padrao_hora.slice(0, 5)}
             </p>
+
+            {souAdministrador && (
+              <div className="cant-admin__acoes">
+                <button
+                  type="button" className="btn btn--fino"
+                  onClick={() => setEditandoCantina(cantina)}
+                >
+                  Editar nome e prazo padrão
+                </button>
+                <button
+                  type="button" className="btn btn--fino"
+                  onClick={() => setCriandoConta(cantina.id)}
+                >
+                  Nova conta de acesso
+                </button>
+                <DesativarCantina cantina={cantina} />
+              </div>
+            )}
+
             <ContasDaCantina
               contas={cantina.contas}
               souAdministrador={souAdministrador}
@@ -267,11 +295,18 @@ export function AdministracaoCantina() {
         {!alunos.length && <p className="cant-vazio">Nenhum aluno com esses filtros.</p>}
       </section>
 
-      {criandoConta && cantinas.length > 0 && (
+      {criandoConta && (
         <DialogoNovaConta
-          cantinaId={cantinas[0].id}
-          onFechar={() => setCriandoConta(false)}
-          onSenha={(s) => { setCriandoConta(false); setSenhaRevelada(s); }}
+          cantinaId={criandoConta}
+          onFechar={() => setCriandoConta(null)}
+          onSenha={(s) => { setCriandoConta(null); setSenhaRevelada(s); }}
+        />
+      )}
+
+      {editandoCantina && (
+        <DialogoCantina
+          cantina={editandoCantina === 'nova' ? null : editandoCantina}
+          onFechar={() => setEditandoCantina(null)}
         />
       )}
 
@@ -350,6 +385,117 @@ function ContasDaCantina({
         ))}
       </tbody>
     </table>
+  );
+}
+
+/**
+ * Desativar a cantina inteira.
+ *
+ * ⚠️ **Não é o mesmo que desativar as contas uma a uma**, e a diferença é o
+ * ponto: `_login_da_cantina` confere `cantina.ativo` além de `usuario_cantina.
+ * ativo`, então desligar aqui tranca TODO mundo daquela cantina de uma vez —
+ * inclusive uma conta criada depois. É o botão para "a cantina saiu do
+ * colégio", não para "a Dona Maria saiu de férias".
+ *
+ * Nunca apagar: a linha apagada viraria um uuid sem nome em
+ * `cardapio.criado_por` e na trilha de auditoria, e os cardápios de março
+ * ficariam órfãos.
+ */
+function DesativarCantina({ cantina }: { cantina: CantinaAdmin }) {
+  const editar = useEditarCantina();
+  return (
+    <button
+      type="button"
+      className="btn btn--fino"
+      disabled={editar.isPending}
+      onClick={() => editar.mutate({ id: cantina.id, corpo: { ativo: !cantina.ativo } })}
+    >
+      {cantina.ativo ? 'Desativar cantina' : 'Reativar cantina'}
+    </button>
+  );
+}
+
+/**
+ * Criar a cantina, ou mudar o nome e a REGRA de prazo dela.
+ *
+ * A regra é o que pré-preenche `pedidos_ate` em cada cardápio novo. Ela existe
+ * para a cantina não redigitar um instante por dia útil, 200 vezes por ano — e
+ * o texto do diálogo diz isso, porque uma regra que ninguém sabe que existe é
+ * uma regra que ninguém ajusta.
+ */
+function DialogoCantina({
+  cantina, onFechar,
+}: { cantina: CantinaAdmin | null; onFechar: () => void }) {
+  const [nome, setNome] = useState(cantina?.nome ?? '');
+  const [dias, setDias] = useState(cantina?.prazo_padrao_dias_antes ?? 1);
+  const [hora, setHora] = useState((cantina?.prazo_padrao_hora ?? '20:00').slice(0, 5));
+  const criar = useCriarCantina();
+  const editar = useEditarCantina();
+  const emCurso = criar.isPending || editar.isPending;
+  const erro = criar.error ?? editar.error;
+
+  function salvar() {
+    const corpo = {
+      nome: nome.trim(),
+      prazo_padrao_dias_antes: dias,
+      prazo_padrao_hora: `${hora}:00`,
+    };
+    if (cantina) editar.mutate({ id: cantina.id, corpo }, { onSuccess: onFechar });
+    // A criação manda só o nome e a regra; `POST /administracao/cantinas` já
+    // aplica os defaults da 0047 para o que faltar.
+    else criar.mutate(corpo, { onSuccess: onFechar });
+  }
+
+  return (
+    <Dialogo
+      titulo={cantina ? `Editar ${cantina.nome}` : 'Nova cantina'}
+      subtitulo="O estabelecimento. As contas de acesso são criadas depois, dentro dele."
+      onFechar={onFechar}
+      rodape={(
+        <>
+          <button type="button" className="btn btn--fino" onClick={onFechar}>Cancelar</button>
+          <button type="button" className="btn" disabled={!nome.trim() || emCurso} onClick={salvar}>
+            {emCurso ? 'Salvando…' : cantina ? 'Salvar' : 'Criar'}
+          </button>
+        </>
+      )}
+    >
+      <Campo label="Nome">
+        <input
+          className="input"
+          value={nome}
+          placeholder="Cantina do Ari"
+          onChange={(e) => setNome(e.target.value)}
+        />
+      </Campo>
+
+      <Campo label="O pedido fecha, por padrão">
+        <div className="cant-admin__par">
+          <select
+            className="input"
+            value={dias}
+            onChange={(e) => setDias(Number(e.target.value))}
+          >
+            <option value={0}>no próprio dia</option>
+            <option value={1}>1 dia antes</option>
+            <option value={2}>2 dias antes</option>
+            <option value={3}>3 dias antes</option>
+          </select>
+          <input
+            className="input"
+            type="time"
+            value={hora}
+            onChange={(e) => setHora(e.target.value)}
+          />
+        </div>
+      </Campo>
+      <p className="cant-sub">
+        É só o valor que já vem preenchido em cada cardápio novo — a cantina pode trocar dia a
+        dia no editor. Depois do prazo, ninguém acrescenta pedido: nem o aluno, nem a cantina.
+      </p>
+
+      {erro && <p className="cant-erro" role="alert">{(erro as Error).message}</p>}
+    </Dialogo>
   );
 }
 

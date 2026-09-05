@@ -348,3 +348,8 @@
    que ficasse sem link seria alcançável só digitando a URL. */
 .cant-cabeca__acoes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cant-cabeca__acoes .cant-tecla { text-decoration: none; display: inline-flex; align-items: center; }
+
+/* As ações do estabelecimento — editar, nova conta, desativar. Ficam acima da
+   tabela de contas porque são sobre a CANTINA, e a tabela é sobre as pessoas
+   dela: duas escalas diferentes na mesma seção. */
+.cant-admin__acoes { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
