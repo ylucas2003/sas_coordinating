@@ -1,6 +1,11 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-// O tema da área do aluno. DOIS, e só dois: dia e noite (docs/24 §7.2).
+// O tema do SAS inteiro. DOIS, e só dois: dia e noite (docs/24 §7.2).
+//
+// Mora em `servicos/` e não mais em `telas/Aluno/pecas/` porque desde o tema
+// escuro da coordenação ele serve os DOIS produtos. E tinha de servir: o tema
+// é um atributo só na raiz (`data-tema`), então dois módulos com estado
+// próprio brigariam pelo mesmo atributo.
 //
 // ⚠️ Este arquivo já teve um terceiro estado, 'sistema', e ele causava dois
 // defeitos que só aparecem usando:
@@ -9,8 +14,9 @@ import { useCallback, useSyncExternalStore } from 'react';
 //      "Minha conta", e o `useEffect` dela removia `data-tema` no desmonte —
 //      então fechar a folha desfazia o que o aluno acabara de escolher. O
 //      cleanup existia para não deixar o atributo cravado ao sair da área do
-//      aluno, mas isso nunca foi problema: a coordenação lê `--color-*` e não
-//      é alcançada por `--alu-*`.
+//      aluno. ⚠️ A justificativa de então — "a coordenação lê `--color-*` e não
+//      é alcançada por `--alu-*`" — DEIXOU DE VALER: `--color-*` agora aponta
+//      para os mesmos papéis, e este atributo governa os dois produtos.
 //   2. Com três opções, duas delas podiam parecer a mesma coisa na tela
 //      ("sistema" e "noite" num aparelho escuro), e o aluno tocava sem ver
 //      nada mudar.
@@ -20,7 +26,10 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 export type Tema = 'dia' | 'noite';
 
-const CHAVE = 'sas_tema_aluno';
+const CHAVE = 'sas_tema';
+/** A chave de quando o tema era só do aluno. Lida uma vez, para quem já tinha
+    escolhido não perder a escolha ao abrir depois desta versão. */
+const CHAVE_ANTIGA = 'sas_tema_aluno';
 
 /** A preferência do aparelho — só decide o PRIMEIRO acesso. */
 function preferidoPeloSistema(): Tema {
@@ -31,7 +40,7 @@ function preferidoPeloSistema(): Tema {
 
 function lido(): Tema {
   try {
-    const v = localStorage.getItem(CHAVE);
+    const v = localStorage.getItem(CHAVE) ?? localStorage.getItem(CHAVE_ANTIGA);
     if (v === 'dia' || v === 'noite') return v;
   } catch {
     // Navegação privada e "bloquear dados de site" fazem o acessor LANÇAR, não

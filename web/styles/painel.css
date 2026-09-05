@@ -63,12 +63,12 @@
 
 .painel-tabela__th-col.col-destaque,
 .painel-tabela__th-fase.col-destaque {
-  background: rgba(27, 63, 139, 0.05);
+  background: color-mix(in srgb, var(--color-dado) 5%, transparent);
   color: var(--color-navy);
 }
 
 .painel-tabela__td-nota.col-destaque {
-  background: rgba(27, 63, 139, 0.03);
+  background: color-mix(in srgb, var(--color-dado) 3%, transparent);
 }
 
 /* ── Linha de média da turma ────────────────────────── */
@@ -133,9 +133,9 @@
   font-size: 12px;
   font-weight: 500;
   line-height: 1;
-  background: rgba(27, 63, 139, 0.08);
+  background: color-mix(in srgb, var(--color-dado) 8%, transparent);
   color: var(--color-navy);
-  border: 1.5px solid rgba(27, 63, 139, 0.2);
+  border: 1.5px solid color-mix(in srgb, var(--color-dado) 20%, transparent);
 }
 
 /* ── Coluna de aluno (sticky) ───────────────────────── */
@@ -167,16 +167,18 @@
 /* ── Hover ──────────────────────────────────────────── */
 
 .painel-tabela tbody tr:not(.painel-tabela__tr-media):hover td {
-  background: rgba(27, 63, 139, 0.03);
+  background: color-mix(in srgb, var(--color-dado) 3%, transparent);
 }
 
 .painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-aluno,
 .painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-pos {
-  background: #ecf0fa; /* sólido para não vazar notas ao rolar */
+  /* Sólido, para não vazar as notas por baixo ao rolar na horizontal — e por
+     token, senão a coluna congelada continuaria azul-clara no tema escuro. */
+  background: var(--color-surface);
 }
 
 .painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-nota.col-destaque {
-  background: rgba(27, 63, 139, 0.06);
+  background: color-mix(in srgb, var(--color-dado) 6%, transparent);
 }
 
 /* ── Célula editável (clique abre dialog de edição) ─── */
@@ -186,7 +188,7 @@
 }
 
 .painel-tabela__td-nota.is-editavel:hover {
-  background: rgba(27, 63, 139, 0.08) !important;
+  background: color-mix(in srgb, var(--color-dado) 8%, transparent) !important;
 }
 
 /* ── Link do aluno ──────────────────────────────────── */

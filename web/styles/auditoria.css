@@ -33,7 +33,7 @@
   font-weight: 600;
   text-align: center;
   white-space: nowrap;
-  background: var(--color-surface-2, #f1f3f8);
+  background: var(--color-surface-inset);
   color: var(--color-text-secondary);
 }
 

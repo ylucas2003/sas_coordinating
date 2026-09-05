@@ -58,7 +58,7 @@
 
 .sim-chip.is-active {
   background: var(--color-navy);
-  color: #fff;
+  color: var(--color-navy-texto);
 }
 
 .sim-chip__contagem {
@@ -124,8 +124,8 @@
 
 .sim-calendario-toggle.is-aberto {
   color: var(--color-navy);
-  background: rgba(27, 63, 139, 0.06);
-  border-color: rgba(27, 63, 139, 0.18);
+  background: color-mix(in srgb, var(--color-dado) 6%, transparent);
+  border-color: color-mix(in srgb, var(--color-dado) 18%, transparent);
 }
 
 .sim-calendario-toggle__seta {
@@ -236,20 +236,20 @@
 }
 
 .calendario__dia--com-simulado {
-  background: rgba(27, 63, 139, 0.18);
+  background: color-mix(in srgb, var(--color-dado) 18%, transparent);
   color: var(--color-navy);
   cursor: pointer;
   font-weight: 500;
 }
 
 .calendario__dia--com-simulado:hover {
-  background: rgba(27, 63, 139, 0.32);
+  background: color-mix(in srgb, var(--color-dado) 32%, transparent);
   transform: scale(1.06);
 }
 
 .calendario__dia.is-selecionada {
   background: var(--color-navy);
-  color: #fff;
+  color: var(--color-navy-texto);
   border-color: var(--color-navy-deep);
 }
 

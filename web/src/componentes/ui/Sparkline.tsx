@@ -67,7 +67,7 @@ export function Sparkline({ valores, largura = 90, altura = 32, cor = 'currentCo
         cx={ultimoX.toFixed(1)}
         cy={ultimoY.toFixed(1)}
         r="2.5"
-        fill="#fff"
+        fill="var(--color-surface)"
         stroke={cor}
         strokeWidth="1.5"
       />

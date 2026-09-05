@@ -118,4 +118,18 @@
 
   --coord-texto-body: #1a2233;
   --coord-texto-faint: #a2abbd;
+
+  /* ── Séries categóricas ───────────────────────────────────────────────
+     Para distinguir MATÉRIA numa linha de evolução, e nada mais — não têm
+     significado de valor. Cinco, que é o teto do brief, e nenhuma delas é
+     verde nem vermelha: num gráfico de nota, essas duas voltariam a ser lidas
+     como semáforo mesmo sendo só rótulo.
+
+     São tons médios de propósito: precisam ser legíveis sobre o branco do dia
+     E sobre o quase-preto da noite, e por isso não respondem a tema. */
+  --serie-1: #2e6be6;
+  --serie-2: #8b5cf6;
+  --serie-3: #0e9aa7;
+  --serie-4: #d4548f;
+  --serie-5: #c97c2a;
 }

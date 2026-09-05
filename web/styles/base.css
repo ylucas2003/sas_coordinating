@@ -85,7 +85,7 @@ button {
 }
 
 ::selection {
-  background: rgba(27, 63, 139, 0.18);
+  background: color-mix(in srgb, var(--color-dado) 18%, transparent);
 }
 
 [hidden] {

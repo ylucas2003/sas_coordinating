@@ -113,7 +113,7 @@
 .btn--primary {
   background: var(--color-navy);
   border-color: var(--color-navy);
-  color: #fff;
+  color: var(--color-navy-texto);
   box-shadow: 0 3px 0 0 var(--color-navy-deep);
   margin-bottom: 3px;
   transition: background 150ms, border-color 150ms, transform 80ms ease-out,
@@ -288,7 +288,7 @@
 
 .importar__log-nivel.nivel-erro {
   background: var(--color-red);
-  color: #fff;
+  color: var(--color-navy-texto);
 }
 
 .importar__log-msg {
@@ -955,7 +955,7 @@
   background: var(--color-surface-inset);
 }
 
-.panorama__tag.tone-navy { background: rgba(27, 63, 139, 0.1); color: var(--color-navy); }
+.panorama__tag.tone-navy { background: color-mix(in srgb, var(--color-dado) 10%, transparent); color: var(--color-navy); }
 .panorama__tag.tone-verde { background: var(--color-green-soft); color: var(--color-green); }
 .panorama__tag.tone-ambar { background: var(--color-amber-soft); color: var(--color-amber); }
 .panorama__tag.tone-vermelho { background: var(--color-red-soft); color: var(--color-red); }
@@ -1847,7 +1847,7 @@
 .pill.is-active {
   background: var(--color-navy);
   border-color: var(--color-navy);
-  color: #fff;
+  color: var(--color-navy-texto);
 }
 
 .pill__contagem {
@@ -1897,7 +1897,7 @@
 .aba.is-active {
   background: var(--color-navy);
   border-color: var(--color-navy);
-  color: #fff;
+  color: var(--color-navy-texto);
 }
 
 /* ─── Avatar de iniciais ────────────────────────────────────────────────

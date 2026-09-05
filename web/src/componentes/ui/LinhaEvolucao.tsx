@@ -7,14 +7,20 @@ import { fmtNota } from '../../util/formato';
 // Eixo X = ciclos categóricos (C1, C2…). Eixo Y = nota 0–10, fixa.
 // Suporta várias séries (uma linha por matéria) e tooltip detalhado.
 
-/** Paleta das séries por matéria — alinhada ao design system. */
+/**
+ * Paleta das séries por matéria. CINCO, que é o teto do brief.
+ *
+ * ⚠️ Eram seis, e duas delas eram verde e vermelho — num gráfico de NOTA isso
+ * volta a ser lido como semáforo mesmo sendo só rótulo de matéria. Saíram, e
+ * as que ficaram vivem em `paleta.css` como `--serie-*`: tons médios,
+ * legíveis sobre o branco do dia e sobre o quase-preto da noite.
+ */
 const CORES_SERIE = [
-  'var(--color-navy)',
-  '#c97c2a', // âmbar
-  '#1b8a5a', // verde
-  '#a23b3b', // vermelho
-  '#6b4cb3', // roxo
-  '#2a8fb3', // ciano
+  'var(--serie-1)',
+  'var(--serie-2)',
+  'var(--serie-3)',
+  'var(--serie-4)',
+  'var(--serie-5)',
 ];
 
 const FASE_LABEL: Record<string, string> = { fase_1: 'Fase 1', fase_2: 'Fase 2' };
@@ -166,11 +172,11 @@ export function LinhaEvolucao({
           <>
             <line
               x1={margem.left} y1={yCorte} x2={margem.left + plotW} y2={yCorte}
-              stroke="var(--color-red, #c44)" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.7}
+              stroke="var(--color-red)" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.7}
             />
             <text
               x={margem.left + plotW - 6} y={yCorte - 4}
-              textAnchor="end" fontSize={10} fill="var(--color-red, #c44)" opacity={0.85}
+              textAnchor="end" fontSize={10} fill="var(--color-red)" opacity={0.85}
             >
               {corteRotulo}
             </text>
@@ -210,8 +216,8 @@ export function LinhaEvolucao({
                   className="linha-evol__ponto"
                   cx={xDe(p.cicloOrdem)!} cy={yDe(p.nota)} r={4}
                   // Abandono provável vira marcador sólido vermelho, para saltar aos olhos.
-                  fill={p.abandonoProvavel ? 'var(--color-red, #c44)' : '#fff'}
-                  stroke={p.abandonoProvavel ? '#fff' : cor}
+                  fill={p.abandonoProvavel ? 'var(--color-red)' : 'var(--color-surface)'}
+                  stroke={p.abandonoProvavel ? 'var(--color-surface)' : cor}
                   strokeWidth={2}
                   style={{ cursor: 'pointer' }}
                   onMouseEnter={(ev) => mostrarTooltip(ev, p, cor)}

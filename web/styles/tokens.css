@@ -1,26 +1,20 @@
 /* ─── Tokens da coordenação ──────────────────────────────────────────────
-   `--color-*` é ALIAS. Os hexadecimais vivem em `paleta.css` e os papéis em
-   `papeis.css`; aqui só há apontamento, para que as ~7.200 linhas de CSS e os
-   geradores de documento que leem estes nomes continuem funcionando enquanto
-   a migração acontece tela a tela, sem um commit gigante que ninguém revisa.
+   `--color-*` é ALIAS DOS PAPÉIS (`papeis.css`). Os hexadecimais vivem em
+   `paleta.css`; aqui só há apontamento, para que as ~7.200 linhas de CSS que
+   leem estes nomes continuassem funcionando enquanto a migração acontecia
+   tela a tela, sem um commit gigante que ninguém revisa.
 
-   ⚠️ REGRA DESTE ARQUIVO, e ela é a razão de ele ainda existir:
-   **`--color-*` aponta para a paleta do DIA (`--dia-*`, `--coord-*`), nunca
-   para os papéis (`--sas-*`).**
+   ⚠️ A PARTIR DESTE PR, `--color-*` RESPONDE A TEMA. Antes ele apontava para
+   a paleta do dia de propósito: `data-tema` já está estampado na raiz em todo
+   boot — `servicos/tema.ts` o aplica no escopo do módulo — e acoplar antes da
+   hora teria escurecido a coordenação sem seletor e sem aviso, para quem
+   tivesse escolhido "noite" na área do aluno. Agora existe seletor, existe
+   `documento.css` protegendo a impressão, e o acoplamento é a decisão.
 
-   Papel responde a tema. Se `--color-*` respondesse também, a coordenação
-   escureceria HOJE, sem seletor e sem aviso — porque `data-tema` já está
-   estampado na raiz em todo boot: `telas/Aluno/pecas/tema.ts` o aplica no
-   escopo do módulo, e `App.tsx` importa `CascoAluno` estaticamente. Quem
-   tivesse escolhido "noite" na área do aluno, ou estivesse com o sistema no
-   escuro, abriria o painel preto. O tema da coordenação entra de propósito,
-   com seletor próprio, no PR do tema escuro — e é lá que estes aliases
-   passam a apontar para `--sas-*`.
-
-   As superfícies, as bordas e os raios já migraram para a paleta
-   compartilhada — a inversão de fundo e card aconteceu no PR de superfície e
-   forma. O que ainda tem valor próprio é a variação de marca e o semáforo,
-   marcados abaixo com o PR que os aposenta.
+   Onde um token da coordenação não tinha papel equivalente — os cinco tons de
+   navy, os fundos pálidos de tag — ele passa a ser derivado do papel por
+   `color-mix`, e não por um segundo hexadecimal: assim ele acompanha o tema em
+   vez de precisar de uma cópia escura que divergiria com o tempo.
 
    A leitura semântica antiga está em ../../docs/03-design-system.md, que este
    trabalho torna histórico — a régua em vigor é
@@ -31,32 +25,35 @@
   /* ── Já são papel: mesmo valor nos dois sistemas ──────────────────────
      Estes cinco não têm valor próprio nenhum — a coordenação e o aluno já
      dizem a mesma coisa com a mesma cor. */
-  --color-navy: var(--dia-acao); /* ACAO */
-  --color-gold: var(--dia-valor); /* VALOR */
+  --color-navy: var(--sas-acao); /* ACAO */
+  /* O texto que vai EM CIMA da ação: branco no dia, quase-preto na noite,
+     porque na noite a ação é ouro. */
+  --color-navy-texto: var(--sas-acao-texto);
+  --color-gold: var(--sas-valor); /* VALOR */
   /* DADO: o valor medido — barra, ponto, linha, célula cheia, seleção. */
-  --color-dado: var(--dia-dado);
-  --color-dado-texto-forte: var(--dia-dado-texto-forte);
+  --color-dado: var(--sas-dado);
+  --color-dado-texto-forte: var(--sas-dado-texto-forte);
   /* A hachura de "sem nota". Ausência e zero são coisas diferentes no
      domínio, e a interface nunca pode confundi-las. */
-  --color-hachura: var(--dia-hachura);
-  --color-text-primary: var(--dia-texto);
-  --color-text-secondary: var(--dia-texto-2);
-  --color-text-tertiary: var(--dia-referencia); /* REFERENCIA */
+  --color-hachura: var(--sas-hachura);
+  --color-text-primary: var(--sas-texto);
+  --color-text-secondary: var(--sas-texto-2);
+  --color-text-tertiary: var(--sas-referencia); /* REFERENCIA */
 
   /* ── Marca institucional — variações sem papel próprio ────────────────
      Cinco tons de navy onde o sistema tem ACAO e DADO. Saem no PR de
      superfície e forma, conforme cada um encontra o papel que descreve o
      que ele de fato marca. */
-  --color-navy-deep: var(--coord-navy-deep);
-  --color-navy-mid: var(--coord-navy-mid);
-  --color-navy-light: var(--coord-navy-light);
+  --color-navy-deep: var(--sas-acao-base);
+  --color-navy-mid: var(--sas-dado);
+  --color-navy-light: var(--sas-dado-claro);
   /* `soft` é fundo de ícone e avatar, `tint` é fundo de tag. Separados
      porque aparecem juntos e precisam se distinguir. */
-  --color-navy-soft: var(--coord-navy-soft);
-  --color-navy-tint: var(--coord-navy-tint);
+  --color-navy-soft: color-mix(in srgb, var(--sas-dado) 12%, transparent);
+  --color-navy-tint: color-mix(in srgb, var(--sas-dado) 10%, transparent);
 
-  --color-gold-deep: var(--coord-gold-deep);
-  --color-gold-soft: var(--coord-gold-soft);
+  --color-gold-deep: var(--sas-valor-texto);
+  --color-gold-soft: color-mix(in srgb, var(--sas-valor) 18%, transparent);
 
   /* ── O semáforo ───────────────────────────────────────────────────────
      ⚠️ Verde, âmbar e vermelho como SEMÁFORO morrem no PR do fim do
@@ -66,17 +63,17 @@
 
      `--color-red` sobrevive à limpeza como ALERTA — mas só na etiqueta de
      distância e na falha; nunca pintando linha, célula, cartão ou número. */
-  --color-red: var(--coord-red);
-  --color-red-soft: var(--coord-red-soft);
-  --color-green: var(--coord-green);
-  --color-green-soft: var(--coord-green-soft);
+  --color-red: var(--sas-alerta);
+  --color-red-soft: color-mix(in srgb, var(--sas-alerta) 14%, transparent);
+  --color-green: var(--sas-dado);
+  --color-green-soft: color-mix(in srgb, var(--sas-dado) 14%, transparent);
   /* `amber` é cor de traço (barra, linha de gráfico); `amber-text` é o mesmo
      âmbar escurecido até passar em contraste sobre fundo claro. Usar o de
      traço como texto reprova em AA. */
-  --color-amber: var(--coord-amber);
-  --color-amber-text: var(--coord-amber-text);
-  --color-amber-soft: var(--coord-amber-soft);
-  --color-neutral-soft: var(--coord-neutral-soft);
+  --color-amber: var(--sas-valor);
+  --color-amber-text: var(--sas-valor-texto);
+  --color-amber-soft: color-mix(in srgb, var(--sas-valor) 16%, transparent);
+  --color-neutral-soft: var(--sas-superficie-2);
 
   /* ── Superfícies · INVERTIDAS neste PR ────────────────────────────────
      Era fundo cinza (#eef1f7) com card branco; passa a ser fundo BRANCO com
@@ -87,18 +84,18 @@
      `inset` desce um degrau junto, para continuar sendo "mais fundo que a
      superfície" — se ficasse onde estava, listra de tabela e card ficariam
      indistinguíveis. */
-  --color-bg: var(--dia-fundo);
-  --color-surface: var(--dia-superficie);
-  --color-surface-inset: var(--dia-superficie-2);
-  --color-surface-muted: var(--dia-superficie-2);
+  --color-bg: var(--sas-fundo);
+  --color-surface: var(--sas-superficie);
+  --color-surface-inset: var(--sas-superficie-2);
+  --color-surface-muted: var(--sas-superficie-2);
 
   /* ── Texto ────────────────────────────────────────────────────────────── */
   /* MAGNITUDE: todo numeral grande. Mais escuro que o texto corrente, de
      propósito — o número é o herói do cartão, e quem dá a ele o peso não é
      cor semântica, é tamanho, peso 800 e tracking negativo. */
-  --color-magnitude: var(--dia-magnitude);
-  --color-text-body: var(--coord-texto-body);
-  --color-text-faint: var(--coord-texto-faint);
+  --color-magnitude: var(--sas-magnitude);
+  --color-text-body: var(--sas-texto);
+  --color-text-faint: var(--sas-referencia);
 
   /* ── Bordas ───────────────────────────────────────────────────────────
      As duas sombras MORRERAM neste PR. A superfície se separa do fundo pela
@@ -109,18 +106,17 @@
      A borda deixa de ser quase invisível (#eef1f7, que era a mesma cor do
      fundo antigo) e passa a ser a do sistema: agora ela é quem desenha a
      aresta, então precisa ser vista. */
-  --color-border: var(--dia-borda);
-  --color-border-strong: var(--dia-borda);
+  --color-border: var(--sas-borda);
+  --color-border-strong: var(--sas-borda);
   /* Fio entre linhas de tabela: mais claro que a borda de card, senão a
      tabela vira grade e o olho para em cada linha. */
-  --color-divider: var(--dia-fio);
-  --color-shell-border: var(--dia-borda);
-  /* A largura da borda de superfície. Fica em 2px cravado enquanto a
-     coordenação não tem tema: apontar para `--sas-borda-l` agora faria a
-     borda encolher para 1px em quem tivesse escolhido "noite" na área do
-     aluno — a mesma armadilha do `data-tema` que o cabeçalho descreve, em
-     versão discreta. Passa a apontar no PR do tema escuro. */
-  --color-border-largura: 2px;
+  --color-divider: var(--sas-fio);
+  --color-shell-border: var(--sas-borda);
+  /* A grade quadrada de 24px do fundo do casco. */
+  --color-grade: var(--sas-grade);
+  /* 2px no dia, 1px na noite. Mesma peça, dois temas — quem troca é o token,
+     não o componente. */
+  --color-border-largura: var(--sas-borda-l);
 
   /* ── Raios · TRÊS valores ─────────────────────────────────────────────
      Eram quatro (10, 14, 16, 18) e ninguém sabia qual usar. O sistema tem

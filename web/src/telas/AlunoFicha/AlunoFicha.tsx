@@ -252,7 +252,7 @@ export function AlunoFicha() {
               // `InsightsPainel` já dá nesse caso, em vez de sumir: o degrau
               // sumindo em um gráfico e não em outro é pior que o degrau vazio.
               frase={null}
-              grafico={() => <Heatmap payload={heat} notaMaxima={10} />}
+              grafico={() => <Heatmap payload={heat} notaMaxima={10} corte={corte?.valor ?? null} />}
             />
           </div>
         </section>
