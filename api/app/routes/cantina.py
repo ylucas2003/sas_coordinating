@@ -510,10 +510,28 @@ async def publicar_cardapio(
     montado = _montar_cardapio(cliente, cardapio, _agora())
 
     if not cardapio.get("sem_refeicao"):
-        if not cardapio.get("pedidos_ate"):
+        prazo = _instante(cardapio.get("pedidos_ate"))
+        if prazo is None:
             raise HTTPException(
                 status_code=422,
                 detail="Defina até quando o aluno pode pedir antes de publicar.",
+            )
+        # ⚠️ Publicar com o prazo JÁ VENCIDO era aceito, e o resultado era um
+        # cardápio invisível: `cantina_do_aluno` o devolve, mas o card não tem o
+        # que mostrar e o `PUT` do pedido responde 409. Ninguém pedia, ninguém
+        # via, e a cantina só descobria no balcão.
+        #
+        # E não é caso raro — é o CAMINHO PADRÃO de um erro fácil: a regra da
+        # casa é "véspera às 20h", então um cardápio criado para HOJE nasce com
+        # prazo de ontem. Publicar sem reclamar transformava a regra numa
+        # armadilha.
+        if _agora() >= prazo:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "O prazo deste cardápio já passou, então nenhum aluno "
+                    "conseguiria pedir. Ajuste o prazo antes de publicar."
+                ),
             )
         if not any(bloco["opcoes"] for bloco in montado["blocos"]):
             raise HTTPException(

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import {
-  deInputLocal, instrucaoDoBloco, paraInputLocal, ROTULO_DA_REFEICAO, ROTULO_DO_ESTADO,
-  rotuloDoDia,
+  deInputLocal, instrucaoDoBloco, paraInputLocal, prazoAberto, ROTULO_DA_REFEICAO,
+  ROTULO_DO_ESTADO, rotuloDoDia,
 } from '../../dominio/cantina';
 import {
   useCalendarioDaCantina, useCardapio, useCopiarCardapio, useCriarCardapio,
@@ -160,6 +160,14 @@ function Editor({
   const publicado = cardapio.estado === 'aberto' || cardapio.estado === 'fechado';
   const erro = salvar.error ?? publicar.error ?? copiar.error;
 
+  // ⚠️ O aviso mais importante da tela, e ele existe porque o erro é o caminho
+  // PADRÃO de um engano fácil: a regra da casa é "véspera às 20h", então um
+  // cardápio criado para HOJE nasce com o prazo de ONTEM. Publicado assim, ele
+  // fica invisível — o aluno não vê e o servidor recusa o pedido com 409 —, e a
+  // cantina só descobriria no balcão. O servidor agora recusa; isto avisa antes
+  // do clique, que é onde dá para consertar sem susto.
+  const prazoVencido = !semRefeicao && !!prazo && !prazoAberto(deInputLocal(prazo));
+
   return (
     <div className="cant-tela">
       <Cabeca data={data} refeicao={refeicao} estado={cardapio.estado} />
@@ -190,6 +198,13 @@ function Editor({
             instante ninguém acrescenta pedido — nem a cantina.
           </span>
         </label>
+
+        {prazoVencido && (
+          <p className="cant-aviso" role="alert">
+            <b>Este prazo já passou.</b> Publicado assim, o cardápio não aparece para nenhum
+            aluno e ninguém consegue pedir. Ajuste a data e a hora acima.
+          </p>
+        )}
 
         <label className="cant-checkbox">
           <input
@@ -277,7 +292,7 @@ function Editor({
           <button
             type="button"
             className="cant-tecla cant-tecla--principal"
-            disabled={salvar.isPending || publicar.isPending}
+            disabled={salvar.isPending || publicar.isPending || prazoVencido}
             onClick={() =>
               salvar.mutate({ id: cardapioId, corpo: corpo() }, {
                 onSuccess: () => { setSujo(false); publicar.mutate(cardapioId); },
