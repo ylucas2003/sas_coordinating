@@ -128,6 +128,33 @@ export function useMigalhas(): Migalha[] {
         return temId
           ? [ADMIN, { texto: 'Integrações', para: '/integracoes' }, folha('Sincronização')]
           : [ADMIN, { texto: 'Integrações' }];
+      // A CANTINA não tinha caso nenhum e caía no `default`: as seis rotas dela
+      // anunciavam "Painel" na topbar — a trilha dizia que a pessoa estava numa
+      // tela em que ela não estava. Achado na verificação no browser da fase 6.
+      //
+      // Ela pendura sob Administração porque é de lá que o card leva
+      // (docs/39 fase 5), e não do rail — a cantina não é um sexto destino.
+      case 'cantina': {
+        if (!temId) return [ADMIN, { texto: 'Cantina' }];
+        const CANTINA = { texto: 'Cantina', para: '/cantina' };
+        const nomeados: Record<string, string> = {
+          cardapios: 'Cardápios',
+          direitos: 'Quem come aqui',
+          acesso: 'Administrar cantinas',
+        };
+        const segundo = partes[1] ?? '';
+        const nomeado = nomeados[segundo];
+        if (nomeado) return [ADMIN, CANTINA, { texto: nomeado }];
+        // O que sobra é uma DATA (`/cantina/:data` e `/cantina/:data/:refeicao`),
+        // e aí quem nomeia a folha é a tela, por `useTituloDaTela` — só ela sabe
+        // dizer "9 de setembro" em vez de repetir o ISO da URL.
+        return [
+          ADMIN,
+          CANTINA,
+          { texto: 'Cardápios', para: '/cantina/cardapios' },
+          folha('O dia'),
+        ];
+      }
       default:
         return [{ texto: 'Painel' }];
     }
