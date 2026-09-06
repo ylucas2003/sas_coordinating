@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { isoDoDia } from '../../dominio/cantina';
 import { useCalendarioDaCantina } from '../../hooks/cantina';
+import { AvisoSemPublico } from './AvisoSemPublico';
 import { GradeDeCardapios, janelaDoMes, NavegadorDeMes } from './GradeDeCardapios';
 
 // O CALENDÁRIO — a tela de entrada da cantina.
@@ -48,6 +49,8 @@ export function Calendario() {
         </div>
         <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />
       </header>
+
+      <AvisoSemPublico refeicoes={['almoco', 'janta']} />
 
       {/* A célula VAZIA de um dia futuro é clicável — é clicando nela que a
           cantina cria o cardápio. A de um dia que já passou, não: dia passado

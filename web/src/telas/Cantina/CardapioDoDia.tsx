@@ -12,6 +12,7 @@ import {
 import { ErroApi } from '../../servicos/http';
 import type { CorpoCardapio } from '../../servicos/api';
 import type { Refeicao } from '../../tipos/cantina';
+import { AvisoSemPublico } from './AvisoSemPublico';
 
 // O EDITOR de um dia — blocos, opções, quantas o aluno escolhe, e o prazo.
 //
@@ -280,6 +281,10 @@ function Editor({
           </section>
         </>
       )}
+
+      {/* Junto do botão, que é o momento em que a informação muda a decisão —
+          e não no topo, onde já teria sido rolada para fora. */}
+      {!semRefeicao && <AvisoSemPublico refeicoes={[refeicao]} />}
 
       {erro && <p className="cant-erro" role="alert">{mensagem(erro)}</p>}
 

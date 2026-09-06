@@ -416,6 +416,25 @@ editor avisa antes do clique e desabilita "Publicar", que é onde dá para
 consertar sem susto. A tela pode estar aberta desde antes de o prazo vencer,
 então quem decide continua sendo o servidor.
 
+### 3.3.2 · A terceira causa, que não pode virar impossível
+
+Duas das quatro causas de "publiquei e ninguém vê" foram eliminadas por
+recusa (§3.3.1). A terceira não pode ser: o cardápio está perfeito e
+simplesmente **não tem público**, porque a coordenação ainda não concedeu o
+direito àquela refeição.
+
+Publicar antes da concessão é ordem de trabalho legítima — a cantina monta a
+semana, a coordenação libera os alunos, e as duas não se falam no mesmo minuto.
+Bloquear inverteria a dependência entre duas equipes.
+
+Então ela vira **visível**: `GET /cantina/publico` devolve quantos alunos podem
+pedir cada refeição, e o aviso aparece no calendário e ao lado do botão de
+publicar — que é o momento em que a informação muda a decisão. Some quando há
+público, porque aviso permanente vira paisagem e para de ser lido.
+
+A quarta causa (cardápio em rascunho) já se anunciava: o calendário sempre
+disse "Rascunho".
+
 **A cantina pode esticar o prazo depois de publicar; encurtar, só para um
 instante ainda no futuro.** Esticar não tira nada de ninguém. Encurtar para o
 passado fecharia o pedido retroativamente para quem ainda ia pedir, e é
