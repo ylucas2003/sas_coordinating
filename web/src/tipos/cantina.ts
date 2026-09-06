@@ -115,8 +115,18 @@ export interface CantinaAdmin {
   /** A REGRA da casa, que pré-preenche cada cardápio novo — não é o prazo. */
   prazo_padrao_dias_antes: number;
   prazo_padrao_hora: string;
+  /**
+   * Preço de tabela, em reais. `null` = ainda não informado, e é DIFERENTE de
+   * 0,00 — a tela não pode somar zero como se fosse dado. O SAS não cobra; o
+   * valor existe para a coordenação somar o custo do que foi pedido.
+   */
+  valor_almoco: number | null;
+  valor_janta: number | null;
   contas: ContaDeCantina[];
 }
+
+/** O estabelecimento da sessão da cantina, sem as contas. */
+export type MinhaCantina = Omit<CantinaAdmin, 'contas'>;
 
 export interface AlunoComDireito {
   id: string;

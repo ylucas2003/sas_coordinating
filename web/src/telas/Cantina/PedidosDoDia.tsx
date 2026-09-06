@@ -2,8 +2,11 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { ROTULO_DA_REFEICAO, ROTULO_DO_ESTADO, rotuloDoDia } from '../../dominio/cantina';
-import { useCalendarioDaCantina, useContagem, usePedidosDoCardapio } from '../../hooks/cantina';
+import {
+  useCalendarioDaCantina, useContagem, useMinhaCantina, usePedidosDoCardapio,
+} from '../../hooks/cantina';
 import type { ContagemDeOpcao, Refeicao } from '../../tipos/cantina';
+import { BotoesDeExportar } from './BotoesDeExportar';
 
 // OS PEDIDOS DE UM DIA — e são DUAS leituras, porque são dois momentos.
 //
@@ -30,6 +33,8 @@ export function PedidosDoDia() {
 
   const { data: contagem = [] } = useContagem(cardapio?.id);
   const { data: pedidos = [], isLoading } = usePedidosDoCardapio(cardapio?.id);
+  const { data: minha } = useMinhaCantina();
+  const valor = refeicao === 'almoco' ? minha?.valor_almoco : minha?.valor_janta;
 
   const porBloco = useMemo(() => agruparPorBloco(contagem), [contagem]);
   const comRestricao = pedidos.filter((p) => p.restricaoAlimentar).length;
@@ -58,6 +63,21 @@ export function PedidosDoDia() {
           </p>
         </div>
 
+        <div className="cant-cabeca__acoes">
+          <BotoesDeExportar
+            dia={{
+              data, refeicao, pedidos, contagem,
+              cantina: minha?.nome ?? null,
+              valor: valor ?? null,
+              // A cantina LEVA o texto da restrição: é o que muda o que sai do
+              // balcão, e a folha impressa é justamente para o balcão.
+              incluirRestricao: true,
+            }}
+          />
+        </div>
+      </header>
+
+      <div className="cant-barra-abas">
         <div className="cant-abas" role="tablist">
           <button
             type="button" role="tab" aria-selected={aba === 'contagem'}
@@ -74,7 +94,16 @@ export function PedidosDoDia() {
             O que servir
           </button>
         </div>
-      </header>
+
+        {/* A soma do dia, quando a coordenação informou o preço. Fica ao lado
+            das abas e não no cabeçalho porque é consequência dos pedidos, não
+            identidade da tela. */}
+        {valor != null && (
+          <span className="cant-total">
+            {pedidos.length} × {moeda(valor)} = <b>{moeda(valor * pedidos.length)}</b>
+          </span>
+        )}
+      </div>
 
       {isLoading && <p className="cant-vazio">Carregando…</p>}
 
@@ -137,4 +166,10 @@ function agruparPorBloco(contagem: ContagemDeOpcao[]): Array<[string, ContagemDe
     else mapa.set(linha.bloco, [linha]);
   }
   return [...mapa.entries()];
+}
+
+/** Reais com vírgula. `Intl` e não `toFixed`: o separador de milhar aparece
+    quando o total passa de mil, que é o caso de um mês inteiro. */
+function moeda(valor: number): string {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }

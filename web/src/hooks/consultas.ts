@@ -329,12 +329,12 @@ export interface DiaDaCantina {
  * ter uma contagem carregaria dado de saúde de menor numa tela que não o pede
  * (docs/38 §2.6).
  */
-export function useDiaDaCantina(data: string | null | undefined) {
+export function useDiaDaCantina(data: string | null | undefined, cantina?: string) {
   const dia = data ?? '';
   return useQuery({
-    queryKey: chavesCantina.calendarioCoord(dia, dia),
+    queryKey: chavesCantina.calendarioCoord(dia, dia, cantina),
     enabled: !!data,
-    queryFn: () => api.calendarioNaCoordenacao(dia, dia),
+    queryFn: () => api.calendarioNaCoordenacao(dia, dia, cantina),
     // Mesma janela do calendário do mês: a contagem de pedidos muda o dia
     // inteiro enquanto o prazo está aberto.
     staleTime: 60 * 1000,

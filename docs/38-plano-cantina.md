@@ -742,18 +742,65 @@ suas filas e **metade dos alunos para de receber evento, sem erro nenhum** —
 exatamente o tipo de falha silenciosa que a lista de armadilhas do CLAUDE.md
 existe para prevenir. Se a Camada 2 entrar, essa linha entra junto.
 
-### 9.3 · Recomendação
+### 9.3 · O que foi feito *(06/09)*
 
-**Camadas 0 e 1 no v1; SSE só se a leitura na tela pedir.** O cardápio é
-publicado horas ou um dia antes do prazo — ninguém está com a tela aberta no
-segundo da publicação, e a diferença entre 60 s e 1 s é invisível para o aluno
-que abriu o app agora. O que ele percebe é abrir e ver o cardápio de hoje, e
-isso a Camada 0 já dá.
+**As três camadas estão no ar.** As duas baratas seguem de pé — elas não são
+redundância, são a rede de segurança de quando o stream cai e a reconexão ainda
+não voltou —, e a Camada 2 entrou por cima:
 
-O que faz o SSE valer a pena não é a publicação: é **`disponivel = false`** —
-acabou o frango às 11h40, com o prazo ainda aberto. Aí um minuto de atraso vira
-aluno pedindo o que não existe. Se esse caso acontecer na prática, é o gatilho
-para subir a camada.
+* `api/app/cantina_eventos.py` — barramento em memória, um `asyncio.Queue` por
+  assinante, com recorte no SERVIDOR;
+* três streams, um por público: `/cantina/eventos`, `/me/cantina/eventos`,
+  `/administracao/cantina/eventos`;
+* `web/src/servicos/eventos.ts` — cliente sobre `fetch` + `ReadableStream`, com
+  reconexão de recuo exponencial (1 s → 30 s) e o comentário de heartbeat
+  ignorado;
+* `web/src/hooks/eventosCantina.ts` — traduz evento em invalidação de chave.
+
+**O evento não carrega o dado — carrega o aviso de que o dado mudou.** Quem
+recebe invalida a chave e busca pela rota normal. Empurrar conteúdo pelo stream
+criaria uma segunda fonte da verdade, com serialização e autorização próprias,
+e as duas divergiriam no primeiro campo novo. Um `refetch` a mais custa uma
+requisição; uma cache incoerente custa uma tela que mente.
+
+#### 9.3.1 · O recorte é do servidor, e é uma decisão de privacidade
+
+Cada público tem o seu stream e o seu filtro, aplicados na **publicação**:
+
+| Quem | Recebe |
+|---|---|
+| Cantina | o que é da cantina dela, mais concessões de direito (muda o público dela) |
+| Coordenação | tudo — é o papel, e são poucas sessões |
+| Aluno | mudança de cardápio, e o que for **dele** |
+
+⚠️ **O pedido dos outros não chega ao aluno.** Não é economia de banda: um
+aluno acordando a cada pedido dos outros 900 saberia quantos pediram e quando —
+informação que a tela dele não mostra e que ele não deve ter. Filtrar no
+cliente não seria autorização.
+
+⚠️ Mudança de cardápio vai para **todos** os alunos, sem filtrar por refeição.
+Filtrar exigiria congelar os direitos no instante da assinatura, e um stream
+que dura horas veria esse recorte envelhecer no minuto em que a coordenação
+concedesse a janta a alguém. Quem filtra de verdade é `GET /me/cantina`.
+
+#### 9.3.2 · ⚠️ A armadilha nova: isto depende de `UVICORN_WORKERS=1`
+
+As filas vivem na memória do processo. Com dois workers, cada um teria as suas,
+e **metade dos assinantes pararia de receber evento — sem erro nenhum.** É a
+classe de falha que a lista do CLAUDE.md existe para prevenir, e por isso ela
+foi para lá.
+
+`UVICORN_WORKERS=1` já era invariante declarada (`infra/vps/.env.example`: "NÃO
+aumente: travas do sync e do despachante"); agora há um terceiro motivo. Se um
+dia os workers subirem, isto vira `LISTEN/NOTIFY` do Postgres — e aí `psycopg`
+entra nas rotas pela primeira vez.
+
+#### 9.3.3 · O que o SSE resolveu que o polling não resolvia
+
+O gatilho previsto na §9.3 anterior era `disponivel = false` às 11h40 com o
+prazo aberto. O que chegou primeiro foi outro: **a cantina precisa ver o pedido
+entrar enquanto conta o que vai cozinhar**, e um minuto de atraso ali é a
+diferença entre a contagem da tela e a panela.
 
 ## 10 · O que foi verificado, e o que não foi
 

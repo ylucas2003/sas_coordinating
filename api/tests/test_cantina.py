@@ -349,3 +349,97 @@ def test_dia_no_passado_nunca_recebe_pedido():
     # recusa de `publicar` salvaria alguém que insistisse: as duas barreiras
     # olham para a mesma verdade em momentos diferentes.
     assert _prazo_pela_regra({}, ontem) < AGORA
+
+
+# ─── O barramento de eventos ─────────────────────────────────────────────
+
+
+def test_stream_da_cantina_so_ve_o_que_e_dela():
+    """Trocar um uuid na URL não é o risco aqui — o recorte vem do TOKEN. O que
+    este teste tranca é o outro lado: uma cantina não pode ser acordada pelo
+    movimento da outra, senão o calendário dela pisca sem motivo."""
+    from app.cantina_eventos import Evento, para_a_cantina
+
+    interessa = para_a_cantina("cant-1")
+    assert interessa(Evento(tipo="pedido", cantina_id="cant-1"))
+    assert not interessa(Evento(tipo="pedido", cantina_id="cant-2"))
+
+
+def test_a_cantina_e_avisada_de_concessao_de_direito():
+    """O direito não pertence a cantina nenhuma, mas muda o PÚBLICO dela — é o
+    aviso "agora alguém pode pedir" ao lado do botão de publicar."""
+    from app.cantina_eventos import Evento, para_a_cantina
+
+    assert para_a_cantina("cant-1")(Evento(tipo="direito", aluno_id="a1"))
+
+
+def test_aluno_nao_recebe_pedido_de_outro_aluno():
+    """⚠️ O teste de privacidade do stream.
+
+    Um aluno acordando a cada pedido dos outros 900 saberia quantos pediram e
+    quando — informação que a tela dele não mostra e que ele não deve ter. O
+    recorte é do SERVIDOR: filtrar no cliente não seria autorização.
+    """
+    from app.cantina_eventos import Evento, para_o_aluno
+
+    interessa = para_o_aluno("a1")
+    assert interessa(Evento(tipo="pedido", aluno_id="a1"))
+    assert not interessa(Evento(tipo="pedido", aluno_id="a2"))
+    assert not interessa(Evento(tipo="direito", aluno_id="a2"))
+
+
+def test_aluno_recebe_qualquer_mudanca_de_cardapio():
+    """Sem filtrar por refeição, de propósito: filtrar exigiria congelar os
+    direitos do aluno no instante da assinatura, e um stream que dura horas
+    veria esse recorte envelhecer. Quem filtra de verdade é `GET /me/cantina`."""
+    from app.cantina_eventos import Evento, para_o_aluno
+
+    assert para_o_aluno("a1")(Evento(tipo="cardapio", refeicao="janta"))
+
+
+def test_coordenacao_ve_tudo():
+    from app.cantina_eventos import Evento, para_a_coordenacao
+
+    interessa = para_a_coordenacao()
+    assert interessa(Evento(tipo="pedido", cantina_id="qualquer"))
+    assert interessa(Evento(tipo="direito", aluno_id="a9"))
+
+
+def test_evento_vira_sse_sem_campo_nulo():
+    """O `data:` só carrega o que existe. Campo nulo no JSON obrigaria o cliente
+    a distinguir "não veio" de "veio vazio" para nada."""
+    from app.cantina_eventos import Evento
+
+    texto = Evento(tipo="cardapio", cantina_id="c1", refeicao="almoco").para_sse()
+    assert texto.startswith("event: cardapio\n")
+    assert '"cantina_id": "c1"' in texto
+    assert "aluno_id" not in texto
+    assert texto.endswith("\n\n")
+
+
+def test_fila_cheia_descarta_o_mais_velho_e_nao_derruba():
+    """Uma aba parada em segundo plano não pode crescer sem limite, e publicar
+    NUNCA pode levantar — a chamada acontece depois de o banco já ter aceitado a
+    escrita, e uma exceção aqui desfaria nada mas derrubaria a resposta."""
+    import asyncio
+
+    from app.cantina_eventos import TETO_DA_FILA, Barramento, Evento
+
+    async def cenario():
+        barramento = Barramento()
+        async with barramento.assinar(lambda _: True) as fila:
+            for i in range(TETO_DA_FILA + 10):
+                barramento.publicar(Evento(tipo="cardapio", data=str(i)))
+            assert fila.qsize() == TETO_DA_FILA
+            # O mais velho saiu: o primeiro que resta não é o evento 0.
+            assert fila.get_nowait().data != "0"
+
+    asyncio.run(cenario())
+
+
+def test_publicar_sem_assinante_nao_faz_nada():
+    """O caso mais comum em produção: ninguém com a tela aberta. Publicar tem de
+    ser um no-op barato, e não um erro engolido."""
+    from app.cantina_eventos import Barramento, Evento
+
+    Barramento().publicar(Evento(tipo="cardapio"))

@@ -3,6 +3,7 @@ import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 
 import { Avatar } from '../../componentes/ui/Avatar';
 import { useLiga, useProximoSimulado, useSequencia, useXp } from '../../dados/aluno';
+import { useEventosDaCantina } from '../../hooks/eventosCantina';
 import * as sessao from '../../servicos/sessao';
 import { Estudar } from './Estudar';
 import { EstudarBanco } from './EstudarBanco';
@@ -56,6 +57,11 @@ function sair() {
 }
 
 export function CascoAluno() {
+  // O aluno assina o stream da cantina mesmo sem ter direito a refeição: o
+  // servidor não vaza nada por ele (o recorte é lá), e é justamente quem AINDA
+  // não tem direito que precisa ver o card aparecer no instante em que a
+  // coordenação o concede.
+  useEventosDaCantina('/me/cantina/eventos');
   const nome = sessao.nome();
   const primeiro = nome.split(' ')[0] || nome;
   const [conta, setConta] = useState<'fechada' | 'menu'>('fechada');

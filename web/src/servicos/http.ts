@@ -29,7 +29,7 @@ export class ErroApi extends Error {
   }
 }
 
-function cabecalhosAuth(): Record<string, string> {
+export function cabecalhosAuth(): Record<string, string> {
   const t = sessao.token();
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
@@ -43,7 +43,7 @@ function cabecalhosAuth(): Record<string, string> {
  * usuário para o login recarregaria a página que ele já está usando, apagando
  * a mensagem de erro antes de ele conseguir ler.
  */
-function seNaoAutorizado(status: number, caminho: string): void {
+export function seNaoAutorizado(status: number, caminho: string): void {
   if (status !== 401 || caminho.startsWith('/auth/')) return;
   sessao.encerrar();
   window.location.replace('/login');

@@ -8,6 +8,9 @@ import {
 import { useAlunos, useDiaDaCantina } from '../../hooks/consultas';
 import { useCalendarioNaCoordenacao, useCantinas, useCardapioNaCoordenacao } from '../../hooks/cantina';
 import { useTituloDaTela } from '../../componentes/layout/migalhas';
+import { useEventosDaCantina } from '../../hooks/eventosCantina';
+import { BotoesDeExportar } from './BotoesDeExportar';
+import { SeletorDeCantina, useCantinaSelecionada } from './SeletorDeCantina';
 import type { Aluno } from '../../tipos/dominio';
 import type {
   CantinaAdmin, DiaDoCalendario, EstadoCardapio, PedidoDeAluno, Refeicao,
@@ -52,6 +55,10 @@ import * as sessao from '../../servicos/sessao';
  * o chevron daqui volta para lá, fechando o caminho nos dois sentidos.
  */
 export function HubDaCantina() {
+  // O stream da coordenação, nas três telas de cantina e só nelas. No `AppShell`
+  // valeria para o Painel e a ficha de aluno também, e um coordenador olhando
+  // nota não precisa acordar a cada pedido de almoço.
+  useEventosDaCantina('/administracao/cantina/eventos');
   const souAdministrador = sessao.ehAdministrador();
   const mes = useResumoDoMes();
   const direitos = useResumoDosDireitos();
@@ -186,12 +193,14 @@ function useResumoDoAcesso() {
  * mês é "o que houve no dia 9", e o dia responde as duas de uma vez.
  */
 export function CalendarioNaCoordenacao() {
+  useEventosDaCantina('/administracao/cantina/eventos');
   const hoje = new Date();
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth());
+  const selecionada = useCantinaSelecionada();
 
   const [de, ate] = useMemo(() => janelaDoMes(ano, mes), [ano, mes]);
-  const { data: dias = [], isLoading, isError } = useCalendarioNaCoordenacao(de, ate);
+  const { data: dias = [], isLoading, isError } = useCalendarioNaCoordenacao(de, ate, selecionada);
   const { data: cantinas = [] } = useCantinas();
 
   function andar(passo: number) {
@@ -206,7 +215,14 @@ export function CalendarioNaCoordenacao() {
         titulo="O que foi lançado?"
         para="/cantina"
         destino="a cantina"
-        acoes={<NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />}
+        acoes={(
+          <>
+            {/* Some quando há uma cantina só, que é o estado de hoje — um
+                seletor de uma opção é controle que não decide nada. */}
+            <SeletorDeCantina />
+            <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />
+          </>
+        )}
       />
       <p className="cant-intro">
         {isError
@@ -252,8 +268,10 @@ export function CalendarioNaCoordenacao() {
  * isso que cada cartão explica a passagem em vez de só exibir o estado.
  */
 export function DiaNaCoordenacao() {
+  useEventosDaCantina('/administracao/cantina/eventos');
   const { data = '' } = useParams<{ data: string }>();
-  const { data: dia, isLoading, isError } = useDiaDaCantina(data);
+  const selecionada = useCantinaSelecionada();
+  const { data: dia, isLoading, isError } = useDiaDaCantina(data, selecionada);
   const { data: alunos } = useAlunos();
   const { data: cantinas = [] } = useCantinas();
 
@@ -480,8 +498,11 @@ function QuemPediu({
  * URL própria (C3). O chevron sobe para o dia, não para o calendário.
  */
 export function CardapioNaCoordenacao() {
+  useEventosDaCantina('/administracao/cantina/eventos');
   const { data = '', refeicao = 'almoco' } = useParams<{ data: string; refeicao: Refeicao }>();
-  const { data: dia } = useDiaDaCantina(data);
+  const selecionada = useCantinaSelecionada();
+  const { data: dia } = useDiaDaCantina(data, selecionada);
+  const { data: cantinasParaExportar = [] } = useCantinas();
   const doDia = refeicao === 'almoco' ? dia?.almoco : dia?.janta;
   const { data: cardapio, isLoading } = useCardapioNaCoordenacao(doDia?.id);
 
@@ -508,7 +529,30 @@ export function CardapioNaCoordenacao() {
 
   return (
     <div className="tela">
-      <CabecaDeCampo titulo={titulo} para={`/cantina/${data}`} destino="o dia" />
+      <CabecaDeCampo
+        titulo={titulo}
+        para={`/cantina/${data}`}
+        destino="o dia"
+        acoes={
+          <BotoesDeExportar
+            dia={{
+              data,
+              refeicao,
+              pedidos: cardapio.pedidos,
+              contagem: cardapio.contagem,
+              cantina: nomeDaCantina(cantinasParaExportar, cardapio.cantina_id),
+              valor: valorDaRefeicao(cantinasParaExportar, cardapio.cantina_id, refeicao),
+              // ⚠️ A coordenação exporta SEM o texto da restrição alimentar.
+              // A tela mostra só a marca "tem restrição alimentar", e a
+              // revelação é deliberada em /cantina/direitos — um CSV que
+              // vazasse o texto contornaria essa decisão pelo caminho mais
+              // fácil, que é justamente o que não pode acontecer com dado de
+              // saúde de menor.
+              incluirRestricao: false,
+            }}
+          />
+        }
+      />
       <p className="cant-intro">
         {ROTULO_DO_ESTADO[cardapio.estado]}
         {` · ${fraseDoPrazo(cardapio.estado, cardapio.pedidos_ate)}`}
@@ -671,4 +715,15 @@ function iniciais(nome: string | null): string {
 function primeiroENome(nome: string | null): string {
   if (!nome) return 'sem nome';
   return nome.trim().split(/\s+/).slice(0, 2).join(' ');
+}
+
+/** O preço de tabela daquela refeição na cantina que serviu o dia. */
+function valorDaRefeicao(
+  cantinas: CantinaAdmin[],
+  cantinaId: string | undefined,
+  refeicao: Refeicao,
+): number | null {
+  const cantina = cantinas.find((c) => c.id === cantinaId);
+  if (!cantina) return null;
+  return (refeicao === 'almoco' ? cantina.valor_almoco : cantina.valor_janta) ?? null;
 }

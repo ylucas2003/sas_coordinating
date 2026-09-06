@@ -128,12 +128,21 @@ O `docker` do PATH está quebrado nesta máquina (symlink para um
    expõe na internet mesmo com firewall fechado — e o papel anônimo do
    PostgREST tem acesso total ao schema.
 
-5. **`docker compose run` dentro de `ssh bash -s` engole o script.** A parte
+5. **O tempo real da cantina depende de `UVICORN_WORKERS=1`.** O barramento de
+   eventos ([api/app/cantina_eventos.py](api/app/cantina_eventos.py)) mantém uma
+   fila por assinante **na memória do processo**. Com dois workers, cada um teria
+   as suas e metade dos assinantes pararia de receber evento **sem erro
+   nenhum** — a tela só ficaria velha. O `UVICORN_WORKERS=1` já era invariante
+   declarada por causa das travas do sync e do despachante; este é o terceiro
+   motivo. Subir os workers exige trocar o barramento por `LISTEN/NOTIFY`, e aí
+   `psycopg` entra nas rotas pela primeira vez (docs/38 §9.3.2).
+
+6. **`docker compose run` dentro de `ssh bash -s` engole o script.** A parte
    remota do `deploy.sh` viaja por stdin; qualquer comando que leia stdin lê o
    resto do script e o deploy "termina com sucesso" sem aplicar nada — foi
    assim no deploy da Sprint 2. Todo `compose run` ali leva `-T </dev/null`.
 
-6. **Dados de menores de idade (LGPD).** Nada de asset ou telemetria de
+7. **Dados de menores de idade (LGPD).** Nada de asset ou telemetria de
    terceiro no front — foi por isso que as fontes saíram do Google Fonts. Vale
    para qualquer CDN, pixel ou serviço externo que alguém pense em adicionar.
 

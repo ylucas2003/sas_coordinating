@@ -18,7 +18,8 @@ export const chavesCantina = {
   contagem: (id: string) => ['cantina', 'contagem', id] as const,
   pedidos: (id: string) => ['cantina', 'pedidos', id] as const,
   doAluno: ['me', 'cantina'] as const,
-  calendarioCoord: (de: string, ate: string) => ['coord', 'cantina', de, ate] as const,
+  calendarioCoord: (de: string, ate: string, cantina?: string) =>
+    ['coord', 'cantina', de, ate, cantina ?? 'padrao'] as const,
   cardapioCoord: (id: string) => ['coord', 'cantina', 'cardapio', id] as const,
   direitos: ['administracao', 'direito-refeicao'] as const,
   cantinas: ['administracao', 'cantinas'] as const,
@@ -47,6 +48,16 @@ export function usePublicoDaCantina() {
   return useQuery({
     queryKey: ['cantina', 'publico'],
     queryFn: api.publicoDaCantina,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** O estabelecimento da sessão. Muda raramente — o preço, quando a coordenação
+    mexe —, e o stream invalida esta chave quando isso acontece. */
+export function useMinhaCantina() {
+  return useQuery({
+    queryKey: ['cantina', 'eu'],
+    queryFn: api.minhaCantina,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -163,10 +174,12 @@ export function useCancelarPedido() {
 
 // ─── A coordenação ────────────────────────────────────────────────────────
 
-export function useCalendarioNaCoordenacao(de: string, ate: string) {
+export function useCalendarioNaCoordenacao(de: string, ate: string, cantina?: string) {
   return useQuery({
-    queryKey: chavesCantina.calendarioCoord(de, ate),
-    queryFn: () => api.calendarioNaCoordenacao(de, ate),
+    // A cantina entra na CHAVE: sem isso, trocar de cantina no seletor mostraria
+    // o mês da anterior até o `staleTime` vencer.
+    queryKey: chavesCantina.calendarioCoord(de, ate, cantina),
+    queryFn: () => api.calendarioNaCoordenacao(de, ate, cantina),
     staleTime: 60 * 1000,
   });
 }

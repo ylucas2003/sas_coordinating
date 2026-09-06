@@ -28,6 +28,7 @@ import secrets
 from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..auditoria import registrar as auditar
@@ -39,6 +40,16 @@ from ..auth import (
     hash_senha,
 )
 from ..banco.missao import FUSO_DA_ESCOLA
+from ..cantina_eventos import (
+    Evento,
+    barramento,
+    cabecalhos_sse,
+    fluxo_sse,
+    para_a_cantina,
+    para_a_coordenacao,
+    para_o_aluno,
+    publicar_cardapio_mudou,
+)
 from ..supabase_client import ClienteDados, get_supabase
 
 REFEICOES = ("almoco", "janta")
@@ -242,6 +253,51 @@ class PedidoBody(BaseModel):
     opcao_ids: list[str] = Field(default_factory=list)
 
 
+# ─── Os três streams ──────────────────────────────────────────────────────
+#
+# Um por público, e o recorte é do SERVIDOR: a alternativa seria um stream só
+# com o cliente filtrando, e aí o aluno receberia — e poderia ler — o pedido dos
+# outros 900. Autorização que depende do cliente descartar o que não é dele não
+# é autorização.
+
+
+@router.get("/eventos")
+async def eventos_da_cantina(usuario: dict = Depends(get_current_cantina)) -> StreamingResponse:
+    """O que muda no que é desta cantina, mais concessões de direito.
+
+    O direito entra porque muda o PÚBLICO dos cardápios dela — é o aviso "agora
+    alguém pode pedir" ao lado do botão de publicar.
+    """
+    async def fluxo():
+        async with barramento.assinar(para_a_cantina(usuario["cantina_id"])) as fila:
+            async for pedaco in fluxo_sse(fila):
+                yield pedaco
+
+    return StreamingResponse(fluxo(), media_type="text/event-stream", headers=cabecalhos_sse())
+
+
+@router_aluno.get("/eventos")
+async def eventos_do_aluno(aluno: dict = Depends(get_current_aluno)) -> StreamingResponse:
+    """Mudança de cardápio, e o que for do próprio aluno."""
+    async def fluxo():
+        async with barramento.assinar(para_o_aluno(aluno["aluno_id"])) as fila:
+            async for pedaco in fluxo_sse(fila):
+                yield pedaco
+
+    return StreamingResponse(fluxo(), media_type="text/event-stream", headers=cabecalhos_sse())
+
+
+@router_admin.get("/cantina/eventos")
+async def eventos_da_coordenacao() -> StreamingResponse:
+    """A coordenação vê tudo — é o papel dela, e são poucas sessões abertas."""
+    async def fluxo():
+        async with barramento.assinar(para_a_coordenacao()) as fila:
+            async for pedaco in fluxo_sse(fila):
+                yield pedaco
+
+    return StreamingResponse(fluxo(), media_type="text/event-stream", headers=cabecalhos_sse())
+
+
 # ─── A cantina: calendário ────────────────────────────────────────────────
 
 
@@ -382,6 +438,9 @@ async def criar_cardapio(
         ator_id=usuario.get("sub"), recurso=f"cardapio/{linha['id']}", ip=_ip(request),
         detalhe={"data": body.data.isoformat(), "refeicao": body.refeicao},
     )
+    # Rascunho também avisa: a coordenação e as outras abas da cantina veem o
+    # dia aparecer no calendário sem recarregar.
+    publicar_cardapio_mudou(linha)
     return _montar_cardapio(cliente, linha, _agora())
 
 
@@ -509,6 +568,7 @@ async def salvar_cardapio(
         ator_id=usuario.get("sub"), recurso=f"cardapio/{cardapio_id}", ip=_ip(request),
         detalhe={"blocos": len(body.blocos), "data": cardapio["data"]},
     )
+    publicar_cardapio_mudou(atualizado)
     return _montar_cardapio(cliente, atualizado, _agora())
 
 
@@ -571,6 +631,9 @@ async def publicar_cardapio(
         ator_id=usuario.get("sub"), recurso=f"cardapio/{cardapio_id}", ip=_ip(request),
         detalhe={"data": cardapio["data"], "refeicao": cardapio["refeicao"]},
     )
+    # O evento mais importante do barramento: é o instante em que o cardápio
+    # passa a existir para o aluno, e a tela dele muda sozinha por causa disto.
+    publicar_cardapio_mudou(atualizado)
     return _montar_cardapio(cliente, atualizado, _agora())
 
 
@@ -652,6 +715,7 @@ async def copiar_cardapio(
         ator_id=usuario.get("sub"), recurso=f"cardapio/{cardapio_id}", ip=_ip(request),
         detalhe={"origem": body.origem_id},
     )
+    publicar_cardapio_mudou(atualizado)
     return _montar_cardapio(cliente, atualizado, _agora())
 
 
@@ -735,6 +799,17 @@ def _pedidos_do_cardapio(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
     ]
     saida.sort(key=lambda linha: (linha["nome"] or "").casefold())
     return saida
+
+
+@router.get("/eu")
+async def cantina_da_sessao(usuario: dict = Depends(get_current_cantina)) -> dict:
+    """O estabelecimento desta sessão: nome, regra de prazo e preço de tabela.
+
+    O nome já vem no token, mas o resto não — e o preço muda na tela da
+    coordenação, sem a cantina relogar. Ler do banco é o que faz a soma do dia
+    acompanhar uma alteração de preço sem exigir logout.
+    """
+    return _cantina_por_id(get_supabase(), usuario["cantina_id"])
 
 
 @router.get("/publico")
@@ -867,6 +942,24 @@ async def cantina_do_aluno(aluno: dict = Depends(get_current_aluno)) -> dict:
     return {"direitos": direitos, "dias": dias}
 
 
+def _avisar_pedido(cardapio: dict, aluno_id: str) -> None:
+    """Avisa a cantina e a coordenação de que a contagem daquele dia mudou.
+
+    O `aluno_id` viaja para o stream do próprio aluno reconhecer o evento como
+    dele — é o que mantém duas abas do mesmo aluno em dia. Os streams da cantina
+    e da coordenação não olham esse campo.
+    """
+    barramento.publicar(
+        Evento(
+            tipo="pedido",
+            cantina_id=str(cardapio.get("cantina_id") or "") or None,
+            refeicao=cardapio.get("refeicao"),
+            data=str(cardapio.get("data")) if cardapio.get("data") else None,
+            aluno_id=aluno_id,
+        )
+    )
+
+
 def _validar_escolhas(montado: dict, opcao_ids: list[str]) -> None:
     """As escolhas cabem no que o cardápio permite?
 
@@ -988,6 +1081,7 @@ async def salvar_pedido(
             [{"pedido_id": pedido_id, "opcao_id": oid} for oid in body.opcao_ids]
         ).execute()
 
+    _avisar_pedido(cardapio, aluno_id)
     return {"cardapioId": cardapio_id, "opcaoIds": sorted(body.opcao_ids)}
 
 
@@ -1000,10 +1094,11 @@ async def cancelar_pedido(
     pedido está contado, e a cantina já comprou."""
     cliente = get_supabase()
     aluno_id = aluno["aluno_id"]
-    _cardapio_aberto_para(cliente, cardapio_id, aluno_id)
+    cardapio = _cardapio_aberto_para(cliente, cardapio_id, aluno_id)
     cliente.table("pedido_refeicao").delete().eq("cardapio_id", cardapio_id).eq(
         "aluno_id", aluno_id
     ).execute()
+    _avisar_pedido(cardapio, aluno_id)
     return {"cardapioId": cardapio_id, "opcaoIds": None}
 
 
@@ -1166,6 +1261,11 @@ async def conceder_direito(
         # 80 alunos" e não "em quais".
         detalhe={"refeicao": body.refeicao, "alunos": body.aluno_ids},
     )
+    # Um evento por aluno, e não um só para o lote: é o `aluno_id` que faz o
+    # filtro do stream dele acertar. Oitenta eventos cabem — a fila descarta o
+    # mais velho e todos levam ao mesmo refetch.
+    for alvo in body.aluno_ids:
+        barramento.publicar(Evento(tipo="direito", refeicao=body.refeicao, aluno_id=alvo))
     return {"alterados": len(body.aluno_ids), "refeicao": body.refeicao, "conceder": body.conceder}
 
 
@@ -1218,6 +1318,12 @@ class NovaCantinaBody(BaseModel):
     nome: str
     prazo_padrao_dias_antes: int = Field(default=1, ge=0)
     prazo_padrao_hora: str = "20:00"
+    # Preço de TABELA, não cobrança: o SAS não fatura nem sabe quem pagou. O
+    # valor existe para a coordenação somar o custo do que foi pedido, que é a
+    # pergunta do fim do mês. `None` = ainda não informado, e é diferente de
+    # 0,00 — a tela precisa distinguir para não somar zero como se fosse dado.
+    valor_almoco: float | None = Field(default=None, ge=0)
+    valor_janta: float | None = Field(default=None, ge=0)
 
 
 class EditarCantinaBody(BaseModel):
@@ -1225,6 +1331,8 @@ class EditarCantinaBody(BaseModel):
     ativo: bool | None = None
     prazo_padrao_dias_antes: int | None = Field(default=None, ge=0)
     prazo_padrao_hora: str | None = None
+    valor_almoco: float | None = Field(default=None, ge=0)
+    valor_janta: float | None = Field(default=None, ge=0)
 
 
 class NovaContaCantinaBody(BaseModel):
@@ -1276,6 +1384,8 @@ async def criar_cantina(
                 "nome": body.nome.strip(),
                 "prazo_padrao_dias_antes": body.prazo_padrao_dias_antes,
                 "prazo_padrao_hora": body.prazo_padrao_hora,
+                "valor_almoco": body.valor_almoco,
+                "valor_janta": body.valor_janta,
             },
             returning="representation",
         )
@@ -1310,6 +1420,13 @@ async def editar_cantina(
         patch["prazo_padrao_dias_antes"] = body.prazo_padrao_dias_antes
     if body.prazo_padrao_hora:
         patch["prazo_padrao_hora"] = body.prazo_padrao_hora
+    # Os valores entram mesmo quando são `None`? NÃO: `None` no corpo significa
+    # "não mexi neste campo", e apagar um preço por omissão seria o pior tipo
+    # de perda silenciosa. Zerar um valor é mandar 0.
+    if body.valor_almoco is not None:
+        patch["valor_almoco"] = body.valor_almoco
+    if body.valor_janta is not None:
+        patch["valor_janta"] = body.valor_janta
     if not patch:
         raise HTTPException(status_code=422, detail="Nada para alterar.")
 
