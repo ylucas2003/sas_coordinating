@@ -4,6 +4,7 @@ import { calcularExibicao, clampOffset, retanguloDeRecorte } from '../../dominio
 import type { Dimensoes, Offset } from '../../dominio/fotoPerfil';
 import { useSalvarMinhaFoto } from '../../hooks/mutacoes';
 import * as sessao from '../../servicos/sessao';
+import { jaViuOTour } from '../onboarding/memoria';
 
 // O pedido de foto no primeiro acesso (docs/sprints.html · SPRINT FOTO · P2)
 // e o "quem já tinha conta mas nunca mandou uma" (P3) viram UM mecanismo só:
@@ -63,7 +64,22 @@ export function LembreteFotoPerfil() {
   const arrastoRef = useRef<{ x: number; y: number; offset: Offset } | null>(null);
   const salvar = useSalvarMinhaFoto();
 
-  if (!sessao.autenticado() || sessao.temFoto() || dispensado || sessao.fotoFoiDispensadaNestaSessao()) {
+  // ⚠️ O TOUR TEM PRIORIDADE, e a regra existe porque os dois modais decidiam
+  // abrir sozinhos sem se conhecerem: no primeiro acesso de um coordenador sem
+  // foto, este lembrete subia POR CIMA do tour, e a pessoa via duas
+  // sobreposições empilhadas antes de ver a tela (achado na verificação no
+  // browser da fase 6, docs/39).
+  //
+  // A ordem não é arbitrária: aprende-se a ler um ciclo antes de decorar a
+  // conta. E é ela que impede o pior efeito — fechar sobreposição sem ler, que
+  // queima a próxima que importar.
+  if (
+    !sessao.autenticado() ||
+    sessao.temFoto() ||
+    dispensado ||
+    sessao.fotoFoiDispensadaNestaSessao() ||
+    !jaViuOTour(sessao.nome() ?? '')
+  ) {
     return null;
   }
 
