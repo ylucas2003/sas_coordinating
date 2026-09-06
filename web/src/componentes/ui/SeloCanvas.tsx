@@ -12,7 +12,7 @@ import { type Procedencia, TarjaProcedencia } from './TarjaProcedencia';
  * Desde a fase 1 do docs/39 ele não desenha mais nada por conta própria: é uma
  * TRADUÇÃO de `EstadoCanvas` para os estados da `TarjaProcedencia`, que é a
  * peça única de "de onde veio este número?". A assinatura ficou igual de
- * propósito — as sete telas que o chamam não mudam nesta fase.
+ * propósito — as cinco telas que o chamam não mudam nesta fase.
  *
  * O que mudou no desenho: `sincronizado` era pílula preenchida em DADO e
  * `divergente` em AÇÃO, o que fazia o acordo e a discordância competirem em

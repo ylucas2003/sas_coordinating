@@ -1,16 +1,3 @@
-/* ─── Empilhamento de cards (filtros + resultados em "quadrados" separados) ─ */
-
-.screen-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* O card de resultados não tem screen-header — precisa de respiro próprio. */
-.screen-stack > .card > .section:only-child {
-  padding-top: 20px;
-}
-
 /* ─── Tela de Simulados — filtros locais + calendário + tabela ─────────── */
 
 /* Bloco de filtros locais: linhas de chips por categoria. */
@@ -336,7 +323,8 @@
    CATEGORIA declarada, não uma falha operacional, e o vermelho está reservado
    à etiqueta de distância e ao que quebrou (R4). O `.tag.tone-anulado` de
    `edicao.css`, que pintava fundo em alerta, era o último resto do semáforo
-   nesta tela. */
+   nesta tela — e foi apagado na varredura de consistência, junto com a grade
+   de KPIs da ficha de nota. */
 .prova-marca {
   display: inline-flex;
   align-items: center;

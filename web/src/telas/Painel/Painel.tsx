@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
+import { AberturaDoTour } from '../../componentes/onboarding/AberturaDoTour';
 import { CartaoDeCampo } from '../../componentes/ui/Campo';
 import { useRecorteDaTela } from '../../componentes/layout/migalhas';
 import { dataLocal, isoDoDia } from '../../dominio/cantina';
@@ -359,6 +360,15 @@ export function Painel() {
         nomeCriterio={criterio?.nome ?? null}
         corte={corteDaMateria(criterio, null) ?? undefined}
       />
+
+      {/* O TOUR (docs/39 fase 6). Ele abre SOZINHO aqui, e só aqui: esta é a
+          home, é onde o coordenador novo chega, e é a única abertura que dá
+          sentido ao "já vi" — quem clica no botão está pedindo de novo.
+
+          Fica no fim da coluna de propósito. O tour não é tarefa do dia: quem
+          já sabe ler um ciclo não deve tropeçar nele toda manhã acima dos
+          alertas, que são a única coisa que só existe nesta tela. */}
+      <AberturaDoTour abrirSozinho />
     </div>
   );
 }

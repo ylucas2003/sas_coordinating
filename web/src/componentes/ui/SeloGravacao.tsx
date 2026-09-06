@@ -19,9 +19,14 @@ import { type Procedencia, TarjaProcedencia } from './TarjaProcedencia';
  *
  * Desde a fase 1 do docs/39 os dois desenham `TarjaProcedencia`, com a mesma
  * assinatura de antes. O que saiu foi o `tone-*`: `tone-verde` para publicado
- * e `tone-ambar` para os limbos eram o semáforo, e ele não existe mais. A
- * tradução de `tone` continua em `dominio/gravacoes.ts` porque a tarja de data
- * do card ainda a usa — quem parou de chamá-la foi só esta peça.
+ * e `tone-ambar` para os limbos eram o semáforo, e ele não existe mais aqui.
+ *
+ * ⚠️ Sobrou UMA tradução em `dominio/gravacoes.ts`, `toneSituacao`, porque a
+ * tarja de data do card de `/integracoes/aulas` ainda a usa — e lá
+ * `.gravacao__data.tone-*` volta a pintar verde, âmbar, vermelho e azul por
+ * cima da regra global de `layout.css`. É o último semáforo de cor da
+ * coordenação, e é pendência declarada. A irmã dela, `toneCanvas`, foi apagada
+ * na varredura: quem a chamava era esta peça, e ninguém mais.
  */
 
 /**

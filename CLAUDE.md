@@ -24,6 +24,8 @@ Alguns `.md` descrevem um estado que já não existe. Quando divergirem do códi
 | [docs/16-plano-migracao-react.md](docs/16-plano-migracao-react.md) | Migração em andamento, `web/js/` legado | **Terminada.** `web/js/` não existe mais; o front é React 19 + TS inteiro |
 | [docs/03-design-system.md](docs/03-design-system.md) | verde = acima da meta, vermelho = abaixo; sombra em card; quatro raios; um tema só | **Histórico desde 05/09/2026.** Não existe verde na interface: acima do corte é preenchido, abaixo é vazado, e a intensidade carrega a distância. Sombra morreu, raios viraram três, e existe tema escuro. A régua é [docs/brief-claude-design-coordenacao.md](docs/brief-claude-design-coordenacao.md); o que foi feito está em [docs/37](docs/37-plano-refatoracao-visual-coordenacao.md) |
 | [web/CLAUDE.md](web/CLAUDE.md) *(já corrigido)* | "`telas/Banco/` serve os dois cascos" | Não serve: o aluno tem `telas/Aluno/EstudarBanco.tsx`, e `perfil="aluno"` em `Banco.tsx` é código morto |
+| [docs/00](docs/00-tech-stack.md) §Frontend *(já corrigido em 05/09)* | Tokens são `--color-navy`/`--color-amber` em `web/styles/tokens.css`; CSS Modules por tela | `tokens.css` **não existe** desde a fase 0 do [docs/39](docs/39-plano-refatoracao-design.md). Os tokens são os seis papéis em `--sas-*` (`papeis.css`), lidos direto; o CSS é global por prefixo de tela, e CSS Modules nunca aconteceu |
+| Qualquer `.md` que fale de `/painel` com filtros, KPIs, busca e tabela | O Painel é a tela de varredura de 900 alunos | Desde a fase 2 do [docs/39](docs/39-plano-refatoracao-design.md) o Painel é **hub**: três cartões e a faixa de decisão. A tabela mora em `telas/CicloFicha/TabelaDoCiclo.tsx`. Os nomes `dominio/painel.ts`, `montarPainel`, `.painel-tabela__*` são herança |
 
 ## O ponto mais confuso do projeto: `get_supabase()` não fala com Supabase
 
@@ -70,7 +72,10 @@ sas/
 │                 cantina (cardápio, pedido do aluno, contas da cantina) — e o
 │                 §1.1 dele lista os três lugares que quebram ao existir um
 │                 TERCEIRO tipo de sessão, e o §10.2 diz o que NÃO foi
-│                 verificado no browser
+│                 verificado no browser; **39 é a refatoração de design da
+│                 coordenação a partir da prancheta** (fases 0 a 5 feitas), e o
+│                 §6 dele é a varredura de consistência — o que ela consertou e
+│                 as seis coisas que ficaram, com caminho
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no

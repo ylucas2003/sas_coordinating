@@ -4,7 +4,7 @@
 > contam *por que* e *como*; este diz só *onde estamos*. Quando divergirem,
 > corrija aqui primeiro — é o que se lê antes de qualquer sprint.
 >
-> Atualizado em **30/08/2026**. O deploy de 24/08 juntou o redesenho do
+> Atualizado em **05/09/2026**. O deploy de 24/08 juntou o redesenho do
 > casco, a SPRINT FOTO e o acervo histórico do banco de questões — ver §9.8
 > de [23-banco-questoes-historico.md](23-banco-questoes-historico.md) pra
 > como isso quase saiu errado (checkout desatualizado, importador sem
@@ -19,8 +19,13 @@
 > Ainda em **30/08**, a publicação automática de aulas saiu de "escrito, não
 > em produção" para a §1, depois de conferida no VPS (crontab instalado,
 > `AWS_*`/`YOUTUBE_*` preenchidos, migrations `0034`–`0036` aplicadas, 7 aulas
-> no canal). Com isso a antiga **§1.5 deixou de existir**: não há mais nada
-> escrito fora de produção.
+> no canal). Com isso a antiga **§1.5 deixou de existir**.
+>
+> ⚠️ Mas "não há nada escrito fora de produção" **voltou a ser falso**: em
+> **05/09** entraram, nesta ordem e ainda sem deploy, a cantina
+> ([38](38-plano-cantina.md)), o promover/rebaixar pela tela e a **refatoração
+> de design da coordenação** ([39](39-plano-refatoracao-design.md), fases 0 a
+> 5). Os três estão no fim da §3.
 
 ---
 
@@ -706,6 +711,51 @@ coordenação; e no browser a 1440×900 — botão, texto da confirmação, tabe
 atualizando sozinha e a linha da auditoria nas duas direções.
 **Não verificado:** 390px, a tela na sessão de um coordenador **não**
 administrador (a coluna de ações inteira some — código, não olho), e o deploy.
+
+### 🔨 Refatoração de design da coordenação *(05/09)* — [39](39-plano-refatoracao-design.md)
+
+> **ESCRITO, fora de produção**, na branch `refactor/design-coordenacao`. Sem
+> migration; o backend ganhou duas coisas (`POST /alertas/{id}/reabrir` e as
+> médias por ciclo e por matéria em `GET /alunos`).
+
+A prancheta do Claude Design (projeto `a8bf25f7`, 21 telas nos dois temas)
+virou código. É a continuação do [37](37-plano-refatoracao-visual-coordenacao.md),
+e o que muda de forma é grande:
+
+- **Fase 0** — `tokens.css` morreu e a coordenação passou a ler `--sas-*`
+  direto, 1.067 ocorrências em 34 arquivos. O que não era cor (raio, largura do
+  rail, `--font-family`) foi para `styles/forma.css`, fora da pilha de tema.
+- **Fase 1** — o kit: `TarjaProcedencia` no lugar de dois selos, sparkline em
+  escala fixa 0–10 com o corte desenhado, histograma com média e mediana em
+  cinza, rail de **252px fixo** (não abre mais no hover), e a topbar sem
+  **busca global e sem sino**.
+- **Fase 2** — o Painel virou **hub de três portas** mais a faixa de decisão.
+  Saíram os filtros, os 4 KPIs, a busca e a tabela de 900 linhas; a tabela
+  desceu para a ficha de ciclo. Resolver um alerta ganhou **desfazer**.
+- **Fase 3** — `/provas` virou hub com `/provas/ciclos` e `/provas/simulados`;
+  `CicloRegua.tsx` foi **apagada** e as colunas Situação e Distância entraram
+  na tabela do ciclo; a ficha de nota perdeu `toneNota` e `tonePosicao`, os
+  últimos ternários de cor por número mágico do produto.
+- **Fase 4** — a lista de alunos ganhou grupos de média expansíveis, a coluna
+  de direitos de refeição, os quatro cards de recorte com contagem viva, e a
+  ficha ganhou **revisão em sequência** ("aluno 4 de 23", anterior/próximo).
+- **Fase 5** — `/cantina` virou hub, o dia ganhou rota própria (`/cantina/:data`,
+  no front — o backend não precisou de rota nova) e `Cantina.tsx` se dividiu em
+  `/cantina/direitos` e `/cantina/acesso`.
+
+**O que NÃO está feito, e importa antes da PR** (§6 do 39, com caminho e linha):
+
+1. A **escala 0–10 da ficha de nota** e o estado **primeiro dia** do Painel
+   têm ~35 classes de CSS que não existem — as duas peças renderizam sem forma.
+2. As **duas listas** de `/provas` não foram refeitas: o CSS e o domínio delas
+   estão escritos e marcados como "não ligado".
+3. O card do Painel diz `N cortados` e a ficha para onde ele leva diz
+   `Acima do corte X%` — **duas definições de corte, a um clique**.
+4. ⚠️ **Nada foi visto rodando no browser, e os quatro geradores de documento
+   não foram exercitados** depois do rename de token. É a terceira vez seguida
+   que este portão fica aberto (docs/37 §6, docs/38 §10.2).
+
+A fase 6 — o tour de seis passos — está sendo escrita em paralelo.
 
 ## 4 · Decisões em aberto
 

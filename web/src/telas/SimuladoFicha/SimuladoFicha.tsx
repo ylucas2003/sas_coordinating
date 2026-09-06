@@ -14,7 +14,7 @@ import { Histograma } from '../../componentes/ui/Histograma';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { SeloCanvas } from '../../componentes/ui/SeloCanvas';
 import { isoDoDia } from '../../dominio/cantina';
-import { corteDaMateria, eliminaSozinho } from '../../dominio/criterios';
+import { corteDaMateria, eliminaSozinho, reguaDaCasa } from '../../dominio/criterios';
 import {
   acertosEmPalavras, condicoesDaProva, contextoDaProva, fichaVazia, identidadeDaProva,
   pontuacaoBruta,
@@ -115,7 +115,7 @@ export function SimuladoFicha() {
   // A régua da casa: esta ficha não escolhe critério, e o corte da matéria do
   // simulado é o que o gráfico e cada nota da tabela precisam desenhar.
   const { data: criterios = [] } = useCriteriosDisponiveis();
-  const regua = criterios.find((c) => c.slug === 'tio-leo') ?? criterios[0] ?? null;
+  const regua = reguaDaCasa(criterios);
   const corte = corteDaMateria(regua, simulado?.materia?.codigo);
   const elimina = eliminaSozinho(regua, simulado?.materia?.codigo);
 

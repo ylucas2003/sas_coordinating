@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { SeletorCriterio } from '../../componentes/ui/SeletorCriterio';
+import { REGUA_DA_CASA } from '../../dominio/criterios';
 import { Evolucao } from './pecas';
 import {
   useCiclo, useCriteriosDisponiveis, useEstatisticasCiclo, useSimuladoPorSede, useSimulados,
@@ -44,7 +45,7 @@ export function CicloComparacao() {
   const { id = '' } = useParams();
   const { data: ciclo } = useCiclo(id);
   const { data: todos = [] } = useSimulados();
-  const [criterio, setCriterio] = useState('tio-leo');
+  const [criterio, setCriterio] = useState<string>(REGUA_DA_CASA);
   const { data: criterios = [] } = useCriteriosDisponiveis();
   const { data: stats, isPending, isError } = useEstatisticasCiclo(id, criterio);
 

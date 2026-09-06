@@ -264,61 +264,21 @@
   color: var(--sas-texto);
 }
 
-/* ─── Grid de KPIs de comparação (ficha de nota) ─────────────────────── */
+/* ─── A ficha de nota ────────────────────────────────────────────────────
+   ⚠️ A GRADE DE SEIS KPIs SAIU (docs/39, fase 3). Posição, nota, acertos,
+   média, top 15% e bottom 15% em seis cartõezinhos não comparavam nada — e
+   comparar era o assunto. Viraram `EscalaDaNota`, uma régua 0–10 só, e com
+   eles foram `.dialog__kpi*`, o `.dialog__hint--ambar` e o `.dialog__sep`.
+   Junto morreu o `.dialog__kpi-valor.tone-*`, que pintava o numeral por
+   ≥7/≥5 — a régua inventada que a fase 3 tinha por alvo.
+
+   `.tag.tone-anulado` saiu pelo mesmo motivo, uma tela adiante: a prova
+   anulada é CATEGORIA, e categoria é contorno (`.prova-marca`, em
+   `simulados.css`), não fundo de alerta.
+   ─────────────────────────────────────────────────────────────────────── */
 
 .dialog--largo {
   max-width: 480px;
-}
-
-.dialog__kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.dialog__kpi {
-  background: var(--sas-superficie-2);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.dialog__kpi-rotulo {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--sas-referencia);
-  text-transform: none;
-  letter-spacing: 0.05em;
-}
-
-.dialog__kpi-valor {
-  font-size: 19px;
-  font-weight: 500;
-  color: var(--sas-texto);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.dialog__kpi-valor.tone-verde    { color: var(--sas-dado); }
-.dialog__kpi-valor.tone-ambar    { color: var(--sas-valor); }
-.dialog__kpi-valor.tone-vermelho { color: var(--sas-alerta); }
-
-.dialog__hint--ambar {
-  color: var(--sas-valor);
-}
-
-.dialog__sep {
-  border: none;
-  border-top: 1px solid var(--sas-borda);
-  margin: 4px 0 2px;
-}
-
-/* Tag "Anulado" */
-.tag.tone-anulado {
-  background: color-mix(in srgb, var(--sas-alerta) 14%, transparent);
-  color: var(--sas-alerta);
 }
 
 /* ─── Agendamento (P1 — novo simulado / novo ciclo) ──────────────────── */

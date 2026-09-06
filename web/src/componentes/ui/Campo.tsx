@@ -41,8 +41,9 @@ import { Link } from 'react-router-dom';
 //                domina os outros, e a hierarquia sobrevive ao crescimento da
 //                grade porque não vem do tamanho, vem do número.
 //   `aviso`      a linha de baixo, para quando o atalho ENVELHECEU: "nenhum
-//                ciclo em andamento — este fechou há 7 semanas". Sem ela o
-//                card mostra o dado de julho como se fosse o de hoje.
+//                ciclo em andamento — este encerrou há 7 semanas" (a frase é
+//                montada em `Painel.tsx`). Sem ela o card mostra o dado de
+//                julho como se fosse o de hoje.
 //   `marca`      o selo curto ("Pendente", "Sem destino"), na linha do olho.
 //   `inerte`     o card da cantina num sábado — ver a prop, que é onde mora a
 //                distinção que importa.

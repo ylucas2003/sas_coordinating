@@ -14,7 +14,7 @@ import {
 } from './pecas';
 import { isoDoDia } from '../../dominio/cantina';
 import { saidasDoCicloVazio } from '../../dominio/cicloVazio';
-import { corteDaMateria, eliminaSozinho } from '../../dominio/criterios';
+import { corteDaMateria, eliminaSozinho, REGUA_DA_CASA } from '../../dominio/criterios';
 import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import {
   estatisticasDoSimulado, montarPainel, nomeSede, normMateria,
@@ -135,7 +135,7 @@ export function CicloFicha() {
   // A régua escolhida decide TODOS os cortes desta tela: os dois campos, os
   // KPIs e cada célula da tabela. É por isso que ela não é um grupo da faixa
   // de filtros — um recorte peneira linhas, uma lente muda o que elas dizem.
-  const [criterio, setCriterio] = useState('tio-leo');
+  const [criterio, setCriterio] = useState<string>(REGUA_DA_CASA);
   const { data: criterios = [] } = useCriteriosDisponiveis();
   const { data: stats, isPending: carregandoStats } = useEstatisticasCiclo(id, criterio);
 

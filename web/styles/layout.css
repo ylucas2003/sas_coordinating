@@ -324,15 +324,6 @@
   padding: 0 22px 22px;
 }
 
-.tone-verde-card {
-  border-left: 4px solid var(--sas-dado);
-  padding: 16px 18px;
-}
-
-.tone-vermelho-card {
-  border-left: 4px solid var(--sas-alerta);
-  padding: 16px 18px;
-}
 
 .importar__upload-id {
   font-family: ui-monospace, SFMono-Regular, monospace;
@@ -382,11 +373,6 @@
   padding: 0 22px 22px;
 }
 
-.screen-section-title {
-  font-size: 15px;
-  margin: 18px 0 10px;
-  color: var(--sas-texto);
-}
 
 /* ─── Screen header ─────────────────────────────────────────────────── */
 
@@ -394,16 +380,6 @@
   padding: 24px 26px 8px;
 }
 
-/* A trilha de volta agora é a migalha da topbar (casco.css). O que sobrou
-   desta classe é a sobrancelha de contexto acima do título. */
-.screen-breadcrumb {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 13px;
-  color: var(--sas-referencia);
-  margin-bottom: 6px;
-}
 
 .screen-title {
   font-size: 26px;
@@ -413,12 +389,6 @@
   color: var(--sas-magnitude);
 }
 
-.screen-subtitle {
-  font-size: 13px;
-  color: var(--sas-texto-2);
-  margin-top: 4px;
-  line-height: 1.5;
-}
 
 /* ─── Alerta (cartão) ───────────────────────────────────────────────── */
 
@@ -612,7 +582,15 @@
 }
 
 /* As `.tone-*` globais, neutralizadas: o servidor manda `severidade` e várias
-   telas a passam adiante, mas ela não pinta mais nada em lugar nenhum. */
+   telas a passam adiante, e aqui ela deixa de pintar.
+
+   ⚠️ "Neutralizada" é sobre a regra GLOBAL, não sobre o produto inteiro: dois
+   lugares ainda casam `.tone-*` com um seletor mais específico e voltam a
+   pintar o semáforo. `.gravacao__data.tone-*` (`integracoes.css`) é a tarja de
+   data de `/integracoes/aulas`, com verde, âmbar, vermelho e azul; e
+   `.panorama__tag.tone-*` (mais abaixo) é o panorama EXPORTADO do aluno. Os
+   dois ficaram fora da refatoração do docs/39 e são pendência declarada — o
+   comentário fica aqui porque é aqui que se procura. */
 .tone-vermelho,
 .tone-ambar,
 .tone-verde,
@@ -1253,18 +1231,6 @@
   flex: 1;
 }
 
-.tabela-similares {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.tabela-similares td,
-.tabela-similares th {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--sas-borda);
-  text-align: left;
-}
 
 .btn-link-resolver {
   background: transparent;
@@ -1282,76 +1248,15 @@
 }
 
 
-/* ─── Ciclo-ficha v2: single-page, hero + blocos verticais ──────────────── */
-
-/* Hero — 4 KPIs grandes no topo. */
-.ciclo-hero__grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 760px) {
-  .ciclo-hero__grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.ciclo-hero__card {
-  background: var(--sas-superficie-2);
-  border-radius: var(--radius-md);
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ciclo-hero__rotulo {
-  font-size: 12px;
-  color: var(--sas-texto-2);
-  text-transform: none;
-  letter-spacing: 0.04em;
-  font-weight: 500;
-}
-
-.ciclo-hero__valor {
-  font-size: 32px;
-  font-weight: 500;
-  color: var(--sas-texto);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Numeral é MAGNITUDE, sempre. O que ele significa está no rótulo e na
-   referência ao lado, não no matiz. */
-.ciclo-hero__valor.tone-verde,
-.ciclo-hero__valor.tone-ambar,
-.ciclo-hero__valor.tone-vermelho { color: var(--sas-magnitude); }
-
-.ciclo-hero__sufixo {
-  font-size: 16px;
-  color: var(--sas-referencia);
-  font-weight: 500;
-  margin-left: 4px;
-}
-
-.ciclo-hero__delta {
-  font-size: 12px;
-  color: var(--sas-referencia);
-}
-
-/* R5 · A COMPARAÇÃO É CINZA. Delta é comparação com o ciclo anterior, e o
-   sentido dele já está na seta e no sinal — pintar de verde e vermelho
-   acrescenta uma segunda escala semântica na mesma tela e não acrescenta
-   informação nenhuma. */
-.ciclo-hero__delta.tone-verde,
-.ciclo-hero__delta.tone-vermelho { color: var(--sas-referencia); }
-
-.ciclo-hero__legenda {
-  font-size: 11px;
-  color: var(--sas-referencia);
-  margin: 8px 0 0 0;
-}
-
+/* ─── Ciclo-ficha: os blocos verticais ───────────────────────────────────
+   ⚠️ O HERO SAIU. Eram quatro cartões `.ciclo-hero__*` numa fileira larga,
+   ocupando a tela inteira antes de qualquer dado por aluno; a fase 3 do
+   docs/39 os transformou na grade 2×2 `.ciclo-kpi*` de `ciclo.css`, que
+   divide a faixa de chegada com os dois campos — é essa reorganização, e não a
+   subtração de nenhum número, que faz o cabeçalho da tabela caber na primeira
+   dobra. As regras que neutralizavam `tone-*` no numeral e no delta foram
+   junto: elas não têm mais onde pegar.
+   ─────────────────────────────────────────────────────────────────────── */
 
 /* Visão geral conjunta — histograma + 4 mini-cards numéricos. */
 .ciclo-conjunta__layout {
@@ -1444,23 +1349,6 @@
 .mini-badge__delta.tone-vermelho { color: var(--sas-referencia); }
 
 
-/* A régua da ficha do ciclo: fica no cabeçalho porque governa a tela inteira
-   (todo corte, todo pctAprovados), não um gráfico só. */
-.ciclo-ficha__regua {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.ciclo-ficha__regua-rotulo {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--sas-referencia);
-}
 
 .ciclo-materia__graficos {
   display: grid;
@@ -2029,18 +1917,6 @@
   font-size: 12px;
 }
 
-.celula-pessoa {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.celula-pessoa__nome {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* ─── Cabeçalho de tela (fora de card) ─────────────────────────────────── */
 

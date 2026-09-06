@@ -12,7 +12,7 @@ import { BarraFiltros, Busca, Pills, PillsUnica } from '../../componentes/ui/fil
 import { ordenarLinhas, proximaOrdenacao } from '../../componentes/ui/ordenacao';
 import type { ColunaTabela, Ordenacao } from '../../componentes/ui/ordenacao';
 import { ROTULO_DA_REFEICAO } from '../../dominio/cantina';
-import { corteDaMateria, eliminaSozinho, rotuloDoCorte } from '../../dominio/criterios';
+import { corteDaMateria, eliminaSozinho, reguaDaCasa, rotuloDoCorte } from '../../dominio/criterios';
 import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import {
   aplicarRecorte,
@@ -85,9 +85,6 @@ import { fmtNota, normalizar } from '../../util/formato';
 // tabela rola, o cabeçalho fica grudado, e a contagem em vigor mora DENTRO
 // dele — um "902" cravado a 40px de "3 de 902" é a contradição que este ramo
 // pune, e um cabeçalho que rola para fora deixa 900 linhas sem legenda.
-
-/** A régua da casa — `stats/criterios.py::CRITERIO_DA_CASA`, a que classifica a zona. */
-const REGUA_DA_CASA = 'tio-leo';
 
 /** Quanto vale cada refeição na ordenação: nenhum(0) → almoço(1) → janta(2) → os dois(3). */
 const PESO_DA_REFEICAO: Record<Refeicao, number> = { almoco: 1, janta: 2 };
@@ -312,10 +309,10 @@ export function Alunos() {
   );
 
   // A régua NÃO se escolhe aqui (ver `TarjaDaRegua`): é a mesma que produziu a
-  // coluna Zona no servidor. `criterios[0]` é o resto honesto para o caso de
-  // a régua da casa ter sido renomeada — sem ele a tela ficaria sem corte
-  // nenhum por causa de um slug.
-  const regua = criterios.find((c) => c.slug === REGUA_DA_CASA) ?? criterios[0] ?? null;
+  // coluna Zona no servidor, e quem a resolve é `dominio/criterios.ts` — o
+  // slug morava aqui numa constante local, e a mesma constante existia com
+  // outro nome no Painel.
+  const regua = reguaDaCasa(criterios);
   const corteGeral = corteDaMateria(regua, null);
 
   const [busca, setBusca] = useState('');

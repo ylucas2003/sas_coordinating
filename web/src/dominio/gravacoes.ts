@@ -56,6 +56,17 @@ export function situacaoDe(a: GravacaoAula): Situacao {
   return POR_STATUS[a.status] ?? 'aguardando';
 }
 
+/**
+ * ⚠️ O ÚLTIMO SEMÁFORO DE COR DA COORDENAÇÃO.
+ *
+ * Só a tarja de data do card de `/integracoes/aulas` ainda a chama, e lá
+ * `.gravacao__data.tone-*` (integracoes.css) é mais específico que a regra
+ * global de `layout.css`, que neutraliza `.tone-*` — então ali o verde, o
+ * âmbar, o vermelho e o azul continuam pintando. A tela ficou fora do docs/39
+ * e a pendência está registrada no §6 dele. A irmã disto, `toneCanvas`, foi
+ * apagada na varredura: `SeloGravacao` virou `TarjaProcedencia` e ninguém mais
+ * a chamava.
+ */
 export function toneSituacao(s: Situacao): string {
   if (s === 'publicado') return 'tone-verde';
   if (s === 'erro') return 'tone-vermelho';
@@ -124,13 +135,6 @@ export const ROTULO_CANVAS: Record<EstadoCanvasGravacao, { texto: string; titulo
     titulo: 'A publicação no Canvas está desligada para este curso.',
   },
 };
-
-export function toneCanvas(e: EstadoCanvasGravacao): string {
-  if (e === 'publicado') return 'tone-verde';
-  if (e === 'falhou') return 'tone-vermelho';
-  if (e === 'ambiguo' || e === 'conflito') return 'tone-ambar';
-  return 'tone-cinza';
-}
 
 /**
  * Página criada, vídeo dentro, e fora de módulo.

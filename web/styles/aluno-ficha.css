@@ -597,12 +597,9 @@
   gap: 6px;
 }
 
-.linha-evol__legenda-swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  display: inline-block;
-}
+/* O quadradinho de cor da legenda SAIU com a paleta categórica (docs/39, fase
+   1): as séries se distinguem por FORMA, e quem as nomeia agora é o glifo
+   desenhado em `linha-evol__legenda-item`. */
 
 /* Tooltip do gráfico — flutua sobre o SVG. */
 .linha-evol__tooltip {
@@ -734,7 +731,6 @@
     margin-bottom: 12px !important;
   }
 
-  .screen-stack,
   .ficha-coluna {
     gap: 8px !important;
   }

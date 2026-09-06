@@ -32,17 +32,28 @@ coordenação por um link no rodapé; `/login-cantina` é URL própria e não te
 travessia. O formulário de e-mail e senha é um só (`Login/FormularioSenha.tsx`),
 usado pelas duas portas com senha.
 
-## O casco: rail de ícones, não topbar de abas
+## O casco: rail de rótulos, não topbar de abas
 
-`componentes/layout/` monta rail (5 destinos) + topbar (migalhas, busca, sino,
-avatar) + `<main>`. Três consequências que se descobre errando:
+`componentes/layout/` monta rail (5 destinos) + topbar + `<main>`. O que se
+descobre errando:
 
+- **O rail NÃO abre.** Eram 88px que viravam 228px no `:has(.rail:hover)` do
+  CSS; a decisão 7 do docs/39 o fixou em **252px, com o rótulo sempre**. O
+  custo (−164px de largura em toda tela, o tempo todo) está aceito e escrito em
+  `Rail.tsx`. Não há estado nenhum ali além da sessão. O **Sair** desceu do
+  avatar da topbar para o rodapé do rail.
+- **A topbar é migalha + tema + identidade, e nada mais.** A **busca global e o
+  sino SAÍRAM** (docs/39 §1, decisão 5): o sino apontava para `#alertas`, que
+  no Painel novo é quase a tela inteira, e a busca de navegação competia com a
+  `<Busca>` da `BarraFiltros`. A pílula de identidade é PLACA, não botão. A
+  âncora `#alertas` continua de pé para link salvo e e-mail — não a remova.
 - **Não existe mais sidebar de filtros, e agora não há exceção.** `PainelFiltros`,
   `Sidebar` e `rotas.ts::sidebarPara` foram apagados. Filtro é `BarraFiltros` —
-  faixa horizontal de `.pill` acima da tabela — nas **oito** superfícies,
-  inclusive o Banco, que tinha `<aside>` próprio até a Sprint de polimento
-  (docs/33 §7). São oito e não sete porque `/provas` tem duas (Ciclos e
-  Simulados, conforme `?aba=`) e `/integracoes/aulas` é uma delas.
+  faixa horizontal de `.pill` acima da tabela — nas **nove** superfícies:
+  `alunos`, `provas.ciclos`, `provas.simulados`, `ciclo` (a ficha, que ganhou a
+  tabela do Painel), `banco`, `auditoria`, `administracao`, `cantina.direitos`
+  e `integracoes.aulas`. **O Painel não é uma delas** — perdeu a faixa inteira
+  na fase 2 do docs/39.
   - A faixa **colapsa sozinha quando o conteúdo passa de uma linha**, com o
     resumo do que está ativo no lugar, e lembra a escolha por superfície. Ao
     acrescentar um grupo, **passe `resumo`**: é ele que impede um filtro em
@@ -50,27 +61,28 @@ avatar) + `<main>`. Três consequências que se descobre errando:
     `dominio/filtros.ts`.
   - A `tela` que a faixa recebe é a SUPERFÍCIE, não a rota (`provas.ciclos` ≠
     `provas.simulados`).
-  - No Painel ela também carrega **régua, fase e ordenação**, que eram um
-    segundo estrato de recorte na linha do título. Cada um passa `resumo` — e a
-    régua é o caso mais caro, porque ela muda TODA a leitura da tela.
-- **Duas buscas, e elas não competem.** A da topbar é NAVEGAÇÃO — digite de
-  qualquer tela, atalho `/`, e vá para a ficha do aluno. A da `BarraFiltros`
-  (`<Busca>`) é RECORTE: peneira as linhas da tela em que você está. A primeira
-  já existia e não estava documentada, o que fez o inventário do docs/25 §1.1
-  concluir que faltava busca global.
+  - Na ficha de ciclo ela também carrega **régua, fase e ordenação** — o
+    segundo estrato que era do Painel e desceu junto com a tabela. A régua é o
+    caso mais caro, porque ela muda TODA a leitura da tela.
 - **A tela não monta `<main>`.** Quem monta é o casco; a rota devolve
   `.tela`, que é só a coluna de blocos. Dois `<main>` na página é HTML
   inválido e o leitor de tela anuncia duas regiões principais.
-- **Coluna lateral de 320px só em tela de LEITURA** (ficha do aluno). Painel,
-  Alunos e Banco são de varredura: lá a tabela tem 14 colunas com o nome
-  congelado, e 320px do lado direito saem da tarefa mais frequente do dia.
-- **Quem abre o rail é o CSS**, por `:has(.rail:hover)` e `:focus-within` —
-  não um `useState`. Estado aqui remontaria a árvore a cada passada de mouse.
+- **Coluna lateral de 320px só em tela de LEITURA** (ficha do aluno). Alunos,
+  Banco e a ficha de ciclo são de varredura: lá a tabela tem 14 colunas com o
+  nome congelado, e 320px do lado direito saem da tarefa mais frequente do dia.
 
-`/ciclos` e `/simulados` viraram abas de `/provas` (`?aba=simulados`). Os
-caminhos antigos continuam existindo como `<Navigate>` porque estão em link
-salvo e em e-mail de lembrete — **não os remova.** Já `/ciclos/:id` e
-`/simulados/:id` seguem sendo rotas de verdade.
+`/provas` é um **hub de duas portas**, não mais abas: as listas ganharam URL
+própria em `/provas/ciclos` e `/provas/simulados`. Os caminhos antigos
+`/ciclos` e `/simulados` continuam existindo como `<Navigate>` porque estão em
+link salvo e em e-mail de lembrete — **não os remova**; e o mesmo vale para
+`/ciclos/:id/regua`, cuja tela foi apagada e absorvida pela tabela do ciclo. Já
+`/ciclos/:id` e `/simulados/:id` seguem sendo rotas de verdade.
+
+**O Painel virou hub.** Três cartões de campo (`campo.css`) numa grade de 12
+colunas mais a faixa de decisão, e mais nada: sem filtros, sem KPIs, sem busca
+e sem tabela — ela desceu para `telas/CicloFicha/TabelaDoCiclo.tsx`. Por isso
+`dominio/painel.ts` e as classes `.painel-tabela__*` de `ciclo.css` têm nome
+que já não descreve onde moram; é herança, como `get_supabase()` no backend.
 
 Migalha de ficha: a rota dá a trilha, a tela dá o nome da coisa aberta via
 `useTituloDaTela(...)`. Ele é hook — chame **antes** de qualquer `return`
@@ -100,6 +112,12 @@ Não "modernize" essa pasta.
   encadeamento em TypeScript foi exatamente o que a Sprint 2 proibiu, depois de
   a mesma regra existir em três lugares e divergir — e ela tinha voltado nos
   gráficos, com `corte={{ valor: 4 }}` escrito no TSX (docs/31 §P1).
+  - **Qual régua está em vigor também mora lá:** `REGUA_DA_CASA` e
+    `reguaDaCasa(criterios)`. O slug `'tio-leo'` estava cravado em oito lugares
+    e tinha ganhado DOIS nomes de constante na mesma refatoração; a varredura
+    do docs/39 §6 juntou tudo. Toda tela sem seletor de régua chama
+    `reguaDaCasa` — inclusive o resto honesto (`criterios[0]`) para quando o
+    servidor renomear o slug.
 - **Nenhum `fetch` em componente.** Leitura por hook de `hooks/consultas.ts`,
   escrita por `hooks/mutacoes.ts`.
 - **Classes compartilhadas ficam globais** (`.card`, `.tone-*`, `.nota-badge`,
@@ -129,6 +147,13 @@ Não "modernize" essa pasta.
   a intensidade carrega a distância, e o vermelho fica só na etiqueta e na
   falha operacional. `dominio/selo.ts` faz a tradução; o backend continua
   mandando `'verde' | 'ambar' | 'vermelho'`, e isso está certo.
+  - As `.tone-*` globais de `layout.css` estão neutralizadas (`color: inherit`),
+    e `.tag.tone-*` virou contorno. ⚠️ **Dois seletores mais específicos ainda
+    vencem essa regra e pintam:** `.gravacao__data.tone-*` em `integracoes.css`
+    (a tarja de data de `/integracoes/aulas`, com verde, âmbar, vermelho e
+    azul) e `.panorama__tag.tone-*` em `layout.css` (o panorama EXPORTADO do
+    aluno). Os dois ficaram fora do docs/39 e estão registrados no §6 dele.
+    Ao encostar em qualquer um, tire a cor — não copie o padrão.
 - **O padrão de campo** (`componentes/ui/Campo.tsx`) é como uma tela pesada
   vira várias leves: divisão por PERGUNTA, subtítulo com dado vivo nos três
   estados, destino em tela inteira com URL própria, chevron de 44px na mesma

@@ -1,5 +1,6 @@
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
+import { AberturaDoTour } from '../../componentes/onboarding/AberturaDoTour';
 import { EloQuieto } from '../../componentes/ui/Campo';
 import {
   resumirCiclos, resumirProvas, subtituloDeCiclos, subtituloDeProvas,
@@ -108,6 +109,11 @@ export function Provas() {
             texto="Provas que falharam no Canvas"
             contagem={provasPendentes ? null : resumoProvas.falhouNoCanvas}
           />
+          {/* O TOUR (docs/39 fase 6), aqui SEM abrir sozinho: quem chega no hub
+              já escolheu o assunto, e a apresentação é feita na home. Este
+              gatilho é para rever — e é o único que sempre aparece, porque os
+              dois elos acima somem quando não há pendência. */}
+          <AberturaDoTour />
         </div>
       </div>
     </div>

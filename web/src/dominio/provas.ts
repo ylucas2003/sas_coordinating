@@ -31,6 +31,13 @@ function dias(n: number): string {
 /**
  * O estado do ciclo em palavras, na linha de baixo do nome.
  *
+ * ⚠️ AINDA NÃO LIGADA. Ela foi escrita para a lista de ciclos redesenhada da
+ * fase 3 do docs/39 — junto com `.provas-linha__estado` em `provas.css` —, e
+ * a lista não chegou a ser refeita: `telas/Ciclos/Ciclos.tsx` segue com a
+ * `.data-table` antiga. A varredura de consistência a MARCOU em vez de
+ * apagá-la com os testes, porque o que falta é ligar, não decidir. Enquanto
+ * isso, o teste verde aqui não prova tela nenhuma.
+ *
  * Devolve `''` quando o ciclo não tem período: um ciclo criado sem simulado
  * nenhum não tem data (o período vem do min/max das provas, ver
  * `dominio/ciclos.ts::intersectaPeriodo`), e escrever "encerrado" para ele

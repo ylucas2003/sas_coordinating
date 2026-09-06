@@ -192,9 +192,21 @@
 }
 
 /* ── As duas listas ──────────────────────────────────────────────────────
-   Cabeça de campo (chevron de 44px na mesma linha do título, C4) mais uma
-   linha de contagem. A contagem não voltou a ser `.tela-subtitulo` porque
-   ali ela ficava a 15px, do tamanho de uma frase — e ela é um número de
+   ⚠️ DAQUI PARA BAIXO NADA ESTÁ EM USO — e não é código morto, é código que
+   ainda não foi ligado. A fase 3 do docs/39 desenhou o hub E as duas listas;
+   o hub foi feito, e `telas/Ciclos/Ciclos.tsx` e `telas/Simulados/Simulados.tsx`
+   não foram tocados: continuam com `.data-table`, `.tag.tone-navy` na coluna
+   Vestibular e o `.sim-calendario-toggle` no lugar de `.provas-acao`.
+
+   O par disto no domínio é `dominio/provas.ts::estadoDoCiclo`, que também tem
+   teste e nenhum consumidor. A varredura de consistência achou os dois e os
+   MARCOU em vez de apagar: apagar aqui custaria refazer, e a próxima varredura
+   os leria como lixo sem esta nota. Ligar as duas listas é o que falta da
+   fase 3.
+
+   O desenho: cabeça de campo (chevron de 44px na mesma linha do título, C4)
+   mais uma linha de contagem. A contagem não volta a ser `.tela-subtitulo`
+   porque ali ela fica a 15px, do tamanho de uma frase — e ela é um número de
    recorte, que se lê de relance e some da atenção.
    ─────────────────────────────────────────────────────────────────────── */
 

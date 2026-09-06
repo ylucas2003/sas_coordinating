@@ -1048,23 +1048,17 @@
   color: var(--sas-texto-2);
 }
 
-/* Os nomes que o servidor manda (`verde`/`ambar`/`vermelho`) não carregam
-   distância, só lado. Ganham a intensidade fixa da tabela de tradução do
-   brief — "acima com saturação alta", "acima com saturação baixa", "vazado".
-   Renomear no backend é limpeza posterior e não é deste trabalho. */
-.nota-badge--verde,
-.nota-badge.tone-verde { --nota-intensidade: 0.7; }
-.nota-badge--ambar,
-.nota-badge.tone-ambar { --nota-intensidade: 0.15; }
-.nota-badge--vermelho,
-.nota-badge.tone-vermelho { --nota-intensidade: 0.5; }
+/* ⚠️ Os seletores por NOME DO SERVIDOR saíram na varredura de consistência.
+   Havia dois caminhos para o mesmo chip: `.nota-badge--verde/ambar/vermelho`
+   (e os `.nota-badge.tone-*` equivalentes) traduziam o tom cru, enquanto o
+   TSX já traduz — `INTENSIDADE_SEM_CORTE`, em `TabelaDoCiclo.tsx`, mapeia
+   verde e âmbar para `--acima` e vermelho para `--abaixo`, com a mesma
+   intensidade fixa, e passa o número por `--nota-intensidade`. Duas traduções
+   da mesma tabela do brief é o começo de duas telas discordarem sobre o que é
+   "âmbar"; a que ficou é a do TSX, que é quem tem a nota e o corte à mão. */
 
 /* ACIMA · preenchido, e a saturação cresce com a distância. */
-.nota-badge--acima,
-.nota-badge--verde,
-.nota-badge.tone-verde,
-.nota-badge--ambar,
-.nota-badge.tone-ambar {
+.nota-badge--acima {
   background: color-mix(
     in srgb,
     var(--sas-dado) calc((22 + var(--nota-intensidade) * 78) * 1%),
@@ -1091,9 +1085,7 @@
 /* ABAIXO · vazado. O contorno engrossa e escurece com a distância, e é o
    ÚNICO lugar onde a distância aparece sem número.
    ⚠️ Nunca vermelho: só a etiqueta ao lado é ALERTA (R4). */
-.nota-badge--abaixo,
-.nota-badge--vermelho,
-.nota-badge.tone-vermelho {
+.nota-badge--abaixo {
   background: transparent;
   border-width: calc(1px + var(--nota-intensidade) * 1.6px);
   border-color: color-mix(

@@ -15,7 +15,7 @@ import type {
 // Os filtros do banco, agora na `BarraFiltros` da coordenação (docs/33 §7).
 //
 // **Por que isto mudou.** A C.1 fechou a dívida de "dois sistemas de filtro"
-// para as sete telas da coordenação; o Banco nasceu depois, com `<aside>`
+// para as demais superfícies da coordenação; o Banco nasceu depois, com `<aside>`
 // próprio, e reabriu a dívida. O cabeçalho de `Banco.tsx` justificava a
 // exceção — "são muitos assuntos por edital e eles não caberiam numa linha
 // (docs/22 §3.5)" — e a justificativa **estava certa enquanto a faixa não

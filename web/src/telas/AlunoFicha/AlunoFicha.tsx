@@ -5,7 +5,7 @@ import { Avatar } from '../../componentes/ui/Avatar';
 import { GraficoEmCamadas } from '../../componentes/ui/GraficoEmCamadas';
 import { Heatmap } from '../../componentes/ui/Heatmap';
 import { BarraCorte } from '../Aluno/pecas/BarraCorte';
-import { corteDaMateria, eliminaSozinho } from '../../dominio/criterios';
+import { corteDaMateria, eliminaSozinho, reguaDaCasa } from '../../dominio/criterios';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { LinhaEvolucao } from '../../componentes/ui/LinhaEvolucao';
 import { SimFiltros } from '../../componentes/simulados/SimFiltros';
@@ -127,7 +127,7 @@ export function AlunoFicha() {
   // tela, ao lado do nome da régua: ausência de controle sem explicação lê
   // como funcionalidade esquecida.
   const { data: criterios = [] } = useCriteriosDisponiveis();
-  const corte = decidirCorte(filtro, criterios.find((c) => c.slug === 'tio-leo') ?? criterios[0]);
+  const corte = decidirCorte(filtro, reguaDaCasa(criterios));
 
   // A BARRA DE CORTE do aluno, reusada literalmente (brief §4): as mesmas
   // matérias contra a mesma linha de ouro que o próprio aluno vê de si. É onde
@@ -142,7 +142,7 @@ export function AlunoFicha() {
     () => new Map(materias.map((m) => [m.nome, m.codigo])),
     [materias],
   );
-  const reguaAtiva = criterios.find((c) => c.slug === 'tio-leo') ?? criterios[0] ?? null;
+  const reguaAtiva = reguaDaCasa(criterios);
   const materiasContraCorte = useMemo(() => {
     if (!heat?.materias?.length) return [];
     // A prova mais recente de cada matéria: o corte compara a situação ATUAL,

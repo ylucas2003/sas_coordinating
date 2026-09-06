@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { Histograma } from '../../componentes/ui/Histograma';
 import { SeletorCriterio } from '../../componentes/ui/SeletorCriterio';
+import { REGUA_DA_CASA } from '../../dominio/criterios';
 import { Avancado, Conjunta } from './pecas';
 import {
   comSinal, fraseDoBloco, LIMIAR_FORA_DO_PADRAO, montarMapa, nomeDaOrdem,
@@ -61,7 +62,7 @@ export function CicloCalibracao() {
   const { id = '' } = useParams();
   const { data: ciclo } = useCiclo(id);
   const { data: todos = [] } = useSimulados();
-  const [criterio, setCriterio] = useState('tio-leo');
+  const [criterio, setCriterio] = useState<string>(REGUA_DA_CASA);
   const [ordemEscolhida, setOrdemEscolhida] = useState<OrdemDoMapa | null>(null);
   const { data: criterios = [] } = useCriteriosDisponiveis();
   const { data: stats, isPending, isError } = useEstatisticasCiclo(id, criterio);

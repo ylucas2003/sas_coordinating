@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  ciclosNoRecorte, cicloPadrao, contagensDoRecorte, recorteCompleto, rotuloDoCiclo,
-} from './painelFiltros';
+import { ciclosNoRecorte, cicloPadrao, recorteCompleto } from './painelFiltros';
 import type { Ciclo, Simulado } from '../tipos/dominio';
 
 function ciclo(p: Partial<Ciclo> & { id: string }): Ciclo {
@@ -74,19 +72,6 @@ describe('ciclosNoRecorte', () => {
   });
 });
 
-describe('contagensDoRecorte', () => {
-  it('cada eixo conta ignorando a si mesmo', () => {
-    const r = { anos: new Set([2026]), vestibulares: new Set(['ITA']) };
-    const { porAno, porVestibular } = contagensDoRecorte(CICLOS, r);
-    // Ano conta dentro do vestibular escolhido (ITA), ignorando o filtro de ano.
-    expect(porAno.get(2026)).toBe(2);
-    expect(porAno.get(2025)).toBe(1);
-    // Vestibular conta dentro do ano escolhido (2026), ignorando o de vestibular.
-    expect(porVestibular.get('ITA')).toBe(2);
-    expect(porVestibular.get('IME')).toBe(1);
-  });
-});
-
 describe('cicloPadrao', () => {
   const SIMULADOS = [
     simulado({ id: 's1', cicloId: 'ita25', dataAplicacao: '2025-03-10' }),
@@ -111,27 +96,5 @@ describe('cicloPadrao', () => {
 
   it('sem ciclo nenhum, devolve null em vez de estourar', () => {
     expect(cicloPadrao([], SIMULADOS, '2026-09-03')).toBeNull();
-  });
-});
-
-describe('rotuloDoCiclo', () => {
-  const c = ciclo({ id: 'x', ordem: 4, anoLetivo: 2026, vestibularAlvo: 'ITA' });
-
-  it('com ano e vestibular fixados, a pílula é só o número', () => {
-    expect(rotuloDoCiclo(c, { anos: new Set([2026]), vestibulares: new Set(['ITA']) })).toBe('4');
-  });
-
-  it('com o recorte aberto, desambigua', () => {
-    expect(rotuloDoCiclo(c, recorteCompleto(CICLOS))).toBe('4 · ITA · 2026');
-  });
-
-  it('só o vestibular fixado: falta o ano', () => {
-    expect(rotuloDoCiclo(c, { anos: new Set([2025, 2026]), vestibulares: new Set(['ITA']) }))
-      .toBe('4 · 2026');
-  });
-
-  it('só o ano fixado: falta o vestibular', () => {
-    expect(rotuloDoCiclo(c, { anos: new Set([2026]), vestibulares: new Set(['ITA', 'IME']) }))
-      .toBe('4 · ITA');
   });
 });
