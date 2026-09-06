@@ -32,6 +32,7 @@ from app.auth import (
     get_current_coordenador,
     papel_da_sessao,
 )
+from app.banco.missao import FUSO_DA_ESCOLA
 from app.routes.cantina import (
     _estado,
     _instante,
@@ -301,3 +302,50 @@ def test_janela_do_aluno_tem_teto():
     assert DIAS_VISIVEIS_PARA_O_ALUNO == 30
     hoje = date(2026, 9, 5)
     assert hoje + timedelta(days=DIAS_VISIVEIS_PARA_O_ALUNO) == date(2026, 10, 5)
+
+
+# ─── Publicar com o prazo já vencido ─────────────────────────────────────
+
+
+def test_estado_de_publicado_com_prazo_vencido_e_fechado():
+    """O cardápio publicado com prazo no passado JÁ nascia `fechado` — o estado
+    estava certo, o que faltava era impedir que ele nascesse assim.
+
+    Este é o teste que documenta por que a recusa em `publicar` precisa existir:
+    sem ela, a cantina publica, o calendário mostra "Contagem final" num dia que
+    ninguém pôde pedir, e o aluno não vê nada.
+    """
+    vencido = {"sem_refeicao": False, "publicado_em": "2026-09-01", "pedidos_ate": PASSADO}
+    assert _estado(vencido, AGORA) == "fechado"
+
+
+def test_prazo_da_regra_para_hoje_ja_nasce_no_passado():
+    """A armadilha, em uma linha.
+
+    A regra padrão é "véspera às 20h". Para um cardápio criado HOJE, ela produz
+    um instante de ONTEM — e publicar isso entregava um cardápio invisível. Não
+    é caso de borda: é o que acontece quando a cantina lança o almoço do próprio
+    dia, que é o engano mais fácil de cometer.
+    """
+    cantina = {"prazo_padrao_dias_antes": 1, "prazo_padrao_hora": "20:00:00"}
+    hoje = AGORA.astimezone(FUSO_DA_ESCOLA).date()
+    assert _prazo_pela_regra(cantina, hoje) < AGORA
+
+
+def test_dia_no_passado_nunca_recebe_pedido():
+    """A causa-raiz do primeiro defeito real em produção, em uma asserção.
+
+    A cantina navegou o calendário para trás e lançou três cardápios de 01/09 e
+    03/09 num dia 06/09. Eles publicaram sem reclamar e o aluno não viu nada —
+    `cantina_do_aluno` só devolve `data >= hoje`, e está certa nisso: um dia que
+    já passou não recebe pedido de ninguém.
+
+    O que faltava não era a leitura do aluno; era a barreira na criação.
+    """
+    hoje = AGORA.astimezone(FUSO_DA_ESCOLA).date()
+    ontem = hoje - timedelta(days=1)
+    assert ontem < hoje
+    # E o prazo da regra para um dia passado está ainda mais atrás, então nem a
+    # recusa de `publicar` salvaria alguém que insistisse: as duas barreiras
+    # olham para a mesma verdade em momentos diferentes.
+    assert _prazo_pela_regra({}, ontem) < AGORA

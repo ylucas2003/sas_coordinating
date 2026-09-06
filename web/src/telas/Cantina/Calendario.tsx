@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { isoDoDia } from '../../dominio/cantina';
 import { useCalendarioDaCantina } from '../../hooks/cantina';
 import { GradeDeCardapios, janelaDoMes, NavegadorDeMes } from './GradeDeCardapios';
 
@@ -48,13 +49,20 @@ export function Calendario() {
         <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />
       </header>
 
-      {/* Toda célula é clicável, inclusive a vazia: é clicando no vazio que a
-          cantina cria o cardápio daquele dia. */}
+      {/* A célula VAZIA de um dia futuro é clicável — é clicando nela que a
+          cantina cria o cardápio. A de um dia que já passou, não: dia passado
+          nunca aceita pedido, então criar ali é sempre engano de navegação, e
+          foi assim que os três primeiros cardápios de produção nasceram
+          invisíveis.
+
+          Dia passado COM cardápio segue clicável: a cantina quer poder abrir o
+          que serviu e quem pediu. O que some é o convite a criar. */}
       <GradeDeCardapios
         ano={ano}
         mes={mes}
         dias={dias}
-        href={(data, refeicao) => `/cardapios/${data}/${refeicao}`}
+        href={(data, refeicao, dia) =>
+          (dia || data >= isoDoDia(new Date()) ? `/cardapios/${data}/${refeicao}` : null)}
       />
     </div>
   );
