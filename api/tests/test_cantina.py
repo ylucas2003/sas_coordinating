@@ -330,3 +330,22 @@ def test_prazo_da_regra_para_hoje_ja_nasce_no_passado():
     cantina = {"prazo_padrao_dias_antes": 1, "prazo_padrao_hora": "20:00:00"}
     hoje = AGORA.astimezone(FUSO_DA_ESCOLA).date()
     assert _prazo_pela_regra(cantina, hoje) < AGORA
+
+
+def test_dia_no_passado_nunca_recebe_pedido():
+    """A causa-raiz do primeiro defeito real em produção, em uma asserção.
+
+    A cantina navegou o calendário para trás e lançou três cardápios de 01/09 e
+    03/09 num dia 06/09. Eles publicaram sem reclamar e o aluno não viu nada —
+    `cantina_do_aluno` só devolve `data >= hoje`, e está certa nisso: um dia que
+    já passou não recebe pedido de ninguém.
+
+    O que faltava não era a leitura do aluno; era a barreira na criação.
+    """
+    hoje = AGORA.astimezone(FUSO_DA_ESCOLA).date()
+    ontem = hoje - timedelta(days=1)
+    assert ontem < hoje
+    # E o prazo da regra para um dia passado está ainda mais atrás, então nem a
+    # recusa de `publicar` salvaria alguém que insistisse: as duas barreiras
+    # olham para a mesma verdade em momentos diferentes.
+    assert _prazo_pela_regra({}, ontem) < AGORA

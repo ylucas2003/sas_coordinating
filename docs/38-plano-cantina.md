@@ -378,7 +378,26 @@ esquecer é resolvido no balcão, fora do sistema.** O ganho é que a contagem d
 `fechado` é definitiva de verdade — nada entra depois dela, então o número que
 vai para o fogão é o número que a tela mostrou.
 
-### 3.3.1 · ⚠️ Publicar com o prazo vencido entrega um cardápio INVISÍVEL
+### 3.3.1 · ⚠️ O primeiro defeito real: cardápio no passado, e prazo vencido
+
+Achado no primeiro uso em produção — a cantina publicou, e o aluno não viu
+nada. O diagnóstico no banco foi seco: três cardápios, datados **01/09 e
+03/09**, num dia **06/09**. Zero cardápios de hoje em diante.
+
+A leitura do aluno estava certa: `cantina_do_aluno` só devolve `data >= hoje`,
+porque um dia que já passou não recebe pedido de ninguém. O que faltava eram as
+barreiras do outro lado — **duas**, e elas olham a mesma verdade em momentos
+diferentes:
+
+* **criar** recusa `data < hoje`. É a causa-raiz: a cantina navegou o
+  calendário para trás e lançou ali. Dia passado nunca aceita pedido, então
+  criar um cardápio nele é sempre engano de navegação. O calendário também
+  deixou de convidar — a célula vazia de um dia passado ficou inerte, enquanto
+  a que já tem cardápio segue clicável (ver o que foi servido continua
+  valendo);
+* **publicar** recusa prazo vencido — a seguir.
+
+#### Publicar com o prazo vencido entrega um cardápio INVISÍVEL
 
 Achado em produção, no primeiro uso real. `publicar` conferia que `pedidos_ate`
 existe, e nunca que ele está no futuro. Publicado com prazo no passado, o

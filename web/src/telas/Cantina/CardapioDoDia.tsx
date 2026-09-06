@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import {
-  deInputLocal, instrucaoDoBloco, paraInputLocal, prazoAberto, ROTULO_DA_REFEICAO,
-  ROTULO_DO_ESTADO, rotuloDoDia,
+  deInputLocal, instrucaoDoBloco, isoDoDia, paraInputLocal, prazoAberto,
+  ROTULO_DA_REFEICAO, ROTULO_DO_ESTADO, rotuloDoDia,
 } from '../../dominio/cantina';
 import {
   useCalendarioDaCantina, useCardapio, useCopiarCardapio, useCriarCardapio,
@@ -62,19 +62,28 @@ export function CardapioDoDia() {
   if (isLoading) return <p className="cant-vazio">Carregando…</p>;
 
   if (!existente) {
+    // Dia que já passou nunca aceita pedido: aqui a tela explica, em vez de
+    // oferecer um botão cujo 422 chegaria depois do clique.
+    const passado = data < isoDoDia(new Date());
     return (
       <div className="cant-tela">
         <Cabeca data={data} refeicao={refeicao} estado="sem-cardapio" />
         <div className="cant-vazio">
           <p>Ainda não há cardápio para {ROTULO_DA_REFEICAO[refeicao].toLowerCase()} deste dia.</p>
-          <button
+          {passado && (
+            <p className="cant-aviso">
+              E este dia já passou — um cardápio no passado não recebe pedido de ninguém.
+              Escolha hoje ou um dia à frente.
+            </p>
+          )}
+          {!passado && <button
             type="button"
             className="cant-tecla cant-tecla--principal"
             disabled={criar.isPending}
             onClick={() => criar.mutate({ data, refeicao })}
           >
             {criar.isPending ? 'Criando…' : 'Criar cardápio'}
-          </button>
+          </button>}
           {criar.isError && <p className="cant-erro" role="alert">{mensagem(criar.error)}</p>}
         </div>
       </div>

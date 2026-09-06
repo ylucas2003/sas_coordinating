@@ -323,6 +323,26 @@ async def criar_cardapio(
     if body.refeicao not in REFEICOES:
         raise HTTPException(status_code=422, detail=f"refeicao deve ser uma de {REFEICOES}")
 
+    # ⚠️ Cardápio para data no PASSADO não é caso de borda — foi o primeiro
+    # defeito real em produção. A cantina navegou o calendário para trás e
+    # lançou três dias já vencidos: eles publicaram sem reclamar, a tela dela
+    # mostrou "Contagem final", e o aluno não viu nada, porque
+    # `cantina_do_aluno` só devolve `data >= hoje` (e está certa em fazer isso).
+    #
+    # Dia passado NUNCA aceita pedido, então criar um cardápio ali é sempre
+    # engano de navegação. Recusar aqui é a barreira que faltava — a de
+    # `publicar` pega o prazo vencido, mas só depois de a pessoa ter montado o
+    # cardápio inteiro.
+    hoje = _agora().astimezone(FUSO_DA_ESCOLA).date()
+    if body.data < hoje:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Esse dia já passou, e um cardápio no passado não recebe pedido. "
+                "Escolha hoje ou um dia à frente."
+            ),
+        )
+
     cliente = get_supabase()
     cantina = _cantina_por_id(cliente, usuario["cantina_id"])
 
