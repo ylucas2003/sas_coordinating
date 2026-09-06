@@ -357,7 +357,7 @@ dias cobrem qualquer antecedência real de cardápio.
 |---|---|
 | `GET /cantina/calendario?ano=&mes=` | Um objeto por dia: `sem-cardapio` / `rascunho` / `aberto` / `fechado` / `sem-refeicao`, + nº de pedidos |
 | `GET/POST/PUT /cantina/cardapios[/{id}]` | Montar o cardápio, blocos e opções |
-| `POST /cantina/cardapios/{id}/publicar` | Rascunho → publicado |
+| `POST /cantina/cardapios/{id}/publicar` | Rascunho → publicado. **Três recusas**, e as três são produto, não validação de formulário: sem prazo, sem opção, e com o **prazo já vencido** (§3.3.1) |
 | `POST /cantina/cardapios/{id}/copiar-de/{origem_id}` | O verbo do §2.2 |
 | `GET /cantina/cardapios/{id}/contagem` | **O que cozinhar** — agregado pela view |
 | `GET /cantina/cardapios/{id}/pedidos` | **O que servir** — linha por aluno |
@@ -377,6 +377,25 @@ recusada por simplicidade, e o custo dela é conhecido e aceito: **o aluno que
 esquecer é resolvido no balcão, fora do sistema.** O ganho é que a contagem de
 `fechado` é definitiva de verdade — nada entra depois dela, então o número que
 vai para o fogão é o número que a tela mostrou.
+
+### 3.3.1 · ⚠️ Publicar com o prazo vencido entrega um cardápio INVISÍVEL
+
+Achado em produção, no primeiro uso real. `publicar` conferia que `pedidos_ate`
+existe, e nunca que ele está no futuro. Publicado com prazo no passado, o
+cardápio some do produto sem sumir do banco: `cantina_do_aluno` continua
+devolvendo o dia, o card não tem estado que mostre (`escolher` exige prazo
+aberto), o `PUT` do pedido responde 409, e o calendário da cantina exibe
+"Contagem final" num dia em que ninguém pôde pedir.
+
+**E não é caso de borda — é o caminho padrão do engano mais fácil.** A regra da
+casa é "véspera às 20h", então um cardápio criado para **hoje** nasce com prazo
+de **ontem**. A regra que existe para poupar digitação virava armadilha
+exatamente para quem lança o almoço do próprio dia.
+
+Duas barreiras, porque uma só não basta: o servidor recusa com 422 e explica; o
+editor avisa antes do clique e desabilita "Publicar", que é onde dá para
+consertar sem susto. A tela pode estar aberta desde antes de o prazo vencer,
+então quem decide continua sendo o servidor.
 
 **A cantina pode esticar o prazo depois de publicar; encurtar, só para um
 instante ainda no futuro.** Esticar não tira nada de ninguém. Encurtar para o
