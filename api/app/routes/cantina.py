@@ -737,6 +737,36 @@ def _pedidos_do_cardapio(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
     return saida
 
 
+@router.get("/publico")
+async def publico_da_cantina(usuario: dict = Depends(get_current_cantina)) -> dict:
+    """Quantos alunos podem pedir cada refeição.
+
+    Existe por causa de um incidente: "publiquei e ninguém vê" tinha quatro
+    causas e nenhuma se anunciava. Duas viraram impossíveis (cardápio no
+    passado, prazo vencido); esta é a terceira — o cardápio está perfeito e
+    simplesmente **não tem público**, porque a coordenação ainda não concedeu o
+    direito àquela refeição.
+
+    ⚠️ Isto é AVISO, nunca recusa. Publicar antes de a coordenação conceder é
+    ordem de trabalho legítima — a cantina monta a semana, a coordenação libera
+    os alunos. Transformar em bloqueio inverteria a dependência entre duas
+    equipes que não se falam no mesmo minuto.
+
+    Conta em Python e não em view: a tabela é limitada por aluno (no máximo dois
+    por pessoa, ~1.800 linhas no teto do colégio), então não é a `pedido_refeicao_item`
+    da armadilha 2 — ali sim a agregação teve de descer para o banco.
+    """
+    cliente = get_supabase()
+    linhas = (
+        cliente.table("direito_refeicao_aluno").select("aluno_id, refeicao").execute().data or []
+    )
+    por_refeicao = {refeicao: 0 for refeicao in REFEICOES}
+    for linha in linhas:
+        if linha["refeicao"] in por_refeicao:
+            por_refeicao[linha["refeicao"]] += 1
+    return por_refeicao
+
+
 @router.get("/cardapios/{cardapio_id}/contagem")
 async def contagem_do_cardapio(
     cardapio_id: str,

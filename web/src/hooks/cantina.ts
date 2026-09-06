@@ -41,6 +41,16 @@ export function useCalendarioDaCantina(de: string, ate: string) {
   });
 }
 
+/** O público de cada refeição. Muda quando a coordenação concede direito —
+    raro —, então cinco minutos de frescor bastam. */
+export function usePublicoDaCantina() {
+  return useQuery({
+    queryKey: ['cantina', 'publico'],
+    queryFn: api.publicoDaCantina,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCardapio(id: string | undefined) {
   return useQuery({
     queryKey: chavesCantina.cardapio(id ?? ''),

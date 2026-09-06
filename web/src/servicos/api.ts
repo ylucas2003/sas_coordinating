@@ -374,6 +374,9 @@ export const publicarCardapio = (id: string) =>
     data nova, senão a terça nasceria com o prazo vencido da segunda. */
 export const copiarCardapio = (id: string, origemId: string) =>
   post<Cardapio>(`/cantina/cardapios/${enc(id)}/copiar-de`, { origem_id: origemId });
+/** Quantos alunos podem pedir cada refeição. Zero = cardápio sem público —
+    aviso, nunca impedimento (docs/38 §3.3.2). */
+export const publicoDaCantina = () => get<Record<Refeicao, number>>('/cantina/publico');
 export const contagemDoCardapio = (id: string) =>
   get<ContagemDeOpcao[]>(`/cantina/cardapios/${enc(id)}/contagem`);
 export const pedidosDoCardapio = (id: string) =>
