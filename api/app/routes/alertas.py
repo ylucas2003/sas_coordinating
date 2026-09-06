@@ -123,6 +123,38 @@ async def resolver_alerta(alerta_id: str) -> dict:
     return {"id": alerta_id, "resolvido": True}
 
 
+@router.post("/{alerta_id}/reabrir", dependencies=[Depends(get_current_coordenador)])
+async def reabrir_alerta(alerta_id: str) -> dict:
+    """Desfaz o resolver — a outra metade do botão do cartão (docs/39 §3, fase 1).
+
+    Resolver era a única ação do Painel sem volta: o cartão sumia da faixa e o
+    caminho de retorno era um UPDATE à mão no banco. Isso passava enquanto o
+    Painel tinha 900 linhas editáveis ao lado; no Painel novo sobram duas ações
+    (entrar por uma porta ou resolver um alerta), e a prancheta resolveu a
+    segunda com um desfazer curto — que só existe se o servidor souber reabrir.
+
+    `resolvido_em` volta a NULL junto, e não é detalhe: um alerta aberto
+    carregando a hora em que foi resolvido contradiz o próprio `resolvido`, e
+    quem lesse a coluna depois (relatório, auditoria) leria a contradição como
+    verdade.
+
+    Não há risco de alerta duplicado ao reabrir: `hash_dedup` é UNIQUE e o motor
+    faz `upsert(..., ignore_duplicates=True)` (`stats/alertas.py`), então a
+    varredura horária que rodou entre o resolver e o desfazer não criou uma
+    segunda linha — esta é a mesma.
+    """
+    cliente = get_supabase()
+    resp = (
+        cliente.table("alerta")
+        .update({"resolvido": False, "resolvido_em": None})
+        .eq("id", alerta_id)
+        .execute()
+    )
+    if not resp.data:
+        raise HTTPException(status_code=404, detail=f"alerta {alerta_id} não encontrado")
+    return {"id": alerta_id, "resolvido": False}
+
+
 @router.post("/verificar")
 def verificar_alertas(_: None = Depends(exigir_scheduler_secret)) -> dict:
     """Reavalia as 7 regras de alerta sobre o estado atual do cache.

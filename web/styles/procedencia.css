@@ -1,0 +1,92 @@
+/* ─── A tarja de procedência ─────────────────────────────────────────────
+   "De onde veio este número?" — a pílula que responde isso, em qualquer tela.
+   O porquê dos seis estados está em `componentes/ui/TarjaProcedencia.tsx`;
+   aqui fica só a anatomia, e ela vem da prancheta (Kit de peças · TARJA DE
+   PROCEDÊNCIA): pílula de 999px com contorno, glifo de 13px em traço 2, olho
+   de 10px em caixa alta com tracking .12em, e a fonte em 11px cinza.
+
+   ⚠️ Nenhum estado tem preenchimento, e é regra, não acaso: a tarja fala
+   SOBRE o dado e não pode competir com ele. É a R4 — o vermelho existe na
+   etiqueta e na falha operacional, e nunca pinta superfície.
+
+   Quem distingue os estados é a FORMA (o glifo), não a cor. O ouro saiu de
+   "gerado" porque no sistema novo o ouro é a RÉGUA e nada mais (docs/39 §3,
+   fase 1).
+   ─────────────────────────────────────────────────────────────────────── */
+
+.procedencia {
+  /* Três locais e não um, porque as três tintas divergem em `falhou`: o
+     vermelho de TRAÇO reprova em AA quando vira letra de 10px, e para isso
+     existe `--sas-alerta-texto` (ver o cabeçalho de `papeis.css`). */
+  --procedencia-tinta: var(--sas-texto-2);
+  --procedencia-letra: var(--sas-texto-2);
+  --procedencia-borda: var(--sas-borda);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--procedencia-borda);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* A divergência é uma escolha declarada, não um limbo: ela pesa um degrau a
+   mais que os estados de espera, e um degrau a menos que a falha. */
+.procedencia--divergente {
+  --procedencia-tinta: var(--sas-texto);
+  --procedencia-letra: var(--sas-texto);
+}
+
+/* O ÚNICO estado que usa ALERTA — falha operacional. */
+.procedencia--falhou {
+  --procedencia-tinta: var(--sas-alerta);
+  --procedencia-letra: var(--sas-alerta-texto);
+  --procedencia-borda: var(--sas-alerta);
+}
+
+.procedencia__glifo {
+  flex: none;
+  stroke: var(--procedencia-tinta);
+}
+
+.procedencia__olho {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--procedencia-letra);
+}
+
+/* A fonte é REFERÊNCIA (R5): ela contextualiza o dado, então fica atrás dele
+   — cinza em qualquer estado, inclusive na falha. */
+.procedencia__fonte {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--sas-texto-2);
+}
+
+/* ── O elo, quando a procedência tem endereço ────────────────────────────
+   A pílula tem 28px de altura e não vai crescer: 44px de tarja ao lado de um
+   título de 17px viraria a coisa mais alta do card. O alvo de toque cresce
+   por fora, num pseudo-elemento — 28 + 8 acima + 8 abaixo = 44px de área
+   clicável sem um pixel a mais de layout. */
+.procedencia-elo {
+  position: relative;
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.procedencia-elo::after {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+
+.procedencia-elo:hover .procedencia,
+.procedencia-elo:focus-visible .procedencia {
+  border-color: var(--sas-dado);
+}

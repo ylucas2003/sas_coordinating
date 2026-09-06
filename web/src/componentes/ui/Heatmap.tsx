@@ -98,7 +98,27 @@ function agruparPorCiclo(simulados: SimuladoHeatmap[]): Grupo[] {
  * a intensidade. Sem corte não há régua a ancorar: a célula vira uma rampa
  * sequencial de DADO sobre a razão nota/máximo — menos informação, e é honesto
  * que pareça menos.
+ *
+ * Os números são os do método `selo` do Kit de peças da prancheta, e são
+ * três: a mistura do preenchimento acima (`22 + p·78`%), e abaixo a espessura
+ * (`1 + p·1,6`px) e a tinta (`30 + p·55`%) do contorno. A rampa sem régua
+ * seguia outra (`18 + razão·72`), de antes do Kit existir: duas rampas
+ * ligeiramente diferentes na mesma tela fazem a mesma nota mudar de tom
+ * conforme a régua esteja carregada ou não, o que ninguém consegue explicar.
  */
+const LIMIAR_LETRA_CLARA = 0.5;
+
+function rampaAcima(intensidade: number): React.CSSProperties {
+  return {
+    background: `color-mix(in srgb, var(--sas-dado) ${Math.round(22 + intensidade * 78)}%, transparent)`,
+    // ⚠️ O Kit vira a letra em 0,28, e este é o único número dele que NÃO se
+    // copia: a prancheta foi desenhada no tema NOITE, onde `--sas-magnitude`
+    // já é branco e o limiar não decide nada. No dia ele põe branco sobre
+    // 44% de azul — 1,9:1, que reprova em AA e some no papel do dossiê.
+    color: intensidade > LIMIAR_LETRA_CLARA ? 'var(--sas-dado-texto-forte)' : 'var(--sas-magnitude)',
+  };
+}
+
 function estiloDaCelula(
   v: number,
   max: number,
@@ -107,11 +127,7 @@ function estiloDaCelula(
   const selo = seloDaNota(v, corte, max);
 
   if (selo.estado === 'sem-dado') {
-    const razao = Math.max(0, Math.min(1, v / max));
-    return {
-      background: `color-mix(in srgb, var(--color-dado) ${Math.round(18 + razao * 72)}%, transparent)`,
-      color: razao > 0.55 ? 'var(--color-dado-texto-forte)' : 'var(--color-magnitude)',
-    };
+    return rampaAcima(Math.max(0, Math.min(1, v / max)));
   }
 
   if (selo.estado === 'abaixo') {
@@ -119,16 +135,12 @@ function estiloDaCelula(
     const tinta = Math.round(30 + selo.intensidade * 55);
     return {
       background: 'transparent',
-      boxShadow: `inset 0 0 0 ${espessura}px color-mix(in srgb, var(--color-magnitude) ${tinta}%, transparent)`,
-      color: 'var(--color-magnitude)',
+      boxShadow: `inset 0 0 0 ${espessura}px color-mix(in srgb, var(--sas-magnitude) ${tinta}%, transparent)`,
+      color: 'var(--sas-magnitude)',
     };
   }
 
-  const mistura = Math.round(22 + selo.intensidade * 78);
-  return {
-    background: `color-mix(in srgb, var(--color-dado) ${mistura}%, transparent)`,
-    color: selo.intensidade > 0.5 ? 'var(--color-dado-texto-forte)' : 'var(--color-magnitude)',
-  };
+  return rampaAcima(selo.intensidade);
 }
 
 interface Props {

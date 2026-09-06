@@ -19,16 +19,16 @@
   /* `transparent` anulava a borda que o `.card` desenha: o cartão ficava sem
      aresta nenhuma, e a regra do sistema é que a superfície se separa do fundo
      pela BORDA. O hover troca a cor, não a existência dela. */
-  border: var(--color-border-largura) solid var(--color-border);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   transition: border-color 150ms;
 }
 .integracao-card:hover {
-  border-color: var(--color-border-strong);
+  border-color: var(--sas-borda);
   text-decoration: none;
 }
 /* O card é um link: sem foco visível ele some para quem navega por teclado. */
 .integracao-card:focus-visible {
-  outline: 2px solid var(--color-navy);
+  outline: 2px solid var(--sas-acao);
   outline-offset: 2px;
 }
 
@@ -42,7 +42,7 @@
 .integracao-card__titulo {
   font-size: 16px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   margin: 0;
 }
 /* `.tone-navy` só existe no global combinado com `.tag` e `.kpi__valor`; solto
@@ -55,22 +55,22 @@
 .integracao-card__estado {
   font-size: 13px;
   white-space: nowrap;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .integracao-card__estado.tone-vermelho {
-  color: var(--color-red);
+  color: var(--sas-alerta);
 }
 
 .integracao-card__texto {
   font-size: 14px;
   line-height: 1.5;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   margin: 0;
 }
 .integracao-card__acao {
   font-size: 14px;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   margin-top: 2px;
 }
 
@@ -102,8 +102,8 @@
   justify-content: center;
   gap: 1px;
   padding: 18px 8px;
-  background: var(--color-surface-inset);
-  border-right: 1px solid var(--color-border);
+  background: var(--sas-superficie-2);
+  border-right: 1px solid var(--sas-borda);
 }
 .gravacao__dia {
   font-size: 26px;
@@ -119,27 +119,27 @@
 }
 .gravacao__ano {
   font-size: 11px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-variant-numeric: tabular-nums;
 }
 
 /* A cor da tarja é a situação — a mesma escala das tags, em fundo suave. As
    classes `tone-*` globais pintam só o texto; o fundo é daqui. */
 .gravacao__data.tone-verde {
-  background: var(--color-green-soft);
-  color: var(--color-green);
+  background: color-mix(in srgb, var(--sas-dado) 14%, transparent);
+  color: var(--sas-dado);
 }
 .gravacao__data.tone-ambar {
-  background: var(--color-amber-soft);
-  color: var(--color-amber-text);
+  background: color-mix(in srgb, var(--sas-valor) 16%, transparent);
+  color: var(--sas-valor-texto);
 }
 .gravacao__data.tone-vermelho {
-  background: var(--color-red-soft);
-  color: var(--color-red);
+  background: color-mix(in srgb, var(--sas-alerta) 14%, transparent);
+  color: var(--sas-alerta);
 }
 .gravacao__data.tone-navy {
-  background: var(--color-navy-tint);
-  color: var(--color-navy);
+  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
+  color: var(--sas-acao);
 }
 
 .gravacao__corpo {
@@ -155,7 +155,7 @@
   font-size: 15px;
   font-weight: 500;
   line-height: 1.35;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   margin: 0;
   /* Título de professor não tem teto de tamanho. Duas linhas e reticências
      mantêm a altura dos cards comparável sem cortar no meio de uma palavra. */
@@ -167,7 +167,7 @@
 }
 .gravacao__curso {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -190,7 +190,7 @@
 
 .gravacao__erro {
   font-size: 12px;
-  color: var(--color-red);
+  color: var(--sas-alerta);
   margin: 2px 0 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -212,7 +212,7 @@
 }
 .gravacao__quando {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-variant-numeric: tabular-nums;
 }
 .gravacao__assistir {

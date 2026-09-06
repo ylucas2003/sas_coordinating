@@ -1,57 +1,79 @@
 /* A CANTINA — o casco próprio e as telas dela, mais o que a coordenação lê.
  *
- * Usa os tokens da COORDENAÇÃO (`--color-*`), e não os do aluno: quem trabalha
+ * Lê os papéis direto (`--sas-*`), e não os apelidos do aluno: quem trabalha
  * aqui é adulto, no desktop, o dia inteiro — a mesma densidade e a mesma escala
  * tipográfica das telas de trabalho. A área do aluno tem folha própria
  * (`aluno-cantina.css`).
  *
- * ⚠️ Nenhuma sombra flutuante, e nenhuma cor carregando estado sozinha: os
- * cinco estados do calendário aparecem por preenchimento E por rótulo escrito
- * (brief §Restrições, docs/37). Quem lê "Contagem final" não precisa saber o
- * que a cor quer dizer. */
+ * ⚠️ Nenhuma sombra flutuante, e **nenhuma cor carregando estado sozinha**: os
+ * cinco estados do calendário aparecem por preenchimento, por GLIFO e por
+ * rótulo escrito. Quem lê "não lançado" não precisa saber o que a hachura quer
+ * dizer (brief §Restrições, docs/37, docs/39 fase 5).
+ *
+ * ⚠️ Nem verde nem vermelho em estado. O único vermelho desta folha é
+ * `.cant-tecla--risco` — desativar a cantina inteira —, e ele obedece à R4:
+ * falha operacional e ação de consequência, nunca "está ruim".
+ */
 
 .cant-shell {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg);
-  color: var(--color-text-primary);
+  background: var(--sas-fundo);
+  color: var(--sas-texto);
 }
 
-/* ─── Topo ───────────────────────────────────────────────────────────── */
+/* ─── Topo (casco da cantina) ────────────────────────────────────────── */
 
 .cant-topo {
   display: flex;
   align-items: center;
   gap: 20px;
   padding: 10px 20px;
-  border-bottom: var(--sas-borda-l, 1px) solid var(--color-border, var(--sas-borda));
-  background: var(--color-surface);
+  border-bottom: var(--sas-borda-l, 1px) solid var(--sas-borda);
+  background: var(--sas-superficie);
 }
 
 .cant-marca { display: flex; align-items: center; gap: 10px; }
 .cant-marca__texto { display: flex; flex-direction: column; line-height: 1.15; }
-.cant-marca__sub { font-size: 12px; color: var(--color-text-secondary); }
+.cant-marca__sub { font-size: 12px; color: var(--sas-texto-2); }
 
 .cant-nav { display: flex; gap: 4px; margin-left: auto; }
 
 .cant-nav__link {
   /* 44px de alvo: é a régua de toque do projeto, e a cantina usa isto num
      tablet no balcão tanto quanto num desktop na cozinha. */
-  min-height: var(--alu-toque, 44px);
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   padding: 0 14px;
-  border-radius: 999px;
-  color: var(--color-text-secondary);
+  border-radius: var(--radius-pill);
+  color: var(--sas-texto-2);
   text-decoration: none;
 }
 
 .cant-nav__link.active,
-.cant-nav__link:hover { background: var(--color-navy-tint); color: var(--color-text-primary); }
+.cant-nav__link:hover {
+  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
+  color: var(--sas-texto);
+}
 
 .cant-topo__conta { display: flex; align-items: center; gap: 12px; }
-.cant-topo__nome { font-size: 13px; color: var(--color-text-secondary); }
+.cant-topo__nome { font-size: 13px; color: var(--sas-texto-2); }
+
+/* Estava em uso sem definição desde 05/09: o botão de sair aparecia como
+   `<button>` cru no meio de uma barra desenhada. */
+.cant-sair {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--sas-texto-2);
+  cursor: pointer;
+}
+
+.cant-sair:hover { color: var(--sas-texto); border-color: var(--sas-fio-forte); }
 
 .cant-main { flex: 1; padding: 20px; }
 .cant-tela { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
@@ -67,9 +89,11 @@
 }
 
 .cant-titulo { font-size: 22px; margin: 0; }
-.cant-sub { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 13px; }
+.cant-sub { margin: 4px 0 0; color: var(--sas-texto-2); font-size: 13px; line-height: 1.55; }
 
-/* O chevron de volta na MESMA linha do título — a regra C4 do padrão de campo. */
+/* O chevron de volta na MESMA linha do título — a regra C4 do padrão de campo.
+   Nas telas da coordenação quem o desenha é `CabecaDeCampo`; este aqui serve o
+   casco da cantina, que não usa aquele componente. */
 .cant-voltar {
   display: inline-flex;
   align-items: center;
@@ -77,121 +101,585 @@
   width: 44px; height: 44px;
   margin-left: -12px;
   font-size: 24px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   text-decoration: none;
 }
 
+/* A linha logo abaixo do cabeçalho: o dado vivo da tela, ou a frase que
+   explica o que ela é. Nunca as duas — a tela diz uma coisa de cada vez. */
+.cant-intro {
+  margin: -8px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+  max-width: 78ch;
+}
+
+/* A nota de rodapé de tela: por que a tela não oferece algo, ou o que ela
+   protege. Fica no fim porque é justificativa, não instrução. */
+.cant-nota {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+  max-width: 84ch;
+}
+
+.cant-nota a { color: inherit; text-decoration: underline; }
+
+/* Só para leitor de tela. A célula do calendário escreve "rascunho" no lugar
+   de "janta", e quem ouve a tela não pode perder de qual refeição se trata. */
+.cant-so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .cant-meses { display: flex; align-items: center; gap: 8px; }
-.cant-mes { min-width: 150px; text-align: center; font-variant-numeric: tabular-nums; }
+
+.cant-mes {
+  min-width: 150px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--sas-magnitude);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ─── Teclas ─────────────────────────────────────────────────────────── */
 
 .cant-tecla {
-  min-height: var(--alu-toque, 44px);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 0 14px;
   border: 1px solid var(--sas-borda);
-  border-radius: 10px;
-  background: var(--color-surface);
-  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--sas-texto);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
 }
 
-.cant-tecla:hover:not(:disabled) { background: var(--color-surface-inset); }
+.cant-tecla:hover:not(:disabled) { border-color: var(--sas-fio-forte); }
 .cant-tecla:disabled { opacity: 0.5; cursor: not-allowed; }
-.cant-tecla--principal { background: var(--color-navy); color: var(--color-navy-texto); border-color: transparent; }
-.cant-tecla--fina { min-height: 32px; padding: 0 10px; font-size: 12px; }
+
+/* A tecla de ação, com o degrau embaixo que ela afunda ao ser pressionada. */
+.cant-tecla--principal {
+  background: var(--sas-acao);
+  color: var(--sas-acao-texto);
+  border-color: transparent;
+  box-shadow: 0 3px 0 0 var(--sas-acao-base);
+}
+
+.cant-tecla--principal:active:not(:disabled) { transform: translateY(3px); box-shadow: none; }
+.cant-tecla--quadrada { width: 44px; padding: 0; color: var(--sas-magnitude); }
+.cant-tecla--fina { min-height: 40px; padding: 0 12px; font-weight: 400; }
+
+/* Conceder é a metade POSITIVA de um par: ela toma a borda em dado, e a de
+   revogar fica na borda neutra. A diferença é de ênfase, não de semáforo —
+   revogar não é erro. */
+.cant-tecla--conceder { border-color: var(--sas-dado); color: var(--sas-dado); }
+
+.cant-tecla--nua {
+  border-color: transparent;
+  color: var(--sas-texto-2);
+  font-weight: 400;
+  min-height: 40px;
+  padding: 0 10px;
+}
+
+/* O único vermelho da folha. Ver o comentário do topo. */
+.cant-tecla--risco {
+  min-height: 48px;
+  border: 1.5px solid var(--sas-alerta);
+  color: var(--sas-alerta-texto);
+}
+
+.cant-tecla--risco:hover:not(:disabled) { border-color: var(--sas-alerta); }
+
+/* ─── O hub de /cantina ──────────────────────────────────────────────── */
+
+/* Duas composições declaradas, e não uma grade de três com um buraco: o card
+   de "administrar cantinas" SOME para quem não é administrador, e três cards e
+   dois cards não são a mesma grade. `max-width` acompanha, senão dois cards
+   esticam para a largura de três e viram outra coisa. */
+.cant-hub { display: grid; gap: 16px; }
+.cant-hub--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1120px; }
+.cant-hub--dois { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; }
+
+@media (max-width: 1000px) {
+  .cant-hub--tres,
+  .cant-hub--dois { grid-template-columns: 1fr; max-width: none; }
+}
 
 /* ─── O calendário ───────────────────────────────────────────────────── */
+
+/* A legenda dos cinco estados, em contorno tracejado: ela é aparato de
+   leitura, não dado, e o tracejado diz isso sem precisar de rótulo. Decorar
+   cinco preenchimentos antes de ler ~60 células é o que faz alguém desistir da
+   tela. */
+.cant-legenda {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px dashed var(--sas-borda);
+  border-radius: var(--radius-sm);
+}
+
+.cant-legenda__olho {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+.cant-legenda__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
+.cant-legenda__amostra {
+  width: 34px;
+  height: 24px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
 
 .cant-grade {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
+  padding: 16px;
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
 }
 
 .cant-grade__cabeca {
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-tertiary);
+  font-weight: 500;
+  color: var(--sas-texto-2);
+  text-align: center;
   padding-bottom: 4px;
 }
 
 .cant-dia {
-  min-height: 118px;
-  padding: 6px;
-  border: 1px solid var(--sas-borda);
-  border-radius: 12px;
-  background: var(--color-surface);
+  min-height: 96px;
+  padding: 7px;
+  border: 1px solid var(--sas-fio);
+  border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
-.cant-dia--vazio { border-color: transparent; background: none; }
-/* Hoje é marcado pela BORDA, não por preenchimento: o preenchimento das
-   células já significa outra coisa, e dois significados na mesma tinta é
-   exatamente o que o fim do semáforo veio resolver. */
-.cant-dia--hoje { border-color: var(--color-navy); border-width: 2px; }
-.cant-dia__numero { font-size: 12px; color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+.cant-dia--vazio { border-color: transparent; }
+
+/* Hoje é REALCE de fundo mais o numeral em dado — não uma borda de ação. O
+   ouro é a régua de corte no resto do produto, e gastá-lo em "hoje" faria a
+   única tinta com significado fixo significar duas coisas. */
+.cant-dia--hoje { background: var(--sas-realce); }
+
+.cant-dia__topo { display: flex; align-items: baseline; gap: 6px; }
+
+.cant-dia__numero {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sas-magnitude);
+  font-variant-numeric: tabular-nums;
+}
+
+.cant-dia--hoje .cant-dia__numero { color: var(--sas-dado); }
+
+.cant-dia__hoje {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sas-dado);
+}
 
 .cant-celula {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 5px 7px;
+  flex: 1;
   border-radius: 8px;
-  border: 1px solid var(--sas-borda);
+  padding: 5px 7px;
   text-decoration: none;
   color: inherit;
-  font-size: 11px;
-  min-height: 44px;
-  justify-content: center;
+  min-height: 34px;
+  display: block;
+  position: relative;
 }
 
-.cant-celula:hover { border-color: var(--color-navy); }
-.cant-celula--inerte { opacity: 0.55; cursor: default; }
-.cant-celula__refeicao { font-weight: 600; }
-.cant-celula__estado { color: var(--color-text-secondary); }
-.cant-celula__pedidos { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+.cant-celula__face {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+}
 
-/* Os cinco estados. Vazado → preenchido acompanha "não existe → existe →
-   contado", que é a mesma gramática de intensidade do resto do produto: acima
-   do corte é preenchido, abaixo é vazado. */
-.cant-celula--sem-cardapio { border-style: dashed; color: var(--color-text-tertiary); }
-.cant-celula--rascunho { background: var(--color-neutral-soft); }
-.cant-celula--aberto { background: var(--color-navy-soft); border-color: var(--color-navy); }
-.cant-celula--fechado { background: var(--color-navy); color: var(--color-navy-texto); border-color: transparent; }
-.cant-celula--fechado .cant-celula__estado,
-.cant-celula--fechado .cant-celula__pedidos { color: inherit; opacity: 0.85; }
-.cant-celula--sem-refeicao { background: var(--color-hachura); color: var(--color-text-tertiary); }
+.cant-celula__glifo { flex: none; }
 
-/* ─── O editor ───────────────────────────────────────────────────────── */
+.cant-celula__rotulo {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cant-celula__pedidos { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cant-celula:not(.cant-celula--inerte):hover { outline: 1px solid var(--sas-fio-forte); }
+.cant-celula--inerte { cursor: default; }
+
+/* ─── Os cinco estados ───────────────────────────────────────────────────
+   `aberto` e `fechado` compartilham o preenchimento porque são o MESMO
+   cardápio em dois momentos do relógio — a passagem entre eles não é ação de
+   ninguém, acontece sozinha quando o prazo vence. O que os separa é o glifo
+   (relógio × cadeado) e a redação do prazo. Se divergissem de cor, leriam como
+   coisas diferentes.
+
+   As duas ausências se distinguem por NATUREZA: `sem-cardapio` é hachura — o
+   vazio que o sistema conhece; `rascunho` é contorno tracejado com o lápis,
+   porque existe conteúdo e o aluno não vê. `sem-refeicao` não é falta: é uma
+   diagonal em fio de referência dizendo "não se aplica".
+   ─────────────────────────────────────────────────────────────────────── */
+
+.cant-celula--aberto,
+.cant-celula--fechado {
+  background: color-mix(in srgb, var(--sas-dado) 26%, transparent);
+  border: 1px solid transparent;
+  color: var(--sas-magnitude);
+  font-weight: 600;
+}
+
+.cant-celula--aberto .cant-celula__glifo { color: var(--sas-dado); }
+.cant-celula--fechado .cant-celula__glifo { color: var(--sas-texto-2); }
+
+.cant-celula--rascunho {
+  background: transparent;
+  border: 1.5px dashed var(--sas-fio-forte);
+  color: var(--sas-texto-2);
+  font-weight: 500;
+}
+
+.cant-celula--sem-cardapio {
+  background: var(--sas-hachura);
+  border: 1px solid var(--sas-fio);
+  color: var(--sas-texto-2);
+  font-weight: 400;
+}
+
+.cant-celula--sem-refeicao {
+  background: transparent;
+  border: 1px solid var(--sas-fio);
+  color: var(--sas-texto-2);
+  font-weight: 400;
+}
+
+.cant-celula--sem-refeicao .cant-celula__glifo { color: var(--sas-fio-forte); }
+
+/* ─── O dia (/cantina/:data) ─────────────────────────────────────────── */
+
+/* A magnitude: UM número, e ele responde "vale abrir isto hoje?". É a mesma
+   regra do card com magnitude do Painel — por isso há no máximo uma por
+   superfície. */
+.cant-magnitude { display: flex; align-items: baseline; gap: 10px; }
+
+.cant-magnitude--linha { margin: 0; }
+
+.cant-magnitude__numero {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--sas-magnitude);
+  font-variant-numeric: tabular-nums;
+}
+
+.cant-magnitude__legenda { font-size: 13px; color: var(--sas-texto-2); max-width: 22ch; }
+
+.cant-dia-duplo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .cant-dia-duplo { grid-template-columns: 1fr; }
+}
+
+.cant-refeicao {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
+}
+
+/* Inerte NÃO é desabilitado: um card desabilitado diz "você não pode", o
+   inerte diz "não há" — e quem não lança cardápio aqui é a coordenação. */
+.cant-refeicao--inerte {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--sas-fio-forte);
+}
+
+.cant-refeicao__cabeca { display: flex; align-items: center; gap: 10px; }
+.cant-refeicao__glifo { flex: none; color: var(--sas-dado); }
+.cant-refeicao--inerte .cant-refeicao__glifo { color: var(--sas-fio-forte); }
+
+.cant-refeicao__nome {
+  flex: 1;
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-dado);
+}
+
+.cant-refeicao--inerte .cant-refeicao__nome { color: var(--sas-texto-2); }
+
+.cant-refeicao__secao { border-top: 1px solid var(--sas-fio); padding-top: 13px; }
+
+/* O OLHO: rótulo de seção em caixa alta pequena. Ele é texto SECUNDÁRIO e não
+   dado — o azul é o valor medido (R3/R7), e gastá-lo num rótulo tirava do
+   dado a única cor que o distingue. */
+.cant-refeicao__olho {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+  margin: 0 0 12px;
+}
+
+/* O selo de estado, na pílula. Ele repete em palavras o que o glifo da célula
+   diz na grade — é a metade que sobrevive a quem não distingue cor. */
+.cant-selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sas-texto-2);
+  white-space: nowrap;
+}
+
+.cant-selo--aberto { border-color: var(--sas-dado); color: var(--sas-dado); }
+.cant-selo--rascunho { border-style: dashed; border-color: var(--sas-fio-forte); }
+
+.cant-itens { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.cant-itens__bloco { display: grid; gap: 6px; }
+
+.cant-itens__titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.cant-itens__instrucao { font-size: 11px; font-weight: 400; color: var(--sas-texto-2); }
+.cant-itens__opcoes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+
+.cant-itens__opcao {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--sas-texto);
+}
+
+.cant-itens__opcao--fora { color: var(--sas-texto-2); }
+
+.cant-itens__quantos {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cant-fichas { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+
+.cant-ficha {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 5px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+}
+
+.cant-ficha__iniciais,
+.cant-direitos__iniciais {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.cant-ficha__nome { font-size: 12px; color: var(--sas-texto); }
+
+/* A MARCA de que existe restrição — nunca o texto. O texto é dado de saúde de
+   menor e só abre sob clique, em /cantina/direitos. */
+.cant-ficha__marca { flex: none; color: var(--sas-valor); }
+
+.cant-elo {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cant-elo:hover { color: var(--sas-texto); }
+
+/* ─── Uma refeição (/cantina/:data/:refeicao) ────────────────────────── */
+
+.cant-colunas,
+.cant-contagem { display: grid; gap: 16px; }
+
+@media (min-width: 900px) {
+  .cant-colunas { grid-template-columns: 1fr 1fr; }
+  /* A contagem de produção do casco da CANTINA quebra por largura, não em
+     duas colunas fixas: lá ela é a tela inteira, com um cartão por bloco. */
+  .cant-contagem { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+}
+
+.cant-contagem__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+
+.cant-contagem__linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--sas-fio);
+}
+
+.cant-contagem__linha--fora { color: var(--sas-texto-2); }
+.cant-contagem__nome { display: flex; gap: 8px; align-items: baseline; }
+.cant-contagem__bloco { font-size: 11px; color: var(--sas-texto-2); }
+
+/* O número em magnitude: é o que se lê de longe, com a mão na panela. */
+.cant-contagem__numero {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sas-magnitude);
+}
+
+.cant-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+
+.cant-lista__linha {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: var(--sas-superficie);
+}
+
+.cant-lista__aluno { display: flex; gap: 8px; align-items: baseline; }
+.cant-lista__turma { font-size: 12px; color: var(--sas-texto-2); }
+.cant-lista__escolhas { font-size: 13px; color: var(--sas-texto-2); }
+
+/* No BALCÃO da cantina a restrição aparece por extenso, e isso é deliberado:
+   é lá que ela muda o que sai do prato, e quem lê é quem monta o prato. Na
+   coordenação ela é só uma marca (`.cant-lista__marca`) — a mesma informação,
+   dois públicos, dois níveis de exposição (docs/38 §2.6). */
+.cant-lista__restricao {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sas-valor) 16%, transparent);
+  font-size: 13px;
+  color: var(--sas-texto);
+}
+
+/* Diz que existe, não o quê. Mesma regra da ficha do dia. */
+.cant-lista__marca {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--sas-valor);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  color: var(--sas-valor-texto);
+}
+
+/* ─── O editor (casco da cantina) ────────────────────────────────────── */
 
 .cant-secao {
   display: grid;
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--sas-borda);
-  border-radius: 14px;
-  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
 }
 
+/* A seção de copiar de outro dia: contorno tracejado, porque é atalho e não
+   conteúdo do cardápio que está sendo montado. */
+.cant-secao--copiar { background: transparent; border-style: dashed; }
+
 .cant-secao__titulo { margin: 0; font-size: 15px; }
-.cant-secao__ajuda { margin: 0; font-size: 12px; color: var(--color-text-secondary); }
+.cant-secao__ajuda { margin: 0; font-size: 12px; color: var(--sas-texto-2); }
 .cant-copiar { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .cant-campo { display: grid; gap: 4px; max-width: 420px; }
-.cant-campo__rotulo { font-size: 12px; color: var(--color-text-secondary); }
-.cant-campo__ajuda { font-size: 12px; color: var(--color-text-tertiary); }
+.cant-campo__rotulo { font-size: 12px; color: var(--sas-texto-2); }
+.cant-campo__ajuda { font-size: 12px; color: var(--sas-texto-2); }
 
 .cant-input {
-  min-height: var(--alu-toque, 44px);
+  min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--sas-borda);
-  border-radius: 10px;
-  background: var(--color-surface);
-  color: var(--color-text-primary);
+  border-radius: var(--radius-sm);
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
   font: inherit;
   width: 100%;
 }
@@ -205,22 +693,21 @@
 .cant-bloco {
   padding: 14px;
   border: 1px solid var(--sas-borda);
-  border-radius: 14px;
-  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
   display: grid;
   gap: 10px;
 }
 
-.cant-bloco--leitura { background: var(--color-surface-inset); }
+.cant-bloco--leitura { background: var(--sas-superficie-2); }
 .cant-bloco__cabeca { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .cant-bloco__titulo { margin: 0; font-size: 14px; display: flex; gap: 10px; align-items: baseline; }
-.cant-bloco__instrucao { margin: 0; font-size: 12px; color: var(--color-text-secondary); font-weight: 400; }
-.cant-mini { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-text-secondary); }
+.cant-bloco__instrucao { margin: 0; font-size: 12px; color: var(--sas-texto-2); font-weight: 400; }
+.cant-mini { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--sas-texto-2); }
 
 .cant-opcoes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .cant-opcao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cant-opcao .cant-input { max-width: 320px; }
-.cant-opcoes--leitura { gap: 4px; padding-left: 2px; }
 
 .cant-acoes { display: flex; gap: 10px; flex-wrap: wrap; }
 
@@ -228,18 +715,16 @@
 .cant-erro {
   margin: 0;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
 }
 
-.cant-aviso { background: var(--color-amber-soft); color: var(--color-text-primary); }
+.cant-aviso { background: color-mix(in srgb, var(--sas-valor) 16%, transparent); color: var(--sas-texto); }
 /* Vermelho SÓ em falha operacional — é o que sobrou dele depois do fim do
    semáforo (docs/37). */
-.cant-erro { background: var(--color-red-soft); color: var(--color-text-primary); }
+.cant-erro { background: color-mix(in srgb, var(--sas-alerta) 14%, transparent); color: var(--sas-texto); }
 
-.cant-vazio { color: var(--color-text-secondary); text-align: center; padding: 24px; }
-
-/* ─── Pedidos ────────────────────────────────────────────────────────── */
+.cant-vazio { color: var(--sas-texto-2); text-align: center; padding: 24px; }
 
 .cant-abas { display: flex; gap: 4px; }
 
@@ -247,109 +732,308 @@
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid var(--sas-borda);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: none;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   cursor: pointer;
 }
 
-.cant-aba--ativa { background: var(--color-navy); color: var(--color-navy-texto); border-color: transparent; }
-
-.cant-contagem,
-.cant-colunas { display: grid; gap: 16px; }
-@media (min-width: 900px) {
-  .cant-contagem { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-  .cant-colunas { grid-template-columns: 1fr 1fr; }
-}
-
-.cant-contagem__lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-
-.cant-contagem__linha {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--sas-borda);
-}
-
-.cant-contagem__linha--fora { opacity: 0.55; }
-.cant-contagem__nome { display: flex; gap: 8px; align-items: baseline; }
-.cant-contagem__bloco { font-size: 11px; color: var(--color-text-tertiary); }
-
-/* O número em magnitude: é o que se lê de longe, com a mão na panela. */
-.cant-contagem__numero {
-  font-size: 26px;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-magnitude);
-}
+.cant-aba--ativa { background: var(--sas-realce); color: var(--sas-magnitude); border-color: var(--sas-dado); }
 
 .cant-tarja {
   margin-left: 6px;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  background: var(--color-neutral-soft);
-  color: var(--color-text-secondary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-texto-2);
 }
 
-.cant-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+/* ─── Direitos (/cantina/direitos) ───────────────────────────────────── */
 
-.cant-lista__linha {
-  display: grid;
-  gap: 2px;
-  padding: 10px 12px;
-  border: 1px solid var(--sas-borda);
-  border-radius: 12px;
-  background: var(--color-surface);
+.cant-kpis { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* O KPI com legenda. `<Kpi>` entrega o olho e a magnitude; a legenda é o que
+   abre o número em partes ("62 almoço · 41 janta · 16 os dois") sem gastar uma
+   segunda magnitude na tela. */
+.cant-kpi {
+  min-width: 148px;
+  padding: 12px 16px;
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
 }
 
-.cant-lista__aluno { display: flex; gap: 8px; align-items: baseline; }
-.cant-lista__turma { font-size: 12px; color: var(--color-text-tertiary); }
-.cant-lista__escolhas { font-size: 13px; color: var(--color-text-secondary); }
+.cant-kpi__legenda { display: block; margin-top: 8px; font-size: 11px; color: var(--sas-texto-2); }
 
-/* A restrição é a informação que muda o que sai do balcão: ela tem destaque
-   próprio, e não uma coluna qualquer. */
-.cant-lista__restricao {
-  font-size: 13px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  background: var(--color-amber-soft);
-  justify-self: start;
-}
-
-/* ─── Administração (dentro do casco da coordenação) ─────────────────── */
-
-.cant-admin__cantina { padding: 12px 0; border-top: 1px solid var(--sas-borda); }
-.cant-admin__cantina:first-of-type { border-top: none; }
-.cant-admin__nome { margin: 0; font-size: 15px; display: flex; gap: 8px; align-items: baseline; }
-
-.cant-admin__lote {
+/* A barra de lote existe SÓ quando há seleção. Uma barra permanente dizendo
+   "selecione alunos" ocupa a linha mais cara da tela para dar uma instrução
+   que o subtítulo já deu. */
+.cant-lote {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--color-surface-inset);
-  font-size: 13px;
-  margin-bottom: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 11px 14px;
+  border: 1px solid var(--sas-dado);
+  border-radius: var(--radius-sm);
+  background: var(--sas-realce);
 }
 
-.cant-admin__par { display: inline-flex; gap: 4px; }
-.cant-senha { font-family: ui-monospace, monospace; font-size: 18px; letter-spacing: 0.04em; }
-.linha--inativa { opacity: 0.55; }
+.cant-lote__quantos { flex: 1; min-width: 180px; font-size: 14px; color: var(--sas-texto); }
+.cant-lote__nota { color: var(--sas-texto-2); }
+.cant-lote__par { display: inline-flex; gap: 6px; }
 
-/* A faixa de ações do cabeçalho: o mês e a travessia para o outro lado da
-   cantina. Ela existe porque as DUAS telas da coordenação — o calendário e as
-   contas — precisam levar uma à outra: o card do hub aponta para uma só, e a
-   que ficasse sem link seria alcançável só digitando a URL. */
-.cant-cabeca__acoes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.cant-cabeca__acoes .cant-tecla { text-decoration: none; display: inline-flex; align-items: center; }
+/* A superfície que segura a tabela: borda e rolagem próprias, para o cabeçalho
+   grudar sem o `<main>` inteiro rolar junto. */
+.cant-superficie {
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
+  overflow: auto;
+  max-height: 70dvh;
+}
 
-/* As ações do estabelecimento — editar, nova conta, desativar. Ficam acima da
-   tabela de contas porque são sobre a CANTINA, e a tabela é sobre as pessoas
-   dela: duas escalas diferentes na mesma seção. */
-.cant-admin__acoes { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.cant-direitos { min-width: 760px; }
+
+.cant-direitos thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--sas-superficie);
+}
+
+.cant-direitos__marca { width: 44px; }
+.cant-direitos__linha--marcada { background: var(--sas-realce); }
+.cant-direitos__aluno { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cant-direitos__nome { display: block; }
+
+.cant-direitos__matricula {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--sas-texto-2);
+}
+
+.cant-direitos__nenhum {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+.cant-pilulas { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* A pílula do direito, na própria linha. Preenchida = tem (R1: preenchido é o
+   estado positivo, vazado é a ausência) — e o glifo troca junto, de garfo para
+   confirmação, porque a leitura não pode depender do preenchimento sozinho. */
+.cant-pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px 6px 8px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--sas-texto-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+button.cant-pilula:disabled { opacity: 0.5; cursor: not-allowed; }
+span.cant-pilula { cursor: default; }
+
+.cant-pilula--tem {
+  border-color: var(--sas-dado);
+  background: color-mix(in srgb, var(--sas-dado) 18%, transparent);
+  color: var(--sas-magnitude);
+}
+
+.cant-pilula--tem svg { color: var(--sas-dado); }
+
+/* O gatilho da restrição. Ouro, e não vermelho: não é falha nem alerta — é
+   informação que muda o que sai do balcão. */
+.cant-pilula--saude { color: var(--sas-texto); }
+.cant-pilula--saude svg { color: var(--sas-valor); }
+
+/* A revelação do dado de saúde.
+   Deliberada, mas não escondida: quem precisa, precisa rápido. */
+.cant-saude {
+  margin-top: 9px;
+  padding: 11px 13px;
+  border: 1px solid var(--sas-valor);
+  border-radius: var(--radius-sm);
+  background: var(--sas-fundo);
+  max-width: 340px;
+}
+
+.cant-saude__olho {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-valor-texto);
+}
+
+.cant-saude__texto { margin: 10px 0 0; font-size: 14px; line-height: 1.5; color: var(--sas-texto); }
+.cant-saude__acoes { display: flex; gap: 10px; margin-top: 12px; }
+.cant-saude__acoes .cant-tecla { min-height: 40px; }
+
+/* ─── Acesso (/cantina/acesso) ───────────────────────────────────────── */
+
+.cant-estabelecimento {
+  display: grid;
+  gap: 16px;
+  padding: 18px 20px;
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
+  max-width: 1100px;
+}
+
+.cant-estabelecimento__cabeca {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cant-estabelecimento__nome {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--sas-magnitude);
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+/* A ação de raio maior fica separada por um fio, com a explicação ao lado —
+   nunca solta na fileira de "renomear". */
+.cant-estabelecimento__risco {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--sas-fio);
+  padding-top: 16px;
+}
+
+.cant-estabelecimento__risco .cant-sub { flex: 1; min-width: 280px; margin: 0; }
+
+.cant-contas { border: 1px solid var(--sas-borda); border-radius: var(--radius-lg); overflow: hidden; }
+
+.cant-contas__cabeca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--sas-borda);
+}
+
+.cant-contas__cabeca .cant-refeicao__olho { flex: 1; margin: 0; }
+
+.cant-conta {
+  display: grid;
+  grid-template-columns: 1.5fr 1.2fr 120px auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--sas-fio);
+}
+
+@media (max-width: 900px) {
+  .cant-conta { grid-template-columns: 1fr; }
+}
+
+.cant-conta__quem { display: grid; gap: 4px; min-width: 0; }
+.cant-conta__nome { font-size: 15px; color: var(--sas-texto); }
+.cant-conta__email { font-size: 11px; color: var(--sas-texto-2); }
+.cant-conta__ultimo { font-size: 13px; color: var(--sas-texto-2); }
+.cant-conta__acoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.cant-contas .cant-nota { padding: 14px 18px; }
+
+/* O primeiro dia. O estado vazio DÁ O CAMINHO — instrução sem caminho é pior
+   que estado vazio mudo, e foi assim que a primeira cantina não teve como
+   nascer (docs/38). */
+.cant-primeiro-dia {
+  display: flex;
+  align-items: center;
+  gap: 44px;
+  padding: 26px;
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
+  max-width: 1060px;
+  flex-wrap: wrap;
+}
+
+.cant-primeiro-dia__titulo {
+  margin: 14px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--sas-magnitude);
+}
+
+.cant-primeiro-dia__texto {
+  margin: 12px 0 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sas-texto-2);
+  max-width: 52ch;
+}
+
+.cant-primeiro-dia__desenho { flex: none; color: var(--sas-fio-forte); }
+
+/* A SENHA — o momento mais frágil da tela.
+   Não é diálogo de propósito: `Dialogo` fecha no clique do fundo, e o clique
+   do fundo é o gesto distraído que perde a senha para sempre. */
+.cant-senha {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
+  border: 1.5px solid var(--sas-acao);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
+  max-width: 620px;
+}
+
+.cant-senha__conta { margin: 0; font-size: 14px; font-weight: 600; color: var(--sas-texto); }
+
+.cant-senha__valor {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: var(--sas-fundo);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--sas-magnitude);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.cant-senha__acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+.cant-senha .cant-sub { margin: 0; }
+
+/* ─── Celular ────────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  /* O calendário de sete colunas não cabe em 390px sem virar confete: ele
+     rola na horizontal dentro da própria superfície, e a página NÃO rola. */
+  .cant-grade { min-width: 640px; }
+
+  .cant-magnitude__numero { font-size: 28px; }
+  .cant-primeiro-dia { gap: 20px; }
+  .cant-primeiro-dia__desenho { display: none; }
+}

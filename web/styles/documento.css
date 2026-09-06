@@ -8,7 +8,7 @@
      PDF do panorama    `exportar-aluno.js` insere o nó NO documento atual,
                         marca `body.imprimindo-panorama` e imprime — o
                         `.panorama` é estilizado por `layout.css`, com
-                        `var(--color-*)`;
+                        `var(--sas-*)`;
      PNG do panorama    clona o nó para dentro de um `<foreignObject>`, que
                         NÃO herda folha externa — por isso as variáveis vão
                         embarcadas (`_embarcarEstilosPanorama`);
@@ -16,8 +16,8 @@
                         `window.open('')` + CSSOM, documento novo que também
                         não herda nada.
 
-   Os dois primeiros são o risco: no dia em que `--color-*` responder ao
-   tema, o coordenador que trabalha à noite manda para a impressora um
+   Os dois primeiros são o risco: os papéis respondem ao tema, então sem este
+   arquivo o coordenador que trabalha à noite manda para a impressora um
    dossiê preto — sem erro, sem aviso, e provavelmente sem perceber antes de
    a folha sair.
 
@@ -26,7 +26,7 @@
    imprimir, então qualquer tela que ganhe impressão depois já nasce
    protegida. Documento impresso não tem tema.
 
-   Este arquivo entra DEPOIS de `tokens.css` e de `aluno-tokens.css` — é a
+   Este arquivo entra DEPOIS de `papeis.css` e de `aluno-tokens.css` — é a
    ordem que faz o remapeamento vencer.
    ─────────────────────────────────────────────────────────────────────── */
 
@@ -91,6 +91,10 @@
   --doc-png-borda: rgba(20, 30, 80, 0.06);
   --doc-png-borda-forte: rgba(20, 30, 80, 0.12);
   --doc-png-amber: #e89b2a;
+  /* DADO no PNG. Nasceu na fase 0 do docs/39: o mapa de `_embarcarEstilosPanorama`
+     tinha uma entrada de verde, e verde deixou de existir como token. O valor é
+     o mesmo que o `@media print` abaixo crava para `--sas-dado`. */
+  --doc-png-dado: #2e6be6;
   /* O gráfico rasterizado usa ainda outros dois tons de cinza — quarta cópia. */
   --doc-png-grafico-texto-2: #5a5d65;
   --doc-png-grafico-texto-3: #73757d;
@@ -103,43 +107,27 @@
    ─────────────────────────────────────────────────────────────────────── */
 @media print {
   :root {
-    --color-bg: var(--doc-fundo);
-    --color-surface: var(--doc-superficie);
-    --color-surface-inset: var(--doc-superficie-inset);
-    --color-surface-muted: var(--doc-superficie-inset);
-    --color-text-primary: var(--doc-texto);
-    --color-text-body: var(--doc-texto);
-    --color-text-secondary: var(--doc-texto-2);
-    --color-text-tertiary: var(--doc-texto-3);
-    --color-text-faint: var(--doc-texto-fraco);
-    --color-border: var(--doc-borda);
-    --color-border-strong: var(--doc-borda-forte);
-    --color-divider: var(--doc-divisor);
-    --color-shell-border: var(--doc-borda);
-    --color-navy: var(--doc-navy);
-    --color-navy-deep: var(--doc-navy-deep);
-    --color-navy-mid: var(--doc-navy-mid);
-    --color-navy-light: var(--doc-navy-light);
-    --color-navy-soft: var(--doc-navy-soft);
-    --color-navy-tint: var(--doc-navy-tint);
-    --color-gold: var(--doc-gold);
-    --color-gold-deep: var(--doc-gold-deep);
-    --color-gold-soft: var(--doc-gold-soft);
-    --color-red: var(--doc-red);
-    --color-red-soft: var(--doc-red-soft);
-    --color-green: var(--doc-green);
-    --color-green-soft: var(--doc-green-soft);
-    --color-amber: var(--doc-amber);
-    --color-amber-text: var(--doc-amber-text);
-    --color-amber-soft: var(--doc-amber-soft);
-    --color-neutral-soft: var(--doc-neutral-soft);
+    /* Os trinta e um remapeamentos do alias antigo da coordenação que ficavam
+       AQUI EM CIMA saíram na fase 0 do docs/39, com ele: o que a tela lê
+       agora é o papel, e é o papel que a lista abaixo congela. Os `--doc-*`
+       continuam intactos — é deles que sai a folha clara, e é por isso que
+       este arquivo nunca aponta para papel na direção contrária.
 
-    /* A área do aluno: os papéis viram os valores do dia, fixos. */
+       Três nomes daquela lista tinham valor próprio no papel e o perderam ao
+       colapsar sobre um papel só, e vale saber qual venceu: `border` e
+       `border-strong` viraram `--sas-borda`, que aqui é a borda FORTE;
+       `text-tertiary` e `text-faint` viraram `--sas-referencia`, que aqui é o
+       texto-3; e o verde do semáforo virou DADO, porque verde deixou de
+       existir como token — no papel, o que era tag verde sai azul. */
     --sas-fundo: var(--doc-fundo);
     --sas-superficie: var(--doc-superficie);
     --sas-superficie-2: var(--doc-superficie-inset);
     --sas-borda: var(--doc-borda-forte);
     --sas-fio: var(--doc-divisor);
+    /* O fio de GRUPO impresso: um degrau acima do fio de linha, senão a
+       hierarquia da tabela desaparece no papel, onde não há hover nem cor
+       para compensar. */
+    --sas-fio-forte: var(--doc-borda-forte);
     --sas-acao: var(--doc-navy);
     --sas-acao-base: var(--doc-navy-deep);
     --sas-acao-texto: #ffffff;
@@ -153,6 +141,9 @@
     --sas-referencia-fraca: rgba(138, 147, 168, 0.2);
     --sas-sequencia: #ff6b4a;
     --sas-alerta: var(--doc-red);
+    /* Na tela o alerta-texto é o vermelho escurecido para passar em AA como
+       letra; no papel o vermelho de documento já é escuro e serve aos dois. */
+    --sas-alerta-texto: var(--doc-red);
     --sas-magnitude: #0f1b33;
     --sas-texto: var(--doc-texto);
     --sas-texto-2: var(--doc-texto-2);

@@ -1,397 +1,65 @@
-/* ─── Painel — tela de dados (alunos × matérias × fases) ────────────────── */
+/* ─── Painel — a tela de chegada ─────────────────────────────────────────
+   A tabela de varredura NÃO está mais aqui: ela era de um ciclo só e mudou de
+   casa junto com o componente, para `styles/ciclo.css` e
+   `telas/CicloFicha/TabelaDoCiclo.tsx` (docs/39 §PRECEDÊNCIA).
 
-/* ─── Tabela de dados ───────────────────────────────────────────────────── */
+   E com ela foram os CONTROLES: a busca da tela (`.painel-busca*`), a fileira
+   à direita do título (`.painel-header__controles`) e a legenda de ajuda
+   (`.painel-help-*`) — aquele "?" que explicava as quatro cores da célula,
+   escrito para um semáforo que a R1 aposentou e para uma tabela que não está
+   mais aqui. O Painel de hoje é três cartões e a faixa de decisão.
 
-.painel-tabela-wrap {
-  overflow-x: auto;
-  padding-bottom: 4px;
+   Ficaram duas classes com prefixo `painel-` fora do Painel, e é herança de
+   nome, não engano: `.painel-criterio` é o seletor de régua do casco
+   (`componentes/ui/SeletorCriterio.tsx`, que documenta o porquê) e
+   `.painel-topn` é a fileira de pílulas da ficha de ciclo.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* ─── A grade de 12 colunas ──────────────────────────────────────────────
+   ⚠️ ESTA CLASSE NÃO EXISTIA. `Painel.tsx` escreve `.painel-grade` desde a
+   fase 2 do docs/39 e aponta o comentário dela para este arquivo, mas o
+   seletor nunca foi escrito: a seção caía no fluxo normal e os três cartões
+   empilhavam em largura cheia, um embaixo do outro. Achado na varredura de
+   consistência, e o que está aqui é o que o plano e o `campo.css` já
+   descreviam — não desenho novo.
+
+   Doze colunas porque a divisão 7 + 5 é o que dá ao card de MAGNITUDE a
+   assimetria da hierarquia: ele é o único da tela com numeral, e é a largura
+   que diz isso antes de o número ser lido (R7 — uma escala semântica por
+   tela). Dois compactos de 148px empilhados fecham exatamente a altura dele
+   (148 + 16 + 148 = 312), e é dessa conta que sai o `min-height` dos dois em
+   `campo.css`.
+
+   A grade tem de aceitar um quarto e um quinto card sem virar outra tela: com
+   `span 5` e posicionamento automático, o quarto compacto desce sozinho para
+   a linha de baixo. */
+
+.painel-grade {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+  align-items: stretch;
 }
 
-.painel-tabela {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
+.painel-grade > .campo-cartao--magnitude {
+  grid-column: span 7;
+  grid-row: span 2;
 }
 
-/* ── Thead: row 1 — nome da matéria ───────────────── */
-
-.painel-tabela__th-aluno {
-  position: sticky;
-  left: 48px;
-  background: var(--color-surface);
-  z-index: 3;
-  text-align: left;
-  padding: 14px 20px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  text-transform: none;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--color-border-strong);
-  width: 180px;
-  white-space: nowrap;
+.painel-grade > .campo-cartao--compacto {
+  grid-column: span 5;
 }
 
-/* ⚠️ Cabeçalho de tabela é CINZA (brief §Tipografia). Era
-   `--color-text-primary`, tão escuro quanto o dado abaixo dele — e cabeçalho
-   competindo com dado é o que faz uma tabela de 900 linhas cansar. */
-.painel-tabela__th-col {
-  text-align: center;
-  padding: 14px 10px 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
-  min-width: 92px;
-}
-
-/* ── Thead: row 2 — indicador de fase ─────────────── */
-
-.painel-tabela__th-fase {
-  text-align: center;
-  padding: 4px 10px 10px;
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  text-transform: none;
-  letter-spacing: 0.07em;
-  border-bottom: 2px solid var(--color-border-strong);
-}
-
-/* ── Separador entre F1 e F2 removido das células de dados ─── */
-
-/* ── Colunas de média (Média 1°F, Média Final) ─────── */
-
-.painel-tabela__th-col.col-destaque,
-.painel-tabela__th-fase.col-destaque {
-  background: color-mix(in srgb, var(--color-dado) 5%, transparent);
-  color: var(--color-navy);
-}
-
-.painel-tabela__td-nota.col-destaque {
-  background: color-mix(in srgb, var(--color-dado) 3%, transparent);
-}
-
-/* ── Linha de média da turma ────────────────────────── */
-
-.painel-tabela__tr-media {
-  background: var(--color-surface-inset);
-}
-
-.painel-tabela__tr-media .painel-tabela__td-aluno {
-  background: var(--color-surface-inset);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  text-transform: none;
-  letter-spacing: 0.05em;
-  border-bottom: 2px solid var(--color-border-strong);
-}
-
-.painel-tabela__tr-media .painel-tabela__td-nota {
-  border-bottom: 2px solid var(--color-border-strong);
-}
-
-/* ── Coluna de posição ──────────────────────────────── */
-
-.painel-tabela__th-pos {
-  position: sticky;
-  left: 0;
-  background: var(--color-surface);
-  z-index: 3;
-  width: 48px;
-  min-width: 48px;
-  text-align: center;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  letter-spacing: 0.06em;
-  border-bottom: 1px solid var(--color-border-strong);
-  padding: 14px 4px;
-}
-
-.painel-tabela__td-pos {
-  position: sticky;
-  left: 0;
-  background: var(--color-surface);
-  z-index: 1;
-  width: 48px;
-  min-width: 48px;
-  text-align: center;
-  padding: 5px 4px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-/* ── Badge de posição ─────────────────────────────── */
-
-.pos-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  background: color-mix(in srgb, var(--color-dado) 8%, transparent);
-  color: var(--color-navy);
-  border: 1.5px solid color-mix(in srgb, var(--color-dado) 20%, transparent);
-}
-
-/* ── Coluna de aluno (sticky) ───────────────────────── */
-
-.painel-tabela__td-aluno {
-  position: sticky;
-  left: 48px;
-  background: var(--color-surface);
-  z-index: 1;
-  padding: 7px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
-  /* A coluna congelada se separa do que passa por baixo com uma BORDA, não com
-     um degradê de sombra — mesma regra do resto do sistema. */
-  border-right: 1px solid var(--color-border);
-  width: 180px;
-  max-width: 180px;
-}
-
-/* ── Célula de nota ─────────────────────────────────── */
-
-.painel-tabela__td-nota {
-  text-align: center;
-  padding: 5px 6px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-/* ── Hover ──────────────────────────────────────────── */
-
-.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover td {
-  background: color-mix(in srgb, var(--color-dado) 3%, transparent);
-}
-
-.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-aluno,
-.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-pos {
-  /* Sólido, para não vazar as notas por baixo ao rolar na horizontal — e por
-     token, senão a coluna congelada continuaria azul-clara no tema escuro. */
-  background: var(--color-surface);
-}
-
-.painel-tabela tbody tr:not(.painel-tabela__tr-media):hover .painel-tabela__td-nota.col-destaque {
-  background: color-mix(in srgb, var(--color-dado) 6%, transparent);
-}
-
-/* ── Célula editável (clique abre dialog de edição) ─── */
-
-.painel-tabela__td-nota.is-editavel {
-  cursor: pointer;
-}
-
-.painel-tabela__td-nota.is-editavel:hover {
-  background: color-mix(in srgb, var(--color-dado) 8%, transparent) !important;
-}
-
-/* ── Link do aluno ──────────────────────────────────── */
-
-.painel-tabela__aluno-link {
-  display: block;
-  max-width: 148px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-text-primary);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.painel-tabela__aluno-link:hover {
-  color: var(--color-navy);
-  text-decoration: underline;
-}
-
-/* ─── Badge de nota ─────────────────────────────────────────────────────── */
-
-/* ─── PREENCHIDO É ACIMA, VAZADO É ABAIXO (R1) ─────────────────────────────
-   O semáforo saiu. A varredura deixa de ser leitura de MATIZ e vira leitura
-   de FORMA: um aluno em risco é uma linha de buracos numa grade cheia, e o
-   olho acha um buraco mais rápido do que acha um vermelho no meio de outros
-   vermelhos. Funciona no daltonismo — ~8% dos homens — e funciona impresso
-   em preto e branco, que é como o dossiê do ciclo sai.
-
-   `--nota-intensidade` (0…1) é a distância do corte, calculada em
-   `dominio/selo.ts` e entregue pelo componente. Acima do corte ela satura o
-   preenchimento; abaixo, engrossa e escurece o contorno (R3). É escala
-   sequencial de matiz único, ancorada NO CORTE — nunca divergente de duas
-   cores, que é o que fazia 3,9 e 0,4 serem o mesmo vermelho.
-
-   `min-width` fixo para a coluna de notas ler como coluna, e não como uma
-   fileira de pílulas de larguras diferentes. Vive aqui, e não em layout.css,
-   porque este arquivo carrega depois. */
-
-.nota-badge {
-  --nota-intensidade: 0;
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  min-width: 62px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
-}
-
-/* Os nomes que o servidor manda (`verde`/`ambar`/`vermelho`) não carregam
-   distância, só lado. Ganham a intensidade fixa da tabela de tradução do
-   brief — "acima com saturação alta", "acima com saturação baixa", "vazado".
-   Renomear no backend é limpeza posterior e não é deste trabalho. */
-.nota-badge--verde,
-.nota-badge.tone-verde { --nota-intensidade: 0.7; }
-.nota-badge--ambar,
-.nota-badge.tone-ambar { --nota-intensidade: 0.15; }
-.nota-badge--vermelho,
-.nota-badge.tone-vermelho { --nota-intensidade: 0.5; }
-
-/* ACIMA · preenchido, e a saturação cresce com a distância. */
-.nota-badge--acima,
-.nota-badge--verde,
-.nota-badge.tone-verde,
-.nota-badge--ambar,
-.nota-badge.tone-ambar {
-  background: color-mix(
-    in srgb,
-    var(--color-dado) calc((22 + var(--nota-intensidade) * 78) * 1%),
-    transparent
-  );
-  border-color: transparent;
-  color: var(--color-magnitude);
-}
-
-/* Passado da metade da escala o preenchimento fica escuro demais para texto
-   escuro em cima. */
-.nota-badge--acima-forte {
-  color: var(--color-dado-texto-forte);
-}
-
-/* NO CORTE · preenchido no mínimo. Está no corte, então passou — o corte é o
-   mínimo que a régua exige, e 4,0 contra 4,0 não está abaixo de nada. */
-.nota-badge--no-corte {
-  background: color-mix(in srgb, var(--color-dado) 22%, transparent);
-  border-color: transparent;
-  color: var(--color-magnitude);
-}
-
-/* ABAIXO · vazado. O contorno engrossa e escurece com a distância, e é o
-   ÚNICO lugar onde a distância aparece sem número.
-   ⚠️ Nunca vermelho: só a etiqueta ao lado é ALERTA (R4). */
-.nota-badge--abaixo,
-.nota-badge--vermelho,
-.nota-badge.tone-vermelho {
-  background: transparent;
-  border-width: calc(1px + var(--nota-intensidade) * 1.6px);
-  border-color: color-mix(
-    in srgb,
-    var(--color-magnitude) calc((30 + var(--nota-intensidade) * 55) * 1%),
-    transparent
-  );
-  color: var(--color-magnitude);
-}
-
-/* SEM NOTA · hachura diagonal. Não é zero, e não pode parecer zero. */
-.nota-badge--vazia {
-  background: var(--color-hachura);
-  border-style: dashed;
-  color: var(--color-text-tertiary);
-  min-width: 0;
-}
-
-/* A ETIQUETA DE DISTÂNCIA — o único vermelho da varredura (R4).
-   Ela é que devolve o número que o contorno só sugere: "−1,4". */
-.nota-etiqueta {
-  display: inline-block;
-  margin-left: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  color: var(--color-red);
-  vertical-align: middle;
-}
-
-/* A média da turma é REFERÊNCIA (R5): cinza azulado, atrás do dado, nunca
-   disputando a leitura com as linhas de aluno. Ela não é o desempenho de
-   ninguém — é a comparação contra a qual as linhas se leem. */
-.nota-badge--media {
-  font-weight: 600;
-  background: transparent;
-  border-color: transparent;
-  color: var(--color-text-tertiary);
-}
-
-/* A nota que a média não somou (docs/32 §1.4).
-   Riscada e apagada, nunca escondida: o coordenador precisa ver que o número
-   existe E que ele não entrou na conta. Sem cor de semáforo de propósito —
-   não é desempenho ruim, é dado que o produto decidiu não ler. O `title` do
-   componente carrega o motivo. */
-.nota-badge--ignorada {
-  background: transparent;
-  color: var(--color-text-tertiary);
-  text-decoration: line-through;
-  text-decoration-thickness: 1px;
-  cursor: help;
-}
-
-/* ─── Controles do Painel ───────────────────────────────────────────────
-   Ajuda, busca, ordenação, fase e critério, à direita do título. */
-
-.painel-header__controles {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-/* ─── Busca individual ──────────────────────────────────────────────────── */
-
-.painel-busca-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.painel-busca-wrap > svg {
-  position: absolute;
-  left: 14px;
-  color: var(--color-text-tertiary);
-  pointer-events: none;
-  width: 14px;
-  height: 14px;
-}
-
-.painel-busca {
-  padding: 8px 14px 8px 34px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  color: var(--color-text-body);
-  background: var(--color-surface);
-  width: 220px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.painel-busca::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.painel-busca:focus {
-  border-color: var(--color-navy-light);
+/* Abaixo de 1100px as sete colunas do card de magnitude ficam estreitas
+   demais para o numeral e a legenda na mesma linha, e o compacto ao lado não
+   cabe sem quebrar o subtítulo em três. Duas linhas cheias leem melhor que
+   quatro colunas espremidas. */
+@media (max-width: 1100px) {
+  .painel-grade > .campo-cartao--magnitude,
+  .painel-grade > .campo-cartao--compacto {
+    grid-column: span 12;
+    grid-row: auto;
+  }
 }
 
 /* ─── Critério de classificação ─────────────────────────────────────────
@@ -403,16 +71,16 @@
   padding: 0 30px 0 16px;
   font: inherit;
   font-size: 13px;
-  color: var(--color-text-secondary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
+  color: var(--sas-texto-2);
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
 .painel-criterio:focus {
   outline: none;
-  border-color: var(--color-navy-light);
+  border-color: var(--sas-dado-claro);
 }
 
 /* ─── Top N ─────────────────────────────────────────────────────────────── */
@@ -422,188 +90,23 @@
   gap: 8px;
 }
 
-/* O filtro de fase e a sidebar de três seções (`.psb-*`) saíram daqui: a
-   fase virou pílula na fileira de controles, e a sidebar virou a
-   `.barra-filtros` horizontal de layout.css. */
-
-/* ─── Status de corte no nome do aluno ────────────────────────────────────
-   ⚠️ O NOME NÃO É PINTADO. Cortado era vermelho e aprovado era verde — o
-   semáforo no elemento mais visível da tabela, e justamente o que a R4
-   proíbe: alerta é só a etiqueta de distância e a falha operacional, nunca
-   linha, célula ou nome.
-
-   Quem diz que o aluno está abaixo do corte são as CÉLULAS vazadas e a coluna
-   Distância, que traz o número. Pintar o nome de vermelho somava uma terceira
-   marcação para a mesma informação — e as duas primeiras funcionam no
-   daltonismo e no papel, que é o motivo de existirem.
-
-   As classes ficam: `is-cortado` continua sendo o gancho de teste e de
-   depuração, e o dia em que o nome precisar de peso, o peso é `font-weight`,
-   não matiz. */
-.painel-tabela__aluno-link.is-cortado,
-.painel-tabela__aluno-link.is-aprovado {
-  color: var(--color-text-primary);
-}
-
-/* ─── Linha separadora de ranking (Top 10 / 50 / 100) ───────────────────── */
-
-.painel-corte-row > td {
-  padding: 0;
-}
-
-.painel-corte__label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 16px;
-  border-top: 1px solid var(--color-border);
-}
-
-.painel-corte__tag {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  letter-spacing: 0.04em;
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-
-.painel-corte__btn {
-  font-size: 10px;
-  color: transparent;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 1px 4px;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s;
-  white-space: nowrap;
-}
-
-.painel-corte-row:hover .painel-corte__btn {
-  color: var(--color-text-tertiary);
-}
-
-.painel-corte__btn:hover {
-  color: var(--color-navy) !important;
-}
-
-/* ─── Botão de ajuda (?) e tooltip ──────────────────────────────────────── */
-
-.painel-help-wrap {
-  position: relative;
-}
-
-.painel-help-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-border-strong);
-  background: var(--color-surface);
-  color: var(--color-text-tertiary);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  line-height: 1;
-  flex-shrink: 0;
-  transition: border-color 0.1s, color 0.1s;
-}
-
-.painel-help-btn:hover {
-  border-color: var(--color-navy-light);
-  color: var(--color-navy);
-}
-
-.painel-help-tooltip {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 300px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  z-index: 100;
-}
-
-.painel-help-titulo {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  text-transform: none;
-  letter-spacing: 0.06em;
-  margin-bottom: 10px;
-}
-
-.painel-help-lista {
-  padding-left: 16px;
-  margin: 0 0 4px;
-}
-
-.painel-help-lista li {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  margin-bottom: 5px;
-  line-height: 1.45;
-}
-
-.painel-help-sep {
-  border-top: 1px solid var(--color-border);
-  margin: 10px 0;
-}
-
-.painel-help-legenda {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  margin-bottom: 6px;
-}
-
-/* As amostras da legenda são a própria peça em miniatura, e não um ponto
-   colorido: quem lê a legenda precisa reconhecer a FORMA na tabela abaixo. */
-.painel-help-amostra {
-  width: 22px;
-  height: 14px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  border: 1px solid transparent;
-}
-
-.painel-help-amostra--acima {
-  background: color-mix(in srgb, var(--color-dado) 85%, transparent);
-}
-
-.painel-help-amostra--margem {
-  background: color-mix(in srgb, var(--color-dado) 25%, transparent);
-}
-
-.painel-help-amostra--abaixo {
-  background: transparent;
-  border: 2px solid color-mix(in srgb, var(--color-magnitude) 60%, transparent);
-}
-
-.painel-help-amostra--sem-nota {
-  background: var(--color-hachura);
-  border: 1px dashed var(--color-border);
-}
-
-
 /* ─── A faixa de decisão (docs/33 §3) ───────────────────────────────────
-   Acima da tabela, e não no lugar dela: cartão é para decidir, tabela é para
-   comparar — e a tabela do Painel existe para varrer 900 pessoas. */
+   Ela nasceu ACIMA da tabela — cartão é para decidir, tabela é para comparar —
+   e hoje é o rodapé da tela: a tabela desceu para a ficha de ciclo e a faixa
+   ficou sendo a única coisa do Painel que não é porta. É por isso que o
+   estado vazio dela precisou virar frase inteira (`FaixaDecisao.tsx`). */
 
 .faixa-decisao {
-  background: var(--color-surface);
-  border: var(--color-border-largura) solid var(--color-border);
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   border-radius: var(--radius-md);
   padding: 18px 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  /* O sino da topbar aponta para `#alertas`. Sem isto, o navegador rola até
-     debaixo do casco fixo e a faixa fica escondida atrás dele. */
+  /* A âncora `#alertas` continua de pé, agora só para link salvo e para o
+     e-mail de lembrete — o sino que apontava para ela saiu na fase 1. Sem
+     isto o navegador rola até debaixo do casco fixo e a faixa some atrás. */
   scroll-margin-top: 20px;
 }
 
@@ -619,12 +122,12 @@
   margin: 0;
   font-size: 15px;
   font-weight: 600;
-  color: var(--color-text-body);
+  color: var(--sas-texto);
 }
 
 .faixa-decisao__regua {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .faixa-decisao__alertas {
@@ -636,7 +139,7 @@
 .faixa-decisao__vazio {
   margin: 0;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .faixa-decisao__rodape {
@@ -649,7 +152,7 @@
 
 .faixa-decisao__mais {
   font-size: 13px;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   padding: 6px 12px;
   border-radius: var(--radius-pill);
   background: none;
@@ -658,15 +161,54 @@
 }
 
 .faixa-decisao__mais:hover {
-  background: var(--color-navy-tint);
+  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
 }
 
-/* O que o recorte escondeu. Discreto, mas presente — esconder em silêncio é
-   a armadilha que esta linha existe para não cometer. */
-.faixa-decisao__ocultos {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-  margin-left: auto;
+/* O DESFAZER do alerta resolvido.
+   Resolver faz o cartão sumir, e sumir é destrutivo de um jeito silencioso:
+   sem motivo, sem registro na tela, sem volta. Enquanto o Painel tinha 900
+   linhas editáveis embaixo, isso passava; numa tela onde resolver é uma das
+   DUAS ações que existem, não passa (docs/39 fase 2).
+
+   `role="status"` e não alerta: a pessoa acabou de fazer a ação, não precisa
+   ser interrompida — precisa de uma saída à mão enquanto ainda está olhando. */
+.faixa-decisao__desfazer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  background: var(--sas-superficie);
+}
+
+.faixa-decisao__desfazer-texto {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+.faixa-decisao__desfazer-botao {
+  flex: none;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--sas-dado);
+  font: 600 13px/1 var(--font-family);
+  cursor: pointer;
+}
+
+.faixa-decisao__desfazer-botao:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
+}
+
+.faixa-decisao__desfazer-botao:disabled {
+  color: var(--sas-referencia);
+  cursor: default;
 }
 
 @media (max-width: 880px) {
@@ -676,108 +218,4 @@
 
   /* No celular os números viram coluna: lado a lado, "passaram, mas perto do
      corte" quebra em três linhas e o número perde o rótulo de vista. */
-}
-
-
-/* ─── R6 · o ordenador em vigor, visível e nomeado ────────────────────────
-   Sem a cor, quem entrega o aluno em risco é a ORDEM. Uma ordem que o
-   coordenador não sabe qual é não entrega nada — daí a faixa, e daí a coluna
-   de distância ao lado, que mostra o número pelo qual a tabela está ordenada.
-   ─────────────────────────────────────────────────────────────────────── */
-
-.painel-tabela-ordem {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.painel-tabela-ordem__total {
-  flex: 1;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.painel-tabela-ordem__pilula {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.painel-tabela-ordem__pilula svg {
-  color: var(--color-dado);
-  flex: none;
-}
-
-/* A coluna de TRAJETÓRIA do Painel. A de Distância saiu: o número já está na
-   etiqueta de cada célula abaixo do corte, e a coluna só repetia a pior
-   delas. A ordenação continua sendo por distância — quem a nomeia é a faixa
-   acima da tabela. */
-.painel-tabela__th-traj,
-.painel-tabela__td-traj {
-  text-align: center;
-  white-space: nowrap;
-  width: 110px;
-}
-
-.painel-tabela__th-traj {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-}
-
-.painel-tabela__traj-vazia {
-  color: var(--color-text-tertiary);
-  font-size: 13px;
-}
-
-/* Mesmo desenho dos outros cabeçalhos: 13px, 500, CINZA. Estava herdando o
-   `th` genérico (14px, 700, texto escuro) e competia com o dado abaixo. */
-.painel-tabela__th-dist {
-  text-align: right;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-}
-
-.painel-tabela__td-dist {
-  text-align: right;
-  white-space: nowrap;
-}
-
-.painel-tabela__dist {
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-tertiary);
-}
-
-/* Só a distância NEGATIVA é alerta — é a etiqueta da R4, aqui em coluna. */
-.painel-tabela__dist--abaixo {
-  color: var(--color-red);
-}
-
-.painel-tabela__dist--vazia {
-  color: var(--color-text-tertiary);
-  font-weight: 400;
-}
-
-
-/* O motivo do corte é PALAVRA, não cor: "Química 3,2 — mínimo 4,0 (ITA
-   §4.6.6.5)" diz qual matéria e qual mínimo, que é o que o coordenador
-   precisa para decidir se chama o aluno. Uma célula vermelha não diria nada
-   disso (R4/R7). */
-.ciclo-regua__motivo {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  max-width: 42ch;
 }

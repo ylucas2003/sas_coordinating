@@ -1,0 +1,256 @@
+/* ─── O tour — "como se lê um ciclo e uma prova" ─────────────────────────
+   A fase 6 do docs/39. Seis passos que explicam a parte do produto que
+   ninguém acerta sozinho: a régua que muda quem está cortado, a tabela que
+   ordena por distância porque a cor deixou de significar, e a calibração que
+   só existe com os doze histogramas dividindo o mesmo pico.
+
+   O desenho é o da prancheta de Provas (`a8bf25f7`), com uma troca: lá o
+   passo abria um buraco no véu por cima do mock, porque a tela estava atrás.
+   Aqui o tour abre a partir do Painel e do hub, então o buraco viraria uma
+   mira sobre a tela errada — e o passo mostra o ESQUEMA da região em vez de
+   iluminá-la ao vivo. Ver o comentário de `EsquemaDaRegiao` em `Tour.tsx`.
+
+   ⚠️ Importada por `componentes/onboarding/Tour.tsx` e não por `main.tsx`,
+   como `provas.css`. Nada aqui redefine classe de outra folha.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* ── O véu ───────────────────────────────────────────────────────────────
+   z-index entre o chat (950/945, `chat.css`) e o diálogo de edição (960,
+   `edicao.css`): o tour tem de cobrir o FAB do chat, e perde para quem
+   estiver escrevendo nota. Onboarding é o que se interrompe, não o que
+   interrompe.
+   ─────────────────────────────────────────────────────────────────────── */
+.tour-veu {
+  position: fixed;
+  inset: 0;
+  z-index: 958;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(3, 6, 16, 0.66);
+  animation: tour-entrada 0.12s ease;
+}
+
+@keyframes tour-entrada {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-veu {
+    animation: none;
+  }
+}
+
+.tour {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 520px;
+  padding: 22px;
+  background: var(--sas-superficie);
+  /* Superfície tem BORDA, nunca sombra — inclusive aqui. */
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  /* Um passo mais alto que a tela (390×844 com o esquema) tem de rolar dentro
+     do próprio card; sem isto o rodapé com os botões sai da viewport. */
+  max-height: min(760px, 92dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.tour:focus {
+  /* O primeiro foco vai para o painel para o leitor de tela começar pelo
+     título. Não é alvo de clique, e o anel aqui só sujaria a abertura. */
+  outline: none;
+}
+
+.tour__topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tour__olho {
+  flex: 1;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  color: var(--sas-dado);
+}
+
+.tour__contador {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── O esquema da região ─────────────────────────────────────────────────
+   O quadro é `--sas-superficie-2` e a região acesa é `--sas-superficie`: o
+   contraste entre as duas superfícies é o holofote, sem opacidade nem cor
+   nova. O traço de `--sas-dado` é o que a prancheta usa na moldura do passo.
+   ─────────────────────────────────────────────────────────────────────── */
+.tour__esquema {
+  display: block;
+  /* 300px, e não a largura do card: o esquema é uma NOTA DE MARGEM, não a
+     ilustração principal. Em tamanho cheio ele ficava com 294px de altura e
+     empurrava o texto — que é o que a pessoa veio ler — para fora da primeira
+     dobra num 390×844. */
+  width: 300px;
+  max-width: 100%;
+  height: auto;
+  align-self: flex-start;
+  border-radius: var(--radius-md);
+}
+
+.tour__titulo {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--sas-magnitude);
+}
+
+.tour__texto {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--sas-texto);
+}
+
+/* A regra citada é a RÉGUA do desenho — por isso ouro, e por isso moldura de
+   lado em vez de mais um parágrafo. É o que separa tour de tutorial. */
+.tour__regra {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--sas-valor);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+.tour__destino {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  /* 44px de alvo, como todo destino tocável do produto. */
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sas-dado);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tour__trilha {
+  display: flex;
+  gap: 5px;
+}
+
+.tour__traco {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--sas-referencia-fraca);
+}
+
+.tour__traco--atual {
+  background: var(--sas-dado);
+}
+
+.tour__acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tour__pular {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  text-align: left;
+  border: none;
+  background: transparent;
+  font-family: var(--font-family);
+  font-size: 13px;
+  color: var(--sas-texto-2);
+  cursor: pointer;
+}
+
+.tour__pular:hover {
+  color: var(--sas-texto);
+}
+
+.tour__botao {
+  flex: none;
+  min-height: 44px;
+}
+
+/* ── O gatilho ───────────────────────────────────────────────────────────
+   Quieto de propósito: é ajuda, não dado. Fica em `--sas-texto-2` e só assume
+   a cor do dado sob o cursor — ao lado dos elos do hub, que são azuis e
+   levam a números, ele não pode disputar a mesma atenção.
+   ─────────────────────────────────────────────────────────────────────── */
+.tour-gatilho {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* `.tela` é uma coluna flex e estica os filhos: sem isto o botão ganharia a
+     largura inteira do Painel e viraria uma barra clicável de 1300px. */
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--font-family);
+  font-size: 14px;
+  color: var(--sas-texto-2);
+  cursor: pointer;
+}
+
+.tour-gatilho:hover {
+  color: var(--sas-dado);
+}
+
+.tour-gatilho:focus-visible,
+.tour__pular:focus-visible,
+.tour__destino:focus-visible {
+  outline: 2px solid var(--sas-dado);
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 640px) {
+  .tour-veu {
+    padding: 12px;
+  }
+
+  .tour {
+    padding: 18px;
+    gap: 12px;
+  }
+
+  /* A 390px os três botões não cabem numa linha com o "Pular" à esquerda: ele
+     desce, e as duas teclas ficam lado a lado onde o polegar alcança. */
+  .tour__acoes {
+    flex-wrap: wrap;
+  }
+
+  .tour__pular {
+    flex-basis: 100%;
+    order: 2;
+  }
+
+  .tour__botao {
+    flex: 1;
+  }
+}

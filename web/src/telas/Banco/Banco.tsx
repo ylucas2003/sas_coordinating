@@ -25,8 +25,8 @@ import { MinhaLista } from './MinhaLista';
 // coordenação vira filha do `<main>` de AppShell, no aluno é mais um bloco da
 // coluna de `.alu-body__inner`.
 //
-// Os filtros são a `BarraFiltros` da coordenação — a mesma das outras sete
-// telas. **Mudou na Sprint de polimento** (docs/33 §7): até então esta aba
+// Os filtros são a `BarraFiltros` da coordenação — a mesma das outras OITO
+// superfícies (a lista está em `web/CLAUDE.md`). **Mudou na Sprint de polimento** (docs/33 §7): até então esta aba
 // tinha coluna própria (`.banco-filtros`, um `<aside>`), e o motivo estava
 // escrito aqui — "são muitos assuntos por edital e eles não caberiam numa
 // linha (docs/22 §3.5)".

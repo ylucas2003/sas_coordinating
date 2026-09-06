@@ -16,13 +16,13 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--color-dado) 10%, transparent);
-  color: var(--color-navy);
+  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
+  color: var(--sas-acao);
   display: grid;
   place-items: center;
   font-size: 13px;
   font-weight: 500;
-  border: 1px solid color-mix(in srgb, var(--color-dado) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sas-dado) 15%, transparent);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -50,13 +50,13 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--color-dado) 10%, transparent);
-  color: var(--color-navy);
+  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
+  color: var(--sas-acao);
   display: grid;
   place-items: center;
   font-size: 13px;
   font-weight: 500;
-  border: 1px solid color-mix(in srgb, var(--color-dado) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sas-dado) 15%, transparent);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -69,18 +69,18 @@
   align-items: center;
   gap: 6px;
   padding: 32px 16px;
-  border: 1.5px dashed var(--color-border-strong);
+  border: 1.5px dashed var(--sas-borda);
   border-radius: var(--radius-md);
   cursor: pointer;
   text-align: center;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   font-weight: 600;
   transition: border-color 150ms, background 150ms;
 }
 
 .foto-editor__escolher:hover {
-  border-color: var(--color-navy);
-  background: var(--color-surface-inset);
+  border-color: var(--sas-acao);
+  background: var(--sas-superficie-2);
 }
 
 .foto-editor__input-arquivo {
@@ -94,7 +94,7 @@
 .foto-editor__dica {
   font-weight: 400;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .foto-editor__corpo {
@@ -108,8 +108,8 @@
   position: relative;
   overflow: hidden;
   border-radius: 50%;
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface-inset);
+  border: 1px solid var(--sas-borda);
+  background: var(--sas-superficie-2);
   touch-action: none;
   cursor: grab;
 }
@@ -141,7 +141,7 @@
   align-items: flex-start;
   gap: 8px;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   text-align: left;
   cursor: pointer;
   max-width: 320px;

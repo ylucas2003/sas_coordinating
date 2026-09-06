@@ -20,8 +20,8 @@
    inversão deste mesmo PR), não há profundidade a simular — a aresta é uma
    marcação só. */
 .card {
-  background: var(--color-surface);
-  border: var(--color-border-largura) solid var(--color-border);
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   border-radius: var(--radius-lg);
 }
 
@@ -35,7 +35,7 @@
 }
 
 .importar__drop {
-  border: 2px dashed var(--color-border-strong);
+  border: 2px dashed var(--sas-borda);
   border-radius: var(--radius-md);
   padding: 32px 22px;
   text-align: center;
@@ -49,24 +49,24 @@
 
 .importar__drop:hover,
 .importar__drop.is-over {
-  background: var(--color-surface-muted, #f8f9fb);
-  border-color: var(--color-navy);
+  background: var(--sas-superficie-2, #f8f9fb);
+  border-color: var(--sas-acao);
 }
 
 .importar__drop-titulo {
   font-weight: 500;
   font-size: 15px;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 .importar__drop-hint {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .importar__nome {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   margin-top: 6px;
 }
 
@@ -111,10 +111,10 @@
    sobe 3px quando a tecla é apertada. */
 .btn-primary,
 .btn--primary {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  color: var(--color-navy-texto);
-  box-shadow: 0 3px 0 0 var(--color-navy-deep);
+  background: var(--sas-acao);
+  border-color: var(--sas-acao);
+  color: var(--sas-acao-texto);
+  box-shadow: 0 3px 0 0 var(--sas-acao-base);
   margin-bottom: 3px;
   transition: background 150ms, border-color 150ms, transform 80ms ease-out,
     box-shadow 80ms ease-out;
@@ -122,14 +122,14 @@
 
 .btn-primary:hover:not(:disabled),
 .btn--primary:hover:not(:disabled) {
-  background: var(--color-navy-deep);
-  border-color: var(--color-navy-deep);
+  background: var(--sas-acao-base);
+  border-color: var(--sas-acao-base);
 }
 
 .btn-primary:active:not(:disabled),
 .btn--primary:active:not(:disabled) {
   transform: translateY(3px);
-  box-shadow: 0 0 0 0 var(--color-navy-deep);
+  box-shadow: 0 0 0 0 var(--sas-acao-base);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -140,13 +140,13 @@
 }
 
 .btn--ghost {
-  background: var(--color-surface);
-  border-color: var(--color-border-strong);
-  color: var(--color-navy);
+  background: var(--sas-superficie);
+  border-color: var(--sas-borda);
+  color: var(--sas-acao);
 }
 
 .btn--ghost:hover:not(:disabled) {
-  background: var(--color-navy-tint);
+  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
 }
 
 .importar__progresso {
@@ -161,20 +161,20 @@
 .importar__status-titulo {
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   margin-bottom: 10px;
 }
 
 .importar__status-subtitulo {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   margin-top: 8px;
   font-variant-numeric: tabular-nums;
 }
 
 .importar__barra {
   height: 8px;
-  background: var(--color-surface-muted, #eef0f3);
+  background: var(--sas-superficie-2, #eef0f3);
   border-radius: 4px;
   overflow: hidden;
   position: relative;
@@ -182,7 +182,7 @@
 
 .importar__barra-fill {
   height: 100%;
-  background: var(--color-navy);
+  background: var(--sas-acao);
   transition: width 100ms linear;
   border-radius: 4px;
 }
@@ -192,7 +192,7 @@
   top: -22px;
   right: 0;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -203,14 +203,14 @@
 /* R4 · o vermelho existe para FALHA OPERACIONAL, e importação que falhou é
    exatamente isso. Já o sucesso não precisa de verde: a barra cheia em DADO
    é o que diz que terminou.
-   (`--color-verde` e `--color-vermelho`, sem definição em lugar nenhum, eram
-   dois tokens fantasma que só funcionavam pelo valor alternativo.) */
+   (Eram dois tokens fantasma, `verde` e `vermelho` no prefixo antigo, sem
+   definição em lugar nenhum — só funcionavam pelo valor alternativo.) */
 .importar__status-card.tone-verde .importar__barra-fill {
-  background: var(--color-dado);
+  background: var(--sas-dado);
 }
 
 .importar__status-card.tone-vermelho .importar__barra-fill {
-  background: var(--color-red);
+  background: var(--sas-alerta);
 }
 
 /* ─── Log vivo de eventos ───────────────────────────────────────────── */
@@ -227,7 +227,7 @@
 .importar__log-titulo {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   margin-bottom: 8px;
 }
 
@@ -250,7 +250,7 @@
   gap: 10px;
   align-items: baseline;
   padding: 4px 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 .importar__log-item:last-child {
@@ -258,7 +258,7 @@
 }
 
 .importar__log-hora {
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -276,23 +276,23 @@
    o âmbar e vira contorno, porque âmbar de aviso ao lado de âmbar de "perto
    do corte" seriam duas linguagens com a mesma cor. */
 .importar__log-nivel.nivel-info {
-  background: var(--color-dado);
-  color: var(--color-dado-texto-forte);
+  background: var(--sas-dado);
+  color: var(--sas-dado-texto-forte);
 }
 
 .importar__log-nivel.nivel-aviso {
   background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
+  border: 1px solid var(--sas-borda);
+  color: var(--sas-texto);
 }
 
 .importar__log-nivel.nivel-erro {
-  background: var(--color-red);
-  color: var(--color-navy-texto);
+  background: var(--sas-alerta);
+  color: var(--sas-acao-texto);
 }
 
 .importar__log-msg {
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   word-break: break-word;
 }
 
@@ -303,12 +303,12 @@
 .importar__eventos summary {
   cursor: pointer;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   padding: 6px 0;
 }
 
 .importar__eventos summary:hover {
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 .importar__eventos-tabela {
@@ -324,20 +324,11 @@
   padding: 0 22px 22px;
 }
 
-.tone-verde-card {
-  border-left: 4px solid var(--color-dado);
-  padding: 16px 18px;
-}
-
-.tone-vermelho-card {
-  border-left: 4px solid var(--color-red);
-  padding: 16px 18px;
-}
 
 .importar__upload-id {
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   margin: 0 0 12px;
 }
 
@@ -350,20 +341,20 @@
 
 .importar__contagem {
   padding: 10px 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: var(--sas-superficie);
 }
 
 .importar__contagem-valor {
   font-size: 22px;
   font-weight: 500;
-  color: var(--color-navy-deep);
+  color: var(--sas-acao-base);
 }
 
 .importar__contagem-rotulo {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   margin-top: 2px;
 }
 
@@ -375,18 +366,13 @@
 .importar__proximo {
   margin-top: 14px;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .importar__historico {
   padding: 0 22px 22px;
 }
 
-.screen-section-title {
-  font-size: 15px;
-  margin: 18px 0 10px;
-  color: var(--color-text-primary);
-}
 
 /* ─── Screen header ─────────────────────────────────────────────────── */
 
@@ -394,130 +380,221 @@
   padding: 24px 26px 8px;
 }
 
-/* A trilha de volta agora é a migalha da topbar (casco.css). O que sobrou
-   desta classe é a sobrancelha de contexto acima do título. */
-.screen-breadcrumb {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 13px;
-  color: var(--color-text-tertiary);
-  margin-bottom: 6px;
-}
 
 .screen-title {
   font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
 }
 
-.screen-subtitle {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  margin-top: 4px;
-  line-height: 1.5;
-}
 
 /* ─── Alerta (cartão) ───────────────────────────────────────────────── */
 
-.alert-card {
-  display: flex;
-  align-items: stretch;
-  gap: 14px;
-  padding: 14px 18px;
-  border-top: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: background 150ms;
-}
-
-.alert-card:hover {
-  background: var(--color-surface-inset);
-}
-
-.alert-card:first-of-type {
-  border-top: 0;
-}
-
-.alert-card__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.alert-card__meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.alert-card__tag {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-}
-
-.alert-card__time {
-  font-size: 11px;
-  color: var(--color-text-tertiary);
-}
-
-.alert-card__title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.alert-card__subtitle {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-.alert-card__viz {
-  width: 90px;
-  height: 32px;
-  align-self: center;
-  color: var(--color-text-tertiary);
-}
-
-.alert-card__link {
-  align-self: center;
-  font-size: 12px;
-  color: var(--color-navy);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-/* tone modifiers */
 /* ─── R4 · O CARTÃO DE ALERTA PERDE A COR ─────────────────────────────────
    A barra de severidade saiu do componente: a severidade agora é ORDEM (o
    mais grave primeiro) e ETIQUETA, não uma faixa colorida na lateral. Junto
    com R7, é o que faz o Painel parar de ter cinco coisas gritando ao mesmo
    tempo — KPI, tag, célula, barra e delta.
 
-   As classes `tone-*` continuam existindo porque o servidor manda
-   `severidade` e várias telas passam adiante; elas só não pintam mais
-   superfície. A tag fica com o desenho neutro do sistema: contorno e texto,
-   e o que ela diz é a CATEGORIA do alerta, não a gravidade. */
+   O `tone-*` saiu também da RAIZ e da tag, e não só da barra: sem nada para
+   pintar, a classe virava um gancho vazio à espera de que alguém pendurasse
+   cor nele de novo. As `.tone-*` GLOBAIS continuam (logo abaixo), porque o
+   servidor segue mandando `severidade` e outras telas a passam adiante.
+
+   O cartão virou SUPERFÍCIE — borda e raio de 18px — em vez de uma linha
+   separada por `border-top` dentro de uma lista. É o que a prancheta desenha,
+   e faz sentido agora que ele deixa de dividir a tela com a tabela de 900
+   linhas e passa a ser quase todo o conteúdo do Painel (docs/39 §3 · fase 2). */
+.alert-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color 150ms;
+}
+
+.alert-card:not(.alert-card--resolvido):hover {
+  border-color: var(--sas-fio-forte);
+}
+
+.alert-card__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* A pílula de CATEGORIA, de contorno neutro: o que diz o estado é a PALAVRA
+   dentro dela — "Prova mal calibrada", "Zona de transição" —, e a palavra não
+   fica mais legível por vir dentro de uma cápsula âmbar. */
+.alert-card__tag {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  color: var(--sas-texto);
+}
+
+.alert-card__time {
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
+.alert-card__title {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--sas-magnitude);
+  margin-top: 11px;
+}
+
+.alert-card__subtitle {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+  margin-top: 7px;
+}
+
+/* A curva é DADO — é o que foi medido —, e o fio de ouro dentro dela é a
+   régua. Era `--sas-referencia`, que dizia "isto aqui é contexto" sobre a
+   única série que o cartão tem. */
+.alert-card__viz {
+  flex: none;
+  width: 150px;
+  height: 54px;
+  color: var(--sas-dado);
+}
+
+.alert-card__acoes {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 44px de alvo nas duas, e a mesma altura nas duas: a barra não pode dançar
+   de tamanho conforme o cartão tenha ou não `onResolver`. */
+.alert-card__acao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 15px;
+  font-size: 13px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+/* O `margin-bottom` é o mesmo que `.btn-primary` reserva para a sombra da
+   tecla. Sem ele, o fantasma ao lado fica 1,5px mais alto que o primário —
+   `align-items: center` centra a caixa de MARGEM, não a borda. */
+.alert-card__acao--ver {
+  margin-bottom: 3px;
+  background: transparent;
+  border-color: var(--sas-borda);
+  color: var(--sas-texto);
+}
+
+.alert-card__acao--ver:hover {
+  background: var(--sas-superficie-2);
+}
+
+/* O cartão resolvido, esperando o desfazer. Ele fica no LUGAR do cartão que
+   sumiu — é isso que diz qual dos alertas foi resolvido, sem repetir o
+   título. A prancheta desenha 14px de raio aqui; vira 18px, porque é uma
+   superfície e o sistema só tem três raios (docs/37). */
+.alert-card--resolvido {
+  cursor: default;
+  background: var(--sas-realce);
+  border-color: var(--sas-dado);
+  gap: 14px;
+}
+
+.alert-card__confirmacao {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--sas-texto);
+}
+
+.alert-card__desfazer {
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid var(--sas-dado);
+  border-radius: var(--radius-md);
+  color: var(--sas-dado);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alert-card__desfazer:hover {
+  background: color-mix(in srgb, var(--sas-dado) 12%, transparent);
+}
+
+/* Estreito: o texto ocupa a linha inteira, e a régua e as ações dividem a de
+   baixo. As ações ficam à direita porque é onde a mão as procura no cartão
+   largo — a posição não muda de lado ao girar o aparelho. O sparkline tem
+   `viewBox`, então encolhe junto sem distorcer: em 390px os 150px fixos
+   empurravam as duas teclas para uma terceira linha. */
+@media (max-width: 880px) {
+  .alert-card {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .alert-card__main {
+    flex-basis: 100%;
+  }
+
+  .alert-card__viz {
+    flex: 1 1 110px;
+    width: auto;
+    height: auto;
+  }
+
+  .alert-card__viz .sparkline {
+    width: 100%;
+    height: auto;
+  }
+
+  .alert-card__acoes {
+    margin-left: auto;
+  }
+}
+
+/* As `.tone-*` globais, neutralizadas: o servidor manda `severidade` e várias
+   telas a passam adiante, e aqui ela deixa de pintar.
+
+   ⚠️ "Neutralizada" é sobre a regra GLOBAL, não sobre o produto inteiro: dois
+   lugares ainda casam `.tone-*` com um seletor mais específico e voltam a
+   pintar o semáforo. `.gravacao__data.tone-*` (`integracoes.css`) é a tarja de
+   data de `/integracoes/aulas`, com verde, âmbar, vermelho e azul; e
+   `.panorama__tag.tone-*` (mais abaixo) é o panorama EXPORTADO do aluno. Os
+   dois ficaram fora da refatoração do docs/39 e são pendência declarada — o
+   comentário fica aqui porque é aqui que se procura. */
 .tone-vermelho,
 .tone-ambar,
 .tone-verde,
 .tone-cinza { color: inherit; }
-
-.alert-card__tag,
-.alert-card__tag.tone-vermelho,
-.alert-card__tag.tone-ambar,
-.alert-card__tag.tone-verde,
-.alert-card__tag.tone-cinza {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-}
 
 /* ─── Tabela ────────────────────────────────────────────────────────── */
 
@@ -531,15 +608,15 @@
   text-align: left;
   font-weight: 400;
   font-size: 13px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
   white-space: nowrap;
 }
 
 .data-table tbody td {
   padding: 13px 16px;
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--sas-fio);
   vertical-align: middle;
 }
 
@@ -548,7 +625,7 @@
 }
 
 .data-table tbody tr:hover {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
 }
 
 /* ─── Tags / pílulas inline ─────────────────────────────────────────── */
@@ -559,8 +636,8 @@
   font-weight: 400;
   padding: 5px 13px;
   border-radius: var(--radius-pill);
-  background: var(--color-neutral-soft);
-  color: var(--color-text-secondary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-texto-2);
   white-space: nowrap;
 }
 
@@ -571,8 +648,8 @@
 .tag.tone-ambar,
 .tag.tone-verde {
   background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
+  border: 1px solid var(--sas-borda);
+  color: var(--sas-texto);
 }
 /* ⚠️ `tone-navy` também vira contorno. Perfil, tendência e zona são três
    PALAVRAS de categoria que apareciam lado a lado com três desenhos
@@ -580,8 +657,8 @@
    contornado. Três tratamentos para a mesma coisa na mesma linha. */
 .tag.tone-navy {
   background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
+  border: 1px solid var(--sas-borda);
+  color: var(--sas-texto);
 }
 
 /* ─── Mini-visualizações ────────────────────────────────────────────── */
@@ -598,7 +675,7 @@
 }
 
 .section + .section {
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--sas-borda);
 }
 
 /* Título de seção: 600, não 500. O 500 é o peso da "ênfase pontual" do corpo
@@ -608,13 +685,13 @@
   font-size: 16px;
   font-weight: 600;
   line-height: 1.3;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
   margin-bottom: 10px;
 }
 
 .section__subtitle {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   margin-bottom: 14px;
 }
 
@@ -623,13 +700,13 @@
 .empty-state {
   padding: 56px 24px;
   text-align: center;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   font-size: 14px;
 }
 
 .empty-state__hint {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   margin-top: 6px;
 }
 
@@ -638,7 +715,7 @@
 .kpi {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 /* O OLHO substitui o rótulo. Era 14px em caixa normal, cinza — o mesmo peso
@@ -650,14 +727,20 @@
    É a mudança mais barata do trabalho inteiro: a Plus Jakarta Sans já é
    variável na faixa 200–800 e já está servida localmente (fontes.css).
    Nenhum asset novo — e nenhum poderia entrar, os dados são de menores de
-   idade (CLAUDE.md, armadilha 6). */
+   idade (CLAUDE.md, armadilha 6).
+
+   ⚠️ A cor é `--sas-texto-2`, não `--sas-dado` como estava: azul é o papel do
+   DADO, e o olho não é dado — é a etiqueta que diz de que dado se trata. Uma
+   fileira de quatro KPIs com quatro rótulos azuis punha o realce em cima da
+   legenda e deixava o numeral, que é o herói, sem nada por perto para
+   contrastar (a prancheta, Kit de peças §KPI). */
 .kpi__rotulo {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1.4;
-  color: var(--color-dado);
+  color: var(--sas-texto-2);
 }
 
 /* MAGNITUDE. O 800 com tracking negativo é a aproximação da grotesca
@@ -674,22 +757,32 @@
   font-weight: 800;
   letter-spacing: -0.035em;
   line-height: 0.95;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
   font-variant-numeric: tabular-nums;
 }
 
 /* R7 · UMA escala semântica por tela. O numeral de KPI é sempre MAGNITUDE:
    quem carrega a leitura é a tabela ou o gráfico abaixo dele, e duas coisas
-   gritando é o mesmo que nenhuma. As classes continuam sendo aceitas para
-   não quebrar chamador antigo, e não pintam mais nada. */
-.kpi__valor.tone-verde,
-.kpi__valor.tone-ambar,
-.kpi__valor.tone-vermelho,
-.kpi__valor.tone-navy { color: var(--color-magnitude); }
+   gritando é o mesmo que nenhuma.
 
+   As quatro regras `.kpi__valor.tone-*` que existiam aqui para devolver a
+   magnitude por cima do semáforo saíram: o componente parou de emitir a
+   classe (`componentes/ui/Kpi.tsx` ignora a prop `tone`), e regra que
+   sobrevive ao seu chamador é armadilha para quem vier depois. */
+
+/* Em 390px o numeral de 40px come metade da largura do cartão. 32px é o piso
+   da faixa de magnitude do sistema (32–44) — abaixo disso ele deixa de ser
+   magnitude. */
+@media (max-width: 560px) {
+  .kpi__valor {
+    font-size: 32px;
+  }
+}
+
+/* "de 902", "de 10": é REFERÊNCIA sobre a magnitude, e some ao lado dela. */
 .kpi__sufixo {
   font-size: 15px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-texto-2);
   margin-left: 6px;
   font-weight: 400;
   letter-spacing: 0;
@@ -701,11 +794,13 @@
   gap: 16px;
 }
 
-/* Cada KPI num cartão próprio — é a faixa de quatro do topo das fichas. */
+/* Cada KPI num cartão próprio — é a faixa de quatro do topo das fichas.
+   Raio de superfície (18px), não o de elemento pequeno: o sistema tem três
+   raios e este cartão é dos grandes (docs/37). */
 .kpi-grid--cartoes .kpi {
-  background: var(--color-surface);
-  border: var(--color-border-largura) solid var(--color-border);
-  border-radius: var(--radius-md);
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
   padding: 20px 22px;
 }
 
@@ -729,7 +824,7 @@
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .histograma__legenda-item {
@@ -767,7 +862,7 @@
   text-align: right;
   padding: 0 10px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   white-space: nowrap;
   width: var(--label-w);
   height: var(--cell-h);
@@ -776,7 +871,7 @@
 .heatmap__th-sim {
   font-weight: 500;
   font-size: 11px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   padding: 4px 6px;
   width: var(--cell-w);
 }
@@ -790,8 +885,8 @@
 }
 
 .heatmap__cel.vazio {
-  background: var(--color-surface-inset);
-  color: var(--color-text-tertiary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-referencia);
 }
 
 /* ── Heatmap agrupado por ciclo ── */
@@ -810,27 +905,27 @@
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0.04em;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   padding: 6px 6px 4px 6px;
   text-align: center;
-  border-bottom: 2px solid var(--color-border-strong);
+  border-bottom: 2px solid var(--sas-borda);
 }
 
 .heatmap__th-vestibular {
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-transform: none;
 }
 
 .heatmap__head-fase .heatmap__th-fase {
   font-size: 10px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   text-transform: none;
   letter-spacing: 0.05em;
   padding: 4px 6px;
   text-align: center;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 .heatmap__head-sim .heatmap__th-sim {
@@ -841,26 +936,26 @@
 .heatmap__th-pn {
   font-size: 11px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .heatmap__th-data {
   font-size: 9px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   margin-top: 2px;
 }
 
 /* Bandas alternadas pra separar ciclos visualmente. */
 .heatmap--agrupado .faixa-a {
-  background: var(--color-surface);
+  background: var(--sas-superficie);
 }
 .heatmap--agrupado .faixa-b {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
 }
 
 /* Borda esquerda em colunas de fase 2 — separador visual entre F1 e F2. */
 .heatmap--agrupado .borda-esq {
-  border-left: 1px dashed var(--color-border-strong);
+  border-left: 1px dashed var(--sas-borda);
 }
 
 .heatmap--agrupado .heatmap__cel {
@@ -876,12 +971,12 @@
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: none;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   padding: 8px 12px 4px 12px;
 }
 
 .export-menu__secao:not(:first-child) {
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--sas-borda);
   margin-top: 4px;
 }
 
@@ -893,7 +988,7 @@
   max-width: 880px;
   margin: 0 auto;
   background: white;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   padding: 36px;
   font-family: var(--font-family);
 }
@@ -902,7 +997,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  border-bottom: 2px solid var(--color-navy);
+  border-bottom: 2px solid var(--sas-acao);
   padding-bottom: 16px;
   margin-bottom: 20px;
 }
@@ -910,25 +1005,25 @@
 .panorama__nome {
   margin: 0;
   font-size: 22px;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 .panorama__meta {
   margin: 4px 0 0 0;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .panorama__marca-titulo {
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   text-align: right;
 }
 
 .panorama__marca-sub {
   font-size: 10px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-align: right;
   margin-top: 2px;
 }
@@ -944,14 +1039,14 @@
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: none;
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border-strong);
+  color: var(--sas-texto-2);
+  border-bottom: 1px solid var(--sas-borda);
   padding-bottom: 4px;
 }
 
 .panorama__legenda {
   font-size: 10px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   margin: 4px 0 6px 0;
 }
 
@@ -966,13 +1061,13 @@
   font-weight: 500;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
 }
 
-.panorama__tag.tone-navy { background: color-mix(in srgb, var(--color-dado) 10%, transparent); color: var(--color-navy); }
-.panorama__tag.tone-verde { background: var(--color-green-soft); color: var(--color-green); }
-.panorama__tag.tone-ambar { background: var(--color-amber-soft); color: var(--color-amber); }
-.panorama__tag.tone-vermelho { background: var(--color-red-soft); color: var(--color-red); }
+.panorama__tag.tone-navy { background: color-mix(in srgb, var(--sas-dado) 10%, transparent); color: var(--sas-acao); }
+.panorama__tag.tone-verde { background: color-mix(in srgb, var(--sas-dado) 14%, transparent); color: var(--sas-dado); }
+.panorama__tag.tone-ambar { background: color-mix(in srgb, var(--sas-valor) 16%, transparent); color: var(--sas-valor); }
+.panorama__tag.tone-vermelho { background: color-mix(in srgb, var(--sas-alerta) 14%, transparent); color: var(--sas-alerta); }
 
 .panorama__kpis {
   display: grid;
@@ -981,14 +1076,14 @@
 }
 
 .panorama__kpi {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
 }
 
 .panorama__kpi-rotulo {
   font-size: 10px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   text-transform: none;
   letter-spacing: 0.04em;
 }
@@ -1019,30 +1114,30 @@
   font-weight: 500;
   white-space: nowrap;
   padding-right: 8px !important;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .panorama__heatmap-ciclo {
   font-size: 9px;
   font-weight: 500;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   text-transform: none;
 }
 
 .panorama__heatmap-fase {
   font-size: 8px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   text-transform: none;
 }
 
 .panorama__heatmap-pn {
   font-size: 8px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .panorama__heatmap .faixa-a { background: white; }
-.panorama__heatmap .faixa-b { background: var(--color-surface-inset); }
+.panorama__heatmap .faixa-b { background: var(--sas-superficie-2); }
 
 .panorama__heatmap-cel {
   width: 28px;
@@ -1053,8 +1148,8 @@
 }
 
 .panorama__heatmap-cel.vazio {
-  background: var(--color-surface-inset);
-  color: var(--color-text-tertiary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-referencia);
 }
 
 .panorama__tabela {
@@ -1067,7 +1162,7 @@
 .panorama__tabela td {
   padding: 6px 8px;
   text-align: left;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 .panorama__tabela th {
@@ -1075,21 +1170,21 @@
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0.04em;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .panorama__vazio {
   font-style: italic;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-size: 11px;
 }
 
 .panorama__footer {
   margin-top: 24px;
   padding-top: 12px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--sas-borda);
   font-size: 9px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   text-align: center;
 }
 
@@ -1128,7 +1223,7 @@
 }
 
 .ficha-trajetoria__rotulo {
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   font-size: 13px;
 }
 
@@ -1136,105 +1231,32 @@
   flex: 1;
 }
 
-.tabela-similares {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.tabela-similares td,
-.tabela-similares th {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-border);
-  text-align: left;
-}
 
 .btn-link-resolver {
   background: transparent;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   font-size: 12px;
   padding: 4px 10px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .btn-link-resolver:hover {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
 }
 
 
-/* ─── Ciclo-ficha v2: single-page, hero + blocos verticais ──────────────── */
-
-/* Hero — 4 KPIs grandes no topo. */
-.ciclo-hero__grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 760px) {
-  .ciclo-hero__grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-.ciclo-hero__card {
-  background: var(--color-surface-inset);
-  border-radius: var(--radius-md);
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ciclo-hero__rotulo {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  text-transform: none;
-  letter-spacing: 0.04em;
-  font-weight: 500;
-}
-
-.ciclo-hero__valor {
-  font-size: 32px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Numeral é MAGNITUDE, sempre. O que ele significa está no rótulo e na
-   referência ao lado, não no matiz. */
-.ciclo-hero__valor.tone-verde,
-.ciclo-hero__valor.tone-ambar,
-.ciclo-hero__valor.tone-vermelho { color: var(--color-magnitude); }
-
-.ciclo-hero__sufixo {
-  font-size: 16px;
-  color: var(--color-text-tertiary);
-  font-weight: 500;
-  margin-left: 4px;
-}
-
-.ciclo-hero__delta {
-  font-size: 12px;
-  color: var(--color-text-tertiary);
-}
-
-/* R5 · A COMPARAÇÃO É CINZA. Delta é comparação com o ciclo anterior, e o
-   sentido dele já está na seta e no sinal — pintar de verde e vermelho
-   acrescenta uma segunda escala semântica na mesma tela e não acrescenta
-   informação nenhuma. */
-.ciclo-hero__delta.tone-verde,
-.ciclo-hero__delta.tone-vermelho { color: var(--color-text-tertiary); }
-
-.ciclo-hero__legenda {
-  font-size: 11px;
-  color: var(--color-text-tertiary);
-  margin: 8px 0 0 0;
-}
-
+/* ─── Ciclo-ficha: os blocos verticais ───────────────────────────────────
+   ⚠️ O HERO SAIU. Eram quatro cartões `.ciclo-hero__*` numa fileira larga,
+   ocupando a tela inteira antes de qualquer dado por aluno; a fase 3 do
+   docs/39 os transformou na grade 2×2 `.ciclo-kpi*` de `ciclo.css`, que
+   divide a faixa de chegada com os dois campos — é essa reorganização, e não a
+   subtração de nenhum número, que faz o cabeçalho da tabela caber na primeira
+   dobra. As regras que neutralizavam `tone-*` no numeral e no delta foram
+   junto: elas não têm mais onde pegar.
+   ─────────────────────────────────────────────────────────────────────── */
 
 /* Visão geral conjunta — histograma + 4 mini-cards numéricos. */
 .ciclo-conjunta__layout {
@@ -1265,7 +1287,7 @@
 }
 
 .ciclo-materia {
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--sas-borda);
   padding-top: 16px;
   display: flex;
   flex-direction: column;
@@ -1295,12 +1317,12 @@
 }
 
 .ciclo-materia__seta {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-weight: 500;
 }
 
 .mini-badge {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   padding: 4px 10px;
   border-radius: var(--radius-pill);
   font-size: 12px;
@@ -1310,7 +1332,7 @@
 }
 
 .mini-badge__rotulo {
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .mini-badge__valor {
@@ -1320,30 +1342,13 @@
 
 .mini-badge__delta {
   font-size: 11px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .mini-badge__delta.tone-verde,
-.mini-badge__delta.tone-vermelho { color: var(--color-text-tertiary); }
+.mini-badge__delta.tone-vermelho { color: var(--sas-referencia); }
 
 
-/* A régua da ficha do ciclo: fica no cabeçalho porque governa a tela inteira
-   (todo corte, todo pctAprovados), não um gráfico só. */
-.ciclo-ficha__regua {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.ciclo-ficha__regua-rotulo {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
-}
 
 .ciclo-materia__graficos {
   display: grid;
@@ -1362,7 +1367,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
 }
@@ -1370,12 +1375,12 @@
 .ciclo-materia__hist-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .ciclo-materia__hist-n {
   font-weight: 400;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 
@@ -1393,7 +1398,7 @@
 }
 
 .mini-card {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   display: flex;
@@ -1403,7 +1408,7 @@
 
 .mini-card__rotulo {
   font-size: 11px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   text-transform: none;
   letter-spacing: 0.03em;
 }
@@ -1411,7 +1416,7 @@
 .mini-card__valor {
   font-size: 18px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1419,13 +1424,13 @@
    o valor medido em destaque, e não semáforo. */
 .mini-card__valor.tone-verde,
 .mini-card__valor.tone-ambar,
-.mini-card__valor.tone-vermelho { color: var(--color-magnitude); }
-.mini-card__valor.tone-navy { color: var(--color-dado); }
+.mini-card__valor.tone-vermelho { color: var(--sas-magnitude); }
+.mini-card__valor.tone-navy { color: var(--sas-dado); }
 
 
 /* Botão dos avançados + seção colapsável. */
 .ciclo-avancado {
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   border-radius: var(--radius-md);
   padding: 20px 24px;
 }
@@ -1435,7 +1440,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
 .ciclo-avancado__bloco:last-child {
@@ -1464,7 +1469,7 @@
 .ciclo-avancado__fase-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   text-transform: none;
   letter-spacing: 0.06em;
   margin-bottom: 8px;
@@ -1481,7 +1486,7 @@
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: none;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   margin-bottom: 4px;
 }
 
@@ -1506,7 +1511,7 @@
   flex-wrap: wrap;
   gap: 16px;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .linha-temporal__legenda-item {
@@ -1526,8 +1531,8 @@
 /* ─── Insights painel ───────────────────────────────────────────────────── */
 
 .insights-painel {
-  background: var(--color-surface-inset);
-  border-left: 3px solid var(--color-navy);
+  background: var(--sas-superficie-2);
+  border-left: 3px solid var(--sas-acao);
   border-radius: var(--radius-sm);
   padding: 14px 16px;
 }
@@ -1540,13 +1545,13 @@
   margin: 0;
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 .insights-painel__legenda {
   margin: 4px 0 0 0;
   font-size: 11px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .insights-painel__bullets {
@@ -1560,13 +1565,13 @@
 .insights-painel__bullet {
   font-size: 13px;
   line-height: 1.5;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 .insights-painel__indisponivel {
   margin: 4px 0 0 0;
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-style: italic;
 }
 
@@ -1579,7 +1584,7 @@
 
 .insights-painel__skeleton-linha {
   height: 12px;
-  background: linear-gradient(90deg, var(--color-border), var(--color-border-strong), var(--color-border));
+  background: linear-gradient(90deg, var(--sas-borda), var(--sas-borda), var(--sas-borda));
   background-size: 200% 100%;
   border-radius: var(--radius-sm);
   animation: insights-skeleton 1.4s ease-in-out infinite;
@@ -1600,8 +1605,8 @@
    ─────────────────────────────────────────────────────────────────────── */
 
 .barra-filtros {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-md);
   padding: 14px 22px;
   display: flex;
@@ -1693,9 +1698,9 @@
   gap: 7px;
   padding: 8px 14px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
+  border: 1px solid var(--sas-borda);
+  background: var(--sas-superficie);
+  color: var(--sas-texto-2);
   font-size: 13px;
   line-height: 1.2;
   white-space: nowrap;
@@ -1705,8 +1710,8 @@
 }
 
 .barra-filtros__alternar:hover {
-  border-color: var(--color-navy-light);
-  color: var(--color-navy);
+  border-color: var(--sas-dado-claro);
+  color: var(--sas-acao);
 }
 
 /* O campo de busca da faixa. O ícone fica dentro do campo, como na topbar —
@@ -1720,7 +1725,7 @@
 .barra-filtros__busca > svg {
   position: absolute;
   left: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   pointer-events: none;
 }
 
@@ -1737,7 +1742,7 @@
 
 .barra-filtros__resumo {
   font-size: 13px;
-  color: var(--color-text-body);
+  color: var(--sas-texto);
   min-width: 0;
   /* Uma linha: o resumo existe para caber onde os filtros não cabiam. O
      `title` não é preciso porque expandir mostra tudo, e é um clique. */
@@ -1748,36 +1753,36 @@
 
 .barra-filtros__rotulo {
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   white-space: nowrap;
 }
 
 .barra-filtros__sep {
   width: 1px;
   height: 28px;
-  background: var(--color-shell-border);
+  background: var(--sas-borda);
   flex: none;
 }
 
 .barra-filtros__vazio {
   font-size: 13px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .barra-filtros__limpar {
   margin-left: auto;
   font-size: 13px;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   padding: 8px 14px;
   border-radius: var(--radius-pill);
 }
 
 .barra-filtros__limpar:hover:not([disabled]) {
-  background: var(--color-navy-tint);
+  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
 }
 
 .barra-filtros__limpar[disabled] {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   cursor: default;
 }
 
@@ -1815,9 +1820,9 @@
 .pill {
   padding: 8px 18px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
+  border: 1px solid var(--sas-borda);
+  background: var(--sas-superficie);
+  color: var(--sas-texto-2);
   font-size: 13px;
   line-height: 1.2;
   white-space: nowrap;
@@ -1826,14 +1831,14 @@
 }
 
 .pill:hover:not(.is-active) {
-  border-color: var(--color-navy-light);
-  color: var(--color-navy);
+  border-color: var(--sas-dado-claro);
+  color: var(--sas-acao);
 }
 
 .pill.is-active {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  color: var(--color-navy-texto);
+  background: var(--sas-acao);
+  border-color: var(--sas-acao);
+  color: var(--sas-acao-texto);
 }
 
 .pill__contagem {
@@ -1847,9 +1852,9 @@
   font-size: 13px;
   padding: 7px 14px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface);
-  color: var(--color-text-body);
+  border: 1px solid var(--sas-borda);
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
 }
 
 /* ─── Abas ──────────────────────────────────────────────────────────────
@@ -1872,7 +1877,7 @@
   border: none;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -1882,15 +1887,15 @@
 
 .aba:hover:not(.is-active) {
   background: transparent;
-  border-bottom-color: var(--color-border);
-  color: var(--color-magnitude);
+  border-bottom-color: var(--sas-borda);
+  color: var(--sas-magnitude);
   text-decoration: none;
 }
 
 .aba.is-active {
   background: transparent;
-  border-bottom-color: var(--color-navy);
-  color: var(--color-magnitude);
+  border-bottom-color: var(--sas-acao);
+  color: var(--sas-magnitude);
 }
 
 /* ─── Avatar de iniciais ────────────────────────────────────────────────
@@ -1904,26 +1909,14 @@
   height: 34px;
   flex: none;
   border-radius: 50%;
-  background: var(--color-navy-soft);
-  color: var(--color-navy);
+  background: color-mix(in srgb, var(--sas-dado) 12%, transparent);
+  color: var(--sas-acao);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
 }
 
-.celula-pessoa {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.celula-pessoa__nome {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* ─── Cabeçalho de tela (fora de card) ─────────────────────────────────── */
 
@@ -1936,7 +1929,7 @@
 }
 
 /* Título de tela: 28px em 700, na cor MAGNITUDE — a mesma do numeral grande,
-   mais escura que o texto corrente. Era `--color-text-primary` com
+   mais escura que o texto corrente. Era `--sas-texto` com
    `letter-spacing` em PX, que não acompanha o tamanho quando a fonte muda
    (docs/brief-claude-design-coordenacao.md §Tipografia). */
 .tela-titulo {
@@ -1944,12 +1937,12 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
 }
 
 .tela-subtitulo {
   font-size: 15px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   margin-top: 6px;
 }
 
@@ -1979,21 +1972,23 @@
 .camadas__titulo {
   font-size: 15px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 .camadas__legenda {
   margin: 2px 0 0;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .camadas__degraus {
   display: inline-flex;
   padding: 2px;
   gap: 2px;
-  background: var(--color-surface-2, var(--color-bg));
-  border: 1px solid var(--color-border);
+  /* Era um `surface-2` do prefixo antigo: mais um token fantasma, nunca
+     declarado. Quem sempre pintou foi o valor alternativo, e é ele que fica. */
+  background: var(--sas-fundo);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-pill);
 }
 
@@ -2004,7 +1999,7 @@
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   background: transparent;
   border: 0;
   border-radius: var(--radius-pill);
@@ -2012,17 +2007,17 @@
   white-space: nowrap;
 }
 
-.camadas__degrau:hover { color: var(--color-text-primary); }
+.camadas__degrau:hover { color: var(--sas-texto); }
 
 .camadas__degrau:focus-visible {
-  outline: 2px solid var(--color-navy-light);
+  outline: 2px solid var(--sas-dado-claro);
   outline-offset: 1px;
 }
 
 .camadas__degrau.is-ativo {
-  color: var(--color-text-primary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  color: var(--sas-texto);
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
 }
 
 .camadas__painel {
@@ -2037,7 +2032,7 @@
   margin: 0;
   font-size: 15px;
   line-height: 1.5;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 /* Gráfico largo não pode empurrar a página: rola dentro do próprio bloco. */
@@ -2072,12 +2067,12 @@
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 /* Vermelho aqui é informação, não decoração: é o motivo de uma falha. */
 .ciclo-canvas__erro {
-  color: var(--color-red);
+  color: var(--sas-alerta);
 }
 
 
@@ -2103,12 +2098,12 @@
 .calibracao__campo label {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-body);
+  color: var(--sas-texto);
 }
 
 .calibracao__campo input {
   padding: 9px 12px;
-  border: 1px solid var(--color-shell-border);
+  border: 1px solid var(--sas-borda);
   border-radius: 8px;
   font-size: 15px;
   max-width: 160px;

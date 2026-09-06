@@ -4,6 +4,18 @@ Cada aluno tem matrícula ativa em uma turma (matricula_turma.ativo_ate IS NULL)
 Perfil/tendência/zona/media_recente vêm de `classificacao_aluno`, populada
 pelo stats engine ao fim de cada upload. Sparkline vem das últimas N notas
 em ordem cronológica.
+
+Desde a fase 4 do docs/39 o aluno sai daqui com mais duas coisas que a lista de
+varredura precisa e não tinha: as **três médias** (do ano, do primeiro ciclo e
+do último) abertas nas matérias com taxonomia de edital, e os **direitos de
+refeição**. As duas viajam junto do aluno de propósito — derivar as médias no
+front custaria baixar as notas dos 900 a cada carregamento, e o front não pode
+recalcular o que o servidor já sabe.
+
+⚠️ **A restrição alimentar NÃO entra aqui**, e isso é decisão, não esquecimento
+(docs/38 §2.6): é dado de saúde de menor, a categoria mais sensível da LGPD, e
+mora na tela de direitos da cantina, sob clique. Uma coluna a mais na lista de
+900 seria exatamente o vazamento que aquela decisão evitou.
 """
 
 from __future__ import annotations
@@ -12,15 +24,26 @@ import base64
 import math
 import statistics as st
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
+from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
 from .. import storage
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
+from ..banco.missao import hoje_na_escola
 from ..schemas.domain import Aluno
 from ..stats import classificacao as _classif
-from ..stats.utils import como_float, nota_real
+from ..stats.utils import (
+    como_float,
+    filtro_nota_valida,
+    nota_real,
+    simulado_entra_no_agregado,
+)
 from ..supabase_client import get_supabase
 
 router = APIRouter(
@@ -77,15 +100,348 @@ def _passar_recorte(aluno: Aluno, recorte: str | None) -> bool:
     return True
 
 
+# ─── As três médias e os direitos (docs/39 · fase 4) ─────────────────────
+
+#: As três matérias que o detalhamento abre — e só elas (docs/19 §4.1). São as
+#: que têm taxonomia de edital: uma coluna de Português diria um número sem
+#: dizer onde estudar, que é a pergunta que justifica abrir o grupo. As outras
+#: continuam dentro de `geral`; o que elas não ganham é coluna própria.
+MATERIAS_DO_DETALHAMENTO = ("matematica", "fisica", "quimica")
+
+#: As duas refeições. Mesmo conjunto do CHECK de `direito_refeicao_aluno`
+#: (migration 0049) — fechado por Literal para um terceiro valor quebrar no
+#: build do front, e não numa célula em branco na tela.
+Refeicao = Literal["almoco", "janta"]
+
+_TAMANHO_PAGINA = 1000
+
+
+class MediaDoGrupo(BaseModel):
+    """Uma média e as três matérias em que ela abre.
+
+    **Todo campo é `None` quando não há nota — nunca 0,0.** Zero é uma nota que
+    alguém tirou; a célula que imprime 0,0 para quem não fez prova nenhuma
+    manda o coordenador procurar um aluno que não existe. É o caso de chegada
+    de todo aluno novo, e o formato tem de sobreviver a ele.
+    """
+
+    #: Como a coluna se chama NESTA carga: "2026", "1º Ciclo · ITA". Viaja
+    #: junto do número, e não numa rota à parte, porque quem escolheu o ciclo
+    #: foi o servidor — rótulo e número em requisições separadas divergem no
+    #: primeiro ciclo novo, e a tela afirmaria um ciclo que o número não é.
+    referencia: str | None = None
+    geral: float | None = None
+    matematica: float | None = None
+    fisica: float | None = None
+    quimica: float | None = None
+
+
+class MediasDoAluno(BaseModel):
+    """Os três grupos da lista de varredura, na ordem em que ela os lê."""
+
+    ano: MediaDoGrupo = Field(default_factory=MediaDoGrupo)
+    primeiroCiclo: MediaDoGrupo = Field(default_factory=MediaDoGrupo)
+    ultimoCiclo: MediaDoGrupo = Field(default_factory=MediaDoGrupo)
+
+
+class AlunoDaCoordenacao(Aluno):
+    """O aluno como a COORDENAÇÃO o lê: com as médias e os direitos.
+
+    Subclasse, e não campo novo em `schemas/domain.py`, porque `Aluno` é o
+    contrato compartilhado — o chat, os lembretes e a área do aluno o
+    constroem sem ter estes dois dados, e um campo obrigatório lá quebraria
+    todos eles por causa de uma coluna de tabela.
+    """
+
+    medias: MediasDoAluno = Field(default_factory=MediasDoAluno)
+    #: Almoço e janta, nada além. A restrição alimentar fica na cantina — ver
+    #: o aviso no topo do módulo.
+    direitos: list[Refeicao] = Field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ReferenciaDeMedias:
+    """A que ano e a que dois ciclos as três colunas respondem.
+
+    Escolha do servidor, calculada uma vez por requisição e usada tanto para
+    filtrar as notas quanto para escrever o rótulo — as duas coisas saindo da
+    MESMA estrutura é o que impede a coluna de dizer "Ciclo 1" enquanto soma o
+    Ciclo 2.
+    """
+
+    ciclos_do_ano: frozenset[str]
+    ciclo_primeiro: str | None
+    ciclo_ultimo: str | None
+    rotulo_ano: str | None
+    rotulo_primeiro: str | None
+    rotulo_ultimo: str | None
+
+
+REFERENCIA_VAZIA = ReferenciaDeMedias(frozenset(), None, None, None, None, None)
+
+
+def _rotulo_de_ciclo(ciclo: dict) -> str:
+    """"1º Ciclo · ITA" — o nome do ciclo e, quando existe, o edital dele.
+
+    O vestibular entra porque a lista mistura ciclos de ITA e de IME: dois
+    ciclos com o mesmo número e editais diferentes são colunas diferentes, e
+    sem o sufixo o cabeçalho não distinguiria um do outro.
+    """
+    nome = (ciclo.get("nome") or "").strip() or f"Ciclo {ciclo.get('ordem')}"
+    alvo = ciclo.get("vestibular_alvo")
+    return f"{nome} · {alvo}" if alvo else nome
+
+
+def _mapa_simulados(cliente) -> dict[str, dict]:
+    """{simulado_id: linha}. São dezenas — cabe inteiro na memória.
+
+    Carregado à parte em vez de embutido em cada nota: o embed repetiria a
+    prova em cada uma das ~44 mil linhas de `nota`, e o que trafega é o mesmo
+    objeto centenas de vezes.
+    """
+    resp = (
+        cliente.table("simulado")
+        .select(
+            "id, ciclo_id, materia_id, nota_maxima, data_aplicacao, "
+            "anulado, e_agregado, nota_confiavel"
+        )
+        .execute()
+    )
+    return {linha["id"]: linha for linha in (resp.data or [])}
+
+
+def _codigo_por_materia(cliente) -> dict[str, str]:
+    """{materia_id: codigo}. O código é o slug ASCII ('matematica'), não o nome."""
+    resp = cliente.table("materia").select("id, codigo").execute()
+    return {linha["id"]: linha.get("codigo") for linha in (resp.data or [])}
+
+
+def _referencia_de_medias(
+    cliente, simulados: dict[str, dict], *, hoje: date | None = None
+) -> ReferenciaDeMedias:
+    """Qual é o ano vigente, e quais são o primeiro e o último ciclo dele.
+
+    Duas decisões que a tela não pode tomar:
+
+      1. **Um ciclo só conta depois de acontecer** — tem pelo menos um simulado
+         aplicado até hoje. Sem isso, um ciclo agendado para novembro seria o
+         "último ciclo" em setembro, e a coluna inteira nasceria vazia.
+      2. **O ciclo de referência é o MESMO para todo mundo.** Usar o último
+         ciclo *de cada aluno* faria a ordenação comparar ciclos diferentes
+         entre linhas vizinhas — a mentira gráfica que a R6 existe para
+         impedir, agora na coluna em vez de no gráfico.
+    """
+    dia = (hoje or hoje_na_escola()).isoformat()
+    ciclos = (
+        cliente.table("ciclo")
+        .select("id, ordem, nome, vestibular_alvo, ano_letivo_id")
+        .execute()
+        .data
+        or []
+    )
+    anos = cliente.table("ano_letivo").select("id, ano").execute().data or []
+    ano_por_id = {linha["id"]: linha.get("ano") for linha in anos}
+
+    aplicados = {
+        sim.get("ciclo_id")
+        for sim in simulados.values()
+        if simulado_entra_no_agregado(sim) and str(sim.get("data_aplicacao") or "") <= dia
+    }
+    candidatos = [
+        c
+        for c in ciclos
+        if c["id"] in aplicados and ano_por_id.get(c.get("ano_letivo_id")) is not None
+    ]
+    if not candidatos:
+        return REFERENCIA_VAZIA
+
+    ano = max(ano_por_id[c["ano_letivo_id"]] for c in candidatos)
+    do_ano = [c for c in ciclos if ano_por_id.get(c.get("ano_letivo_id")) == ano]
+    aconteceram = sorted(
+        (c for c in do_ano if c["id"] in aplicados),
+        key=lambda c: c.get("ordem") if c.get("ordem") is not None else 0,
+    )
+    primeiro, ultimo = aconteceram[0], aconteceram[-1]
+    return ReferenciaDeMedias(
+        ciclos_do_ano=frozenset(c["id"] for c in do_ano),
+        ciclo_primeiro=primeiro["id"],
+        ciclo_ultimo=ultimo["id"],
+        rotulo_ano=str(ano),
+        rotulo_primeiro=_rotulo_de_ciclo(primeiro),
+        rotulo_ultimo=_rotulo_de_ciclo(ultimo),
+    )
+
+
+def _carregar_notas_validas(cliente, *, aluno_ids: list[str] | None = None) -> list[dict]:
+    """As notas que contam, PAGINANDO — só as três colunas de que a média precisa.
+
+    Pagina pelo mesmo motivo de `stats/classificacao._carregar_notas_com_simulado`:
+    sem `range`, a média dos 900 sairia de uma fatia arbitrária das ~44 mil
+    linhas de `nota` e estaria errada **sem erro nenhum** (CLAUDE.md,
+    armadilha 2).
+
+    `filtro_nota_valida` é quem diz o que é "nota que conta" — presente e
+    computável. A régua do AGREGADO (anulado, agregado, prova não confiável) é
+    coluna de `simulado` e não passa por filtro do PostgREST; ela é aplicada no
+    join em Python, por `simulado_entra_no_agregado`.
+    """
+    linhas: list[dict] = []
+    offset = 0
+    while True:
+        query = filtro_nota_valida(
+            cliente.table("nota").select("aluno_id, simulado_id, pontuacao")
+        )
+        if aluno_ids is not None:
+            query = query.in_("aluno_id", aluno_ids)
+        lote = query.range(offset, offset + _TAMANHO_PAGINA - 1).execute().data or []
+        linhas.extend(lote)
+        if len(lote) < _TAMANHO_PAGINA:
+            return linhas
+        offset += _TAMANHO_PAGINA
+
+
+def _notas_para_medias(
+    cliente,
+    simulados: dict[str, dict],
+    codigos: dict[str, str],
+    *,
+    aluno_ids: list[str] | None = None,
+) -> Iterator[dict]:
+    """{aluno_id, nota (0–10), ciclo_id, materia} — o join de `nota` com `simulado`.
+
+    A normalização para 0–10 acontece aqui, uma vez: `nota.pontuacao` são
+    ACERTOS, e o número de questões varia de prova para prova. Somar acertos de
+    provas diferentes é somar coisas diferentes.
+    """
+    for linha in _carregar_notas_validas(cliente, aluno_ids=aluno_ids):
+        sim = simulados.get(linha.get("simulado_id"))
+        if sim is None or not simulado_entra_no_agregado(sim):
+            continue
+        nota = nota_real(
+            como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima"))
+        )
+        if nota is None:
+            continue
+        yield {
+            "aluno_id": linha["aluno_id"],
+            "nota": nota,
+            "ciclo_id": sim.get("ciclo_id"),
+            "materia": codigos.get(sim.get("materia_id")),
+        }
+
+
+def _media(valores: list[float]) -> float | None:
+    """A média, ou `None` quando não há nota. Nunca 0,0 — ver `MediaDoGrupo`."""
+    return round(st.mean(valores), 2) if valores else None
+
+
+def medias_por_aluno(
+    notas: Iterable[dict], *, referencia: ReferenciaDeMedias
+) -> dict[str, MediasDoAluno]:
+    """{aluno_id: as três médias}, a partir de notas já normalizadas em 0–10.
+
+    Função PURA — nenhuma I/O — porque é ela que erra calado: uma nota contada
+    no grupo errado não levanta exceção, só desloca uma coluna em 900 linhas.
+    O join com `simulado` e a leitura do banco ficam nos chamadores.
+
+    Um ciclo pode ser ao mesmo tempo o primeiro e o último (só um aconteceu):
+    aí a mesma nota entra nos dois grupos, e as duas colunas coincidem. É o
+    estado verdadeiro do ano, não um bug de contagem.
+
+    Aluno sem nota nenhuma simplesmente não aparece no resultado — quem
+    preenche a lacuna com `medias_vazias` é o endpoint, para toda linha da
+    tabela ter a mesma forma.
+    """
+    acumulado: dict[str, dict[str, dict[str, list[float]]]] = defaultdict(
+        lambda: {grupo: defaultdict(list) for grupo in ("ano", "primeiro", "ultimo")}
+    )
+
+    for nota in notas:
+        ciclo = nota.get("ciclo_id")
+        if ciclo is None:
+            continue
+        grupos = []
+        if ciclo in referencia.ciclos_do_ano:
+            grupos.append("ano")
+        if ciclo == referencia.ciclo_primeiro:
+            grupos.append("primeiro")
+        if ciclo == referencia.ciclo_ultimo:
+            grupos.append("ultimo")
+        if not grupos:
+            continue
+
+        valor = nota["nota"]
+        materia = nota.get("materia")
+        for grupo in grupos:
+            balde = acumulado[nota["aluno_id"]][grupo]
+            balde["geral"].append(valor)
+            if materia in MATERIAS_DO_DETALHAMENTO:
+                balde[materia].append(valor)
+
+    def montar(balde: dict[str, list[float]], rotulo: str | None) -> MediaDoGrupo:
+        return MediaDoGrupo(
+            referencia=rotulo,
+            geral=_media(balde.get("geral", [])),
+            matematica=_media(balde.get("matematica", [])),
+            fisica=_media(balde.get("fisica", [])),
+            quimica=_media(balde.get("quimica", [])),
+        )
+
+    return {
+        aluno_id: MediasDoAluno(
+            ano=montar(baldes["ano"], referencia.rotulo_ano),
+            primeiroCiclo=montar(baldes["primeiro"], referencia.rotulo_primeiro),
+            ultimoCiclo=montar(baldes["ultimo"], referencia.rotulo_ultimo),
+        )
+        for aluno_id, baldes in acumulado.items()
+    }
+
+
+def medias_vazias(referencia: ReferenciaDeMedias) -> MediasDoAluno:
+    """As três colunas com rótulo e sem número — a chegada de todo aluno novo.
+
+    O rótulo continua vindo: a coluna existe, o aluno é que ainda não tem nota
+    nela. Devolver a estrutura ausente faria a tela decidir entre "sem dado" e
+    "coluna inexistente", que são coisas diferentes.
+    """
+    return MediasDoAluno(
+        ano=MediaDoGrupo(referencia=referencia.rotulo_ano),
+        primeiroCiclo=MediaDoGrupo(referencia=referencia.rotulo_primeiro),
+        ultimoCiclo=MediaDoGrupo(referencia=referencia.rotulo_ultimo),
+    )
+
+
+def _direitos_por_aluno(cliente, *, aluno_ids: list[str] | None = None) -> dict[str, list[str]]:
+    """{aluno_id: ['almoco', 'janta']}. A linha existir é o direito (0049).
+
+    Ordenado para a coluna não trocar de ordem entre dois carregamentos — a
+    tabela desenha os dois glifos na sequência em que chegam.
+    """
+    query = cliente.table("direito_refeicao_aluno").select("aluno_id, refeicao")
+    if aluno_ids is not None:
+        query = query.in_("aluno_id", aluno_ids)
+    mapa: dict[str, list[str]] = defaultdict(list)
+    for linha in query.execute().data or []:
+        mapa[linha["aluno_id"]].append(linha["refeicao"])
+    return {aluno_id: sorted(lista) for aluno_id, lista in mapa.items()}
+
+
 # ─── Endpoints ───────────────────────────────────────────────────────────
 
 
-@router.get("", response_model=list[Aluno])
+@router.get("", response_model=list[AlunoDaCoordenacao])
 async def listar_alunos(
     recorte: str | None = Query(None, description="em-risco | em-ascensao | perfil-irregular | zona-corte"),
     sede_id: str | None = Query(None, alias="sedeId"),
     turma_id: str | None = Query(None, alias="turmaId"),
-) -> list[Aluno]:
+) -> list[AlunoDaCoordenacao]:
+    """A lista de varredura: um aluno por linha, com as médias e os direitos.
+
+    As médias saem prontas daqui em vez de derivadas na tela porque derivá-las
+    no front custaria baixar as notas dos 900 a cada carregamento — e porque a
+    escolha de QUAIS ciclos são "o primeiro" e "o último" é do servidor
+    (`_referencia_de_medias`).
+    """
     cliente = get_supabase()
 
     aluno_para_turma = _mapa_aluno_para_turma_ativa(cliente)
@@ -94,6 +450,14 @@ async def listar_alunos(
     vestibulares = _vestibulares_por_aluno(cliente)
     sparklines = _classif.sparkline_por_aluno(cliente)
 
+    simulados = _mapa_simulados(cliente)
+    referencia = _referencia_de_medias(cliente, simulados)
+    medias = medias_por_aluno(
+        _notas_para_medias(cliente, simulados, _codigo_por_materia(cliente)),
+        referencia=referencia,
+    )
+    direitos = _direitos_por_aluno(cliente)
+
     resp = (
         cliente.table("aluno")
         .select("id, nome, ativo, foto_perfil_storage")
@@ -101,7 +465,7 @@ async def listar_alunos(
         .execute()
     )
 
-    alunos: list[Aluno] = []
+    alunos: list[AlunoDaCoordenacao] = []
     for linha in resp.data or []:
         id_aluno = linha["id"]
         id_turma = aluno_para_turma.get(id_aluno)
@@ -115,7 +479,7 @@ async def listar_alunos(
             continue
 
         classif = classificacoes.get(id_aluno) or {}
-        aluno = Aluno(
+        aluno = AlunoDaCoordenacao(
             id=id_aluno,
             nome=linha["nome"],
             turmaId=id_turma,
@@ -128,6 +492,8 @@ async def listar_alunos(
             media=como_float(classif.get("media_recente")),
             sparkline=sparklines.get(id_aluno, []),
             temFoto=linha.get("foto_perfil_storage") is not None,
+            medias=medias.get(id_aluno) or medias_vazias(referencia),
+            direitos=direitos.get(id_aluno, []),
         )
         if not _passar_recorte(aluno, recorte):
             continue
@@ -136,8 +502,8 @@ async def listar_alunos(
     return alunos
 
 
-@router.get("/{aluno_id}", response_model=Aluno)
-async def obter_aluno(aluno_id: str) -> Aluno:
+@router.get("/{aluno_id}", response_model=AlunoDaCoordenacao)
+async def obter_aluno(aluno_id: str) -> AlunoDaCoordenacao:
     cliente = get_supabase()
     resp = (
         cliente.table("aluno")
@@ -159,8 +525,21 @@ async def obter_aluno(aluno_id: str) -> Aluno:
     id_sede = turma_para_sede.get(id_turma, "") if id_turma else ""
     classif = classificacoes.get(aluno_id) or {}
 
+    # Aqui a varredura de notas é restrita a UM aluno: a ficha não paga o preço
+    # da lista. `GET /me` também cai neste caminho (routes/me.py), e o aluno
+    # recebe as próprias médias e os próprios direitos — nunca os de outro.
+    simulados = _mapa_simulados(cliente)
+    referencia = _referencia_de_medias(cliente, simulados)
+    medias = medias_por_aluno(
+        _notas_para_medias(
+            cliente, simulados, _codigo_por_materia(cliente), aluno_ids=[aluno_id]
+        ),
+        referencia=referencia,
+    )
+    direitos = _direitos_por_aluno(cliente, aluno_ids=[aluno_id])
+
     linha = resp.data[0]
-    return Aluno(
+    return AlunoDaCoordenacao(
         id=linha["id"],
         nome=linha["nome"],
         turmaId=id_turma,
@@ -174,6 +553,8 @@ async def obter_aluno(aluno_id: str) -> Aluno:
         media=como_float(classif.get("media_recente")),
         sparkline=sparklines.get(aluno_id, []),
         temFoto=linha.get("foto_perfil_storage") is not None,
+        medias=medias.get(aluno_id) or medias_vazias(referencia),
+        direitos=direitos.get(aluno_id, []),
     )
 
 

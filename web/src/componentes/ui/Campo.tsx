@@ -26,15 +26,46 @@ import { Link } from 'react-router-dom';
 //
 //   C5 · O ELO QUIETO, para o que não merece um card — e ele SOME quando está
 //        vazio ou quando a consulta falha.
+//
+// ── O que a prancheta acrescentou (docs/39 fase 1) ────────────────────────
+//
+// O Painel deixou de ser tabela com KPIs em cima e virou uma grade de campos,
+// e isso cobrou do card quatro capacidades que o hub de Administração nunca
+// precisou. Estão em `cardCiclo`, `cardSimulado` e `cardCantina` da prancheta
+// "Painel e cantina", e cada uma resolve um problema declarado lá:
+//
+//   `magnitude`  o numeral grande. NÃO é um KPI: os quatro KPIs do Painel
+//                antigo eram todos sobre o ciclo, e o card do ciclo já os
+//                carregava. Sobrou UM número, e ele responde "preciso abrir
+//                isto hoje?". Por isso só um card por tela o tem — é ele que
+//                domina os outros, e a hierarquia sobrevive ao crescimento da
+//                grade porque não vem do tamanho, vem do número.
+//   `aviso`      a linha de baixo, para quando o atalho ENVELHECEU: "nenhum
+//                ciclo em andamento — este encerrou há 7 semanas" (a frase é
+//                montada em `Painel.tsx`). Sem ela o card mostra o dado de
+//                julho como se fosse o de hoje.
+//   `marca`      o selo curto ("Pendente", "Sem destino"), na linha do olho.
+//   `inerte`     o card da cantina num sábado — ver a prop, que é onde mora a
+//                distinção que importa.
+//
+// A outra mudança da prancheta é silenciosa e vale para os dois cards: o olho
+// deixou de ser DADO e virou texto secundário. Azul é o valor MEDIDO (R3/R7,
+// uma escala semântica por tela) e um rótulo de seção não é medida nenhuma —
+// gastar o azul nele tirava do dado a única cor que o distingue.
 
 interface PropsCartao {
   /** O olho, em sentence case: o CSS o põe em caixa alta. */
   olho: string;
   /** A PERGUNTA que este campo responde (C1), não o nome do objeto. */
   titulo: string;
-  para: string;
+  /**
+   * O destino, tela inteira e com URL própria (C3). Opcional porque um card
+   * pode não ter para onde ir — e um card sem destino é inerte por
+   * construção, sem que ninguém precise declarar.
+   */
+  para?: string;
   /** O `<path>` do glifo de 70×70, em traço fino. Decorativo: quem nomeia o destino é o texto. */
-  glifo: ReactNode;
+  glifo?: ReactNode;
   /**
    * O dado vivo (C2). Os três estados são explícitos de propósito, porque é
    * neles que o padrão costuma ser implementado errado:
@@ -48,38 +79,118 @@ interface PropsCartao {
   carregando?: boolean;
   subtitulo?: string | null;
   vazio: string;
+  /**
+   * O numeral que decide se vale abrir o card hoje. Só um card por tela.
+   *
+   * `null` e ausente NÃO são a mesma coisa, pelo mesmo motivo da `contagem` do
+   * elo quieto: `null` diz "este card TEM lugar de magnitude e ainda não sei o
+   * número" — o esqueleto reserva o vão do numeral e a grade não pula quando o
+   * dado chega. Ausente diz "este card não tem magnitude".
+   */
+  magnitude?: string | null;
+  /** O que o numeral conta, em palavras: "cortados de 407 alunos". */
+  magnitudeLegenda?: string;
+  /** A linha que confessa que o atalho envelheceu. */
+  aviso?: string | null;
+  /** O selo curto, em sentence case: o CSS o põe em caixa alta. */
+  marca?: string | null;
+  /**
+   * ⚠️ INERTE NÃO É DESABILITADO.
+   *
+   * Um card desabilitado diz "você não pode"; o inerte diz "não há". Ele é
+   * superfície de contorno TRACEJADO, sem preenchimento, que não afunda ao ser
+   * pressionada, não é link, não recebe foco — e o subtítulo passa a carregar
+   * o MOTIVO ("sem refeição hoje · sábado"), porque um card que não leva a
+   * lugar nenhum sem dizer por quê parece defeito.
+   *
+   * Existe como prop, e não só como "card sem `para`", para o caso em que o
+   * destino existe mas não se aplica hoje.
+   */
+  inerte?: boolean;
+  /**
+   * O card pequeno da grade do Painel (`cardSimulado` e `cardCantina` da
+   * prancheta): 148px, título de 20px, glifo de 44. É a metade que empilha ao
+   * lado do card com magnitude, e as duas somadas fecham a borda inferior com
+   * a dele.
+   */
+  compacto?: boolean;
 }
 
 export function CartaoDeCampo({
   olho, titulo, para, glifo, carregando = false, subtitulo = null, vazio,
+  magnitude, magnitudeLegenda, aviso = null, marca = null, inerte = false,
+  compacto = false,
 }: PropsCartao) {
-  return (
-    <Link className="campo-cartao" to={para}>
+  const semDestino = inerte || !para;
+  const classe = [
+    'campo-cartao',
+    compacto ? 'campo-cartao--compacto' : '',
+    magnitude !== undefined ? 'campo-cartao--magnitude' : '',
+    semDestino ? 'campo-cartao--inerte' : '',
+  ].filter(Boolean).join(' ');
+
+  const conteudo = (
+    <>
       <span className="campo-cartao__texto">
-        <span className="campo-cartao__olho">{olho}</span>
+        <span className="campo-cartao__topo">
+          <span className="campo-cartao__olho">{olho}</span>
+          {marca && <span className="campo-cartao__marca">{marca}</span>}
+        </span>
         <span className="campo-cartao__titulo">{titulo}</span>
         {carregando ? (
-          <span className="campo-cartao__esqueleto" aria-hidden="true" />
+          <span className="campo-cartao__esqueleto" aria-hidden="true">
+            <span className="campo-cartao__esqueleto-bloco" />
+            <span className="campo-cartao__esqueleto-linha" />
+          </span>
         ) : (
-          <span className="campo-cartao__sub">{subtitulo ?? vazio}</span>
+          <>
+            {magnitude != null && (
+              <span className="campo-cartao__magnitude">
+                <span className="campo-cartao__magnitude-numero">{magnitude}</span>
+                {magnitudeLegenda && (
+                  <span className="campo-cartao__magnitude-legenda">{magnitudeLegenda}</span>
+                )}
+              </span>
+            )}
+            <span className="campo-cartao__sub">{subtitulo ?? vazio}</span>
+            {aviso && (
+              <span className="campo-cartao__aviso">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="8.6" />
+                  <path d="M12 7.6V12l3 2" />
+                </svg>
+                {aviso}
+              </span>
+            )}
+          </>
         )}
       </span>
-      <svg
-        className="campo-cartao__glifo"
-        width="70"
-        height="70"
-        viewBox="0 0 70 70"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        aria-hidden="true"
-      >
-        {glifo}
-      </svg>
-    </Link>
+      {glifo && (
+        <svg
+          className="campo-cartao__glifo"
+          width="70"
+          height="70"
+          viewBox="0 0 70 70"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          {glifo}
+        </svg>
+      )}
+    </>
   );
+
+  // Sem destino não é `<Link>` desligado nem `<button disabled>`: é uma
+  // superfície de leitura. Um link que não navega é a promessa quebrada mais
+  // barata de escrever e a mais cara de descobrir.
+  if (semDestino) return <div className={classe}>{conteudo}</div>;
+
+  return <Link className={classe} to={para!}>{conteudo}</Link>;
 }
 
 interface PropsCabeca {
@@ -156,7 +267,7 @@ interface PropsEntrada {
 }
 
 /**
- * O CARD DE ENTRADA — a versão baixa do card de campo, de ~110px.
+ * O CARD DE ENTRADA — a versão baixa do card de campo, de 110px.
  *
  * Existe para a faixa de entrada do Painel, e a diferença de altura é a
  * decisão: o Painel NÃO vira um hub de campos. Na aba do aluno nenhum dos três

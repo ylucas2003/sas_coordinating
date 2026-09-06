@@ -10,10 +10,10 @@ import type {
 } from '../../tipos/dominio';
 import { fmtDelta, fmtNota } from '../../util/formato';
 
-// As peças da ficha de ciclo, extraídas quando a tela virou três campos.
+// As peças da ficha de ciclo, extraídas quando a tela virou campos.
 //
 // Ficam num módulo só porque são compartilhadas entre a entrada e os campos —
-// o Hero aparece na entrada, o resto se divide entre Calibração, Régua e
+// os KPIs aparecem na entrada, o resto se divide entre Calibração e
 // Comparação. O que mudou na extração foi UMA coisa além do lugar:
 //
 // ⚠️ `tonePctCritico` foi apagada. Era irmã de `toneMedia`: um ternário fixo
@@ -25,48 +25,87 @@ import { fmtDelta, fmtNota } from '../../util/formato';
 export const fmtPct = (v: number | null | undefined) =>
   v == null ? '—' : v.toFixed(1).replace('.', ',');
 
-// ─── Hero ────────────────────────────────────────────────────────────────
+// ─── Os quatro KPIs da chegada ───────────────────────────────────────────
+//
+// Era o `Hero`: quatro cartões numa fileira larga, ocupando a tela inteira
+// antes de qualquer dado por aluno. Viraram uma grade 2×2 que divide a faixa
+// de chegada com os dois campos, e é essa reorganização — não a subtração de
+// nenhum número — que faz o cabeçalho da tabela caber na primeira dobra
+// (prancheta de Provas, "A FAIXA FINA, NÃO O CARD GRANDE").
+//
+// A terceira linha do cartão é a REFERÊNCIA: contra o que este número se lê.
+// Ela é cinza e fica atrás do dado (R5), e some quando o servidor não mandou
+// delta — "% zona crítica" não tem comparação no payload, e escrever uma
+// seria inventar o número que o cartão existe para relatar.
+//
+// ⚠️ O delta NÃO é pintado. Ele era `tone-verde`/`tone-vermelho`, e subir de
+// zona crítica é "pior" enquanto subir de excelência é "melhor" — o mesmo
+// verde dizendo as duas coisas. Sem o semáforo, quem carrega a direção é o
+// sinal do número, que funciona no daltonismo e no papel.
 
-export function Hero({ stats }: { stats: EstatisticasCiclo }) {
+export function Kpis({ stats }: { stats: EstatisticasCiclo }) {
   const r = stats.resumo ?? {};
   const delta = r.delta ?? {};
+  const anterior = stats.cicloAnterior?.nome ?? null;
+
   return (
-    <div className="section ciclo-hero">
-      <div className="ciclo-hero__grid">
-        <HeroCard rotulo="Média geral" valor={fmtNota(r.media)} delta={delta.media} />
-        <HeroCard rotulo="% aprovados" valor={fmtPct(r.pctAprovados)} delta={delta.pctAprovados} sufixo="%" />
-        <HeroCard rotulo="% zona crítica" valor={fmtPct(r.pctZonaCritica)} sufixo="%" />
-        <HeroCard rotulo="% excelência" valor={fmtPct(r.pctExcelencia)} delta={delta.pctExcelencia} sufixo="%" />
-      </div>
-      {stats.cicloAnterior && (
-        <p className="ciclo-hero__legenda">
-          {`Variações comparam com ${stats.cicloAnterior.nome}.`}
-        </p>
-      )}
+    <div className="ciclo-kpis">
+      <CartaoKpi
+        olho="Média geral"
+        valor={fmtNota(r.media)}
+        sufixo="de 10"
+        delta={delta.media}
+        anterior={anterior}
+      />
+      <CartaoKpi
+        olho="Acima do corte"
+        valor={fmtPct(r.pctAprovados)}
+        sufixo="%"
+        delta={delta.pctAprovados}
+        unidadeDoDelta=" p.p."
+        anterior={anterior}
+      />
+      <CartaoKpi olho="Zona crítica" valor={fmtPct(r.pctZonaCritica)} sufixo="%" />
+      <CartaoKpi
+        olho="Excelência"
+        valor={fmtPct(r.pctExcelencia)}
+        sufixo="%"
+        delta={delta.pctExcelencia}
+        unidadeDoDelta=" p.p."
+        anterior={anterior}
+      />
     </div>
   );
 }
 
-function HeroCard({
-  rotulo, valor, delta, sufixo = '', tone = '',
+function CartaoKpi({
+  olho, valor, sufixo = '', delta, unidadeDoDelta = '', anterior = null,
 }: {
-  rotulo: string;
+  olho: string;
   valor: string;
-  delta?: number | null;
+  /** O que o numeral mede — "de 10", "%". Fica ao lado, em texto secundário. */
   sufixo?: string;
-  tone?: string;
+  delta?: number | null;
+  /**
+   * A unidade da VARIAÇÃO, que nem sempre é a do valor: a diferença entre
+   * dois percentuais é ponto percentual, não porcentagem. Escrever "+4 %"
+   * onde se quer dizer "+4 p.p." é o erro de leitura mais comum destes quatro
+   * números, e ele custa uma decisão errada de coordenação.
+   */
+  unidadeDoDelta?: string;
+  /** Contra qual ciclo a variação foi medida. Sem ele não há o que dizer. */
+  anterior?: string | null;
 }) {
   return (
-    <div className="ciclo-hero__card">
-      <div className="ciclo-hero__rotulo">{rotulo}</div>
-      <div className={`ciclo-hero__valor ${tone}`}>
-        {valor}
-        {sufixo && <span className="ciclo-hero__sufixo">{sufixo}</span>}
+    <div className="ciclo-kpi">
+      <div className="ciclo-kpi__olho">{olho}</div>
+      <div className="ciclo-kpi__numero">
+        <span className="ciclo-kpi__valor">{valor}</span>
+        {sufixo && <span className="ciclo-kpi__sufixo">{sufixo}</span>}
       </div>
-      {delta != null && (
-        <div className={`ciclo-hero__delta ${delta > 0 ? 'tone-verde' : delta < 0 ? 'tone-vermelho' : ''}`}>
-          {fmtDelta(delta)}
-          {sufixo ? ` ${sufixo}` : ' vs anterior'}
+      {delta != null && anterior && (
+        <div className="ciclo-kpi__referencia">
+          {`${fmtDelta(delta)}${unidadeDoDelta} vs ${anterior}`}
         </div>
       )}
     </div>
@@ -248,7 +287,7 @@ function ResumoF1F2({ rec }: { rec: RecorteMateria }) {
         rotulo="Aprovados F2"
         valor={f2 ? `${fmtPct(f2.pctAprovados)}%` : '—'}
         delta={delta?.pctAprovados}
-        sufixo="%"
+        unidadeDoDelta=" p.p."
       />
     </div>
   );
@@ -467,20 +506,30 @@ function MiniCard({
 }
 
 function MiniBadge({
-  rotulo, valor, delta = null, sufixo = '',
+  rotulo, valor, delta = null, unidadeDoDelta = '',
 }: {
   rotulo: string;
   valor: string;
   delta?: number | null;
-  sufixo?: string;
+  /**
+   * A unidade da VARIAÇÃO, que não é a do valor quando o valor é percentual:
+   * de 62% para 71% são nove PONTOS PERCENTUAIS, não nove por cento. É o mesmo
+   * cuidado que `CartaoKpi` já toma lá em cima — este aqui dizia "+9 %".
+   */
+  unidadeDoDelta?: string;
 }) {
   return (
     <div className="mini-badge">
       <span className="mini-badge__rotulo">{rotulo}</span>
       <span className="mini-badge__valor">{valor}</span>
+      {/* Sem `tone-verde`/`tone-vermelho`: quem carrega a direção é o sinal do
+          número, que sobrevive ao daltonismo e ao papel (R1). As classes ainda
+          existiam aqui e já não pintavam nada — `.tone-*` está neutralizada em
+          `layout.css` —, o que é pior que cor errada: código que promete uma
+          cor e não entrega nenhuma. */}
       {delta != null && (
-        <span className={`mini-badge__delta ${delta > 0 ? 'tone-verde' : delta < 0 ? 'tone-vermelho' : ''}`}>
-          {` ${fmtDelta(delta)}${sufixo ? ' ' + sufixo : ''}`}
+        <span className="mini-badge__delta">
+          {` ${fmtDelta(delta)}${unidadeDoDelta}`}
         </span>
       )}
     </div>

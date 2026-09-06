@@ -6,6 +6,12 @@
 //
 // Documentação dos campos: `docs/05-data-and-stats.md`.
 
+// A refeição vem de `tipos/cantina.ts` em vez de ser redeclarada aqui: o aluno
+// da coordenação carrega os DIREITOS dele (docs/39 · fase 4, decisão 4), e duas
+// definições de 'almoco' | 'janta' divergiriam no dia em que aparecesse a
+// terceira refeição.
+import type { Refeicao } from './cantina';
+
 export type Modalidade = 'presencial' | 'online';
 export type Vestibular = 'ITA' | 'IME' | 'AFA' | 'EsPCEx' | 'EFOMM';
 /** Apenas os 2 vestibulares no escopo do MVP. */
@@ -49,6 +55,58 @@ export interface MateriaResumo {
   nome: string;
 }
 
+/**
+ * As três matérias que o grupo de média abre — e só elas (docs/19 §4.1): são
+ * as que têm taxonomia de edital. Uma coluna de Português diria um número sem
+ * dizer onde estudar, que é a pergunta que justifica abrir o grupo.
+ *
+ * Está aqui, e não em cada tela, porque a lista de alunos e a ficha têm de
+ * abrir as MESMAS três — e porque a tela é obrigada a dizer quais cobre.
+ */
+export const MATERIAS_DO_DETALHAMENTO = ['matematica', 'fisica', 'quimica'] as const;
+export type MateriaDetalhada = (typeof MATERIAS_DO_DETALHAMENTO)[number];
+
+/**
+ * Uma média e as três matérias em que ela abre.
+ *
+ * Espelha `api/app/routes/alunos.py::MediaDoGrupo` — e não `schemas/domain.py`,
+ * porque as médias são da COORDENAÇÃO: o `Aluno` do schema é o contrato que o
+ * chat, os lembretes e a área do aluno também constroem, sem estes campos.
+ *
+ * ⚠️ **`null` quer dizer NÃO SEI, e nunca vira 0 no desenho.** Zero é uma nota
+ * que alguém tirou; a célula que imprime 0,0 para quem não fez prova nenhuma
+ * manda o coordenador procurar um aluno que não existe. É o estado de chegada
+ * de todo aluno novo, e a célula tem de degradar para o traço.
+ */
+export interface MediaDoGrupo {
+  /**
+   * Como a coluna se chama NESTA carga: `'2026'`, `'1º Ciclo · ITA'`. Vem do
+   * servidor porque foi ele quem escolheu o ciclo — o primeiro e o último são
+   * os mesmos para todo mundo, e só entre os que já aconteceram. `null` = nenhum
+   * ciclo do ano começou ainda, e não há o que nomear.
+   */
+  referencia: string | null;
+  /** Todas as matérias do recorte, inclusive as que não ganham coluna. */
+  geral: number | null;
+  matematica: number | null;
+  fisica: number | null;
+  quimica: number | null;
+}
+
+/**
+ * Os três grupos de média da lista de varredura, na ordem em que ela os lê:
+ * o ano inteiro, o primeiro ciclo e o último.
+ *
+ * O primeiro e o último ciclo são o MESMO para todas as linhas — usar "o último
+ * ciclo de cada aluno" faria a ordenação comparar provas diferentes entre linhas
+ * vizinhas, que é a mentira gráfica que a R6 existe para impedir.
+ */
+export interface MediasDoAluno {
+  ano: MediaDoGrupo;
+  primeiroCiclo: MediaDoGrupo;
+  ultimoCiclo: MediaDoGrupo;
+}
+
 export interface Aluno {
   id: string;
   nome: string;
@@ -65,6 +123,30 @@ export interface Aluno {
   sparkline: number[];
   /** `foto_perfil_storage IS NOT NULL` — não expõe a key, só se existe. */
   temFoto: boolean;
+  /**
+   * As três médias, prontas do servidor (docs/39 · fase 4). A tela NÃO as
+   * deriva: derivá-las custaria baixar as notas dos 900 a cada carregamento.
+   *
+   * Opcional porque nem todo `Aluno` vem de `GET /alunos` — `GET /alunos` e
+   * `GET /alunos/:id` sempre mandam, e `undefined` aqui quer dizer "este aluno
+   * não veio de lá", não "sem nota". Sem nota é a estrutura presente com
+   * `null` em cada número.
+   */
+  medias?: MediasDoAluno;
+  /**
+   * O que este aluno tem direito de pedir na cantina — a coluna de almoço/janta
+   * da lista. Vazio = nenhum direito, que é estado comum e não erro.
+   *
+   * ⚠️ **A restrição alimentar não vem por aqui, e não deve ser pedida junto.**
+   * É dado de saúde de menor, a categoria mais sensível da LGPD, e a decisão de
+   * produto é que ela vive na tela de direitos da cantina, com o texto sob
+   * clique (docs/38 §2.6). Uma coluna a mais na lista de 900 seria exatamente o
+   * vazamento que aquela decisão evitou.
+   *
+   * Opcional pelo mesmo motivo de `medias`: `undefined` = o aluno não veio das
+   * rotas de coordenação. Lista vazia = veio, e não tem direito nenhum.
+   */
+  direitos?: Refeicao[];
 }
 
 export interface Ciclo {

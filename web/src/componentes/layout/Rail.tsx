@@ -1,13 +1,19 @@
-import { NavLink } from 'react-router-dom';
-// Asset local — nada de CDN (CLAUDE.md, regra 6: dados de menores).
-import ariLogo from '../../../assets/ari-logo.png';
+import { NavLink, useNavigate } from 'react-router-dom';
+import * as sessao from '../../servicos/sessao';
+import { Avatar } from '../ui/Avatar';
 
 /**
- * Rail de navegação: cinco destinos, ícone sempre, rótulo quando aberto.
+ * Rail de navegação: cinco destinos, ícone e rótulo, SEMPRE.
  *
- * Quem abre o rail é o CSS (`.rail:hover`, `.rail:focus-within`) e não o
- * React: um `useState` aqui remontaria a árvore inteira a cada passada de
- * mouse, e o estado não sobrevive à navegação de todo jeito.
+ * ⚠️ Ele não abre mais. Era 88px que viravam 228px no `:hover` do CSS, e a
+ * decisão 7 do docs/39 o fixou em 252px. O custo está registrado e é aceito —
+ * 164px a menos de largura em toda tela, o tempo todo, inclusive na tabela de
+ * 900 linhas. O que se compra é o rótulo legível sem depender de hover, que em
+ * toque não existe: no celular o rail vira barra inferior e ali nunca houve
+ * como consultar o nome do destino.
+ *
+ * Com a largura fixa, o `useState` que esta nota antes proibia deixou de ser
+ * tentação: não há mais estado nenhum aqui além da sessão.
  */
 
 const DESTINOS = [
@@ -19,44 +25,65 @@ const DESTINOS = [
 ];
 
 export function Rail() {
+  const navegar = useNavigate();
+  const nome = sessao.nome();
+
+  // Mesmo `encerrar()` que o aluno já usa; o coordenador não tinha o botão
+  // ("tem um botão de sair? como faz para deslogar?" — 21/08, 18h54). Ele
+  // morava no avatar da topbar e desceu para cá junto com a conta: a pílula
+  // de identidade lá em cima virou placa, não botão.
+  function sair() {
+    sessao.encerrar();
+    navegar('/login', { replace: true });
+  }
+
   return (
     <nav className="rail" aria-label="Navegação principal">
-      <NavLink className="rail__marca" to="/painel">
-        <span className="rail__logo">
-          <IconeAsterisco />
-        </span>
-        <span className="rail__marca-texto">
-          <span className="rail__marca-nome">SAS</span>
-          <span className="rail__marca-sub">coordenação ITA/IME</span>
-        </span>
-      </NavLink>
+      {/* A marca do colégio, e o olho que diz de que produto esta janela é.
+          O asterisco do SAS saiu: era um símbolo inventado ao lado de uma
+          marca de verdade, e a prancheta desenha só a do Ari. Não é link —
+          "Painel" está logo abaixo e um segundo caminho para o mesmo lugar
+          não é atalho, é ruído. */}
+      <div className="rail__marca">
+        <span className="rail__logo" role="img" aria-label="Colégio Ari de Sá Cavalcante" />
+        <span className="rail__olho">Coordenação</span>
+      </div>
 
+      {/* `NavLink` já estampa `aria-current="page"` no item ativo — é o que
+          diz ao leitor de tela o que o preenchimento da pílula diz aos olhos. */}
       {DESTINOS.map(({ caminho, label, icone: Icone }) => (
         <NavLink
           key={caminho}
           to={caminho}
-          title={label}
           className={({ isActive }) => `rail__item${isActive ? ' is-active' : ''}`}
         >
           <span className="rail__icone">
             <Icone />
           </span>
-          {/* O rótulo fica sempre na árvore, só transparente quando fechado —
-              é ele que o leitor de tela anuncia. */}
           <span className="rail__label">{label}</span>
         </NavLink>
       ))}
 
       <span className="rail__espaco" />
 
-      {/* "seria bom colocar o LOGO do Ari tb" — 21/08, 18h54. */}
-      <img className="rail__ari" src={ariLogo} alt="Colégio Ari de Sá Cavalcante" />
+      <div className="rail__usuario">
+        <Avatar tipo="coordenador" proprio nome={nome} className="rail__avatar" />
+        <span className="rail__usuario-nome">{nome}</span>
+        <button
+          className="rail__sair"
+          onClick={sair}
+          title={nome ? `Sair (${nome})` : 'Sair'}
+          aria-label={nome ? `Sair da conta de ${nome}` : 'Sair'}
+        >
+          <IconeSair />
+        </button>
+      </div>
     </nav>
   );
 }
 
 // ─── Ícones ────────────────────────────────────────────────────────────────
-// Todos no mesmo grid de 20×20 com traço 1.6: é o que faz cinco desenhos de
+// Todos no mesmo grid de 20×20 com traço 1.6: é o que faz seis desenhos de
 // origens diferentes lerem como um conjunto.
 
 function svgProps() {
@@ -69,16 +96,6 @@ function svgProps() {
     strokeWidth: 1.6,
     'aria-hidden': true,
   } as const;
-}
-
-function IconeAsterisco() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
-      <line x1="12" y1="2" x2="12" y2="22" />
-      <line x1="3" y1="7" x2="21" y2="17" />
-      <line x1="21" y1="7" x2="3" y2="17" />
-    </svg>
-  );
 }
 
 function IconePainel() {
@@ -128,6 +145,15 @@ function IconeAdmin() {
     <svg {...svgProps()}>
       <circle cx="10" cy="10" r="2.6" />
       <path d="M10 2.2v2M10 15.8v2M17.8 10h-2M4.2 10h-2M15.5 4.5l-1.4 1.4M5.9 14.1l-1.4 1.4M15.5 15.5l-1.4-1.4M5.9 5.9L4.5 4.5" />
+    </svg>
+  );
+}
+
+function IconeSair() {
+  return (
+    <svg {...svgProps()} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12.4 5.8V4.2a1.6 1.6 0 0 0-1.6-1.6H4.2a1.6 1.6 0 0 0-1.6 1.6v11.6a1.6 1.6 0 0 0 1.6 1.6h6.6a1.6 1.6 0 0 0 1.6-1.6v-1.6" />
+      <path d="M7.6 10h9.8M14.6 7.2 17.4 10l-2.8 2.8" />
     </svg>
   );
 }

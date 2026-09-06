@@ -15,7 +15,7 @@ import type {
 // Os filtros do banco, agora na `BarraFiltros` da coordenação (docs/33 §7).
 //
 // **Por que isto mudou.** A C.1 fechou a dívida de "dois sistemas de filtro"
-// para as sete telas da coordenação; o Banco nasceu depois, com `<aside>`
+// para as demais superfícies da coordenação; o Banco nasceu depois, com `<aside>`
 // próprio, e reabriu a dívida. O cabeçalho de `Banco.tsx` justificava a
 // exceção — "são muitos assuntos por edital e eles não caberiam numa linha
 // (docs/22 §3.5)" — e a justificativa **estava certa enquanto a faixa não
@@ -24,8 +24,8 @@ import type {
 //
 // ⚠️ **Esta tela serve os DOIS cascos.** `Banco.tsx` recebe `perfil`, e a
 // mesma árvore roda dentro do casco do aluno, onde `.tela` é um bloco da
-// coluna de `.alu-body__inner`. O tema não é o risco (banco.css sempre leu
-// `--color-*`, não `--alu-*`); o layout é.
+// coluna de `.alu-body__inner`. O tema não é o risco (banco.css lê os papéis
+// direto, não `--alu-*`, e papel responde a tema); o layout é.
 //
 // ⚠️ **O que a coluna fazia e a faixa não faz:** grudar e rolar sozinha acima
 // de 880px (`position: sticky`, `max-height: 100dvh`). Com uma árvore de 65

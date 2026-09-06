@@ -6,7 +6,8 @@
    Desktop (≥900px): rail de 240px · coluna de 640px · lateral de 320px.
 
    ⚠️ Prefixo `alu-` em tudo. A coordenação não lê nada daqui, e nada daqui lê
-   `--color-*` — os dois sistemas convivem sem se tocar.
+   os papéis crus: aqui é sempre `--alu-*`, que os nomeia com o vocabulário do
+   aluno — SEQUENCIA onde a coordenação tem REFERENCIA.
    ─────────────────────────────────────────────────────────────────────── */
 
 .alu-shell {

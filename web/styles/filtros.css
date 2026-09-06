@@ -17,7 +17,7 @@
 }
 
 .tabela-th__btn:hover {
-  color: var(--color-navy);
+  color: var(--sas-acao);
 }
 
 /* A seta neutra (↕) só aparece no hover — sem isso o cabeçalho vira uma
@@ -26,7 +26,7 @@
 .tabela-th__seta {
   font-size: 10px;
   opacity: 0;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   transition: opacity 0.1s, color 0.1s;
 }
 
@@ -36,9 +36,9 @@
 
 .tabela-th.is-ordenada .tabela-th__seta {
   opacity: 1;
-  color: var(--color-navy);
+  color: var(--sas-acao);
 }
 
 .tabela-th.is-ordenada .tabela-th__btn {
-  color: var(--color-navy);
+  color: var(--sas-acao);
 }

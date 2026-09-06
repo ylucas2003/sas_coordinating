@@ -1,18 +1,19 @@
-// O recorte do Painel — ano e vestibular estreitando a fileira de ciclos.
+// Em que ciclo o Painel abre, e em que ordem os ciclos são lidos.
 //
-// O problema que este módulo existe para resolver (docs/32 §3.1): a fileira
-// mostra os 23 ciclos do banco na ordem que a API devolve, e a API ordena só
-// por `ordem`. O resultado é `Ciclo 1 · IME · 2026`, `Ciclo 1 · ITA · 2027`,
-// `Ciclo 1 · IME · 2025`, `Ciclo 2 · ITA · 2025`… — três anos e dois
-// vestibulares intercalados, com "Ciclo 7" aparecendo duas vezes.
+// O problema que este módulo existe para resolver (docs/32 §3.1): a API
+// devolve os 23 ciclos ordenados só por `ordem`. O resultado é
+// `Ciclo 1 · IME · 2026`, `Ciclo 1 · ITA · 2027`, `Ciclo 1 · IME · 2025`,
+// `Ciclo 2 · ITA · 2025`… — três anos e dois vestibulares intercalados, com
+// "Ciclo 7" aparecendo duas vezes. Sem uma ordem estável não há "o ciclo em
+// foco", e o Painel abriria num ciclo que ninguém escolheu.
 //
-// ⚠️ Por que NÃO reusa `aplicarFiltros` de `ciclos.ts`, que filtra os mesmos
-// dois eixos: lá conjunto vazio significa "sem filtro" e deixa tudo passar,
-// porque a tela de /provas nasce sem nada marcado. Aqui os dois eixos nascem
-// com TUDO marcado (decisão do Yan, 03/09), e nesse modelo desmarcar o último
-// ano tem de esvaziar a fileira — não fazer os três voltarem. É a mesma
-// operação com a semântica invertida, e compartilhar o predicado faria uma das
-// duas telas mentir.
+// ⚠️ O RECORTE MORREU, a ORDEM ficou. Este arquivo nasceu para as pílulas de
+// ano e vestibular do Painel; a fase 2 do docs/39 tirou a faixa de filtros da
+// tela, e com ela foram `RECORTE_VAZIO`, `contagensDoRecorte` (o número de
+// cada pílula) e `rotuloDoCiclo` (o que a pílula escrevia). `RecortePainel`
+// sobrevive como o parâmetro de `ciclosNoRecorte`, que o Painel chama com
+// `recorteCompleto(ciclos)` — ou seja, com "todos": o que se aproveita dele
+// hoje é o `.sort()`, não o `.filter()`.
 
 import type { Ciclo, Simulado } from '../tipos/dominio';
 
@@ -20,9 +21,6 @@ export interface RecortePainel {
   anos: ReadonlySet<number>;
   vestibulares: ReadonlySet<string>;
 }
-
-/** Antes de os ciclos chegarem não há o que marcar. */
-export const RECORTE_VAZIO: RecortePainel = { anos: new Set(), vestibulares: new Set() };
 
 /** O estado inicial: todo ano e todo vestibular que a fileira conhece. */
 export function recorteCompleto(ciclos: readonly Ciclo[]): RecortePainel {
@@ -54,26 +52,6 @@ export function ciclosNoRecorte(ciclos: readonly Ciclo[], recorte: RecortePainel
         (a.vestibularAlvo ?? '').localeCompare(b.vestibularAlvo ?? '') ||
         a.ordem - b.ordem,
     );
-}
-
-/**
- * Contagem por pílula ignorando o próprio eixo — senão cada número viraria
- * sempre o total já selecionado. Mesmo cuidado de `Alunos.tsx`.
- */
-export function contagensDoRecorte(ciclos: readonly Ciclo[], recorte: RecortePainel) {
-  const porAno = new Map<number, number>();
-  const porVestibular = new Map<string, number>();
-
-  for (const c of ciclos) {
-    const vest = c.vestibularAlvo;
-    if (c.anoLetivo && vest != null && recorte.vestibulares.has(vest)) {
-      porAno.set(c.anoLetivo, (porAno.get(c.anoLetivo) ?? 0) + 1);
-    }
-    if (vest != null && recorte.anos.has(c.anoLetivo)) {
-      porVestibular.set(vest, (porVestibular.get(vest) ?? 0) + 1);
-    }
-  }
-  return { porAno, porVestibular };
 }
 
 /**
@@ -111,19 +89,4 @@ export function cicloPadrao(
   // Nenhum ciclo com prova aplicada (banco novo, ou recorte só de futuros):
   // o primeiro da fileira já ordenada é melhor que nada.
   return melhor ?? ciclos[0] ?? null;
-}
-
-/**
- * O que a pílula do ciclo escreve. Quanto mais o recorte já fixou, menos a
- * pílula precisa repetir: com 2026 e ITA escolhidos, "4" basta — era o pedido
- * do áudio de 29/08 ("quebrar esses filtros em mais abas"). Com o recorte
- * aberto, o rótulo tem de desambiguar, senão duas pílulas dizem "7".
- */
-export function rotuloDoCiclo(ciclo: Ciclo, recorte: RecortePainel): string {
-  const umAno = recorte.anos.size === 1;
-  const umVestibular = recorte.vestibulares.size === 1;
-  const partes: string[] = [String(ciclo.ordem || '—')];
-  if (!umVestibular && ciclo.vestibularAlvo) partes.push(ciclo.vestibularAlvo);
-  if (!umAno && ciclo.anoLetivo) partes.push(String(ciclo.anoLetivo));
-  return partes.join(' · ');
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  alertasDoRecorte, buildColunasDinamicas, buildNotasAluno, buildNotasIgnoradas,
-  calcularMediasVirtuais, colunasExibidas, contarDecisoes,
+  buildColunasDinamicas, buildNotasAluno, buildNotasIgnoradas,
+  calcularMediasVirtuais, colunasExibidas,
   estatisticasDoSimulado, linhaVisivel, mediaGeralAluno, mediaPonderada, montarPainel,
   nomeSede, normMateria, obterEsquema, resolverColunas,
 } from './painel';
@@ -411,71 +411,5 @@ describe('estatisticasDoSimulado', () => {
     const e = estatisticasDoSimulado(notas, 'A5')!;
     expect(e.posicao).toBeNull();
     expect(e.totalPresentes).toBe(4);
-  });
-});
-
-
-describe('contarDecisoes', () => {
-  const alunos = [aluno('A1', 'Ana'), aluno('A2', 'Bia'), aluno('A3', 'Caio'), aluno('A4', 'Dan')];
-  const classif = {
-    A1: { alunoId: 'A1', nome: 'Ana', turmaId: null, posicao: 1, aprovado: false,
-          motivo: 'Química 3,2', media: 4.1, notas: {} },
-    A2: { alunoId: 'A2', nome: 'Bia', turmaId: null, posicao: 2, aprovado: true,
-          motivo: null, media: 5.2,
-          notas: { quimica: { nota: 4.4, tom: 'ambar' as const } } },
-    A3: { alunoId: 'A3', nome: 'Caio', turmaId: null, posicao: 3, aprovado: true,
-          motivo: null, media: 8.0,
-          notas: { quimica: { nota: 8.0, tom: 'verde' as const } } },
-    A4: { alunoId: 'A4', nome: 'Dan', turmaId: null, posicao: 4, aprovado: true,
-          motivo: null, media: null, notas: {} },
-  };
-
-  it('separa cortado, no limite e sem nota', () => {
-    expect(contarDecisoes(alunos, classif)).toEqual({
-      cortados: 1, noLimite: 1, semNota: 1, total: 4,
-    });
-  });
-
-  it('cortado não é contado duas vezes por estar também no limite', () => {
-    const so_a1 = contarDecisoes([alunos[0]], classif);
-    expect(so_a1.cortados).toBe(1);
-    expect(so_a1.noLimite).toBe(0);
-  });
-
-  it('aluno sem classificação ainda carregada não entra em contagem nenhuma', () => {
-    const c = contarDecisoes([aluno('ZZ', 'Zed')], classif);
-    expect(c).toEqual({ cortados: 0, noLimite: 0, semNota: 0, total: 1 });
-  });
-});
-
-describe('alertasDoRecorte', () => {
-  const doAluno = (id: string, alunoId: string) => ({
-    id, categoria: 'QUEDA_RENDIMENTO' as const, entidadeTipo: 'aluno', entidadeId: alunoId,
-    severidade: 'vermelho' as const, tagLabel: '', titulo: '', subtitulo: '',
-    tempoRelativo: '', href: '', sparkline: [],
-  });
-  const daProva = {
-    id: 'x', categoria: 'PROVA_MAL_CALIBRADA' as const, entidadeTipo: 'simulado',
-    entidadeId: 'S9', severidade: 'ambar' as const, tagLabel: '', titulo: '',
-    subtitulo: '', tempoRelativo: '', href: '', sparkline: [],
-  };
-  const alertas = [doAluno('a1', 'A1'), doAluno('a2', 'FORA'), daProva];
-
-  it('sem recorte, passa tudo', () => {
-    const r = alertasDoRecorte(alertas, [aluno('A1', 'Ana')], false);
-    expect(r.visiveis).toHaveLength(3);
-    expect(r.ocultos).toBe(0);
-  });
-
-  it('com recorte, esconde o aluno de fora — e DIZ quantos escondeu', () => {
-    const r = alertasDoRecorte(alertas, [aluno('A1', 'Ana')], true);
-    expect(r.visiveis.map((a) => a.id)).toEqual(['a1', 'x']);
-    expect(r.ocultos).toBe(1);
-  });
-
-  it('alerta que não é de aluno passa sempre: ele fala do ciclo', () => {
-    const r = alertasDoRecorte([daProva], [], true);
-    expect(r.visiveis).toHaveLength(1);
-    expect(r.ocultos).toBe(0);
   });
 });

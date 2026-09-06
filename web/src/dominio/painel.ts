@@ -1,13 +1,27 @@
-// Lógica do Painel — a tabela alunos × matérias/fases de um ciclo.
+// A tabela alunos × matérias/fases de um ciclo — o esquema, as médias e a
+// ordenação.
 //
 // Está separada da UI porque é aqui que vivem as regras de negócio do
 // domínio: o esquema de colunas de cada vestibular, as fórmulas de média
 // (ITA e IME pesam as matérias de formas diferentes) e a definição de "em
 // zona de corte". Testada em painel.test.ts.
+//
+// ⚠️ O nome mente desde a fase 2 do docs/39: quem monta esta tabela é a FICHA
+// DE CICLO (`telas/CicloFicha/TabelaDoCiclo.tsx`), não o Painel — a tabela
+// mudou de casa quando o Painel virou hub de três portas. O prefixo `Painel`
+// nos tipos (`ColunaPainel`, `NotaDoPainel`, `montarPainel`) e nas classes
+// `.painel-tabela__*` de `ciclo.css` é herança, como `get_supabase()` no
+// backend. Renomear é trabalho próprio, e grande.
+//
+// ⚠️ `contarDecisoes` e `alertasDoRecorte` SAÍRAM na mesma passagem. Elas
+// contavam decisões e peneiravam alertas pelo recorte da faixa de filtros do
+// Painel; sem faixa não há recorte, e `FaixaDecisao.tsx` deixou de chamá-las.
+// Ficavam verdes no `npm test` sem ninguém as montar, que é confiança falsa —
+// e teste de função morta é o que faz uma regra apagada parecer viva.
 
 import { compararPorDistancia, distanciaAoCorte } from './selo';
 import type {
-  Alerta, Aluno, AlunoClassificado, Ciclo, CriterioClassificacao, Simulado, TipoSimulado,
+  Aluno, AlunoClassificado, Ciclo, CriterioClassificacao, Simulado, TipoSimulado,
 } from '../tipos/dominio';
 
 /**
@@ -583,88 +597,4 @@ const NOMES_SEDE: Record<string, string> = {
 /** O banco guarda a sede em código; a UI mostra o nome legível. */
 export function nomeSede(bruto: string): string {
   return NOMES_SEDE[bruto] ?? bruto.replace(/_/g, ' ').replace(/\b3O\b/g, '3°');
-}
-
-// ─── A faixa de decisão (docs/33 §3) ──────────────────────────────────────
-//
-// A promessa do CLAUDE.md é "sinalizar o que merece atenção em vez de esperar
-// que o coordenador saiba o que procurar". O motor de alertas cumpre metade
-// dela desde a Sprint 1, e a outra metade nunca chegou à tela: `AlertCard.tsx`
-// existia, comentado como "componente central do Painel", e **nenhum arquivo o
-// importava**. O sino da topbar apontava para `/painel#alertas`, âncora que
-// não existia em tela nenhuma.
-//
-// O que falta é curadoria, não código — e a curadoria é isto: contar o que
-// exige ação e respeitar o recorte que a tela está mostrando.
-
-export interface ContagemDecisao {
-  /** Abaixo do corte na régua em uso. */
-  cortados: number;
-  /** Passou, mas com alguma matéria perto do corte — é onde a ação ainda cabe. */
-  noLimite: number;
-  /** No ciclo e sem nota nenhuma: não é desempenho, é ausência de dado. */
-  semNota: number;
-  total: number;
-}
-
-/**
- * As três contagens, a partir do que a tela JÁ tem em memória.
- *
- * Nenhuma requisição nova: `classificacao` vem de
- * `GET /ciclos/{id}/classificacao`, que o Painel já pede para colorir a
- * tabela. A faixa é leitura do mesmo dado, não uma segunda fonte — e isso é o
- * que impede a faixa de discordar da tabela logo abaixo dela.
- */
-export function contarDecisoes(
-  alunos: readonly Aluno[],
-  classificacao: ClassificacaoPorAluno,
-): ContagemDecisao {
-  let cortados = 0;
-  let noLimite = 0;
-  let semNota = 0;
-
-  for (const aluno of alunos) {
-    const v = classificacao[aluno.id];
-    if (!v) continue;
-    if (!v.aprovado) {
-      cortados += 1;
-      continue;
-    }
-    if (v.media == null) {
-      semNota += 1;
-      continue;
-    }
-    // Âmbar é a régua do servidor dizendo "passou, mas perto" — a mesma que
-    // pinta a célula. Reimplementar a distância aqui seria a terceira cópia da
-    // regra de corte, que é o que a Sprint 2 proibiu.
-    if (Object.values(v.notas).some((n) => n.tom === 'ambar')) noLimite += 1;
-  }
-
-  return { cortados, noLimite, semNota, total: alunos.length };
-}
-
-/**
- * Os alertas que falam do que está na tela, e a contagem do que ficou de fora.
- *
- * ⚠️ O ponto: os alertas são globais e a tabela abaixo está filtrada. Uma
- * faixa dizendo "3 alunos em queda" sobre uma tabela de uma turma só é uma
- * mentira de contexto. Mas esconder em silêncio é pior — é a armadilha 2 do
- * CLAUDE.md noutra roupa (número errado sem parecer errado). Daí devolver as
- * duas coisas: o que entra, e quantos não entraram.
- *
- * Alerta que não é de aluno (prova mal calibrada, diferença entre sedes) passa
- * sempre: ele fala do ciclo, não de quem está na lista.
- */
-export function alertasDoRecorte(
-  alertas: readonly Alerta[],
-  alunosNoRecorte: readonly Aluno[],
-  recorteAtivo: boolean,
-): { visiveis: Alerta[]; ocultos: number } {
-  if (!recorteAtivo) return { visiveis: [...alertas], ocultos: 0 };
-
-  const ids = new Set(alunosNoRecorte.map((a) => a.id));
-  const visiveis = alertas.filter(
-    (a) => a.entidadeTipo !== 'aluno' || ids.has(a.entidadeId),
-  );
-  return { visiveis, ocultos: alertas.length - visiveis.length };
 }

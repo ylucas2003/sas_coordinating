@@ -22,7 +22,7 @@ Monorepo simples baseado em pastas, sem ferramenta de workspaces. Frontend e bac
 | Linguagem | **TypeScript** | O contrato com a API vive em [src/tipos/dominio.ts](../web/src/tipos/dominio.ts) e espelha os schemas Pydantic. Erro de campo (`turmaId` vs `turma_id`) passa a aparecer no build, não em runtime. |
 | Roteamento | **React Router**, caminhos reais | `/alunos/A023`, não `#/alunos/A023`. Exige `try_files` com fallback no nginx — seguro porque todo asset real mora sob `/assets/`. |
 | Dados | **TanStack Query** | Substitui o cache manual de GETs do cliente HTTP e o cache de DOM por rota que existia no bootstrap. |
-| Estilização | **CSS Modules + CSS variables** | Tokens semânticos (`--color-navy`, `--color-amber`…) continuam globais em [tokens.css](../web/styles/tokens.css); o CSS de cada tela vira módulo conforme ela migra. |
+| Estilização | **CSS global + CSS variables** | ⚠️ *Corrigido em 05/09.* Os tokens são os **seis papéis** em `--sas-*` ([papeis.css](../web/styles/papeis.css)), lidos direto pela coordenação. `tokens.css` e os `--color-*` que esta linha citava morreram na fase 0 do [39](39-plano-refatoracao-design.md); a pilha e a ordem obrigatória dela estão em [web/CLAUDE.md](../web/CLAUDE.md). O CSS Modules por tela nunca chegou a acontecer: as folhas são globais, por prefixo de tela, em `web/styles/`. |
 | Tipografia | **Plus Jakarta Sans**, servida localmente | Saiu do Google Fonts: mandava o IP de aluno menor de idade para o Google, e a CSS de produção a bloqueia. Ver [fontes.css](../web/styles/fontes.css). |
 | Gráficos | **SVG escrito à mão** | Sparkline, histograma, heatmap, linha de evolução, anel e barra de comparação — sem lib de gráfico. São funções puras `dados → SVG`, que em JSX ficam mais curtas que no DOM. |
 | Testes | **Vitest** sobre `src/dominio/` | Cobre a lógica de domínio (esquemas ITA/IME, médias, filtros, ranking, streaming), não markup. |
@@ -35,11 +35,10 @@ web/
 ├── index.html              entrada única (o login é rota do SPA)
 ├── vite.config.ts  tsconfig.json  package.json
 ├── assets/                 fontes e logos
-├── styles/                 CSS global (tokens, base, layout e por tela)
+├── styles/                 CSS global (paleta, papéis, base, layout e por tela)
 └── src/
     ├── main.tsx            bootstrap: QueryClient + Router + CSS global
     ├── App.tsx             rotas, guard de sessão, chat
-    ├── rotas.ts            que sidebar cada rota mostra
     ├── tipos/              dominio.ts (espelha api/app/schemas/domain.py), aluno.ts, chat.ts
     ├── dominio/            regras puras e testadas: painel, simulados, ciclos, chatStream…
     ├── servicos/           http.ts · api.ts · sessao.ts

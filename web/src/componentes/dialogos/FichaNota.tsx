@@ -1,10 +1,31 @@
 import { useState } from 'react';
-import { CamposNota } from './CamposNota';
+import { CamposNota, EscalaDaNota } from './CamposNota';
+import type { TurmaDaProva } from './CamposNota';
 import { DialogoComDiff } from './DialogoComDiff';
 import type { Mudanca } from './DialogoComDiff';
-import { useFormularioNota } from './formularioNota';
+import { leituraDaNota, useFormularioNota } from './formularioNota';
 import type { ValoresNota } from './formularioNota';
-import { fmtNota } from '../../util/formato';
+
+// A FICHA DE NOTA — a única superfície de ESCRITA da coordenação.
+//
+// ⚠️ Aqui morreram os DOIS ÚLTIMOS ternários fixos do produto, e eles eram o
+// caso mais puro da "régua dupla" que o sistema baniu:
+//
+//     toneNota     nota ≥ 7 → verde · ≥ 5 → âmbar · resto → vermelho
+//     tonePosicao  top 15% → verde · metade superior → âmbar · resto → vermelho
+//
+// Cor decidida por número mágico, sem relação nenhuma com o corte da régua em
+// vigor. Um aluno com 6,5 numa matéria de corte 4,0 está confortavelmente
+// aprovado e aparecia em ÂMBAR; um com 4,5 no Inglês da Fase 1 do ITA está
+// REPROVADO — lá o corte é 5,0 e elimina sozinho — e aparecia em âmbar também.
+// E o diálogo abre POR CIMA de uma tabela que já segue as sete regras: o mesmo
+// aluno, o mesmo número, duas linguagens visuais separadas por 200ms.
+//
+// ⚠️ Os SEIS KPIs soltos saíram junto. Posição, nota, acertos, média, top 15%
+// e bottom 15% numa grade não comparavam nada — e comparar era o assunto. Eles
+// viraram uma escala única de 0 a 10 (`EscalaDaNota`) onde a régua de ouro, a
+// nuvem da turma em referência, as três marcas e a nota deste aluno são
+// desenhadas juntas. Os do aluno são DADO; os da turma são REFERÊNCIA (R5).
 
 export interface StatsNota {
   posicao: number | null;
@@ -15,6 +36,8 @@ export interface StatsNota {
   mediaTop15: number | null;
   mediaBottom15: number | null;
   mediana?: number | null;
+  /** As notas da turma, quando o servidor as manda: viram a nuvem da escala. */
+  notas?: ReadonlyArray<number | null> | null;
 }
 
 interface Props {
@@ -24,42 +47,45 @@ interface Props {
   presenteAtual: boolean;
   notaMaxima: number | null;
   stats: StatsNota | null;
+  /** O corte desta matéria, já resolvido pelo servidor. Sem ele não há régua. */
+  corte?: number | null;
+  /** A matéria elimina sozinha (Inglês da F1 do ITA). Só muda o rótulo. */
+  elimina?: boolean;
   onFechar: (valores: ValoresNota | null) => void;
 }
 
-function toneNota(v: number | null | undefined): string {
-  if (v == null) return '';
-  return v >= 7 ? ' tone-verde' : v >= 5 ? ' tone-ambar' : ' tone-vermelho';
-}
-
-function KpiDialogo({ rotulo, valor, tone = '' }: { rotulo: string; valor: string; tone?: string }) {
-  return (
-    <div className="dialog__kpi">
-      <div className="dialog__kpi-rotulo">{rotulo}</div>
-      <div className={`dialog__kpi-valor${tone}`}>{valor}</div>
-    </div>
-  );
-}
-
 /**
- * Ficha de nota: comparação com a turma e edição na mesma view.
- * Fluxo: view única → Salvar → diff → Confirmar.
+ * Ficha de nota: a escala com a régua, a turma e esta nota, mais a edição.
+ * Fluxo: formulário → Salvar → diff → Confirmar.
  */
 export function FichaNota({
-  nomeAluno, nomeSimulado, pontuacaoAtual, presenteAtual, notaMaxima, stats, onFechar,
+  nomeAluno,
+  nomeSimulado,
+  pontuacaoAtual,
+  presenteAtual,
+  notaMaxima,
+  stats,
+  corte = null,
+  elimina = false,
+  onFechar,
 }: Props) {
   const [mudancas, setMudancas] = useState<Mudanca[] | null>(null);
   const [valores, setValores] = useState<ValoresNota | null>(null);
 
-  const form = useFormularioNota({
-    pontuacaoAtual,
-    presenteAtual,
-    notaMaxima,
-    // Aqui o diff mostra a pontuação BRUTA (nº de acertos), não a nota 0-10.
-    formatarPontuacao: (n) => (n != null ? String(n) : '—'),
-  });
+  const form = useFormularioNota({ pontuacaoAtual, presenteAtual, notaMaxima, corte });
 
-  const temKpis = stats && stats.totalPresentes > 0;
+  // A turma só existe quando alguém já fez a prova. Sem n não há média,
+  // percentil nem posição — e a escala diz isso em vez de desenhar marcas
+  // inventadas. A régua continua desenhada, porque ela não depende da turma.
+  const turma: TurmaDaProva | null =
+    stats && stats.totalPresentes > 0
+      ? {
+          media: stats.media,
+          mediaTop15: stats.mediaTop15,
+          mediaBottom15: stats.mediaBottom15,
+          notas: stats.notas ?? null,
+        }
+      : null;
 
   return (
     <DialogoComDiff
@@ -79,65 +105,32 @@ export function FichaNota({
         setMudancas(r.mudancas);
       }}
     >
-      {presenteAtual === false && (
-        <p className="dialog__hint dialog__hint--ambar" style={{ marginBottom: 2 }}>
-          Aluno marcado como ausente.
-        </p>
-      )}
-
-      {temKpis && <BlocoKpis stats={stats} pontuacaoAtual={pontuacaoAtual} notaMaxima={notaMaxima} />}
-      {temKpis && <div className="dialog__sep" />}
-
       <CamposNota
         presente={form.presente}
         onPresenteChange={form.alterarPresenca}
         texto={form.texto}
         onTextoChange={form.setTexto}
-        erro={form.erro}
+        mensagem={form.mensagem}
+        emFalta={form.emFalta}
         notaMaxima={notaMaxima}
+        nota={form.nota}
+      />
+
+      <EscalaDaNota
+        nota={form.nota}
+        corte={corte}
+        elimina={elimina}
+        turma={turma}
+        leitura={leituraDaNota({
+          presente: form.presente,
+          nota: form.nota,
+          corte,
+          elimina,
+          media: stats?.media,
+          posicao: stats?.posicao,
+          totalPresentes: stats?.totalPresentes,
+        })}
       />
     </DialogoComDiff>
-  );
-}
-
-function BlocoKpis({
-  stats, pontuacaoAtual, notaMaxima,
-}: {
-  stats: StatsNota;
-  pontuacaoAtual: number | null;
-  notaMaxima: number | null;
-}) {
-  const { posicao, totalPresentes, nota, media, mediaTop15, mediaBottom15 } = stats;
-
-  // Faixas do ranking: top 15% em verde, metade superior em âmbar, resto em vermelho.
-  const tonePosicao =
-    posicao == null
-      ? ''
-      : posicao <= Math.ceil(totalPresentes * 0.15)
-        ? ' tone-verde'
-        : posicao <= Math.ceil(totalPresentes * 0.5)
-          ? ' tone-ambar'
-          : ' tone-vermelho';
-
-  const acertos =
-    pontuacaoAtual != null && notaMaxima != null
-      ? `${pontuacaoAtual} / ${notaMaxima}`
-      : pontuacaoAtual != null
-        ? String(pontuacaoAtual)
-        : '—';
-
-  return (
-    <div className="dialog__kpi-grid">
-      <KpiDialogo
-        rotulo="Posição"
-        valor={posicao != null ? `#${posicao} / ${totalPresentes}` : `— / ${totalPresentes}`}
-        tone={tonePosicao}
-      />
-      <KpiDialogo rotulo="Nota" valor={fmtNota(nota)} tone={toneNota(nota)} />
-      <KpiDialogo rotulo="Acertos" valor={acertos} />
-      <KpiDialogo rotulo="Média" valor={fmtNota(media)} tone={toneNota(media)} />
-      <KpiDialogo rotulo="Top 15%" valor={fmtNota(mediaTop15)} />
-      <KpiDialogo rotulo="Bottom 15%" valor={fmtNota(mediaBottom15)} />
-    </div>
   );
 }

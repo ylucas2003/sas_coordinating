@@ -6,7 +6,7 @@
    visual próprio — Fraunces + Inter, paleta própria — e colá-lo poria duas
    identidades dentro do mesmo produto: o aluno atravessaria a fronteira num
    clique. Aqui não há nem uma cor literal de marca nem uma fonte declarada;
-   tudo vem de tokens.css e da --font-family que o SAS serve local.
+   tudo vem dos papéis (papeis.css) e da --font-family que o SAS serve local.
 
    Namespace `banco-*`, como o projeto faz por tela (painel-*, alu-*, chat-*).
 
@@ -50,8 +50,8 @@
   max-height: min(60dvh, 480px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--color-surface);
-  border: var(--color-border-largura) solid var(--color-border);
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   border-radius: var(--radius-lg);
   padding: 12px 14px;
 }
@@ -79,7 +79,7 @@
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .banco-filtros__chips {
@@ -99,15 +99,15 @@
      e não desfaz sozinho (docs/20 §1.3). base.css já garante para todo
      input, mas repetir aqui evita que alguém "compacte" a busca depois. */
   font-size: 16px;
-  color: var(--color-text-primary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
+  color: var(--sas-texto);
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
 }
 
 .banco-filtros__busca:focus {
   outline: none;
-  border-color: var(--color-navy-light);
+  border-color: var(--sas-dado-claro);
 }
 
 
@@ -125,9 +125,9 @@
   justify-content: center;
   padding: 8px 14px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -138,31 +138,31 @@
 }
 
 .banco-chip:hover {
-  background: var(--color-surface-inset);
-  color: var(--color-text-primary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-texto);
 }
 
 .banco-chip--ativo {
-  background: var(--color-navy);
-  border-color: var(--color-navy);
-  color: var(--color-navy-texto);
+  background: var(--sas-acao);
+  border-color: var(--sas-acao);
+  color: var(--sas-acao-texto);
 }
 
 .banco-chip--ativo:hover {
-  background: var(--color-navy-deep);
-  border-color: var(--color-navy-deep);
-  color: var(--color-navy-texto);
+  background: var(--sas-acao-base);
+  border-color: var(--sas-acao-base);
+  color: var(--sas-acao-texto);
 }
 
 .banco-chip__contagem {
   font-weight: 400;
   font-size: 11px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-variant-numeric: tabular-nums;
 }
 
 .banco-chip--ativo .banco-chip__contagem {
-  color: color-mix(in srgb, var(--color-navy-texto) 70%, transparent);
+  color: color-mix(in srgb, var(--sas-acao-texto) 70%, transparent);
 }
 
 
@@ -207,27 +207,27 @@
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.03em;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 .banco-arvore__topico {
   padding-left: 20px;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
 }
 
 .banco-arvore__bloco:hover,
 .banco-arvore__topico:hover {
-  background: var(--color-surface-inset);
-  color: var(--color-text-primary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-texto);
 }
 
 /* Mesma marca de seleção da sidebar e dos filtros da coordenação (fio ouro à
    esquerda) — o aluno reconhece o estado sem precisar reaprender. */
 .banco-arvore__topico.is-active {
   position: relative;
-  background: color-mix(in srgb, var(--color-dado) 8%, transparent);
-  color: var(--color-navy);
+  background: color-mix(in srgb, var(--sas-dado) 8%, transparent);
+  color: var(--sas-acao);
   font-weight: 500;
 }
 
@@ -239,7 +239,7 @@
   bottom: 8px;
   width: 2px;
   border-radius: 2px;
-  background: var(--color-gold);
+  background: var(--sas-valor);
 }
 
 /* O nome do tópico é o único que pode encolher; a contagem nunca some. */
@@ -255,7 +255,7 @@
   flex-shrink: 0;
   font-size: 11px;
   font-weight: 400;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-variant-numeric: tabular-nums;
 }
 
@@ -263,7 +263,7 @@
    filtro: escondê-las daria ao aluno um recorte incompleto sem aviso
    (docs/22 §8, risco 3). */
 .banco-arvore__topico--sem-classificacao {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-style: italic;
 }
 
@@ -296,13 +296,13 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  color: var(--color-magnitude);
+  color: var(--sas-magnitude);
   overflow-wrap: anywhere;
 }
 
 .banco-cabecalho__meta {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -321,8 +321,8 @@
 
 .banco-questao {
   min-width: 0;
-  background: var(--color-surface);
-  border: var(--color-border-largura) solid var(--color-border);
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   border-radius: var(--radius-lg);
   overflow: hidden;
   display: flex;
@@ -338,25 +338,25 @@
   gap: 8px 10px;
   min-width: 0;
   padding: 10px 14px;
-  background: var(--color-surface-inset);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--sas-superficie-2);
+  border-bottom: 1px solid var(--sas-borda);
 }
 
-/* ITA e IME ficam os dois na família navy: vestibular é identificação, não
-   juízo de valor, e cor é linguagem neste projeto (tokens.css). */
+/* ITA e IME ficam os dois na família da AÇÃO: vestibular é identificação, não
+   juízo de valor, e cor é linguagem neste projeto (papeis.css). */
 .banco-questao__selo {
   flex-shrink: 0;
   padding: 3px 10px;
   border-radius: var(--radius-sm);
-  background: var(--color-navy);
-  color: var(--color-navy-texto);
+  background: var(--sas-acao);
+  color: var(--sas-acao-texto);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
 }
 
 .banco-questao__selo--ime {
-  background: var(--color-navy-mid);
+  background: var(--sas-dado);
 }
 
 .banco-questao__referencia {
@@ -368,7 +368,7 @@
   flex: 1 0 auto;
   min-width: 0;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -391,10 +391,10 @@
   min-height: 44px;
   min-width: 44px;
   padding: 6px 12px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
+  background: var(--sas-superficie);
+  color: var(--sas-texto-2);
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -403,14 +403,14 @@
 }
 
 .banco-questao__acao:hover {
-  border-color: var(--color-border-strong);
-  color: var(--color-navy);
+  border-color: var(--sas-borda);
+  color: var(--sas-acao);
 }
 
 .banco-questao__acao.is-active {
-  background: var(--color-green-soft);
+  background: color-mix(in srgb, var(--sas-dado) 14%, transparent);
   border-color: transparent;
-  color: var(--color-green);
+  color: var(--sas-dado);
 }
 
 /* ── Corpo ── */
@@ -443,7 +443,7 @@
   min-width: 0;
   font-size: 15px;
   line-height: 1.7;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   overflow-wrap: anywhere;
 }
 
@@ -463,7 +463,7 @@
   min-width: 0;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   font-size: 14px;
   line-height: 1.6;
   overflow-wrap: anywhere;
@@ -472,14 +472,14 @@
 .banco-questao__letra {
   flex-shrink: 0;
   font-weight: 500;
-  color: var(--color-navy);
+  color: var(--sas-acao);
   font-variant-numeric: tabular-nums;
 }
 
 /* ── Gabarito ── */
 
-/* Verde, não vermelho como no site de origem: aqui vermelho significa
-   negativo (tokens.css), e pintar a resposta certa de vermelho inverteria a
+/* DADO, não vermelho como no site de origem: aqui vermelho é ALERTA e só
+   ALERTA (papeis.css), e pintar a resposta certa de vermelho inverteria a
    língua do produto inteiro. */
 .banco-questao__gabarito {
   align-self: flex-start;
@@ -490,10 +490,10 @@
   min-height: 52px;
   min-width: 168px;
   padding: 10px 18px;
-  border: 1px dashed var(--color-border-strong);
+  border: 1px dashed var(--sas-borda);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-tertiary);
+  background: var(--sas-superficie);
+  color: var(--sas-referencia);
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -503,15 +503,15 @@
 }
 
 .banco-questao__gabarito:hover {
-  border-color: var(--color-navy-light);
-  color: var(--color-navy);
+  border-color: var(--sas-dado-claro);
+  color: var(--sas-acao);
 }
 
 .banco-questao__gabarito--revelado {
   border-style: solid;
   border-color: transparent;
-  background: var(--color-green-soft);
-  color: var(--color-green);
+  background: color-mix(in srgb, var(--sas-dado) 14%, transparent);
+  color: var(--sas-dado);
   cursor: default;
 }
 
@@ -530,19 +530,19 @@
      a ação principal do cartão e a resolução é a saída para fora do produto. */
   text-decoration: none;
   background: transparent;
-  border: 1px solid var(--color-border-strong);
-  color: var(--color-text-secondary);
+  border: 1px solid var(--sas-borda);
+  color: var(--sas-texto-2);
 }
 
 .banco-questao__resolucao:hover {
-  border-color: var(--color-navy);
-  color: var(--color-navy);
+  border-color: var(--sas-acao);
+  color: var(--sas-acao);
 }
 
 .banco-questao__gabarito--indisponivel {
   border-style: solid;
-  background: var(--color-surface-inset);
-  color: var(--color-text-tertiary);
+  background: var(--sas-superficie-2);
+  color: var(--sas-referencia);
   cursor: default;
 }
 
@@ -551,24 +551,24 @@
    pintada de verde diria ao aluno que a banca respondeu isso. */
 .banco-questao__gabarito--sugerido {
   border-style: dashed;
-  border-color: var(--color-amber);
-  color: var(--color-amber);
+  border-color: var(--sas-valor);
+  color: var(--sas-valor);
 }
 
 .banco-questao__gabarito--sugerido:hover {
-  border-color: var(--color-amber);
+  border-color: var(--sas-valor);
 }
 
 .banco-questao__gabarito--sugerido.banco-questao__gabarito--revelado {
   border-style: solid;
   border-color: transparent;
-  background: var(--color-amber-soft);
-  color: var(--color-amber);
+  background: color-mix(in srgb, var(--sas-valor) 16%, transparent);
+  color: var(--sas-valor);
 }
 
 .banco-questao__gabarito-aviso {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 /* ── Resolução sugerida (0031) ──
@@ -588,24 +588,24 @@
    `.md--resolucao` (styles/markdown.css); aqui fica só a moldura e a paleta. */
 .banco-questao__resolucao-corpo {
   padding: 2px 0 2px 14px;
-  border-left: 2px solid var(--color-border-strong);
-  color: var(--color-text-body);
+  border-left: 2px solid var(--sas-borda);
+  color: var(--sas-texto);
   overflow-wrap: anywhere;
 }
 
 .banco-questao__resolucao-corpo .md {
-  --md-forte: var(--color-text-primary);
-  --md-rotulo: var(--color-navy);
-  --md-formula-fundo: var(--color-surface-inset);
-  --md-formula-borda: var(--color-border);
+  --md-forte: var(--sas-texto);
+  --md-rotulo: var(--sas-acao);
+  --md-formula-fundo: var(--sas-superficie-2);
+  --md-formula-borda: var(--sas-borda);
 }
 
 .banco-questao__resolucao-aviso {
   margin: 12px 0 0;
   padding-top: 10px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--sas-borda);
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 /* ── Imagem original (questão extraída por visão, docs/22 piloto 1973) ──
@@ -624,7 +624,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 /* ── Botão de informação (quadradinho dourado, balão sob demanda) ──
@@ -641,8 +641,8 @@
   padding: 0;
   border: none;
   border-radius: 4px;
-  background: var(--color-gold);
-  color: var(--color-navy);
+  background: var(--sas-valor);
+  color: var(--sas-acao);
   font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
   font-weight: 700;
@@ -654,7 +654,7 @@
 
 .botao-info:hover,
 .botao-info:focus-visible {
-  background: var(--color-gold-deep);
+  background: var(--sas-valor-texto);
   outline: none;
 }
 
@@ -666,8 +666,8 @@
   z-index: 500;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
-  background: var(--color-navy-deep);
-  color: var(--color-navy-texto);
+  background: var(--sas-acao-base);
+  color: var(--sas-acao-texto);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -689,8 +689,8 @@
   min-width: 0;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--color-dado) 8%, transparent);
-  color: var(--color-navy);
+  background: color-mix(in srgb, var(--sas-dado) 8%, transparent);
+  color: var(--sas-acao);
   font-size: 12px;
   font-weight: 500;
   overflow-wrap: anywhere;
@@ -700,8 +700,8 @@
    uma classificação errada tem que ser diagnosticável, não misteriosa
    (docs/22 §7.5). */
 .banco-questao__topico--incerto {
-  background: var(--color-amber-soft);
-  color: var(--color-amber);
+  background: color-mix(in srgb, var(--sas-valor) 16%, transparent);
+  color: var(--sas-valor);
 }
 
 .banco-questao__anotacao {
@@ -714,20 +714,20 @@
   /* Mesma regra do campo de busca: abaixo de 16px o iOS dá zoom no foco. */
   font-size: 16px;
   line-height: 1.6;
-  color: var(--color-text-primary);
-  background: var(--color-surface-inset);
-  border: 1px solid var(--color-border);
+  color: var(--sas-texto);
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
 }
 
 .banco-questao__anotacao:focus {
   outline: none;
-  border-color: var(--color-navy-light);
-  background: var(--color-surface);
+  border-color: var(--sas-dado-claro);
+  background: var(--sas-superficie);
 }
 
 .banco-questao__anotacao::placeholder {
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 
@@ -753,10 +753,10 @@
   min-height: 44px;
   min-width: 44px;
   padding: 8px 16px;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
+  background: var(--sas-superficie);
+  color: var(--sas-texto-2);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -765,8 +765,8 @@
 }
 
 .banco-paginacao__botao:hover:not([disabled]) {
-  background: var(--color-surface-inset);
-  color: var(--color-navy);
+  background: var(--sas-superficie-2);
+  color: var(--sas-acao);
 }
 
 .banco-paginacao__botao[disabled] {
@@ -776,7 +776,7 @@
 
 .banco-paginacao__posicao {
   font-size: 13px;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-variant-numeric: tabular-nums;
 }
 
@@ -787,9 +787,9 @@
   padding: 48px 20px;
   text-align: center;
   font-size: 14px;
-  color: var(--color-text-tertiary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  color: var(--sas-referencia);
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-md);
 }
 
@@ -805,8 +805,8 @@
 
 .banco-estatisticas__secao {
   min-width: 0;
-  background: var(--color-surface);
-  border: var(--color-border-largura) solid var(--color-border);
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
   border-radius: var(--radius-lg);
   padding: 16px 18px;
   display: flex;
@@ -828,7 +828,7 @@
   min-width: 0;
   padding: 12px 14px;
   border-radius: var(--radius-sm);
-  background: var(--color-surface-inset);
+  background: var(--sas-superficie-2);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -836,14 +836,14 @@
 
 .banco-estatisticas__rotulo {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--sas-texto-2);
   overflow-wrap: anywhere;
 }
 
 .banco-estatisticas__valor {
   font-size: 22px;
   font-weight: 500;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   font-variant-numeric: tabular-nums;
 }
 
@@ -885,8 +885,8 @@
   gap: 4px 12px;
   min-width: 0;
   padding: 10px 12px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
 }
 
@@ -902,7 +902,7 @@
   flex-shrink: 0;
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
@@ -910,7 +910,7 @@
 .banco-lista__titulo {
   min-width: 0;
   font-size: 14px;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
   overflow-wrap: anywhere;
 }
 
@@ -935,10 +935,10 @@
   justify-content: center;
   min-height: 44px;
   min-width: 44px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--sas-borda);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
+  background: var(--sas-superficie);
+  color: var(--sas-texto-2);
   font-family: inherit;
   font-size: 13px;
   cursor: pointer;
@@ -946,8 +946,8 @@
 }
 
 .banco-lista__acoes button:hover:not([disabled]) {
-  border-color: var(--color-border-strong);
-  color: var(--color-navy);
+  border-color: var(--sas-borda);
+  color: var(--sas-acao);
 }
 
 .banco-lista__acoes button[disabled] {
@@ -984,7 +984,7 @@
   aspect-ratio: 1080 / 1350;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  border: var(--color-border-largura) solid var(--color-border);
+  border: var(--sas-borda-l) solid var(--sas-borda);
 }
 
 @media (min-width: 880px) {
@@ -1007,10 +1007,10 @@
   max-width: 460px;
   margin: 0;
   padding: 0 0 0 18px;
-  border-left: 3px solid var(--color-gold);
+  border-left: 3px solid var(--sas-valor);
   font-size: 16px;
   line-height: 1.7;
-  color: var(--color-text-primary);
+  color: var(--sas-texto);
 }
 
 .banco-mensagem__citacao cite {
@@ -1020,7 +1020,7 @@
   font-style: normal;
   font-weight: 500;
   letter-spacing: 0.1em;
-  color: var(--color-text-tertiary);
+  color: var(--sas-referencia);
 }
 
 
@@ -1035,7 +1035,7 @@
 .banco-lista__acoes button:focus-visible,
 .banco-filtros__busca:focus-visible,
 .banco-questao__anotacao:focus-visible {
-  outline: 2px solid var(--color-navy);
+  outline: 2px solid var(--sas-acao);
   outline-offset: 2px;
 }
 
