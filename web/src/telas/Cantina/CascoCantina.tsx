@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 
+import { useEventosDaCantina } from '../../hooks/eventosCantina';
 import * as sessao from '../../servicos/sessao';
 import { Calendario } from './Calendario';
 import { CardapioDoDia } from './CardapioDoDia';
@@ -32,6 +33,11 @@ function sair() {
 export function CascoCantina() {
   const nome = sessao.nome();
   const cantina = sessao.nomeDaCantina();
+  // No CASCO e não em cada tela: a assinatura precisa sobreviver à navegação
+  // entre calendário, editor e pedidos. Montada por tela, ela cairia e
+  // reconectaria a cada clique, e o servidor veria uma sessão nova por
+  // navegação.
+  useEventosDaCantina('/cantina/eventos');
 
   return (
     <div className="cant-shell">

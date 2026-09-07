@@ -14,7 +14,7 @@ import type {
 } from '../tipos/dominio';
 import type {
   CantinaAdmin, CantinaDoAluno, Cardapio, ContaDeCantina, ContagemDeOpcao, DiaDoCalendario,
-  PainelDeDireitos, PedidoDeAluno, Refeicao,
+  MinhaCantina, PainelDeDireitos, PedidoDeAluno, Refeicao,
 } from '../tipos/cantina';
 
 const enc = encodeURIComponent;
@@ -377,6 +377,8 @@ export const copiarCardapio = (id: string, origemId: string) =>
 /** Quantos alunos podem pedir cada refeição. Zero = cardápio sem público —
     aviso, nunca impedimento (docs/38 §3.3.2). */
 export const publicoDaCantina = () => get<Record<Refeicao, number>>('/cantina/publico');
+/** O estabelecimento da sessão — nome, regra de prazo e preço de tabela. */
+export const minhaCantina = () => get<MinhaCantina>('/cantina/eu');
 export const contagemDoCardapio = (id: string) =>
   get<ContagemDeOpcao[]>(`/cantina/cardapios/${enc(id)}/contagem`);
 export const pedidosDoCardapio = (id: string) =>
@@ -408,8 +410,11 @@ export const cancelarPedido = (cardapioId: string) =>
 // A coordenação — leitura do cardápio, e a administração do direito e das
 // contas. As de escrita são todas do administrador; o 403 vem do servidor, e a
 // tela esconde o botão antes disso.
-export const calendarioNaCoordenacao = (de: string, ate: string) =>
-  get<DiaDoCalendario[]>(`/administracao/cantina/calendario${qs({ de, ate })}`);
+/** `cantina` vazio = a primeira ativa, que hoje é a única. O parâmetro existe
+    para o dia em que houver duas, e para a tela não precisar mudar quando
+    houver (docs/38 §8.1.1). */
+export const calendarioNaCoordenacao = (de: string, ate: string, cantina?: string) =>
+  get<DiaDoCalendario[]>(`/administracao/cantina/calendario${qs({ de, ate, ...(cantina ? { cantina } : {}) })}`);
 export const cardapioNaCoordenacao = (id: string) =>
   get<Cardapio & { contagem: ContagemDeOpcao[]; pedidos: PedidoDeAluno[] }>(
     `/administracao/cantina/cardapios/${enc(id)}`,
@@ -425,11 +430,17 @@ export const salvarRestricaoAlimentar = (alunoId: string, restricao: string | nu
     { restricao },
   );
 export const listarCantinas = () => get<CantinaAdmin[]>('/administracao/cantinas');
-export const criarCantina = (corpo: { nome: string }) =>
+export const criarCantina = (corpo: {
+  nome: string; prazo_padrao_dias_antes?: number; prazo_padrao_hora?: string;
+  valor_almoco?: number | null; valor_janta?: number | null;
+}) =>
   post<CantinaAdmin>('/administracao/cantinas', corpo);
 export const editarCantina = (
   id: string,
-  corpo: { nome?: string; ativo?: boolean; prazo_padrao_dias_antes?: number; prazo_padrao_hora?: string },
+  corpo: {
+    nome?: string; ativo?: boolean; prazo_padrao_dias_antes?: number;
+    prazo_padrao_hora?: string; valor_almoco?: number | null; valor_janta?: number | null;
+  },
 ) => patch<CantinaAdmin>(`/administracao/cantinas/${enc(id)}`, corpo);
 export const criarContaDeCantina = (corpo: { cantina_id: string; email: string; nome: string }) =>
   post<ContaDeCantina & { senha_inicial: string }>('/administracao/usuarios-cantina', corpo);

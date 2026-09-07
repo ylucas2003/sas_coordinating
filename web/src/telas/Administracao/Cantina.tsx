@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Campo, Dialogo } from '../../componentes/dialogos/Dialogo';
+import { Campo, Dialogo, Linha2 } from '../../componentes/dialogos/Dialogo';
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import { Kpi } from '../../componentes/ui/Kpi';
@@ -507,6 +507,14 @@ export function AcessoDaCantina() {
                   : `${cantina.prazo_padrao_dias_antes} dia${cantina.prazo_padrao_dias_antes === 1 ? '' : 's'} antes`}
                 , às {cantina.prazo_padrao_hora.slice(0, 5)}
               </p>
+              {/* Preço de tabela, e a frase distingue "não informado" de
+                  "R$ 0,00": os dois são estados possíveis e significam coisas
+                  opostas na hora de somar o mês. */}
+              <p className="cant-sub">
+                almoço: {precoLegivel(cantina.valor_almoco)}
+                {' · '}
+                janta: {precoLegivel(cantina.valor_janta)}
+              </p>
             </div>
             {/* UM botão, e não os dois da prancheta: o diálogo edita o nome e a
                 regra de prazo juntos, e dois botões abrindo a mesma coisa
@@ -769,6 +777,12 @@ function DialogoCantina({
   const [nome, setNome] = useState(cantina?.nome ?? '');
   const [dias, setDias] = useState(cantina?.prazo_padrao_dias_antes ?? 1);
   const [hora, setHora] = useState((cantina?.prazo_padrao_hora ?? '20:00').slice(0, 5));
+  // Texto e não `number`: o campo precisa poder ficar VAZIO, que significa
+  // "ainda não informado" — diferente de 0,00. Um `useState<number>` obrigaria
+  // a escolher zero para representar a ausência, e aí a tela somaria R$ 0,00
+  // como se fosse preço.
+  const [almoco, setAlmoco] = useState(paraCampo(cantina?.valor_almoco));
+  const [janta, setJanta] = useState(paraCampo(cantina?.valor_janta));
   const criar = useCriarCantina();
   const editar = useEditarCantina();
   const emCurso = criar.isPending || editar.isPending;
@@ -779,6 +793,8 @@ function DialogoCantina({
       nome: nome.trim(),
       prazo_padrao_dias_antes: dias,
       prazo_padrao_hora: `${hora}:00`,
+      valor_almoco: doCampo(almoco),
+      valor_janta: doCampo(janta),
     };
     if (cantina) editar.mutate({ id: cantina.id, corpo }, { onSuccess: onFechar });
     // A criação manda só o nome e a regra; `POST /administracao/cantinas` já
@@ -808,6 +824,32 @@ function DialogoCantina({
           onChange={(e) => setNome(e.target.value)}
         />
       </Campo>
+
+      <Linha2>
+        <Campo label="Valor do almoço (R$)">
+          <input
+            className="input"
+            type="number" min="0" step="0.01" inputMode="decimal"
+            value={almoco}
+            placeholder="—"
+            onChange={(e) => setAlmoco(e.target.value)}
+          />
+        </Campo>
+        <Campo label="Valor da janta (R$)">
+          <input
+            className="input"
+            type="number" min="0" step="0.01" inputMode="decimal"
+            value={janta}
+            placeholder="—"
+            onChange={(e) => setJanta(e.target.value)}
+          />
+        </Campo>
+      </Linha2>
+      <p className="cant-sub">
+        Preço de tabela, para somar o custo do que foi pedido. <b>O SAS não cobra nada</b> — não
+        emite fatura, não registra pagamento e não muda o que o aluno vê. Em branco, a soma
+        simplesmente não aparece.
+      </p>
 
       <Campo label="O pedido fecha, por padrão">
         <div className="cant-lote__par">
@@ -954,4 +996,24 @@ function iniciais(nome: string): string {
   if (!partes.length) return '?';
   const letras = [partes[0], partes.length > 1 ? partes[partes.length - 1] : ''];
   return letras.map((p) => p.charAt(0).toUpperCase()).join('');
+}
+
+/** `null` vira campo vazio, e não "0" — a ausência de preço é informação. */
+function paraCampo(valor: number | null | undefined): string {
+  return valor == null ? '' : String(valor);
+}
+
+/** Campo vazio vira `null`; qualquer outra coisa, número. Vírgula aceita porque
+    é o separador que a pessoa digita, mesmo num `type="number"` colado. */
+function doCampo(texto: string): number | null {
+  const limpo = texto.trim().replace(',', '.');
+  if (!limpo) return null;
+  const numero = Number(limpo);
+  return Number.isFinite(numero) && numero >= 0 ? numero : null;
+}
+
+/** "R$ 12,50" ou "sem valor" — nunca "R$ 0,00" para dizer que ninguém informou. */
+function precoLegivel(valor: number | null | undefined): string {
+  if (valor == null) return 'sem valor';
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
