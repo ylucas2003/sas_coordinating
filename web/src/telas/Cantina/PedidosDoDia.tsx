@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
-import { ROTULO_DA_REFEICAO, ROTULO_DO_ESTADO, rotuloDoDia } from '../../dominio/cantina';
+import {
+  contagemPorModo, escolhasDaLinha, fraseDaQuebra, marcaDoModo,
+  presencialDoCardapio, quebraDaContagem,
+  ROTULO_DA_REFEICAO, ROTULO_DO_ESTADO, rotuloDaContagem, rotuloDoDia,
+} from '../../dominio/cantina';
 import {
   useCalendarioDaCantina, useContagem, useMinhaCantina, usePedidosDoCardapio,
 } from '../../hooks/cantina';
@@ -31,13 +35,22 @@ export function PedidosDoDia() {
   const { data: doDia = [] } = useCalendarioDaCantina(data, data);
   const cardapio = doDia.find((d) => d.refeicao === refeicao);
 
-  const { data: contagem = [] } = useContagem(cardapio?.id);
+  const { data: contagem } = useContagem(cardapio?.id);
   const { data: pedidos = [], isLoading } = usePedidosDoCardapio(cardapio?.id);
   const { data: minha } = useMinhaCantina();
   const valor = refeicao === 'almoco' ? minha?.valor_almoco : minha?.valor_janta;
 
-  const porBloco = useMemo(() => agruparPorBloco(contagem), [contagem]);
+  const porBloco = useMemo(() => agruparPorBloco(contagem?.opcoes ?? []), [contagem]);
   const comRestricao = pedidos.filter((p) => p.restricaoAlimentar).length;
+  // O placar do servidor, com a lista como resto honesto — e `null` quando
+  // ninguém pega na hora: um "0 e 0" fixo apareceria em toda cantina que nunca
+  // ligou a feature, e ainda sequestrava o "Nenhum pedido ainda" abaixo, que
+  // deixava de aparecer num dia sem pedido nenhum.
+  const presencial = presencialDoCardapio(contagem?.presencial, pedidos);
+  // A contagem sai da LISTA e não do calendário: é a fonte que esta tela já tem
+  // aberta, e é o mesmo número que o cabeçalho sempre mostrou (docs/40 §10.1).
+  const doDiaPorModo = useMemo(() => contagemPorModo(pedidos), [pedidos]);
+  const quebra = quebraDaContagem(doDiaPorModo);
 
   if (!cardapio) {
     return <p className="cant-vazio">Não há cardápio para este dia.</p>;
@@ -54,7 +67,11 @@ export function PedidosDoDia() {
             Pedidos · {ROTULO_DA_REFEICAO[refeicao]} de {rotuloDoDia(data)}
           </h1>
           <p className="cant-sub">
-            {pedidos.length} pedido{pedidos.length === 1 ? '' : 's'}
+            {/* "N pedidos" deixou de ser verdade no dia em que alguém come sem
+                ter pedido — e a aba "O que cozinhar", ao lado, soma só quem
+                pediu. A quebra aparece só quando existe presencial. */}
+            {pedidos.length} {rotuloDaContagem(doDiaPorModo)}
+            {quebra && ` · ${fraseDaQuebra(quebra)}`}
             {' · '}
             {/* A frase muda com o estado porque a pergunta muda: antes do prazo
                 o número ainda anda, depois dele é o que vai para o fogão. */}
@@ -66,7 +83,13 @@ export function PedidosDoDia() {
         <div className="cant-cabeca__acoes">
           <BotoesDeExportar
             dia={{
-              data, refeicao, pedidos, contagem,
+              data, refeicao, pedidos,
+              // A exportação leva as linhas por OPÇÃO, que é o que a planilha
+              // do balcão sempre teve. O presencial não entra nelas de
+              // propósito (docs/40 §10.1): ele não tem prato para somar, e
+              // uma linha "presencial 3" no meio de "arroz 47" seria lida como
+              // mais um prato.
+              contagem: contagem?.opcoes ?? [],
               cantina: minha?.nome ?? null,
               valor: valor ?? null,
               // A cantina LEVA o texto da restrição: é o que muda o que sai do
@@ -130,7 +153,32 @@ export function PedidosDoDia() {
               </ul>
             </section>
           ))}
-          {!porBloco.length && <p className="cant-vazio">Nenhum pedido ainda.</p>}
+          {/* ⚠️ LINHA À PARTE, e não uma opção a mais na contagem (docs/40 §7).
+              Retirada na hora não escolhe prato: somá-la ao "47 arroz"
+              inventaria um arroz que ninguém pediu, e é justamente esse número
+              que vai para o fogão. Some no dia em que ninguém pega na hora — e
+              some também contra servidor que não manda o bloco, porque aí a
+              lista já respondeu a mesma pergunta. */}
+          {presencial && (
+            <section className="cant-bloco cant-bloco--leitura">
+              <h2 className="cant-bloco__titulo">
+                Retirada na hora
+                <span className="cant-bloco__instrucao">sem prato escolhido</span>
+              </h2>
+              <ul className="cant-contagem__lista">
+                <li className="cant-contagem__linha">
+                  <span className="cant-contagem__nome">Já retiraram</span>
+                  <span className="cant-contagem__numero">{presencial.retirados}</span>
+                </li>
+                <li className="cant-contagem__linha">
+                  <span className="cant-contagem__nome">Códigos gerados, ainda não lidos</span>
+                  <span className="cant-contagem__numero">{presencial.pendentes}</span>
+                </li>
+              </ul>
+            </section>
+          )}
+
+          {!porBloco.length && !presencial && <p className="cant-vazio">Nenhum pedido ainda.</p>}
         </div>
       )}
 
@@ -141,8 +189,22 @@ export function PedidosDoDia() {
               <div className="cant-lista__aluno">
                 <b>{pedido.nome ?? '—'}</b>
                 {pedido.turma && <span className="cant-lista__turma">{pedido.turma}</span>}
+                {/* A marca de modo, para o balcão saber se procura um prato ou
+                    espera um código (docs/40 §7). Ela não é semáforo: é
+                    contorno e palavra, como o resto dos estados desta folha. */}
+                {pedido.modo === 'presencial' && (
+                  <span className="cant-tarja">{marcaDoModo(pedido)}</span>
+                )}
               </div>
-              <div className="cant-lista__escolhas">{pedido.escolhas.join(' · ') || '—'}</div>
+              {/* Sai de `escolhasDaLinha`, e não de um ternário aqui: esta é a
+                  MESMA célula que a folha impressa e a tela da coordenação
+                  mostram. Era a única das três escrita à mão — e a única sem
+                  teste —, então mudar a frase no domínio corrigia duas
+                  superfícies e deixava para trás justamente a que fica aberta
+                  no balcão. */}
+              <div className="cant-lista__escolhas">
+                {escolhasDaLinha(pedido) || '—'}
+              </div>
               {/* A restrição fica em destaque, e não numa coluna qualquer: é a
                   informação que muda o que sai do balcão. */}
               {pedido.restricaoAlimentar && (

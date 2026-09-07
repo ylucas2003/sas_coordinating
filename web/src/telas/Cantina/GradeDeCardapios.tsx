@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
-import { gradeDoMes, isoDoDia, ROTULO_DA_REFEICAO } from '../../dominio/cantina';
+import {
+  type ContagemDoDia, fraseDaQuebra, gradeDoMes, isoDoDia, quebraDaContagem, ROTULO_DA_REFEICAO,
+  rotuloDaContagem,
+} from '../../dominio/cantina';
 import type { DiaDoCalendario, EstadoCardapio, Refeicao } from '../../tipos/cantina';
 
 // A grade de um mês, com as duas refeições em cada dia.
@@ -171,13 +174,19 @@ function Celula({
 }: { dia?: DiaDoCalendario; refeicao: Refeicao; para: string | null }) {
   const estado: EstadoCardapio = dia?.estado ?? 'sem-cardapio';
   const traje = TRAJE[estado];
-  const pedidos = traje.mostraPedidos ? dia?.pedidos ?? 0 : null;
+  const contagem: ContagemDoDia | null = traje.mostraPedidos ? dia ?? { pedidos: 0 } : null;
+  // A quebra por modo (docs/40 §10.1). Some quando não há presencial no dia,
+  // que é a maioria das ~60 células do mês — a célula tem 10px de rótulo e não
+  // sobrevive a um acréscimo que não diz nada.
+  const quebra = contagem ? quebraDaContagem(contagem) : null;
 
   // A leitura completa em UM nó, com a face marcada `aria-hidden`: o rótulo
   // visível é abreviado de propósito ("rascunho" no lugar de "janta"), e quem
-  // ouve a tela não pode perder de qual refeição se trata.
+  // ouve a tela não pode perder de qual refeição se trata. A face compacta
+  // ("44+3") também não se lê em voz alta — aqui ela vira frase.
   const leitura = `${ROTULO_DA_REFEICAO[refeicao]}, ${traje.situacao}`
-    + (pedidos != null ? `, ${pedidos} ${pedidos === 1 ? 'pedido' : 'pedidos'}` : '');
+    + (contagem ? `, ${contagem.pedidos} ${rotuloDaContagem(contagem)}` : '')
+    + (quebra ? `: ${fraseDaQuebra(quebra, ' e ')}` : '');
 
   const conteudo = (
     <>
@@ -192,7 +201,22 @@ function Celula({
           </svg>
         )}
         <span className="cant-celula__rotulo">{traje.rotulo(refeicao)}</span>
-        {pedidos != null && <span className="cant-celula__pedidos">{pedidos}</span>}
+        {contagem != null && (
+          <span className="cant-celula__pedidos">
+            {/* "44+3" e não "47": as duas parcelas à vista são o que faz a
+                contagem por prato ("44 arroz") parar de parecer errada, e a
+                soma se lê num relance. O sinal "+" cabe onde a palavra não
+                cabe — a célula tem 10px de rótulo. Quem separa as parcelas é o
+                TAMANHO, não a cor; o resumo do mês, acima da grade, é quem diz
+                as duas palavras por extenso. */}
+            {quebra ? (
+              <>
+                {quebra.comPedido}
+                <span className="cant-celula__na-hora">+{quebra.presenciais}</span>
+              </>
+            ) : contagem.pedidos}
+          </span>
+        )}
       </span>
       <span className="cant-so-leitor">{leitura}</span>
     </>

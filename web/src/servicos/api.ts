@@ -13,9 +13,11 @@ import type {
   Simulado, Turma, UsuarioCoordenacao,
 } from '../tipos/dominio';
 import type {
-  CantinaAdmin, CantinaDoAluno, Cardapio, ContaDeCantina, ContagemDeOpcao, DiaDoCalendario,
-  MinhaCantina, PainelDeDireitos, PedidoDeAluno, Refeicao,
+  CantinaAdmin, CantinaDoAluno, Cardapio, ContaDeCantina, ContagemDeOpcao, ContagemDoCardapio,
+  ContagemPresencial, DiaDoCalendario, MinhaCantina, PainelDeDireitos, PedidoDeAluno, Refeicao,
+  RetiradaConfirmada, TokenDeRetirada,
 } from '../tipos/cantina';
+import { normalizarContagem } from '../dominio/cantina';
 
 const enc = encodeURIComponent;
 
@@ -379,14 +381,35 @@ export const copiarCardapio = (id: string, origemId: string) =>
 export const publicoDaCantina = () => get<Record<Refeicao, number>>('/cantina/publico');
 /** O estabelecimento da sessão — nome, regra de prazo e preço de tabela. */
 export const minhaCantina = () => get<MinhaCantina>('/cantina/eu');
-export const contagemDoCardapio = (id: string) =>
-  get<ContagemDeOpcao[]>(`/cantina/cardapios/${enc(id)}/contagem`);
+/**
+ * A contagem, e ela é a única rota da cantina que MUDOU DE FORMA (docs/40 §7).
+ *
+ * Era uma lista; virou objeto, porque o bloco de presencial não tem onde caber
+ * dentro de um array. `normalizarContagem` aceita as duas formas de propósito:
+ * o front e o backend desta feature sobem em ordens diferentes, e uma tela que
+ * quebra com `[] .map is not a function` durante a janela entre os dois deploys
+ * é um susto sem informação nenhuma.
+ */
+export const contagemDoCardapio = (id: string): Promise<ContagemDoCardapio> =>
+  get<ContagemDeOpcao[] | ContagemDoCardapio>(`/cantina/cardapios/${enc(id)}/contagem`)
+    .then(normalizarContagem);
 export const pedidosDoCardapio = (id: string) =>
   get<PedidoDeAluno[]>(`/cantina/cardapios/${enc(id)}/pedidos`);
 
 export interface CorpoCardapio {
   pedidos_ate: string | null;
   sem_refeicao: boolean;
+  /**
+   * ⚠️ snake_case aqui, camelCase na LEITURA (`Cardapio.aceitaPedido`). É o
+   * contrato da rota — ver o comentário do tipo.
+   *
+   * O servidor trata a AUSÊNCIA como "não mexi neste campo", para um editor
+   * antigo não desligar o presencial a cada salvamento. Este editor manda os
+   * dois sempre, porque ele CONHECE os dois: aqui a ausência seria descuido,
+   * não compatibilidade.
+   */
+  aceita_pedido: boolean;
+  aceita_presencial: boolean;
   /** O estado FINAL: o que tem `id` é atualizado, o que não tem é criado, e o
       que sumiu é apagado. A ordem da lista vira a coluna `ordem`. */
   blocos: Array<{
@@ -407,6 +430,28 @@ export const salvarPedido = (cardapioId: string, opcaoIds: string[]) =>
 export const cancelarPedido = (cardapioId: string) =>
   del<{ cardapioId: string }>(`/me/cantina/pedidos/${enc(cardapioId)}`);
 
+/**
+ * A retirada presencial do aluno (docs/40 §3).
+ *
+ * `iniciarRetirada` CRIA OU RENOVA — chamá-la de novo sobre a mesma linha é o
+ * caminho normal, não um erro: é assim que o token de 2 minutos se renova
+ * enquanto o QR está na tela. Ela não olha `pedidos_ate`: presencial é
+ * justamente o caminho de quem não se planejou.
+ */
+export const iniciarRetirada = (cardapioId: string) =>
+  post<TokenDeRetirada>(`/me/cantina/retiradas/${enc(cardapioId)}`, {});
+/** Desistir — só enquanto ninguém leu o QR. Depois de `retirado_em`, o
+    servidor recusa: o aluno já comeu, e não há desfazer. */
+export const desistirDaRetirada = (cardapioId: string) =>
+  del<{ ok: boolean }>(`/me/cantina/retiradas/${enc(cardapioId)}`);
+
+// A leitura do QR, do lado da cantina — sessão `tipo: "cantina"`.
+/** 409 = já retirado · 422 = token inválido ou vencido · 403 = outra cantina.
+    Os três chegam como `ErroApi` com a frase do servidor; quem os traduz para
+    a tela é `dominio/cantina.ts::lerRespostaDoQr`. */
+export const confirmarRetirada = (token: string) =>
+  post<RetiradaConfirmada>('/cantina/retiradas/confirmar', { token });
+
 // A coordenação — leitura do cardápio, e a administração do direito e das
 // contas. As de escrita são todas do administrador; o 403 vem do servidor, e a
 // tela esconde o botão antes disso.
@@ -415,10 +460,19 @@ export const cancelarPedido = (cardapioId: string) =>
     houver (docs/38 §8.1.1). */
 export const calendarioNaCoordenacao = (de: string, ate: string, cantina?: string) =>
   get<DiaDoCalendario[]>(`/administracao/cantina/calendario${qs({ de, ate, ...(cantina ? { cantina } : {}) })}`);
+/**
+ * ⚠️ `presencial` é OPCIONAL de propósito, e a rota o manda desde a leva da
+ * retirada na hora (docs/40 §10.1). Quem lê a tela contra um servidor anterior
+ * simplesmente não o recebe — e `presencialDoCardapio` cai na lista de pedidos,
+ * que já vem aqui, em vez de a coluna "O que cozinhar" dizer "nenhum pedido"
+ * ao lado de doze nomes.
+ */
 export const cardapioNaCoordenacao = (id: string) =>
-  get<Cardapio & { contagem: ContagemDeOpcao[]; pedidos: PedidoDeAluno[] }>(
-    `/administracao/cantina/cardapios/${enc(id)}`,
-  );
+  get<Cardapio & {
+    contagem: ContagemDeOpcao[];
+    presencial?: ContagemPresencial | null;
+    pedidos: PedidoDeAluno[];
+  }>(`/administracao/cantina/cardapios/${enc(id)}`);
 export const listarDireitos = () => get<PainelDeDireitos>('/administracao/direito-refeicao');
 /** Um aluno ou oitenta, pela mesma rota — a concessão em lote existe porque só
     o administrador concede (docs/38 §3.4). */
@@ -430,9 +484,19 @@ export const salvarRestricaoAlimentar = (alunoId: string, restricao: string | nu
     { restricao },
   );
 export const listarCantinas = () => get<CantinaAdmin[]>('/administracao/cantinas');
+/**
+ * ⚠️ Os quatro `aceita_*` são a REGRA da casa, irmãos de `prazo_padrao_*`
+ * (docs/40 §1): pré-preenchem o cardápio NOVO e não tocam em cardápio lançado.
+ *
+ * Opcionais nos dois corpos porque a ausência significa coisas diferentes e
+ * úteis dos dois lados: no `POST` ela cai no default da 0051, no `PATCH` ela
+ * quer dizer "não mexi neste campo".
+ */
 export const criarCantina = (corpo: {
   nome: string; prazo_padrao_dias_antes?: number; prazo_padrao_hora?: string;
   valor_almoco?: number | null; valor_janta?: number | null;
+  aceita_pedido_almoco?: boolean; aceita_pedido_janta?: boolean;
+  aceita_presencial_almoco?: boolean; aceita_presencial_janta?: boolean;
 }) =>
   post<CantinaAdmin>('/administracao/cantinas', corpo);
 export const editarCantina = (
@@ -440,6 +504,8 @@ export const editarCantina = (
   corpo: {
     nome?: string; ativo?: boolean; prazo_padrao_dias_antes?: number;
     prazo_padrao_hora?: string; valor_almoco?: number | null; valor_janta?: number | null;
+    aceita_pedido_almoco?: boolean; aceita_pedido_janta?: boolean;
+    aceita_presencial_almoco?: boolean; aceita_presencial_janta?: boolean;
   },
 ) => patch<CantinaAdmin>(`/administracao/cantinas/${enc(id)}`, corpo);
 export const criarContaDeCantina = (corpo: { cantina_id: string; email: string; nome: string }) =>

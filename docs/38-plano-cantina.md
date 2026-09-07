@@ -688,6 +688,34 @@ sprint próprio, não um ajuste.
 | 8.1.5 | Há cobrança, ou é benefício? | **Benefício binário, sem preço.** Se um dia houver aluno pagante, entram preço, fatura e conciliação — e isso não é uma coluna, é outro produto |
 | 8.1.6 | `janta` ou `jantar` no `CHECK`? | Está `'janta'`, a palavra que a coordenação usou. É `CHECK`: trocar depois custa migration |
 
+### 8.2 · Aditivo em 06/09 — valor de tabela, e por que ele não revoga a 8.1.5
+
+Pedido novo da coordenação, na mesma leva da §9.3: dizer, ao cadastrar a
+cantina, quanto custa o almoço e quanto custa a janta (migration 0050,
+`cantina.valor_almoco`/`valor_janta`, `numeric(10,2)`, **anulável de
+propósito** — `NULL` é "ninguém disse ainda", diferente de `0,00`).
+
+**Isto não reabre a 8.1.5.** Continua não havendo fatura, cobrança, "quem
+pagou" nem preço por pedido — `pedido_refeicao` não ganhou coluna nenhuma. O
+valor é só de tabela, editável em `/administracao/cantina/acesso`, e serve a
+duas telas de leitura: `PedidosDoDia` (cantina) soma `pedidos × valor` ao lado
+da contagem, e a exportação (§ abaixo) repete essa soma no rodapé quando o
+valor existe. Se um dia houver cobrança de verdade — preço por pedido,
+histórico de preço no tempo, conciliação —, isso é outro produto, exatamente
+como a 8.1.5 já previa.
+
+**A exportação (CSV e PDF)**, prometida em Fase 3 e entregue no mesmo commit
+(06/09), é só do lado do cliente — não existe rota de exportação na API, só
+`GET /cantina/cardapios/{id}/pedidos` em JSON. `web/src/telas/Cantina/exportar.ts`
+monta os dois formatos a partir dessa resposta: CSV com `;`, vírgula decimal e
+BOM UTF-8 (Excel pt-BR); PDF por `window.open` + `print()`, com CSS montado via
+CSSOM (a CSP do produto não permite `style` inline nem na janela filha). Os
+dois botões (`BotoesDeExportar.tsx`) ficam desabilitados quando não há pedido,
+e a **restrição alimentar só entra no export da cantina** (`PedidosDoDia`,
+`incluirRestricao: true`) — o export equivalente da coordenação
+(`CardapioNaCoordenacao`) usa `incluirRestricao: false`, a mesma régua da tela
+(§6): a coordenação vê que a restrição existe, não o texto dela.
+
 ## 9 · Tempo real — o cardápio aparecendo sem o aluno dar refresh
 
 Resposta curta: **é mais fácil neste projeto do que costuma ser** — o caminho de

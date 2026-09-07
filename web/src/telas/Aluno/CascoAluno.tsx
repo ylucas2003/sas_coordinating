@@ -12,6 +12,7 @@ import { EstudarProgresso } from './EstudarProgresso';
 import { EstudarLista } from './EstudarLista';
 import { EstudarListas } from './EstudarListas';
 import { CantinaDoAluno } from './Cantina';
+import { RetiradaDoAluno } from './CantinaRetirada';
 import { Hoje } from './Hoje';
 import { Jornada } from './Jornada';
 import { LigaTela } from './Liga';
@@ -157,6 +158,11 @@ export function CascoAluno() {
                 lado de "Jornada" diria que comer e estudar pesam igual no
                 produto (docs/38 §4). Chega-se aqui pelo card em Hoje. */}
             <Route path="/cantina" element={<CantinaDoAluno />} />
+            {/* O código da retirada presencial (docs/40 §6). Fica DENTRO do
+                casco, e não em tela cheia como o treino: quem está na fila da
+                cantina precisa da barra de volta a um toque, e o QR não pede a
+                atenção exclusiva que uma sessão de questões pede. */}
+            <Route path="/cantina/retirada/:cardapioId" element={<RetiradaDoAluno />} />
             <Route path="/liga" element={<LigaTela />} />
             {/* Os caminhos antigos do casco do aluno seguem valendo: estão em
                 link salvo e no e-mail de lembrete da Sprint 1. */}

@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 
 import { CabecaDeCampo, CartaoDeCampo } from '../../componentes/ui/Campo';
 import {
-  instrucaoDoBloco, prazoLegivel, ROTULO_DA_REFEICAO, ROTULO_DO_ESTADO, rotuloDoDia,
+  type ContagemDoDia, contagemPorModo, escolhasDaLinha, fraseDaQuebra, instrucaoDoBloco,
+  marcaDoModo, prazoLegivel, presencialDoCardapio, quebraDaContagem, ROTULO_DA_REFEICAO,
+  ROTULO_DO_ESTADO, rotuloDaContagem, rotuloDoDia, somarContagens,
 } from '../../dominio/cantina';
 import { useAlunos, useDiaDaCantina } from '../../hooks/consultas';
 import { useCalendarioNaCoordenacao, useCantinas, useCardapioNaCoordenacao } from '../../hooks/cantina';
@@ -284,7 +286,12 @@ export function DiaNaCoordenacao() {
   const janta = useCardapioNaCoordenacao(dia?.janta?.id);
 
   const conta = contarDireitos(alunos);
-  const pedidosNoDia = (dia?.almoco?.pedidos ?? 0) + (dia?.janta?.pedidos ?? 0);
+  // As duas refeições numa contagem só. Aqui ela serve para NOMEAR a magnitude
+  // — com retirada na hora ligada, o total do dia já não é "pedidos" —, e a
+  // quebra em dois números fica com os cartões abaixo, que é onde ela tem ao
+  // lado a contagem por opção que não bate (docs/40 §10.1). Repeti-la também
+  // aqui seria dizer três vezes a mesma coisa na mesma tela.
+  const noDia = somarContagens([dia?.almoco, dia?.janta]);
   const cantina = nomeDaCantina(cantinas, almoco.data?.cantina_id ?? janta.data?.cantina_id);
 
   if (isError) {
@@ -307,9 +314,11 @@ export function DiaNaCoordenacao() {
           // hoje?" — a mesma regra do card com magnitude do Painel.
           isLoading ? null : (
             <span className="cant-magnitude">
-              <span className="cant-magnitude__numero">{pedidosNoDia}</span>
+              <span className="cant-magnitude__numero">{noDia.pedidos}</span>
+              {/* A palavra muda com o que o número conta: com retirada na hora
+                  ligada ele já não é "pedidos". O numeral segue o mesmo. */}
               <span className="cant-magnitude__legenda">
-                pedido{pedidosNoDia === 1 ? '' : 's'} no dia
+                {rotuloDaContagem(noDia)} no dia
               </span>
             </span>
           )
@@ -353,7 +362,8 @@ function CartaoDaRefeicao({
   comDireito: number | null;
 }) {
   const estado: EstadoCardapio = doCalendario?.estado ?? 'sem-cardapio';
-  const pedidos = doCalendario?.pedidos ?? 0;
+  const contagem: ContagemDoDia = doCalendario ?? { pedidos: 0 };
+  const quebra = quebraDaContagem(contagem);
   const nome = ROTULO_DA_REFEICAO[refeicao];
 
   // Sem cardápio o cartão fica INERTE, não desabilitado: não é "você não
@@ -383,14 +393,25 @@ function CartaoDaRefeicao({
       ) : (
         <>
           <p className="cant-magnitude cant-magnitude--linha">
-            <span className="cant-magnitude__numero">{pedidos}</span>
+            <span className="cant-magnitude__numero">{contagem.pedidos}</span>
             <span className="cant-magnitude__legenda">
-              pedido{pedidos === 1 ? '' : 's'}
+              {rotuloDaContagem(contagem)}
               {/* "não sei" nunca vira "0": sem a lista de alunos carregada, a
                   metade do direito simplesmente não aparece. */}
               {comDireito != null && ` · ${comDireito} com direito`}
             </span>
           </p>
+
+          {/* ⚠️ A frase que evita o chamado de bug, e ela fica JUNTO dos dois
+              números que não batem: o cartão mostra a magnitude do dia e, logo
+              abaixo, o "N pedidos" de cada opção. Quem pega na hora não escolhe
+              prato (docs/40 §10.1), então a segunda lista é sempre menor — e
+              sem esta linha a diferença parece defeito. */}
+          {quebra && (
+            <p className="cant-sub">
+              {fraseDaQuebra(quebra)} — a contagem por opção abaixo soma só quem pediu.
+            </p>
+          )}
 
           <p className="cant-sub">{fraseDoPrazo(estado, cardapio?.pedidos_ate ?? null)}</p>
 
@@ -459,7 +480,12 @@ function QuemPediu({
 
   return (
     <div className="cant-refeicao__secao">
-      <h3 className="cant-refeicao__olho">Quem pediu</h3>
+      {/* ⚠️ Não é "Quem pediu": esta lista é mista desde a Fase 1, e num dia
+          em que a cantina ligou só a retirada na hora ela seria um olho
+          dizendo "pediu" sobre fichas TODAS carimbadas "retirada na hora"
+          (docs/40 §8). É a mesma correção que `CardapioNaCoordenacao` já
+          recebeu; esta ficou para trás. */}
+      <h3 className="cant-refeicao__olho">Quem vai comer</h3>
       <ul className="cant-fichas">
         {primeiros.map((pedido) => (
           <li key={pedido.alunoId} className="cant-ficha">
@@ -467,6 +493,18 @@ function QuemPediu({
               {iniciais(pedido.nome)}
             </span>
             <span className="cant-ficha__nome">{primeiroENome(pedido.nome)}</span>
+            {/* A marca de modo é rótulo de FLUXO, não dado sensível — por isso
+                aparece igual para administrador e coordenador comum (docs/40
+                §8). Só a retirada na hora ganha marca: `pedido` é o caso comum,
+                e marcar todo mundo é não marcar ninguém.
+
+                ⚠️ O texto sai de `marcaDoModo`, e não de um par próprio daqui:
+                a mesma ficha fica a três linhas da quebra da contagem, e dois
+                nomes para o mesmo fluxo na mesma dobra é o que faz alguém
+                perguntar qual dos dois é a feature. */}
+            {pedido.modo === 'presencial' && (
+              <span className="cant-ficha__modo">{marcaDoModo(pedido)}</span>
+            )}
             {pedido.restricaoAlimentar && (
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth="2" strokeLinecap="round" role="img" className="cant-ficha__marca">
@@ -478,9 +516,13 @@ function QuemPediu({
           </li>
         ))}
       </ul>
+      {/* "pedidos" some pelo mesmo motivo do olho acima. E o artigo passou a
+          concordar: `nome` é "almoço" ou "janta", e o `do` fixo produzia "do
+          janta" — erro anterior a esta leva, consertado aqui porque é a mesma
+          linha. */}
       {pedidos.length > primeiros.length && (
         <Link className="cant-elo" to={para}>
-          ver os {pedidos.length} pedidos do {nome}
+          ver a lista {nome === 'janta' ? 'da' : 'do'} {nome} · {pedidos.length}
         </Link>
       )}
     </div>
@@ -508,6 +550,15 @@ export function CardapioNaCoordenacao() {
 
   const titulo = `${ROTULO_DA_REFEICAO[refeicao]} · ${rotuloDoDia(data)}`;
   useTituloDaTela(titulo);
+
+  // A contagem sai da própria LISTA, que é a fonte que esta tela já tem na mão
+  // (docs/40 §10.1). Ela nomeia o total das duas portas nos dois lugares em que
+  // ele aparece: a linha de intro e o cabeçalho da coluna da direita.
+  const doCardapio = contagemPorModo(cardapio?.pedidos ?? []);
+  const quebraDoCardapio = quebraDaContagem(doCardapio);
+  // O placar da retirada na hora: o do servidor, e a lista como resto honesto
+  // enquanto ele não o manda.
+  const presencial = presencialDoCardapio(cardapio?.presencial, cardapio?.pedidos ?? []);
 
   if (isLoading) {
     return (
@@ -556,6 +607,11 @@ export function CardapioNaCoordenacao() {
       <p className="cant-intro">
         {ROTULO_DO_ESTADO[cardapio.estado]}
         {` · ${fraseDoPrazo(cardapio.estado, cardapio.pedidos_ate)}`}
+        {/* Aqui as duas listas estão LADO A LADO — "o que cozinhar" à esquerda,
+            todo mundo à direita —, e é a tela em que a diferença mais salta.
+            A contagem sai da própria lista, não do calendário: é a fonte que
+            esta tela já tem na mão. */}
+        {quebraDoCardapio && ` · ${fraseDaQuebra(quebraDoCardapio)}`}
       </p>
 
       <section className="cant-colunas">
@@ -574,13 +630,46 @@ export function CardapioNaCoordenacao() {
                 <span className="cant-contagem__numero">{linha.quantos}</span>
               </li>
             ))}
-            {!cardapio.contagem.length && <li className="cant-vazio">Nenhum pedido ainda.</li>}
+            {/* ⚠️ O vazio só é vazio quando NINGUÉM vai comer. Sem a segunda
+                condição, um dia com doze retiradas na hora dizia "Nenhum pedido
+                ainda" com os doze nomes listados na coluna ao lado — e quem lê
+                conclui que a tela perdeu dado (docs/40 §10.1). */}
+            {!cardapio.contagem.length && !presencial && (
+              <li className="cant-vazio">Nenhum pedido ainda.</li>
+            )}
           </ul>
+
+          {/* LINHA À PARTE, e não mais uma opção da contagem: quem pega na hora
+              não escolhe prato, e somá-lo ao "47 arroz" inventaria um arroz que
+              ninguém pediu. É a mesma seção que a cantina já lê em
+              /pedidos/:data/:refeicao — mesma quebra, mesmas palavras. */}
+          {presencial && (
+            <section className="cant-contagem__aparte">
+              <h3 className="cant-refeicao__olho">Retirada na hora</h3>
+              <ul className="cant-contagem__lista">
+                <li className="cant-contagem__linha">
+                  <span className="cant-contagem__nome">Já retiraram</span>
+                  <span className="cant-contagem__numero">{presencial.retirados}</span>
+                </li>
+                <li className="cant-contagem__linha">
+                  <span className="cant-contagem__nome">Códigos gerados, ainda não lidos</span>
+                  <span className="cant-contagem__numero">{presencial.pendentes}</span>
+                </li>
+              </ul>
+              <p className="cant-sub">
+                Sem prato escolhido — por isso não entram na contagem acima.
+              </p>
+            </section>
+          )}
         </div>
 
         <div>
+          {/* A palavra muda com o que o número conta: esta lista passou a
+              incluir quem não pediu nada, e chamá-la de "quem pediu" era
+              afirmar sobre os 47 o que só vale para 44 — a contradição com a
+              linha de intro, três linhas acima (docs/40 §10.1). */}
           <h2 className="cant-refeicao__olho">
-            Quem pediu · {cardapio.pedidos.length}
+            {doCardapio.pedidos} {rotuloDaContagem(doCardapio)}
           </h2>
           <ul className="cant-lista">
             {cardapio.pedidos.map((pedido) => (
@@ -588,8 +677,19 @@ export function CardapioNaCoordenacao() {
                 <span className="cant-lista__aluno">
                   {pedido.nome ?? 'sem nome'}
                   {pedido.turma && <span className="cant-lista__turma">{pedido.turma}</span>}
+                  {/* Os três estados do docs/40 §8, nas palavras do editor da
+                      cantina: `pedido`, `retirada na hora` e `retirada na hora
+                      · retirado`. Não é dado sensível como a restrição
+                      alimentar — é rótulo de fluxo —, então aparece igual para
+                      os dois papéis. */}
+                  {pedido.modo === 'presencial' && (
+                    <span className="cant-tarja">{marcaDoModo(pedido)}</span>
+                  )}
                 </span>
-                <span className="cant-lista__escolhas">{pedido.escolhas.join(' · ')}</span>
+                {/* A tarja ao lado do nome já disse o fluxo; aqui vai o que
+                    fazer com a linha. É a mesma frase da folha impressa, que
+                    sem ela mostrava um traço e mandava procurar prato. */}
+                <span className="cant-lista__escolhas">{escolhasDaLinha(pedido)}</span>
                 {/* A marca, não o texto: quem precisa do texto abre em
                     /cantina/direitos, onde a revelação é deliberada. */}
                 {pedido.restricaoAlimentar && (
@@ -608,12 +708,17 @@ export function CardapioNaCoordenacao() {
 // ─── Leituras compartilhadas ──────────────────────────────────────────────
 
 /**
- * "18 dias publicados · 2 em rascunho · 1.842 pedidos".
+ * "18 dias publicados · 2 em rascunho · 1.842 vão comer · 1.790 com pedido ·
+ * 52 de retirada na hora".
  *
  * Conta DIAS distintos, e não linhas: o calendário devolve uma linha por
  * refeição, e "36 lançados" num mês de 30 dias faria a pessoa reler duas vezes.
  * Um dia com almoço publicado e janta em rascunho conta nos dois — porque é
  * verdade nos dois.
+ *
+ * A quebra por modo só entra no mês em que ela existe, e é ela que decodifica o
+ * "44+3" das células logo abaixo (docs/40 §10.1). Sem presencial no mês, esta
+ * frase é exatamente a de antes da feature.
  */
 function resumirOMes(dias: DiaDoCalendario[]): string | null {
   if (!dias.length) return null;
@@ -622,12 +727,16 @@ function resumirOMes(dias: DiaDoCalendario[]): string | null {
 
   const publicados = distintos((d) => d.estado === 'aberto' || d.estado === 'fechado');
   const rascunhos = distintos((d) => d.estado === 'rascunho');
-  const pedidos = dias.reduce((soma, d) => soma + d.pedidos, 0);
+  const contagem = somarContagens(dias);
+  const quebra = quebraDaContagem(contagem);
 
   const partes: string[] = [];
   if (publicados) partes.push(`${publicados} dia${publicados === 1 ? '' : 's'} publicado${publicados === 1 ? '' : 's'}`);
   if (rascunhos) partes.push(`${rascunhos} em rascunho`);
-  if (pedidos) partes.push(`${pedidos.toLocaleString('pt-BR')} pedido${pedidos === 1 ? '' : 's'}`);
+  if (contagem.pedidos) {
+    partes.push(`${contagem.pedidos.toLocaleString('pt-BR')} ${rotuloDaContagem(contagem)}`);
+  }
+  if (quebra) partes.push(fraseDaQuebra(quebra));
   return partes.length ? partes.join(' · ') : null;
 }
 

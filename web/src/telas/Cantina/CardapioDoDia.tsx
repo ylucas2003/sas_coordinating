@@ -105,6 +105,11 @@ function Editor({
   const [blocos, setBlocos] = useState<BlocoEditavel[]>([]);
   const [prazo, setPrazo] = useState('');
   const [semRefeicao, setSemRefeicao] = useState(false);
+  // Os dois modos do docs/40 §1. O default é o comportamento de hoje — só
+  // pedido —, que é o mesmo do banco: uma cantina que nunca abriu esta seção
+  // continua funcionando exatamente como antes.
+  const [aceitaPedido, setAceitaPedido] = useState(true);
+  const [aceitaPresencial, setAceitaPresencial] = useState(false);
   const [sujo, setSujo] = useState(false);
 
   // Recarrega o formulário quando o cardápio chega ou muda no servidor. O
@@ -125,6 +130,12 @@ function Editor({
     );
     setPrazo(paraInputLocal(cardapio.pedidos_ate));
     setSemRefeicao(cardapio.sem_refeicao);
+    // `!== false` e `=== true` em vez de ler o booleano direto: os dois campos
+    // nasceram na 0051, e um servidor anterior a ela simplesmente não os manda.
+    // A leitura tolerante recai no default do banco em vez de desligar o
+    // pedido — que é o que `undefined` faria num checkbox controlado.
+    setAceitaPedido(cardapio.aceitaPedido !== false);
+    setAceitaPresencial(cardapio.aceitaPresencial === true);
   }, [cardapio, sujo]);
 
   // Candidatos a cópia: os 21 dias anteriores da MESMA refeição. Almoço e janta
@@ -149,6 +160,8 @@ function Editor({
     return {
       pedidos_ate: deInputLocal(prazo),
       sem_refeicao: semRefeicao,
+      aceita_pedido: aceitaPedido,
+      aceita_presencial: aceitaPresencial,
       blocos: blocos
         // Bloco sem nome não vai para o banco: seria uma linha invisível na
         // tela do aluno, sem jeito de apagar depois.
@@ -177,6 +190,18 @@ function Editor({
   // cantina só descobriria no balcão. O servidor agora recusa; isto avisa antes
   // do clique, que é onde dá para consertar sem susto.
   const prazoVencido = !semRefeicao && !!prazo && !prazoAberto(deInputLocal(prazo));
+
+  // ⚠️ A trava do servidor, espelhada (docs/40 §1): publicar com os dois modos
+  // desligados é recusado com 422. Um cardápio que não aceita nada não é
+  // "publicado", é `sem_refeicao` disfarçado — e a diferença importa, porque é
+  // ela que faz o alarme de "cardápio de amanhã não lançado" dizer a verdade.
+  const semModo = !semRefeicao && !aceitaPedido && !aceitaPresencial;
+  // ⚠️ O prazo vencido deixou de ser impedimento ABSOLUTO: com a retirada
+  // presencial ligada, um cardápio de prazo vencido continua servindo gente —
+  // é literalmente o caminho de quem não se planejou (docs/40 §3). Ele só volta
+  // a ser o "publiquei e ninguém vê" do docs/38 §3.3.2 quando o pedido é o
+  // único modo aceito.
+  const invisivel = prazoVencido && aceitaPedido && !aceitaPresencial;
 
   return (
     <div className="cant-tela">
@@ -209,10 +234,11 @@ function Editor({
           </span>
         </label>
 
-        {prazoVencido && (
+        {invisivel && (
           <p className="cant-aviso" role="alert">
             <b>Este prazo já passou.</b> Publicado assim, o cardápio não aparece para nenhum
-            aluno e ninguém consegue pedir. Ajuste a data e a hora acima.
+            aluno e ninguém consegue pedir. Ajuste a data e a hora acima — ou ligue a
+            <b> retirada na hora</b>, que não olha prazo.
           </p>
         )}
 
@@ -228,6 +254,47 @@ function Editor({
           <span>Não haverá {ROTULO_DA_REFEICAO[refeicao].toLowerCase()} neste dia</span>
         </label>
       </section>
+
+      {!semRefeicao && (
+        // COMO se come neste dia (docs/40 §1). É a seção que decide se o QR
+        // existe: sem `aceita_presencial`, a feature inteira fica invisível
+        // para o aluno — a quarta variação do "publiquei e ninguém vê".
+        <section className="cant-secao">
+          <h2 className="cant-secao__titulo">Como o aluno pega esta refeição</h2>
+
+          <label className="cant-checkbox">
+            <input
+              type="checkbox"
+              checked={aceitaPedido}
+              onChange={(e) => { setSujo(true); setAceitaPedido(e.target.checked); }}
+            />
+            <span>
+              <b>Pedido com antecedência</b> — o aluno escolhe os pratos até o prazo acima, e a
+              contagem de produção sai daqui.
+            </span>
+          </label>
+
+          <label className="cant-checkbox">
+            <input
+              type="checkbox"
+              checked={aceitaPresencial}
+              onChange={(e) => { setSujo(true); setAceitaPresencial(e.target.checked); }}
+            />
+            <span>
+              <b>Retirada na hora</b> — o aluno chega, mostra um código no balcão e a cantina lê
+              em <Link to="/ao-vivo">Ler código</Link>. Não escolhe pratos e não olha prazo.
+            </span>
+          </label>
+
+          {semModo && (
+            <p className="cant-aviso" role="alert">
+              <b>Escolha pelo menos um.</b> Um cardápio que não aceita nenhum dos dois não pode
+              ser publicado — se a intenção é não servir hoje, marque
+              «não haverá {ROTULO_DA_REFEICAO[refeicao].toLowerCase()} neste dia» acima.
+            </p>
+          )}
+        </section>
+      )}
 
       {!semRefeicao && (
         <>
@@ -306,7 +373,7 @@ function Editor({
           <button
             type="button"
             className="cant-tecla cant-tecla--principal"
-            disabled={salvar.isPending || publicar.isPending || prazoVencido}
+            disabled={salvar.isPending || publicar.isPending || invisivel || semModo}
             onClick={() =>
               salvar.mutate({ id: cardapioId, corpo: corpo() }, {
                 onSuccess: () => { setSujo(false); publicar.mutate(cardapioId); },

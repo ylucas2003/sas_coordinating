@@ -2,6 +2,7 @@ import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 
 import { useEventosDaCantina } from '../../hooks/eventosCantina';
 import * as sessao from '../../servicos/sessao';
+import { AoVivo } from './AoVivo';
 import { Calendario } from './Calendario';
 import { CardapioDoDia } from './CardapioDoDia';
 import { PedidosDoDia } from './PedidosDoDia';
@@ -19,8 +20,19 @@ import { PedidosDoDia } from './PedidosDoDia';
 // cantina (docs/38 §1). Se um dia alguém montar este casco por engano para
 // outro tipo de conta, ele não terá o que mostrar — em vez de mostrar demais.
 
+// Duas portas, e são os dois trabalhos da cantina: LANÇAR o cardápio (de
+// manhã, sentada) e SERVIR (ao meio-dia, de pé, com a câmera ligada). "Pedidos
+// ao vivo" é destino de topo e não uma aba dentro do dia porque fica aberto o
+// serviço inteiro — enterrá-lo em `/cardapios/:data/:refeicao` obrigaria a
+// reencontrá-lo a cada recarregamento, com a fila esperando (docs/40 §7).
 const DESTINOS = [
   { para: '/cardapios', rotulo: 'Cardápios' },
+  // ⚠️ "Ler código", e não "Pedidos ao vivo": aqui ninguém pediu nada — o
+  // contador da própria tela conta RETIRADAS. E este é o destino mais visível
+  // do casco, então o nome antigo levava quem queria conferir a lista de
+  // pedidos a abrir a câmera, com pedido de permissão e tudo. O verbo diz o que
+  // acontece ao clicar, que era justamente a surpresa.
+  { para: '/ao-vivo', rotulo: 'Ler código' },
 ];
 
 function sair() {
@@ -77,6 +89,7 @@ export function CascoCantina() {
               para onde apontar. */}
           <Route path="/cardapios/:data/:refeicao" element={<CardapioDoDia />} />
           <Route path="/cardapios/:data/:refeicao/pedidos" element={<PedidosDoDia />} />
+          <Route path="/ao-vivo" element={<AoVivo />} />
           <Route path="*" element={<Navigate to="/cardapios" replace />} />
         </Routes>
       </main>

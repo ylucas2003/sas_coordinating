@@ -13,6 +13,15 @@
 export type Refeicao = 'almoco' | 'janta';
 
 /**
+ * Os dois jeitos de comer (docs/40 §1).
+ *
+ * `pedido` compromete a cozinha com um prato; `presencial` é só declaração de
+ * presença — não escolhe item nenhum (docs/40 §10.1). Vira `CHECK` na coluna
+ * `pedido_refeicao.modo` (0051), daí ser união fechada como `Refeicao`.
+ */
+export type ModoDeRefeicao = 'pedido' | 'presencial';
+
+/**
  * Os cinco estados de um dia, e o prazo é que cria os dois do meio.
  *
  * `aberto` e `fechado` são o MESMO cardápio publicado antes e depois de
@@ -50,6 +59,17 @@ export interface Cardapio {
   sem_refeicao: boolean;
   estado: EstadoCardapio;
   blocos: BlocoCardapio[];
+  /**
+   * Quais modos este dia aceita (docs/40 §1). Publicar com os dois em `false` é
+   * recusado pelo servidor — um cardápio que não aceita nada é `sem_refeicao`
+   * disfarçado.
+   *
+   * ⚠️ Saem em camelCase e entram em snake_case (`aceita_pedido` no corpo do
+   * `PUT`), ao contrário do resto do arquivo. É o contrato da rota, não
+   * descuido — e é a razão de `CorpoCardapio` ter os dois nomes.
+   */
+  aceitaPedido: boolean;
+  aceitaPresencial: boolean;
 }
 
 /** Uma célula do calendário. Dia sem cardápio não vem na lista. */
@@ -59,7 +79,47 @@ export interface DiaDoCalendario {
   refeicao: Refeicao;
   estado: EstadoCardapio;
   pedidosAte: string | null;
+  /**
+   * Quantos vão comer — as DUAS portas somadas.
+   *
+   * ⚠️ O significado é o mesmo desde a 0049, e é por isso que o nome não mudou
+   * quando a retirada presencial entrou na conta: várias telas já leem este
+   * campo, e trocar o sentido dele em silêncio seria pior que a divergência que
+   * a quebra abaixo resolve.
+   */
   pedidos: number;
+  /**
+   * Quem escolheu prato — a única metade que a contagem por opção soma.
+   *
+   * É aqui que mora a divergência que virava chamado de bug: "47" no calendário
+   * contra "44 arroz" no fogão, porque quem pega pessoalmente não escolhe prato
+   * (docs/40 §10.1). Os dois números estavam certos; faltava a quebra visível.
+   */
+  comPedido: number;
+  /** Quem declarou presença — pendentes e já retiradas juntas (view da 0052). */
+  presenciais: number;
+}
+
+/**
+ * O presencial na contagem, e ele fica FORA das linhas por opção de propósito:
+ * quem pega pessoalmente não escolhe prato (docs/40 §10.1), então somá-lo ao
+ * "47 arroz" inventaria um arroz que ninguém pediu.
+ */
+export interface ContagemPresencial {
+  pendentes: number;
+  retirados: number;
+}
+
+/** A contagem inteira de um cardápio: o que cozinhar, e quantos presenciais. */
+export interface ContagemDoCardapio {
+  opcoes: ContagemDeOpcao[];
+  /**
+   * `null` = o servidor desta instalação ainda não manda o bloco (antes da
+   * 0051). A tela ESCONDE a linha nesse caso, em vez de mostrar dois zeros —
+   * "não sei" virando "ninguém" é a mentira mais barata de escrever e a mais
+   * cara de descobrir, e o resto da cantina já segue essa regra.
+   */
+  presencial: ContagemPresencial | null;
 }
 
 /** Uma linha da contagem de produção — o que cozinhar. */
@@ -84,6 +144,45 @@ export interface PedidoDeAluno {
   restricaoAlimentar: string | null;
   escolhas: string[];
   pedidoEm: string;
+  /** `presencial` nunca traz `escolhas` — não há prato para servir, há alguém
+      para conferir na leitura do QR (docs/40 §10.1). */
+  modo: ModoDeRefeicao;
+  /** Quando o QR foi lido. `null` no modo `pedido` sempre, e no `presencial`
+      enquanto ninguém leu. Preenchido é final dos dois lados (docs/40 §2). */
+  retiradoEm: string | null;
+}
+
+/**
+ * O que `POST /me/cantina/retiradas/{cardapio_id}` devolve.
+ *
+ * O QR carrega este `token` — assinado, com validade curta —, e não o
+ * `aluno_id` cru: um print de tela não pode virar crachá reutilizável nem
+ * sobreviver ao dia (docs/40 §4). Quem renova é a própria tela, antes de
+ * `expiraEm`.
+ */
+export interface TokenDeRetirada {
+  token: string;
+  expiraEm: string;
+}
+
+/**
+ * A ficha que a leitura do QR devolve no balcão.
+ *
+ * É a MESMA régua de dado que a cantina já tem na lista de pedidos: nome,
+ * turma, refeição e a restrição alimentar. Nada de nota, de simulado nem de
+ * ficha (docs/38 §8.1.2).
+ */
+export interface RetiradaConfirmada {
+  alunoId: string;
+  nome: string | null;
+  turma: string | null;
+  refeicao: Refeicao;
+  /** ISO `YYYY-MM-DD` — o dia do CARDÁPIO, não o da leitura. Nulo só se a
+      linha do cardápio vier sem data, que não deveria acontecer: a tela não
+      inventa um dia por isso. */
+  data: string | null;
+  restricaoAlimentar: string | null;
+  retiradoEm: string;
 }
 
 /** O que o aluno recebe: os direitos dele e os dias que pode resolver. */
@@ -95,6 +194,19 @@ export interface CantinaDoAluno {
 export interface DiaDoAluno extends Cardapio {
   /** `null` = ainda não pedi. Lista vazia = pedi e não marquei nada. */
   meuPedido: string[] | null;
+  /**
+   * Onde eu estou na máquina de estados deste dia (docs/40 §2).
+   *
+   * `null` = não há linha nenhuma. ⚠️ **Este campo, e não `meuPedido`, é quem
+   * responde "eu já resolvi este dia?"**: uma retirada presencial não escolhe
+   * item, e o servidor devolve `meuPedido: null` para ela justamente para não
+   * dizer "você pediu nada" onde a verdade é "você vai buscar no balcão". Ler o
+   * pedido para decidir o modo confundiria os dois — e é o que `situacaoDoDia`
+   * evita, checando `modo` ANTES de `meuPedido`.
+   */
+  modo: ModoDeRefeicao | null;
+  /** Preenchido = já comi. Final: não há desfazer (docs/40 §2). */
+  retiradoEm: string | null;
 }
 
 // ─── Administração ───────────────────────────────────────────────────────
@@ -115,6 +227,19 @@ export interface CantinaAdmin {
   /** A REGRA da casa, que pré-preenche cada cardápio novo — não é o prazo. */
   prazo_padrao_dias_antes: number;
   prazo_padrao_hora: string;
+  /**
+   * A outra metade da regra da casa: quais modos um cardápio NOVO já nasce
+   * aceitando (docs/40 §1). Irmãs de `prazo_padrao_*` — pré-preenchem
+   * `cardapio.aceita_pedido`/`aceita_presencial` e **não tocam em cardápio já
+   * lançado**, que a cantina troca dia a dia no editor.
+   *
+   * `NOT NULL` no banco (0051), com o default mantendo o comportamento de
+   * antes da feature: só pedido.
+   */
+  aceita_pedido_almoco: boolean;
+  aceita_pedido_janta: boolean;
+  aceita_presencial_almoco: boolean;
+  aceita_presencial_janta: boolean;
   /**
    * Preço de tabela, em reais. `null` = ainda não informado, e é DIFERENTE de
    * 0,00 — a tela não pode somar zero como se fosse dado. O SAS não cobra; o

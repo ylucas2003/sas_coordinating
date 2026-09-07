@@ -8,6 +8,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 
+import { msAteRenovar } from '../dominio/cantina';
 import * as api from '../servicos/api';
 import type { CorpoCardapio } from '../servicos/api';
 import type { Refeicao } from '../tipos/cantina';
@@ -18,6 +19,10 @@ export const chavesCantina = {
   contagem: (id: string) => ['cantina', 'contagem', id] as const,
   pedidos: (id: string) => ['cantina', 'pedidos', id] as const,
   doAluno: ['me', 'cantina'] as const,
+  /** ⚠️ FORA do galho `['me','cantina']` de propósito: o token é efêmero e a
+      tela do QR o renova sozinha. Deixá-lo dentro faria cada evento do stream
+      pedir um token novo, e cada pedido de token gravar no banco. */
+  tokenDeRetirada: (cardapioId: string) => ['me', 'retirada', cardapioId] as const,
   calendarioCoord: (de: string, ate: string, cantina?: string) =>
     ['coord', 'cantina', de, ate, cantina ?? 'padrao'] as const,
   cardapioCoord: (id: string) => ['coord', 'cantina', 'cardapio', id] as const,
@@ -172,6 +177,68 @@ export function useCancelarPedido() {
   });
 }
 
+/**
+ * O token do QR, com a renovação silenciosa (docs/40 §6).
+ *
+ * É `useQuery` sobre um `POST`, e a escolha é deliberada: a rota é
+ * idempotente (cria OU renova a mesma linha), e o que se quer aqui é
+ * exatamente o que uma consulta faz — manter um valor fresco enquanto a tela
+ * está aberta, sem ninguém apertar nada. Como mutação, a renovação viraria um
+ * `setInterval` à mão dentro do componente, com o cancelamento no desmonte
+ * escrito de novo.
+ *
+ * O intervalo sai de `expiraEm`, e não de um número fixo: quem manda na
+ * validade é o servidor, e um valor cravado aqui viraria mentira no dia em que
+ * os dois minutos do docs/40 §4 mudarem.
+ *
+ * `retry: false` porque as recusas desta rota são definitivas para a tela — 409
+ * (já pedi), 422 (não aceita presencial, ou não é hoje). Tentar de novo só
+ * atrasa a frase que o aluno precisa ler.
+ */
+export function useTokenDeRetirada(cardapioId: string | undefined, ligado = true) {
+  return useQuery({
+    queryKey: chavesCantina.tokenDeRetirada(cardapioId ?? ''),
+    queryFn: () => api.iniciarRetirada(cardapioId!),
+    enabled: !!cardapioId && ligado,
+    staleTime: 0,
+    // O token não sobrevive à tela: guardá-lo no cache faria a volta a esta
+    // rota mostrar um QR vencido por um instante, e um QR vencido no balcão é
+    // uma leitura falhada com fila atrás.
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: (consulta) => msAteRenovar(consulta.state.data?.expiraEm),
+  });
+}
+
+/** Desistir da retirada. Some a linha, e o dia volta a estar em aberto. */
+export function useDesistirDaRetirada() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (cardapioId: string) => api.desistirDaRetirada(cardapioId),
+    onSuccess: (_dado, cardapioId) => {
+      qc.invalidateQueries({ queryKey: chavesCantina.doAluno });
+      qc.removeQueries({ queryKey: chavesCantina.tokenDeRetirada(cardapioId) });
+    },
+  });
+}
+
+/**
+ * A leitura do QR no balcão (docs/40 §7).
+ *
+ * Invalida o galho inteiro da cantina porque a confirmação mexe na contagem, na
+ * lista de quem pediu e no calendário — e o servidor publica o evento
+ * `retirada`, que derruba as mesmas chaves em toda sessão aberta. Invalidar
+ * aqui também é o que faz a PRÓPRIA tela responder sem esperar o stream.
+ */
+export function useConfirmarRetirada() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (token: string) => api.confirmarRetirada(token),
+    onSuccess: () => invalidarCantina(qc),
+  });
+}
+
 // ─── A coordenação ────────────────────────────────────────────────────────
 
 export function useCalendarioNaCoordenacao(de: string, ate: string, cantina?: string) {
@@ -230,7 +297,12 @@ export function useSalvarRestricao() {
 export function useCriarCantina() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (corpo: { nome: string }) => api.criarCantina(corpo),
+    // ⚠️ `Parameters<>`, como a irmã abaixo, e não `{ nome: string }`: a
+    // assinatura estreita ACEITAVA os campos extras em silêncio — `corpo` é
+    // variável, não literal, então não há checagem de propriedade a mais —, e
+    // um nome errado (`aceita_presencial_almoço`) passaria no `tsc` e sumiria
+    // no JSON.
+    mutationFn: (corpo: Parameters<typeof api.criarCantina>[0]) => api.criarCantina(corpo),
     onSuccess: () => qc.invalidateQueries({ queryKey: chavesCantina.cantinas }),
   });
 }
