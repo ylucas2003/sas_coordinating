@@ -8,6 +8,12 @@ nova nasce sem dono:
   * `router_aluno` (`/me/cantina`) — o aluno vê o que pode e pede;
   * `router_admin` (`/administracao`) — quem tem direito, e as contas.
 
+São **dois jeitos de comer**, e os dois vivem na mesma linha de
+`pedido_refeicao` (docs/40 §1): `modo = "pedido"` escolhe itens dentro do prazo,
+e `modo = "presencial"` só declara presença e conclui na leitura do QR
+(`retirado_em`). A transição entre eles é ASSIMÉTRICA de propósito — ver
+`_cardapio_para_retirada` e o §2 do plano.
+
 ⚠️ **Toda consulta da cantina filtra pelo `cantina_id` DO TOKEN, nunca por
 parâmetro.** Sem isso, uma cantina lê o cardápio da outra trocando um id na URL
 (docs/38 §3.3). A coordenação é a única que pode pedir uma cantina específica,
@@ -19,7 +25,10 @@ teto de escolhas por bloco, prazo, direito à refeição — são Python, e por 
 precisam de teste. As duas agregações que seriam caras em Python viraram VIEW
 na 0049 (`v_contagem_pedidos_por_opcao`, `v_pedidos_por_cardapio`), porque não
 existe paginação em lugar nenhum e `pedido_refeicao_item` é a primeira tabela
-do projeto que cresce por dia × aluno × item.
+do projeto que cresce por dia × aluno × item. A 0052 quebrou
+`v_pedidos_por_cardapio` por modo, porque desde a retirada presencial o número
+do calendário e a contagem por opção respondem a perguntas diferentes e
+pareciam responder à mesma (docs/40 §10.1).
 """
 
 from __future__ import annotations
@@ -50,9 +59,26 @@ from ..cantina_eventos import (
     para_o_aluno,
     publicar_cardapio_mudou,
 )
+from ..cantina_token import RetiradaIlegivel, assinar_retirada, ler_retirada
 from ..supabase_client import ClienteDados, get_supabase
 
 REFEICOES = ("almoco", "janta")
+
+#: Os dois jeitos de comer (docs/40 §1). `pedido` escolhe itens com
+#: antecedência e compromete a cozinha; `presencial` é declaração de presença,
+#: sem prato, e só vira compromisso quando o QR é lido.
+MODO_PEDIDO = "pedido"
+MODO_PRESENCIAL = "presencial"
+
+#: A regra da casa, coluna a coluna (0051). Uma lista só porque os quatro nomes
+#: aparecem em três lugares — corpo, insert e patch —, e um esquecido ali é uma
+#: coluna que a tela mostra e ninguém consegue mudar.
+CAMPOS_DE_MODO_DA_CASA = (
+    "aceita_pedido_almoco",
+    "aceita_pedido_janta",
+    "aceita_presencial_almoco",
+    "aceita_presencial_janta",
+)
 
 # `FUSO_DA_ESCOLA` vem de `banco/missao.py`, e o import atravessa módulos de
 # propósito: é o MESMO fuso que decide qual é "hoje" na missão do dia. A escola
@@ -119,6 +145,31 @@ def _prazo_pela_regra(cantina: dict, dia: date) -> datetime:
         tzinfo=FUSO_DA_ESCOLA,
     )
     return local.astimezone(UTC)
+
+
+def _modos_pela_regra(cantina: dict, refeicao: str) -> tuple[bool, bool]:
+    """Que modos a REGRA da casa liga num cardápio novo daquela refeição (docs/40 §1).
+
+    Mesmo papel de `_prazo_pela_regra`: isto só pré-preenche, e o valor do dia é
+    do cardápio. Os fallbacks espelham os DEFAULT da 0051 — pedido ligado,
+    presencial desligado —, senão o modo passaria a depender da origem da linha.
+    """
+    aceita_pedido = cantina.get(f"aceita_pedido_{refeicao}")
+    aceita_presencial = cantina.get(f"aceita_presencial_{refeicao}")
+    return (
+        True if aceita_pedido is None else bool(aceita_pedido),
+        False if aceita_presencial is None else bool(aceita_presencial),
+    )
+
+
+def _modos_do_cardapio(cardapio: dict) -> tuple[bool, bool]:
+    """O que ESTE dia aceita. Os mesmos fallbacks da 0051, pelo mesmo motivo."""
+    aceita_pedido = cardapio.get("aceita_pedido")
+    aceita_presencial = cardapio.get("aceita_presencial")
+    return (
+        True if aceita_pedido is None else bool(aceita_pedido),
+        False if aceita_presencial is None else bool(aceita_presencial),
+    )
 
 
 def _estado(cardapio: dict, agora: datetime) -> str:
@@ -189,7 +240,17 @@ def _montar_cardapio(cliente: ClienteDados, cardapio: dict, agora: datetime) -> 
         opcoes = bloco.pop("cardapio_opcao", None) or []
         opcoes.sort(key=lambda o: o.get("ordem") or 0)
         bloco["opcoes"] = opcoes
-    return {**cardapio, "estado": _estado(cardapio, agora), "blocos": blocos}
+    aceita_pedido, aceita_presencial = _modos_do_cardapio(cardapio)
+    return {
+        **cardapio,
+        "estado": _estado(cardapio, agora),
+        # Em camelCase e derivados por `_modos_do_cardapio` mesmo já viajando em
+        # snake_case dentro do `**cardapio`: é o contrato da tela, e é o único
+        # lugar onde o default de uma base sem a 0051 é aplicado.
+        "aceitaPedido": aceita_pedido,
+        "aceitaPresencial": aceita_presencial,
+        "blocos": blocos,
+    }
 
 
 def _opcoes_com_pedido(cliente: ClienteDados, opcao_ids: list[str]) -> set[str]:
@@ -237,6 +298,12 @@ class CardapioBody(BaseModel):
 
     pedidos_ate: datetime | None = None
     sem_refeicao: bool = False
+    # `None` = "não mexi neste campo", como os valores de `EditarCantinaBody`.
+    # Não é `bool = True`: um editor antigo, que ainda não conhece os dois
+    # toggles, desligaria o presencial da cantina a cada salvamento — e a perda
+    # seria silenciosa, descoberta só no balcão (docs/40 §1).
+    aceita_pedido: bool | None = None
+    aceita_presencial: bool | None = None
     blocos: list[BlocoBody] = Field(default_factory=list)
 
 
@@ -251,6 +318,17 @@ class CopiarBody(BaseModel):
 
 class PedidoBody(BaseModel):
     opcao_ids: list[str] = Field(default_factory=list)
+
+
+class ConfirmarRetiradaBody(BaseModel):
+    """O que a câmera leu do QR. Só o código assinado — nada de `aluno_id`.
+
+    Aceitar o aluno por parâmetro faria da tela da cantina um crachá universal:
+    quem tivesse a sessão do balcão marcaria qualquer um como servido. O que
+    autoriza a marcação é a assinatura (docs/40 §4).
+    """
+
+    token: str
 
 
 # ─── Os três streams ──────────────────────────────────────────────────────
@@ -302,16 +380,26 @@ async def eventos_da_coordenacao() -> StreamingResponse:
 
 
 def _calendario(cliente: ClienteDados, cantina_id: str, de: date, ate: date) -> list[dict]:
-    """Um objeto por cardápio existente na janela, com estado e nº de pedidos.
+    """Um objeto por cardápio existente na janela, com estado e quem vai comer.
 
     Dia sem cardápio não vem: quem sabe quais dias existem no mês é o
     calendário da tela, e mandar 30 objetos vazios só para ele descobrir isso
     seria o servidor desenhando a grade.
+
+    São TRÊS números de gente e não um (docs/40 §10.1). `pedidos` responde
+    "quantos vão comer" — as duas portas somadas —, e é ele que pinta o dia. A
+    quebra em `comPedido` e `presenciais` existe porque a contagem por opção,
+    que a cantina lê para cozinhar, só soma quem escolheu prato: presencial não
+    escolhe nada. Sem a quebra, os dois números parecem que deviam bater, não
+    batem, e viram chamado de bug.
     """
     agora = _agora()
     cardapios = (
         cliente.table("cardapio")
-        .select("id, data, refeicao, pedidos_ate, publicado_em, sem_refeicao")
+        .select(
+            "id, data, refeicao, pedidos_ate, publicado_em, sem_refeicao, "
+            "aceita_pedido, aceita_presencial"
+        )
         .eq("cantina_id", cantina_id)
         .gte("data", de.isoformat())
         .lte("data", ate.isoformat())
@@ -322,31 +410,39 @@ def _calendario(cliente: ClienteDados, cantina_id: str, de: date, ate: date) -> 
     if not cardapios:
         return []
 
-    # A contagem vem da view (0049), e não de um count por cardápio: o
-    # calendário mostra um mês inteiro, e contar em Python exigiria trazer
-    # todos os pedidos do mês só para saber o tamanho de cada dia.
+    # A contagem vem da view (0049, quebrada por modo na 0052), e não de um
+    # count por cardápio: o calendário mostra um mês inteiro, e contar em Python
+    # exigiria trazer todos os pedidos do mês só para saber o tamanho de cada
+    # dia.
     ids = [c["id"] for c in cardapios]
     contagens = (
         cliente.table("v_pedidos_por_cardapio")
-        .select("cardapio_id, quantos")
+        .select("cardapio_id, quantos, com_pedido, presenciais")
         .in_("cardapio_id", ids)
         .execute()
         .data
         or []
     )
-    por_cardapio = {c["cardapio_id"]: c["quantos"] for c in contagens}
+    por_cardapio = {c["cardapio_id"]: c for c in contagens}
 
-    saida = [
-        {
-            "id": c["id"],
-            "data": c["data"],
-            "refeicao": c["refeicao"],
-            "estado": _estado(c, agora),
-            "pedidosAte": c.get("pedidos_ate"),
-            "pedidos": por_cardapio.get(c["id"], 0),
-        }
-        for c in cardapios
-    ]
+    saida = []
+    for c in cardapios:
+        aceita_pedido, aceita_presencial = _modos_do_cardapio(c)
+        contagem = por_cardapio.get(c["id"], {})
+        saida.append(
+            {
+                "id": c["id"],
+                "data": c["data"],
+                "refeicao": c["refeicao"],
+                "estado": _estado(c, agora),
+                "pedidosAte": c.get("pedidos_ate"),
+                "pedidos": contagem.get("quantos", 0),
+                "comPedido": contagem.get("com_pedido", 0),
+                "presenciais": contagem.get("presenciais", 0),
+                "aceitaPedido": aceita_pedido,
+                "aceitaPresencial": aceita_presencial,
+            }
+        )
     saida.sort(key=lambda c: (c["data"], c["refeicao"]))
     return saida
 
@@ -357,7 +453,7 @@ async def calendario_da_cantina(
     ate: date,
     usuario: dict = Depends(get_current_cantina),
 ) -> list[dict]:
-    """O mês da cantina: que dias têm cardápio, em que estado, com quantos pedidos."""
+    """O mês da cantina: que dias têm cardápio, em que estado, e quantos vão comer."""
     return _calendario(get_supabase(), usuario["cantina_id"], de, ate)
 
 
@@ -418,6 +514,7 @@ async def criar_cardapio(
             detail="Já existe cardápio para esse dia e refeição.",
         )
 
+    aceita_pedido, aceita_presencial = _modos_pela_regra(cantina, body.refeicao)
     linha = (
         cliente.table("cardapio")
         .insert(
@@ -426,6 +523,11 @@ async def criar_cardapio(
                 "data": body.data.isoformat(),
                 "refeicao": body.refeicao,
                 "pedidos_ate": _prazo_pela_regra(cantina, body.data).isoformat(),
+                # Os modos vêm da regra da casa pelo mesmo motivo do prazo: é
+                # pré-preenchimento, não decisão — a cantina troca no editor
+                # (docs/40 §1).
+                "aceita_pedido": aceita_pedido,
+                "aceita_presencial": aceita_presencial,
                 "criado_por": usuario.get("sub"),
             },
             returning="representation",
@@ -556,6 +658,14 @@ async def salvar_cardapio(
         "atualizado_em": _agora().isoformat(),
         "pedidos_ate": body.pedidos_ate.isoformat() if body.pedidos_ate else None,
     }
+    # Só entram se vieram: `None` aqui é "não mexi", e não "desligue" — ver o
+    # comentário em `CardapioBody`. Publicar com os dois desligados é recusado,
+    # mas a recusa mora em `publicar`, não aqui: no rascunho a cantina pode
+    # deixar o dia em qualquer estado enquanto monta (docs/40 §1).
+    if body.aceita_pedido is not None:
+        patch["aceita_pedido"] = body.aceita_pedido
+    if body.aceita_presencial is not None:
+        patch["aceita_presencial"] = body.aceita_presencial
     atualizado = (
         cliente.table("cardapio")
         .update(patch, returning="representation")
@@ -581,17 +691,36 @@ async def publicar_cardapio(
     """Rascunho → publicado. É o instante em que o cardápio passa a existir
     para o aluno.
 
-    Duas recusas, e as duas são o produto, não validação de formulário:
-    publicar sem prazo entregaria um cardápio que ninguém sabe até quando pode
-    pedir; publicar sem opção entregaria uma tela vazia com ar de erro.
+    As recusas são o produto, não validação de formulário: publicar sem prazo
+    entregaria um cardápio que ninguém sabe até quando pode pedir; publicar sem
+    opção entregaria uma tela vazia com ar de erro; e publicar sem nenhum dos
+    dois modos entregaria um dia em que o aluno vê comida e não tem botão
+    (docs/40 §1).
     """
     cliente = get_supabase()
     cardapio = _cardapio_da_cantina(cliente, cardapio_id, usuario["cantina_id"])
     montado = _montar_cardapio(cliente, cardapio, _agora())
 
     if not cardapio.get("sem_refeicao"):
+        aceita_pedido, aceita_presencial = _modos_do_cardapio(cardapio)
+        # Primeira das recusas, e a mais fundamental: um cardápio que não aceita
+        # nenhum dos dois modos não é "publicado", é `sem_refeicao` disfarçado —
+        # aparece para o aluno sem nenhuma ação possível (docs/40 §1).
+        if not aceita_pedido and not aceita_presencial:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "Ligue pelo menos um jeito de o aluno comer: pedido com "
+                    "antecedência ou retirada presencial."
+                ),
+            )
+        # ⚠️ As duas recusas de prazo valem só para quem aceita PEDIDO. A
+        # retirada presencial não olha `pedidos_ate` (docs/40 §3), e exigir
+        # prazo futuro de um cardápio presencial mataria justamente o caso que
+        # a feature existe para resolver: o almoço de HOJE, cujo prazo padrão
+        # ("véspera às 20h") já nasce vencido.
         prazo = _instante(cardapio.get("pedidos_ate"))
-        if prazo is None:
+        if aceita_pedido and prazo is None:
             raise HTTPException(
                 status_code=422,
                 detail="Defina até quando o aluno pode pedir antes de publicar.",
@@ -605,7 +734,15 @@ async def publicar_cardapio(
         # casa é "véspera às 20h", então um cardápio criado para HOJE nasce com
         # prazo de ontem. Publicar sem reclamar transformava a regra numa
         # armadilha.
-        if _agora() >= prazo:
+        #
+        # ⚠️ Mas a recusa só vale quando o pedido é o ÚNICO jeito de comer. Com
+        # a retirada presencial ligada, prazo vencido não deixa o cardápio
+        # invisível: fecha a encomenda e mantém o balcão — que é exatamente o
+        # dia em que a feature serve. Recusar aqui bloquearia "o pedido de hoje
+        # já fechou, mas eu ainda quero abrir a retirada". O editor usa a mesma
+        # régua (`invisivel` em CardapioDoDia.tsx): as duas barreiras do
+        # docs/38 §3.3.1 continuam de pé, e agora concordam uma com a outra.
+        if aceita_pedido and not aceita_presencial and prazo is not None and _agora() >= prazo:
             raise HTTPException(
                 status_code=422,
                 detail=(
@@ -735,6 +872,32 @@ def _contagem(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
     return linhas
 
 
+def _contagem_presencial(cliente: ClienteDados, cardapio_id: str) -> dict:
+    """Quantos declararam presença, e quantos já passaram pelo balcão.
+
+    Linha à parte na tela, e não misturada na contagem por opção, porque
+    presencial NÃO escolhe prato (docs/40 §10.1): somá-lo às opções inventaria
+    pedidos de comida que ninguém pediu, e omiti-lo esconderia gente que vai
+    comer.
+
+    Conta em Python e não em view, ao contrário da contagem por opção: aqui são
+    no máximo os alunos com direito àquela refeição (~900 no teto do colégio, em
+    UMA coluna), e não `pedido_refeicao_item`, que é a tabela da armadilha 2. Se
+    um dia isto pesar, vira view como a 0049 fez.
+    """
+    linhas = (
+        cliente.table("pedido_refeicao")
+        .select("retirado_em")
+        .eq("cardapio_id", cardapio_id)
+        .eq("modo", MODO_PRESENCIAL)
+        .execute()
+        .data
+        or []
+    )
+    retirados = sum(1 for linha in linhas if linha.get("retirado_em"))
+    return {"pendentes": len(linhas) - retirados, "retirados": retirados}
+
+
 def _pedidos_do_cardapio(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
     """Linha por aluno: nome, turma, restrição e o que ele marcou.
 
@@ -745,7 +908,10 @@ def _pedidos_do_cardapio(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
     """
     pedidos = (
         cliente.table("pedido_refeicao")
-        .select("id, aluno_id, criado_em, aluno(nome, restricao_alimentar)")
+        .select(
+            "id, aluno_id, criado_em, modo, retirado_em, "
+            "aluno(nome, restricao_alimentar)"
+        )
         .eq("cardapio_id", cardapio_id)
         .execute()
         .data
@@ -794,6 +960,11 @@ def _pedidos_do_cardapio(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
             "restricaoAlimentar": (p.get("aluno") or {}).get("restricao_alimentar"),
             "escolhas": sorted(escolhas.get(p["id"], [])),
             "pedidoEm": p.get("criado_em"),
+            # O modo é rótulo de FLUXO, não dado sensível: quem só declarou
+            # presença aparece sem escolhas, e sem esta marca a linha pareceria
+            # um pedido em branco (docs/40 §8).
+            "modo": p.get("modo") or MODO_PEDIDO,
+            "retiradoEm": p.get("retirado_em"),
         }
         for p in pedidos
     ]
@@ -803,11 +974,12 @@ def _pedidos_do_cardapio(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
 
 @router.get("/eu")
 async def cantina_da_sessao(usuario: dict = Depends(get_current_cantina)) -> dict:
-    """O estabelecimento desta sessão: nome, regra de prazo e preço de tabela.
+    """O estabelecimento desta sessão: nome, regras da casa e preço de tabela.
 
-    O nome já vem no token, mas o resto não — e o preço muda na tela da
-    coordenação, sem a cantina relogar. Ler do banco é o que faz a soma do dia
-    acompanhar uma alteração de preço sem exigir logout.
+    O nome já vem no token, mas o resto não — e o preço e os modos mudam na tela
+    da coordenação, sem a cantina relogar. Ler do banco (`select("*")`, então as
+    colunas novas da 0051 vêm de graça) é o que faz a soma do dia e a regra de
+    modos acompanharem uma alteração sem exigir logout.
     """
     return _cantina_por_id(get_supabase(), usuario["cantina_id"])
 
@@ -846,11 +1018,20 @@ async def publico_da_cantina(usuario: dict = Depends(get_current_cantina)) -> di
 async def contagem_do_cardapio(
     cardapio_id: str,
     usuario: dict = Depends(get_current_cantina),
-) -> list[dict]:
-    """O que cozinhar: uma linha por opção, com quantos pediram."""
+) -> dict:
+    """O que cozinhar: uma linha por opção, mais o placar do presencial.
+
+    ⚠️ **Devolvia uma lista e agora devolve um objeto** (`opcoes` + `presencial`,
+    docs/40 §7). O presencial não cabia como mais uma linha da lista: ele não
+    tem opção nem bloco, e entrar ali obrigaria a tela a tratar uma linha
+    impossível no meio da contagem por prato.
+    """
     cliente = get_supabase()
     _cardapio_da_cantina(cliente, cardapio_id, usuario["cantina_id"])
-    return _contagem(cliente, cardapio_id)
+    return {
+        "opcoes": _contagem(cliente, cardapio_id),
+        "presencial": _contagem_presencial(cliente, cardapio_id),
+    }
 
 
 @router.get("/cardapios/{cardapio_id}/pedidos")
@@ -862,6 +1043,160 @@ async def pedidos_do_cardapio(
     cliente = get_supabase()
     _cardapio_da_cantina(cliente, cardapio_id, usuario["cantina_id"])
     return _pedidos_do_cardapio(cliente, cardapio_id)
+
+
+# ─── A cantina: a leitura do QR ───────────────────────────────────────────
+
+
+def _ficha_do_aluno(cliente: ClienteDados, aluno_id: str) -> dict:
+    """Nome, turma e restrição alimentar — e nada além disso.
+
+    É a MESMA régua de dado da lista de pedidos (docs/38 §8.1.2): a cantina
+    precisa saber quem está na frente dela e se há restrição a respeitar, e o
+    resto da vida escolar do aluno não é assunto do balcão.
+    """
+    alunos = (
+        cliente.table("aluno")
+        .select("nome, restricao_alimentar")
+        .eq("id", aluno_id)
+        .limit(1)
+        .execute()
+        .data
+        or [{}]
+    )
+    matriculas = (
+        cliente.table("matricula_turma")
+        .select("turma(section_original)")
+        .eq("aluno_id", aluno_id)
+        .is_("ativo_ate", "null")
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    turma = (matriculas[0].get("turma") or {}).get("section_original") if matriculas else None
+    return {
+        "alunoId": aluno_id,
+        "nome": alunos[0].get("nome"),
+        "turma": turma,
+        "restricaoAlimentar": alunos[0].get("restricao_alimentar"),
+    }
+
+
+def _porque_a_leitura_nao_pegou(cliente: ClienteDados, pedido_id: str) -> str:
+    """A frase do 409, depois de o UPDATE condicional não ter achado a linha.
+
+    Esta leitura acontece DEPOIS da tentativa de escrita, e só para explicar —
+    nunca antes, para decidir. Ler antes de escrever é justamente a corrida que
+    o §4 evita: duas câmeras lendo o mesmo QR no mesmo segundo veriam as duas
+    `retirado_em IS NULL` e as duas serviriam.
+    """
+    linha = (
+        cliente.table("pedido_refeicao")
+        .select("modo, retirado_em")
+        .eq("id", pedido_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not linha:
+        return "Não encontrei este pedido. Peça para o aluno atualizar a tela."
+    if linha[0].get("retirado_em"):
+        quando = _instante(linha[0].get("retirado_em"))
+        if quando:
+            hora = quando.astimezone(FUSO_DA_ESCOLA).strftime("%H:%M")
+            return f"Esta refeição já foi retirada às {hora}."
+        return "Esta refeição já foi retirada."
+    if linha[0].get("modo") == MODO_PEDIDO:
+        # De graça, pela mesma condição: o aluno desistiu do presencial e fez o
+        # pedido no meio do caminho, então `modo = "presencial"` também não bate.
+        return "Este aluno trocou a retirada presencial por um pedido. Confira na lista do dia."
+    return "Não consegui confirmar esta retirada. Peça para o aluno atualizar a tela."
+
+
+@router.post("/retiradas/confirmar")
+async def confirmar_retirada(
+    body: ConfirmarRetiradaBody,
+    request: Request,
+    usuario: dict = Depends(get_current_cantina),
+) -> dict:
+    """A leitura do QR no balcão (docs/40 §4).
+
+    ⚠️ **O UPDATE é CONDICIONAL, e é ele que impede a segunda leitura.** Não há
+    "buscar o pedido, ver se já foi retirado, então gravar": entre a leitura e a
+    escrita cabe outra câmera do mesmo balcão, e as duas serviriam o mesmo aluno.
+    O `WHERE` é a trava — zero linhas afetadas quer dizer "alguém chegou antes",
+    e cobre de graça o caso de o aluno ter virado `pedido` nesse meio-tempo.
+    """
+    try:
+        codigo = ler_retirada(body.token)
+    except RetiradaIlegivel:
+        # `from None`: qual das quatro portas fechou é informação para quem
+        # tenta forjar, não para quem está na fila (ver `cantina_token`).
+        raise HTTPException(
+            status_code=422,
+            detail="Código inválido ou vencido. Peça para o aluno atualizar a tela.",
+        ) from None
+
+    cliente = get_supabase()
+    cardapio = (
+        cliente.table("cardapio")
+        .select("*")
+        .eq("id", codigo["cardapio_id"])
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not cardapio:
+        raise HTTPException(status_code=404, detail="cardápio não encontrado")
+    # O mesmo cross-check de toda rota da cantina: o recorte vem do TOKEN DE
+    # SESSÃO, e o QR só diz de que cardápio ele é. 403 e não 404 porque aqui o
+    # recurso existe e o operador precisa entender o que aconteceu — o código é
+    # de outra casa, não é um código quebrado.
+    if str(cardapio[0].get("cantina_id")) != str(usuario["cantina_id"]):
+        raise HTTPException(
+            status_code=403, detail="Este código é de um cardápio de outra cantina."
+        )
+
+    atualizados = (
+        cliente.table("pedido_refeicao")
+        .update({"retirado_em": _agora().isoformat()}, returning="representation")
+        .eq("id", codigo["pedido_id"])
+        # Os dois `eq` seguintes não são redundantes com o `id`: eles amarram a
+        # linha ao que o token diz, e é o que faz a conferência de cantina lá de
+        # cima valer para a linha que está sendo escrita.
+        .eq("cardapio_id", codigo["cardapio_id"])
+        .eq("aluno_id", codigo["aluno_id"])
+        .eq("modo", MODO_PRESENCIAL)
+        .is_("retirado_em", "null")
+        .execute()
+    ).data or []
+    if not atualizados:
+        raise HTTPException(
+            status_code=409,
+            detail=_porque_a_leitura_nao_pegou(cliente, codigo["pedido_id"]),
+        )
+
+    auditar(
+        cliente, "retirada_confirmada", canal="cantina", ator_tipo="cantina",
+        ator_id=usuario.get("sub"), recurso=f"pedido_refeicao/{codigo['pedido_id']}",
+        ip=_ip(request),
+        # ⚠️ O token NUNCA entra na trilha — ele é credencial, e a regra da casa
+        # é que auditoria responde "quem" e "quando", não reproduz o segredo.
+        detalhe={
+            "aluno_id": codigo["aluno_id"],
+            "cardapio_id": codigo["cardapio_id"],
+            "refeicao": cardapio[0].get("refeicao"),
+        },
+    )
+    _avisar_retirada(cardapio[0], codigo["aluno_id"])
+
+    return {
+        **_ficha_do_aluno(cliente, codigo["aluno_id"]),
+        "refeicao": cardapio[0].get("refeicao"),
+        "data": str(cardapio[0].get("data")) if cardapio[0].get("data") else None,
+        "retiradoEm": atualizados[0].get("retirado_em"),
+    }
 
 
 # ─── O aluno ──────────────────────────────────────────────────────────────
@@ -919,25 +1254,36 @@ async def cantina_do_aluno(aluno: dict = Depends(get_current_aluno)) -> dict:
     ids = [c["id"] for c in cardapios]
     meus = (
         cliente.table("pedido_refeicao")
-        .select("id, cardapio_id, pedido_refeicao_item(opcao_id)")
+        .select("id, cardapio_id, modo, retirado_em, pedido_refeicao_item(opcao_id)")
         .eq("aluno_id", aluno_id)
         .in_("cardapio_id", ids)
         .execute()
         .data
         or []
     )
-    pedido_por_cardapio = {
-        p["cardapio_id"]: sorted(i["opcao_id"] for i in (p.get("pedido_refeicao_item") or []))
-        for p in meus
-    }
+    linha_por_cardapio = {p["cardapio_id"]: p for p in meus}
 
-    dias = [
-        {
-            **_montar_cardapio(cliente, c, agora),
-            "meuPedido": pedido_por_cardapio.get(c["id"]),
-        }
-        for c in cardapios
-    ]
+    dias = []
+    for c in cardapios:
+        minha = linha_por_cardapio.get(c["id"])
+        modo = (minha or {}).get("modo") or (MODO_PEDIDO if minha else None)
+        dias.append(
+            {
+                **_montar_cardapio(cliente, c, agora),
+                # ⚠️ `meuPedido` continua sendo O PEDIDO, e por isso é nulo no
+                # modo presencial: uma linha presencial não tem prato, e
+                # devolvê-la como lista vazia faria a tela mostrar "você pediu
+                # nada" onde a verdade é "você vai buscar no balcão". Quem conta
+                # a história do presencial são `modo` e `retiradoEm`.
+                "meuPedido": (
+                    sorted(i["opcao_id"] for i in (minha.get("pedido_refeicao_item") or []))
+                    if minha and modo == MODO_PEDIDO
+                    else None
+                ),
+                "modo": modo,
+                "retiradoEm": (minha or {}).get("retirado_em"),
+            }
+        )
     dias.sort(key=lambda d: (d["data"], d["refeicao"]))
     return {"direitos": direitos, "dias": dias}
 
@@ -952,6 +1298,29 @@ def _avisar_pedido(cardapio: dict, aluno_id: str) -> None:
     barramento.publicar(
         Evento(
             tipo="pedido",
+            cantina_id=str(cardapio.get("cantina_id") or "") or None,
+            refeicao=cardapio.get("refeicao"),
+            data=str(cardapio.get("data")) if cardapio.get("data") else None,
+            aluno_id=aluno_id,
+        )
+    )
+
+
+def _avisar_retirada(cardapio: dict, aluno_id: str) -> None:
+    """O aviso de que aquele aluno passou pelo balcão (docs/40 §5).
+
+    Tipo próprio, e não mais um `pedido`: quem recebe precisa distinguir "a
+    contagem mudou" de "alguém acabou de retirar" — a tela do aluno vira "Bom
+    almoço" e a da cantina soma uma retirada. Os dois recortes que já existem
+    cobrem o caso sem alteração: `para_o_aluno` casa por `aluno_id`, e
+    `para_a_cantina` por `cantina_id`.
+
+    Como todo evento daqui, ele não carrega o texto pronto — carrega o aviso de
+    refazer `GET /me/cantina`, e quem decide o que mostrar é a rota normal.
+    """
+    barramento.publicar(
+        Evento(
+            tipo="retirada",
             cantina_id=str(cardapio.get("cantina_id") or "") or None,
             refeicao=cardapio.get("refeicao"),
             data=str(cardapio.get("data")) if cardapio.get("data") else None,
@@ -1024,6 +1393,16 @@ def _cardapio_aberto_para(cliente: ClienteDados, cardapio_id: str, aluno_id: str
             status_code=403, detail="Você não tem direito a esta refeição."
         )
 
+    # A quarta recusa, e ela é do servidor pelo mesmo motivo das outras três: o
+    # cardápio pode aceitar SÓ retirada presencial, e nesse dia não existe
+    # pedido para fazer (docs/40 §1). Sem isto, `aceita_pedido` seria um enfeite
+    # de tela — e o front está sendo escrito em paralelo a este arquivo.
+    if not _modos_do_cardapio(cardapio)[0]:
+        raise HTTPException(
+            status_code=422,
+            detail="Neste dia a cantina só aceita retirada presencial, sem pedido antecipado.",
+        )
+
     prazo = _instante(cardapio.get("pedidos_ate"))
     if prazo is None or _agora() >= prazo:
         raise HTTPException(
@@ -1042,6 +1421,10 @@ async def salvar_pedido(
     """Grava ou substitui o pedido inteiro. Idempotente de propósito: o aluno
     pode trocar quantas vezes quiser até o prazo, e com um instante em que a
     contagem congela, mudar de ideia antes dele não custa nada a ninguém.
+
+    É também a porta de ENTRADA sem volta da máquina de estados (docs/40 §2):
+    uma linha presencial ainda não lida vira pedido aqui — modo e itens são
+    sobrescritos —, e o caminho contrário não existe.
     """
     cliente = get_supabase()
     aluno_id = aluno["aluno_id"]
@@ -1051,7 +1434,7 @@ async def salvar_pedido(
 
     existente = (
         cliente.table("pedido_refeicao")
-        .select("id")
+        .select("id, modo, retirado_em")
         .eq("cardapio_id", cardapio_id)
         .eq("aluno_id", aluno_id)
         .limit(1)
@@ -1059,9 +1442,21 @@ async def salvar_pedido(
         .data
     )
     if existente:
+        # ⚠️ `retirado_em` preenchido é FINAL dos dois lados (docs/40 §2): o
+        # aluno já comeu, e deixar o pedido ser reescrito depois disso mudaria a
+        # contagem de um prato que já saiu do balcão.
+        if existente[0].get("retirado_em"):
+            raise HTTPException(
+                status_code=409,
+                detail="Esta refeição já foi retirada — não dá mais para mudar o pedido.",
+            )
         pedido_id = existente[0]["id"]
         cliente.table("pedido_refeicao").update(
-            {"atualizado_em": _agora().isoformat()}
+            # `modo` entra no patch sempre, e não só quando a linha era
+            # presencial: o `PUT` é a definição de "isto é um pedido", e um
+            # UPDATE que só às vezes corrige o modo é um estado a mais para
+            # alguém errar depois.
+            {"atualizado_em": _agora().isoformat(), "modo": MODO_PEDIDO}
         ).eq("id", pedido_id).execute()
         # Substituir em vez de casar item a item: a lista tem quatro elementos,
         # e um diff aqui seria código para manter sem ganho nenhum.
@@ -1090,16 +1485,186 @@ async def cancelar_pedido(
     cardapio_id: str,
     aluno: dict = Depends(get_current_aluno),
 ) -> dict:
-    """Desisti. Passa pelas mesmas três recusas do `PUT`: depois do prazo o
+    """Desisti. Passa pelas mesmas recusas do `PUT`: depois do prazo o
     pedido está contado, e a cantina já comprou."""
     cliente = get_supabase()
     aluno_id = aluno["aluno_id"]
     cardapio = _cardapio_aberto_para(cliente, cardapio_id, aluno_id)
-    cliente.table("pedido_refeicao").delete().eq("cardapio_id", cardapio_id).eq(
-        "aluno_id", aluno_id
-    ).execute()
+    # O `is_` não é zelo: sem ele, um cancelamento apagaria a linha de uma
+    # refeição JÁ RETIRADA, e a retirada não tem outra prova no produto
+    # (docs/40 §2). O `.data` vazio com linha existente vira o 409 abaixo.
+    apagados = (
+        cliente.table("pedido_refeicao")
+        .delete(returning="representation")
+        .eq("cardapio_id", cardapio_id)
+        .eq("aluno_id", aluno_id)
+        .is_("retirado_em", "null")
+        .execute()
+    ).data or []
+    if not apagados and _pedido_do_aluno(cliente, cardapio_id, aluno_id):
+        raise HTTPException(
+            status_code=409, detail="Esta refeição já foi retirada."
+        )
     _avisar_pedido(cardapio, aluno_id)
     return {"cardapioId": cardapio_id, "opcaoIds": None}
+
+
+# ─── O aluno: a retirada presencial ───────────────────────────────────────
+#
+# O segundo jeito de comer (docs/40): sem prazo, sem prato escolhido e sem
+# antecedência — o aluno chega, mostra o QR, e a cantina lê. A máquina de
+# estados por (cardápio, aluno) é ASSIMÉTRICA de propósito: `pedido` compromete
+# a cozinha com um prato específico e por isso é final; `presencial` não
+# compromete nada até o QR ser lido, e por isso é reversível (docs/40 §2).
+
+
+def _pedido_do_aluno(cliente: ClienteDados, cardapio_id: str, aluno_id: str) -> dict | None:
+    """A linha daquele aluno naquele cardápio, se existir."""
+    linhas = (
+        cliente.table("pedido_refeicao")
+        .select("id, modo, retirado_em")
+        .eq("cardapio_id", cardapio_id)
+        .eq("aluno_id", aluno_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    return linhas[0] if linhas else None
+
+
+def _cardapio_para_retirada(cliente: ClienteDados, cardapio_id: str, aluno_id: str) -> dict:
+    """O cardápio, se este aluno pode gerar o QR dele AGORA.
+
+    As mesmas verificações de `_cardapio_aberto_para` — publicado, com refeição,
+    e o aluno com direito —, **exceto a do prazo**: presencial não olha
+    `pedidos_ate`, é justamente o caminho de quem não se planejou (docs/40 §3).
+    E duas recusas próprias no lugar dela.
+    """
+    linha = (
+        cliente.table("cardapio").select("*").eq("id", cardapio_id).limit(1).execute().data
+    )
+    if not linha or not linha[0].get("publicado_em") or linha[0].get("sem_refeicao"):
+        raise HTTPException(status_code=404, detail="cardápio não encontrado")
+    cardapio = linha[0]
+
+    if cardapio["refeicao"] not in _direitos_do_aluno(cliente, aluno_id):
+        raise HTTPException(status_code=403, detail="Você não tem direito a esta refeição.")
+
+    if not _modos_do_cardapio(cardapio)[1]:
+        raise HTTPException(
+            status_code=422,
+            detail="Neste dia a cantina não aceita retirada presencial — é preciso pedir antes.",
+        )
+
+    # ⚠️ Só o cardápio de HOJE (docs/40 §11.1). O QR é para ser lido na hora:
+    # gerar um para daqui a três dias não avisa a cozinha de nada real — o aluno
+    # pode simplesmente não vir — e enche a lista de pendentes do balcão de
+    # gente que não está ali. `[:10]` porque a coluna é `date` e o PostgREST a
+    # devolve como texto.
+    hoje = _agora().astimezone(FUSO_DA_ESCOLA).date()
+    if str(cardapio.get("data"))[:10] != hoje.isoformat():
+        raise HTTPException(
+            status_code=422,
+            detail="A retirada presencial vale só para a refeição de hoje.",
+        )
+    return cardapio
+
+
+@router_aluno.post("/retiradas/{cardapio_id}")
+async def gerar_retirada(
+    cardapio_id: str,
+    aluno: dict = Depends(get_current_aluno),
+) -> dict:
+    """Declara presença e devolve o código do QR (docs/40 §4).
+
+    Chamada de novo sobre a mesma linha, só emite um código novo — é assim que
+    a tela do aluno renova o QR antes de ele vencer, sem criar nada e sem mexer
+    na contagem da cantina.
+    """
+    cliente = get_supabase()
+    aluno_id = aluno["aluno_id"]
+    cardapio = _cardapio_para_retirada(cliente, cardapio_id, aluno_id)
+
+    existente = _pedido_do_aluno(cliente, cardapio_id, aluno_id)
+    if existente:
+        # ⚠️ `pedido` é porta sem volta. Quem já pediu comprometeu a cozinha com
+        # um prato, e virar presencial deixaria esse prato feito para ninguém.
+        if (existente.get("modo") or MODO_PEDIDO) == MODO_PEDIDO:
+            raise HTTPException(
+                status_code=409,
+                detail="Você já fez o pedido — não dá para trocar para retirada presencial.",
+            )
+        if existente.get("retirado_em"):
+            raise HTTPException(status_code=409, detail="Esta refeição já foi retirada.")
+        pedido_id = existente["id"]
+    else:
+        pedido_id = (
+            cliente.table("pedido_refeicao")
+            .insert(
+                {"cardapio_id": cardapio_id, "aluno_id": aluno_id, "modo": MODO_PRESENCIAL},
+                returning="representation",
+            )
+            .execute()
+        ).data[0]["id"]
+        # O aviso só sai quando a linha NASCE. A renovação do QR acontece a cada
+        # dois minutos enquanto a tela estiver aberta, e publicar nela encheria
+        # o barramento de eventos que não mudam contagem nenhuma.
+        _avisar_pedido(cardapio, aluno_id)
+
+    # Sem auditoria aqui, e é decisão: gerar o QR se repete a cada dois minutos e
+    # não concede nada — o ato auditável é a CONFIRMAÇÃO no balcão, que é onde a
+    # refeição sai.
+    token, expira_em = assinar_retirada(
+        pedido_id=str(pedido_id), cardapio_id=cardapio_id, aluno_id=aluno_id
+    )
+    return {"token": token, "expiraEm": expira_em.isoformat()}
+
+
+@router_aluno.delete("/retiradas/{cardapio_id}")
+async def desistir_da_retirada(
+    cardapio_id: str,
+    aluno: dict = Depends(get_current_aluno),
+) -> dict:
+    """Desisti de buscar. Apaga a linha presencial enquanto ela não foi lida.
+
+    ⚠️ **NÃO passa por `_cardapio_para_retirada`.** Desistir tem de continuar
+    funcionando depois de a cantina desligar o presencial daquele dia — recusar
+    aqui deixaria o aluno preso a uma pendência que ele não pediu para manter.
+    """
+    cliente = get_supabase()
+    aluno_id = aluno["aluno_id"]
+    linha = (
+        cliente.table("cardapio").select("*").eq("id", cardapio_id).limit(1).execute().data
+    )
+    if not linha:
+        raise HTTPException(status_code=404, detail="cardápio não encontrado")
+
+    apagados = (
+        cliente.table("pedido_refeicao")
+        .delete(returning="representation")
+        .eq("cardapio_id", cardapio_id)
+        .eq("aluno_id", aluno_id)
+        .eq("modo", MODO_PRESENCIAL)
+        .is_("retirado_em", "null")
+        .execute()
+    ).data or []
+
+    if not apagados:
+        # Nada apagado tem três causas, e duas delas precisam de resposta
+        # diferente: a terceira — não havia linha nenhuma — é no-op idempotente,
+        # porque desistir do que não existe é o estado que o aluno queria.
+        atual = _pedido_do_aluno(cliente, cardapio_id, aluno_id)
+        if atual and atual.get("retirado_em"):
+            raise HTTPException(status_code=409, detail="Esta refeição já foi retirada.")
+        if atual:
+            raise HTTPException(
+                status_code=409,
+                detail="Você fez um pedido para este dia. Cancele pelo próprio pedido.",
+            )
+        return {"ok": True}
+
+    _avisar_pedido(linha[0], aluno_id)
+    return {"ok": True}
 
 
 # ─── A coordenação: leitura ───────────────────────────────────────────────
@@ -1139,6 +1704,14 @@ async def cardapio_para_a_coordenacao(cardapio_id: str) -> dict:
 
     Não filtra por cantina: a coordenação enxerga todas por desenho, e o id do
     cardápio já é específico o bastante.
+
+    ⚠️ `presencial` vem pelas MESMAS duas funções da rota da cantina
+    (`/cantina/cardapios/{id}/contagem`), e é por isso que ele existe aqui: sem
+    o bloco, a coordenação tinha só a contagem por opção — que ignora o
+    presencial de propósito (docs/40 §10.1) — e dizia "nenhum pedido ainda" ao
+    lado de uma lista com doze nomes. Uma segunda contagem escrita aqui
+    resolveria a tela e criaria o problema seguinte: dois números do mesmo dia,
+    livres para divergir.
     """
     cliente = get_supabase()
     linha = cliente.table("cardapio").select("*").eq("id", cardapio_id).limit(1).execute().data
@@ -1146,6 +1719,7 @@ async def cardapio_para_a_coordenacao(cardapio_id: str) -> dict:
         raise HTTPException(status_code=404, detail="cardápio não encontrado")
     montado = _montar_cardapio(cliente, linha[0], _agora())
     montado["contagem"] = _contagem(cliente, cardapio_id)
+    montado["presencial"] = _contagem_presencial(cliente, cardapio_id)
     montado["pedidos"] = _pedidos_do_cardapio(cliente, cardapio_id)
     return montado
 
@@ -1324,6 +1898,14 @@ class NovaCantinaBody(BaseModel):
     # 0,00 — a tela precisa distinguir para não somar zero como se fosse dado.
     valor_almoco: float | None = Field(default=None, ge=0)
     valor_janta: float | None = Field(default=None, ge=0)
+    # A regra de modos da casa (docs/40 §1), com a MESMA semântica dos valores:
+    # `None` é "não disse", nunca "desligue" — e aqui o ausente cai no DEFAULT
+    # da 0051 (pedido ligado, presencial desligado) em vez de virar NULL, que a
+    # coluna nem aceita.
+    aceita_pedido_almoco: bool | None = None
+    aceita_pedido_janta: bool | None = None
+    aceita_presencial_almoco: bool | None = None
+    aceita_presencial_janta: bool | None = None
 
 
 class EditarCantinaBody(BaseModel):
@@ -1333,6 +1915,10 @@ class EditarCantinaBody(BaseModel):
     prazo_padrao_hora: str | None = None
     valor_almoco: float | None = Field(default=None, ge=0)
     valor_janta: float | None = Field(default=None, ge=0)
+    aceita_pedido_almoco: bool | None = None
+    aceita_pedido_janta: bool | None = None
+    aceita_presencial_almoco: bool | None = None
+    aceita_presencial_janta: bool | None = None
 
 
 class NovaContaCantinaBody(BaseModel):
@@ -1377,19 +1963,24 @@ async def criar_cantina(
     administrador: dict = Depends(get_current_administrador),
 ) -> dict:
     cliente = get_supabase()
+    campos = {
+        "nome": body.nome.strip(),
+        "prazo_padrao_dias_antes": body.prazo_padrao_dias_antes,
+        "prazo_padrao_hora": body.prazo_padrao_hora,
+        "valor_almoco": body.valor_almoco,
+        "valor_janta": body.valor_janta,
+    }
+    # Os modos entram só se vieram — ao contrário dos valores, que são anuláveis
+    # e podem ir como `None`. Estas quatro colunas são NOT NULL: mandar `None`
+    # seria erro do banco, e o certo para "não disse" é deixar o DEFAULT da 0051
+    # responder (docs/40 §1).
+    for campo in CAMPOS_DE_MODO_DA_CASA:
+        escolhido = getattr(body, campo)
+        if escolhido is not None:
+            campos[campo] = escolhido
+
     linha = (
-        cliente.table("cantina")
-        .insert(
-            {
-                "nome": body.nome.strip(),
-                "prazo_padrao_dias_antes": body.prazo_padrao_dias_antes,
-                "prazo_padrao_hora": body.prazo_padrao_hora,
-                "valor_almoco": body.valor_almoco,
-                "valor_janta": body.valor_janta,
-            },
-            returning="representation",
-        )
-        .execute()
+        cliente.table("cantina").insert(campos, returning="representation").execute()
     ).data[0]
     auditar(
         cliente, "cantina_criada", canal="cantina", ator_tipo="coordenador",
@@ -1406,7 +1997,7 @@ async def editar_cantina(
     request: Request,
     administrador: dict = Depends(get_current_administrador),
 ) -> dict:
-    """Renomear, (des)ativar, ou mudar a regra de prazo da casa.
+    """Renomear, (des)ativar, ou mudar as regras da casa — prazo e modos.
 
     Desativar a cantina tranca as contas dela sem precisar mexer em cada uma —
     é o que `_login_da_cantina` confere.
@@ -1427,6 +2018,12 @@ async def editar_cantina(
         patch["valor_almoco"] = body.valor_almoco
     if body.valor_janta is not None:
         patch["valor_janta"] = body.valor_janta
+    # A regra de modos, pela mesma porta: ligar o presencial do almoço não pode
+    # desligar o da janta só porque o corpo não falou dela (docs/40 §1).
+    for campo in CAMPOS_DE_MODO_DA_CASA:
+        escolhido = getattr(body, campo)
+        if escolhido is not None:
+            patch[campo] = escolhido
     if not patch:
         raise HTTPException(status_code=422, detail="Nada para alterar.")
 
