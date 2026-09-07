@@ -23,6 +23,13 @@ const CHAVES_POR_TIPO: Record<string, string[][]> = {
   cardapio: [['cantina'], ['coord', 'cantina'], ['me', 'cantina']],
   // Pedido mexe na contagem e na lista do balcão — e no próprio pedido do aluno.
   pedido: [['cantina'], ['coord', 'cantina'], ['me', 'cantina']],
+  // Retirada mexe exatamente no mesmo conjunto (docs/40 §5): a leitura do QR
+  // muda a contagem de presencial, a lista de quem pediu e o `retiradoEm` do
+  // aluno. ⚠️ O evento NÃO carrega o "Bom almoço" pronto — carrega o aviso de
+  // refazer `GET /me/cantina`, e a tela decide o texto olhando `retiradoEm`.
+  // O galho `['me','retirada']` fica de fora: o token é efêmero e a tela do QR
+  // já o renova sozinha; derrubá-lo aqui só gravaria linha no banco à toa.
+  retirada: [['cantina'], ['coord', 'cantina'], ['me', 'cantina']],
   // Direito mexe no público da cantina e no que o aluno enxerga.
   direito: [['cantina', 'publico'], ['administracao'], ['me', 'cantina']],
 };

@@ -33,6 +33,24 @@ import { normalizar } from '../../util/formato';
 
 const REFEICOES: Refeicao[] = ['almoco', 'janta'];
 
+/**
+ * As quatro colunas de modo da cantina (docs/40 §1) — a REGRA da casa, irmã de
+ * `prazo_padrao_*`: pré-preenche o cardápio novo e não toca no que já foi
+ * lançado.
+ */
+type ModosDaCasa = Pick<
+  CantinaAdmin,
+  'aceita_pedido_almoco' | 'aceita_pedido_janta'
+  | 'aceita_presencial_almoco' | 'aceita_presencial_janta'
+>;
+
+/** Refeição → as duas colunas dela. Existe para o par não virar ternário
+    repetido em cada lugar que pergunta "qual campo é o do almoço?". */
+const CAMPOS_DE_MODO: Record<Refeicao, { pedido: keyof ModosDaCasa; presencial: keyof ModosDaCasa }> = {
+  almoco: { pedido: 'aceita_pedido_almoco', presencial: 'aceita_presencial_almoco' },
+  janta: { pedido: 'aceita_pedido_janta', presencial: 'aceita_presencial_janta' },
+};
+
 // ─── /cantina/direitos · quem come aqui ───────────────────────────────────
 
 type FiltroDireito = 'almoco' | 'janta' | 'sem';
@@ -515,15 +533,23 @@ export function AcessoDaCantina() {
                 {' · '}
                 janta: {precoLegivel(cantina.valor_janta)}
               </p>
+              {/* A outra metade da regra da casa (docs/40 §1), e ela fica ao
+                  lado do prazo porque é a mesma natureza: pré-preenche cardápio
+                  NOVO e não mexe em cardápio já lançado. Sem esta linha, o
+                  único jeito de saber se a retirada na hora está ligada era
+                  abrir o editor de um dia. */}
+              <p className="cant-sub">{regraDeModos(cantina)}</p>
             </div>
-            {/* UM botão, e não os dois da prancheta: o diálogo edita o nome e a
-                regra de prazo juntos, e dois botões abrindo a mesma coisa
-                prometeriam dois escopos que não existem. */}
+            {/* UM botão, e não os dois da prancheta: o diálogo edita o nome e as
+                regras da casa juntos, e dois botões abrindo a mesma coisa
+                prometeriam dois escopos que não existem. O rótulo não enumera os
+                campos de propósito — enumerar envelhece a cada campo novo, e já
+                envelheceu uma vez quando os preços entraram. */}
             <button
               type="button" className="cant-tecla"
               onClick={() => setEditandoCantina(cantina)}
             >
-              Editar nome e prazo padrão
+              Editar nome e regras da casa
             </button>
           </header>
 
@@ -764,12 +790,18 @@ function DesativarCantina({ cantina }: { cantina: CantinaAdmin }) {
 }
 
 /**
- * Criar a cantina, ou mudar o nome e a REGRA de prazo dela.
+ * Criar a cantina, ou mudar o nome e as REGRAS da casa dela.
  *
- * A regra é o que pré-preenche `pedidos_ate` em cada cardápio novo. Ela existe
- * para a cantina não redigitar um instante por dia útil, 200 vezes por ano — e
- * o texto do diálogo diz isso, porque uma regra que ninguém sabe que existe é
- * uma regra que ninguém ajusta.
+ * São DUAS regras, e a natureza é a mesma: o que pré-preenche cada cardápio
+ * novo. O prazo pré-preenche `pedidos_ate`; os quatro modos pré-preenchem
+ * `aceita_pedido`/`aceita_presencial` (docs/40 §1). Nenhuma das duas toca em
+ * cardápio já lançado — quem troca dia a dia é a cantina, no editor.
+ *
+ * As duas existem pelo mesmo motivo: não redigitar a mesma decisão 200 vezes
+ * por ano. Sem o campo de modo aqui, o único caminho para ligar a retirada na
+ * hora era marcá-la em CADA cardápio — a mesma redigitação que o prazo padrão
+ * existe para evitar. E o texto do diálogo diz isso em voz alta, porque uma
+ * regra que ninguém sabe que existe é uma regra que ninguém ajusta.
  */
 function DialogoCantina({
   cantina, onFechar,
@@ -777,6 +809,15 @@ function DialogoCantina({
   const [nome, setNome] = useState(cantina?.nome ?? '');
   const [dias, setDias] = useState(cantina?.prazo_padrao_dias_antes ?? 1);
   const [hora, setHora] = useState((cantina?.prazo_padrao_hora ?? '20:00').slice(0, 5));
+  // Os defaults repetem os da 0051 — pedido ligado, presencial desligado —, que
+  // é o comportamento de antes da feature. `??` e não `||`: um `false` vindo do
+  // servidor é escolha da casa, não ausência de valor.
+  const [modos, setModos] = useState<ModosDaCasa>({
+    aceita_pedido_almoco: cantina?.aceita_pedido_almoco ?? true,
+    aceita_pedido_janta: cantina?.aceita_pedido_janta ?? true,
+    aceita_presencial_almoco: cantina?.aceita_presencial_almoco ?? false,
+    aceita_presencial_janta: cantina?.aceita_presencial_janta ?? false,
+  });
   // Texto e não `number`: o campo precisa poder ficar VAZIO, que significa
   // "ainda não informado" — diferente de 0,00. Um `useState<number>` obrigaria
   // a escolher zero para representar a ausência, e aí a tela somaria R$ 0,00
@@ -788,6 +829,17 @@ function DialogoCantina({
   const emCurso = criar.isPending || editar.isPending;
   const erro = criar.error ?? editar.error;
 
+  function trocarModo(campo: keyof ModosDaCasa, ligado: boolean) {
+    setModos((atual) => ({ ...atual, [campo]: ligado }));
+  }
+
+  // Quais refeições ficaram sem nenhum modo — a única combinação que produz um
+  // cardápio novo impublicável (docs/40 §1). Não trava o salvamento: aqui é a
+  // regra da casa, e a recusa é do `publicar`, no dia.
+  const semModo = REFEICOES
+    .filter((r) => !modos[CAMPOS_DE_MODO[r].pedido] && !modos[CAMPOS_DE_MODO[r].presencial])
+    .map((r) => ROTULO_DA_REFEICAO[r]);
+
   function salvar() {
     const corpo = {
       nome: nome.trim(),
@@ -795,10 +847,11 @@ function DialogoCantina({
       prazo_padrao_hora: `${hora}:00`,
       valor_almoco: doCampo(almoco),
       valor_janta: doCampo(janta),
+      ...modos,
     };
     if (cantina) editar.mutate({ id: cantina.id, corpo }, { onSuccess: onFechar });
-    // A criação manda só o nome e a regra; `POST /administracao/cantinas` já
-    // aplica os defaults da 0047 para o que faltar.
+    // A criação manda só o nome e as regras; `POST /administracao/cantinas` já
+    // aplica os defaults da 0047 e da 0051 para o que faltar.
     else criar.mutate(corpo, { onSuccess: onFechar });
   }
 
@@ -876,8 +929,71 @@ function DialogoCantina({
         dia no editor. Depois do prazo, ninguém acrescenta pedido: nem o aluno, nem a cantina.
       </p>
 
+      {/* ⚠️ Agrupado por REFEIÇÃO, e não por modo: a pergunta que se faz aqui é
+          "o que vale no almoço?", e uma coluna "pedido" com almoço e janta
+          dentro obrigaria a ler os quatro campos para responder a uma
+          refeição. */}
+      <Linha2>
+        <ModosDaRefeicao refeicao="almoco" modos={modos} onTrocar={trocarModo} />
+        <ModosDaRefeicao refeicao="janta" modos={modos} onTrocar={trocarModo} />
+      </Linha2>
+      <p className="cant-sub">
+        A mesma natureza do prazo: é o que já vem marcado em cada <b>cardápio novo</b>. Cardápio
+        já lançado não muda por aqui — a cantina troca dia a dia no editor. Sem esta regra, ligar
+        a retirada na hora seria marcar de novo em cada dia do ano.
+      </p>
+
+      {semModo.length > 0 && (
+        <p className="cant-aviso">
+          <b>{semModo.join(' e ')} sem nenhum modo.</b> O cardápio novo dessa refeição nasce sem
+          jeito de comer, e a cantina não consegue publicar sem marcar um dos dois no editor. Não
+          é impedimento — pode ser a regra da casa —, mas vale saber antes de salvar.
+        </p>
+      )}
+
       {erro && <p className="cant-erro" role="alert">{(erro as Error).message}</p>}
     </Dialogo>
+  );
+}
+
+/**
+ * Os dois modos de UMA refeição.
+ *
+ * ⚠️ Os rótulos são os MESMOS do editor de cardápio da cantina («Pedido com
+ * antecedência» / «Retirada na hora»). Chamar aqui de "presencial" o que lá se
+ * chama "retirada na hora" faria a coordenação e a cantina discutirem duas
+ * features onde há uma.
+ */
+function ModosDaRefeicao({
+  refeicao, modos, onTrocar,
+}: {
+  refeicao: Refeicao;
+  modos: ModosDaCasa;
+  onTrocar: (campo: keyof ModosDaCasa, ligado: boolean) => void;
+}) {
+  const campos = CAMPOS_DE_MODO[refeicao];
+  // "por padrão" repete o rótulo do prazo logo acima de propósito: são as duas
+  // regras da casa, e a palavra é o que as marca como regra em vez de valor do
+  // dia.
+  return (
+    <Campo label={`${ROTULO_DA_REFEICAO[refeicao]}, por padrão`}>
+      <label className="cant-checkbox">
+        <input
+          type="checkbox"
+          checked={modos[campos.pedido]}
+          onChange={(e) => onTrocar(campos.pedido, e.target.checked)}
+        />
+        <span>Pedido com antecedência</span>
+      </label>
+      <label className="cant-checkbox">
+        <input
+          type="checkbox"
+          checked={modos[campos.presencial]}
+          onChange={(e) => onTrocar(campos.presencial, e.target.checked)}
+        />
+        <span>Retirada na hora</span>
+      </label>
+    </Campo>
   );
 }
 
@@ -1010,6 +1126,36 @@ function doCampo(texto: string): number | null {
   if (!limpo) return null;
   const numero = Number(limpo);
   return Number.isFinite(numero) && numero >= 0 ? numero : null;
+}
+
+/**
+ * "cardápio novo já vem com — almoço: pedido e retirada na hora · janta: só
+ * pedido".
+ *
+ * A frase nomeia o CARDÁPIO NOVO e não a cantina, porque é isso que estas
+ * quatro colunas fazem: nenhuma delas mexe num cardápio já lançado (docs/40
+ * §1). É o mesmo enquadramento da linha do prazo padrão, logo acima.
+ */
+function regraDeModos(cantina: CantinaAdmin): string {
+  const daRefeicao = (refeicao: Refeicao) => {
+    const campos = CAMPOS_DE_MODO[refeicao];
+    return modosLegiveis(cantina[campos.pedido], cantina[campos.presencial]);
+  };
+  return `cardápio novo já vem com — almoço: ${daRefeicao('almoco')}`
+    + ` · janta: ${daRefeicao('janta')}`;
+}
+
+/** Os quatro estados de uma refeição, nas palavras do editor da cantina. */
+function modosLegiveis(pedido: boolean, presencial: boolean): string {
+  // `!== false` / `=== true`: um servidor anterior à 0051 não manda estes
+  // campos, e a leitura tolerante recai no default do banco — só pedido, o
+  // comportamento de antes da feature. Mesmo idioma de `situacaoDoDia`.
+  const aceitaPedido = pedido !== false;
+  const aceitaPresencial = presencial === true;
+  if (aceitaPedido && aceitaPresencial) return 'pedido e retirada na hora';
+  if (aceitaPedido) return 'só pedido';
+  if (aceitaPresencial) return 'só retirada na hora';
+  return 'nenhum modo';
 }
 
 /** "R$ 12,50" ou "sem valor" — nunca "R$ 0,00" para dizer que ninguém informou. */

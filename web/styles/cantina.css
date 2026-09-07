@@ -350,6 +350,11 @@
 }
 
 .cant-celula__pedidos { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* A parcela de retirada na hora dentro de "44+3". Ela se separa por TAMANHO e
+   peso, nunca por cor: aqui não há estado bom nem ruim, há duas portas para a
+   mesma refeição (docs/40 §10.1). */
+.cant-celula__na-hora { font-size: 9px; font-weight: 600; color: var(--sas-texto-2); }
 .cant-celula:not(.cant-celula--inerte):hover { outline: 1px solid var(--sas-fio-forte); }
 .cant-celula--inerte { cursor: default; }
 
@@ -596,6 +601,12 @@
   padding: 6px 0;
   border-bottom: 1px solid var(--sas-fio);
 }
+
+/* A retirada na hora vem DEPOIS da contagem por opção, na mesma coluna: é a
+   segunda pergunta da mesma folha ("e quem não escolheu prato?"), e sem o
+   respiro ela cola no último arroz como se fosse mais uma opção — que é
+   exatamente o que ela não é (docs/40 §10.1). */
+.cant-contagem__aparte { margin-top: 20px; }
 
 .cant-contagem__linha--fora { color: var(--sas-texto-2); }
 .cant-contagem__nome { display: flex; gap: 8px; align-items: baseline; }
@@ -1059,3 +1070,136 @@ span.cant-pilula { cursor: default; }
 .cant-seletor { display: inline-flex; align-items: center; gap: 6px; }
 .cant-seletor__rotulo { font-size: 12px; color: var(--color-text-secondary); }
 .cant-seletor .cant-input { min-height: 36px; width: auto; }
+
+/* ─── Ler código (docs/40 §7) ────────────────────────────────────────── */
+
+/* Duas colunas: a câmera à esquerda, a ficha da leitura à direita. No tablet
+   de balcão em retrato elas empilham — e a câmera fica em cima, porque é para
+   ela que a pessoa está olhando enquanto aproxima o celular do aluno. */
+.cant-aovivo__palco {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .cant-aovivo__palco { grid-template-columns: minmax(0, 1fr); }
+}
+
+.cant-aovivo__camera {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  /* Fundo escuro fixo, e não `--sas-superficie`: é o quadro de uma câmera, não
+     uma superfície do produto — no tema claro um fundo branco pisca em branco
+     no instante antes de o vídeo chegar. */
+  background: #101418;
+}
+
+.cant-aovivo__video { width: 100%; height: 100%; object-fit: cover; }
+
+/* A mira: um quadrado de contorno no meio, para a pessoa saber ONDE encostar o
+   celular. Não é decoração — sem ela a leitura vira tentativa e erro. */
+.cant-aovivo__mira {
+  position: absolute;
+  width: 58%;
+  aspect-ratio: 1;
+  border: 2px solid rgb(255 255 255 / 0.85);
+  border-radius: var(--radius-lg);
+}
+
+.cant-aovivo__semcamera { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; }
+.cant-aovivo__semcamera .cant-aviso { max-width: 46ch; }
+
+.cant-aovivo__resultado { min-height: 180px; display: grid; align-content: start; }
+
+/* A ficha da leitura. Contorno e palavra, nunca semáforo: os quatro desfechos
+   se distinguem pelo TÍTULO, e o sucesso pelo preenchimento — a mesma gramática
+   do resto do produto (docs/37, docs/39). */
+.cant-ficha-leitura {
+  display: grid;
+  gap: 6px;
+  padding: 18px 20px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  background: var(--sas-superficie);
+}
+
+.cant-ficha-leitura--sucesso { border-color: var(--sas-dado); background: var(--sas-realce); }
+/* "Já retirado" NÃO é erro: quase sempre é segunda passagem por engano
+   (docs/40 §7). Tracejado diz "isto já aconteceu", e não "isto deu errado". */
+.cant-ficha-leitura--ja-retirado { border-style: dashed; }
+/* Vermelho só onde a régua permite: falha operacional. Aqui a ação é do
+   ALUNO — atualizar a tela —, e sem ela a fila para. */
+.cant-ficha-leitura--atualizar,
+.cant-ficha-leitura--recusado { border-color: var(--sas-alerta); }
+
+.cant-ficha-leitura__olho {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+/* O nome em magnitude: quem está no balcão lê de longe, com as mãos ocupadas. */
+.cant-ficha-leitura__nome {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--sas-magnitude);
+}
+
+.cant-ficha-leitura__sub { margin: 0; font-size: 13px; color: var(--sas-texto-2); }
+.cant-ficha-leitura__frase { margin: 0; font-size: 15px; color: var(--sas-texto); }
+
+/* A restrição alimentar é o ÚNICO dado desta tela que muda o que sai do prato,
+   e este é o único instante em que dá para agir sobre ela. Daí o tamanho. */
+.cant-ficha-leitura__restricao {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--sas-valor) 22%, transparent);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.cant-ficha-leitura__trocada {
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  border: 1px dashed var(--sas-fio-forte);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--sas-texto);
+}
+
+.cant-aovivo__historico { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+
+.cant-aovivo__linha {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--sas-borda);
+  font-size: 13px;
+}
+
+/* A marca de modo na ficha compacta do dia, na coordenação. Contorno fino, sem
+   cor de estado: é rótulo de fluxo, não julgamento (docs/40 §8). */
+.cant-ficha__modo {
+  flex: none;
+  padding: 1px 7px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  color: var(--sas-texto-2);
+  white-space: nowrap;
+}

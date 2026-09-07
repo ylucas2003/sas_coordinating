@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 
-import { isoDoDia } from '../../dominio/cantina';
+import {
+  fraseDaQuebra, isoDoDia, quebraDaContagem, rotuloDaContagem, somarContagens,
+} from '../../dominio/cantina';
 import { useCalendarioDaCantina } from '../../hooks/cantina';
 import { AvisoSemPublico } from './AvisoSemPublico';
 import { GradeDeCardapios, janelaDoMes, NavegadorDeMes } from './GradeDeCardapios';
@@ -31,6 +33,13 @@ export function Calendario() {
   const rascunhos = dias.filter((d) => d.estado === 'rascunho').length;
   const publicados = dias.filter((d) => d.estado === 'aberto' || d.estado === 'fechado').length;
 
+  // O mês somado, só para DECODIFICAR o "44+3" das células: a linha aparece no
+  // mês em que existe retirada na hora e some no mês em que não existe (docs/40
+  // §10.1). Sem ela, a face compacta da célula seria charada — e é a cantina,
+  // não a coordenação, quem passa o dia inteiro nesta tela.
+  const contagemDoMes = somarContagens(dias);
+  const quebra = quebraDaContagem(contagemDoMes);
+
   return (
     <div className="cant-tela">
       <header className="cant-cabeca">
@@ -44,7 +53,11 @@ export function Calendario() {
               : isLoading
                 ? 'Carregando…'
                 : `${publicados} publicado${publicados === 1 ? '' : 's'}`
-                  + (rascunhos ? ` · ${rascunhos} em rascunho` : '')}
+                  + (rascunhos ? ` · ${rascunhos} em rascunho` : '')
+                  + (quebra
+                    ? ` · ${contagemDoMes.pedidos} ${rotuloDaContagem(contagemDoMes)}`
+                      + ` · ${fraseDaQuebra(quebra)}`
+                    : '')}
           </p>
         </div>
         <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />

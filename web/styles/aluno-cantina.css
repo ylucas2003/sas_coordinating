@@ -116,3 +116,101 @@
   color: var(--alu-texto-2);
   padding: 2px 0;
 }
+
+/* ─── Retirada presencial (docs/40) ──────────────────────────────────── */
+
+/* Os dois caminhos lado a lado quando o cardápio aceita os dois. Empilham no
+   celular porque duas teclas de 44px numa linha de 360px viram duas teclas de
+   toque duvidoso. */
+.alu-cantina__modos { display: flex; flex-wrap: wrap; gap: 8px; }
+.alu-cantina__modos > * { flex: 1 1 180px; }
+
+/* "Prefiro fazer o pedido" — botão que se comporta como elo: a ação é
+   reversível e barata, e uma segunda tecla cheia disputaria com a principal. */
+.alu-cantina__elo-quieto {
+  justify-self: start;
+  min-height: var(--alu-toque);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--alu-texto-2);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.alu-cantina__elo-quieto:hover { color: var(--alu-texto); }
+
+.alu-cantina__segunda-porta { margin: 8px 0 0; font-size: 13px; color: var(--alu-texto-2); }
+
+/* "Bom almoço!" é texto, não medalha: tamanho, e nenhuma cor de estado. */
+.alu-cantina__proveito {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--alu-magnitude);
+}
+
+/* ─── A tela do código ───────────────────────────────────────────────── */
+
+.alu-retirada {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+  padding-bottom: 24px;
+}
+
+.alu-retirada__voltar {
+  justify-self: start;
+  min-height: var(--alu-toque);
+  display: inline-flex;
+  align-items: center;
+  color: var(--alu-texto-2);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.alu-retirada__titulo { margin: 0; font-size: 18px; }
+
+/* ⚠️ A PLACA é branca em qualquer tema, e o código é escuro sobre ela.
+   Um QR invertido é lido por alguns leitores e por outros não, e quem
+   descobriria isso é o aluno na fila, sem ter o que fazer a respeito. O branco
+   fixo aqui é a única exceção de tema da área do aluno, e é deliberada. */
+.alu-retirada__placa {
+  display: grid;
+  place-items: center;
+  width: min(86vw, 340px);
+  aspect-ratio: 1;
+  padding: 12px;
+  border-radius: var(--alu-raio);
+  background: #fff;
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+}
+
+.alu-retirada__qr { width: 100%; height: auto; }
+.alu-retirada__esperando { margin: 0; color: #555; font-size: 13px; }
+
+.alu-retirada__legenda {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 13px;
+  color: var(--alu-texto-2);
+}
+
+/* O mesmo "Bom almoço!" do card, na escala da tela cheia. */
+.alu-retirada__proveito {
+  margin: 24px 0 0;
+  font-size: 34px;
+  line-height: 1.1;
+  color: var(--alu-magnitude);
+}
+
+.alu-retirada__elo {
+  min-height: var(--alu-toque);
+  display: inline-flex;
+  align-items: center;
+  color: var(--alu-texto-2);
+  font-size: 13px;
+}

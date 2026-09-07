@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { AberturaDoTour } from '../../componentes/onboarding/AberturaDoTour';
 import { CartaoDeCampo } from '../../componentes/ui/Campo';
 import { useRecorteDaTela } from '../../componentes/layout/migalhas';
-import { dataLocal, isoDoDia } from '../../dominio/cantina';
+import { dataLocal, isoDoDia, quebraDaContagem, rotuloDaContagem } from '../../dominio/cantina';
 import { corteDaMateria } from '../../dominio/criterios';
 import { cicloPadrao, ciclosNoRecorte, recorteCompleto } from '../../dominio/painelFiltros';
 import { useCalendarioNaCoordenacao } from '../../hooks/cantina';
@@ -150,7 +150,10 @@ function fraseDaRefeicao(dia: DiaDoCalendario | null, rotulo: string): string | 
   if (!dia || dia.estado === 'sem-cardapio') return null;
   if (dia.estado === 'sem-refeicao') return `sem ${rotulo} hoje`;
   if (dia.estado === 'rascunho') return `${rotulo} em rascunho`;
-  return `${rotulo} ${dia.pedidos} pedidos`;
+  // A palavra troca com o que o número conta; a quebra em dois números fica
+  // para `/cantina/:data`, que é o destino deste card. Um subtítulo de hub com
+  // quatro números seria a tela errada para a leitura fina (docs/40 §10.1).
+  return `${rotulo} ${dia.pedidos} ${rotuloDaContagem(dia)}`;
 }
 
 export function Painel() {
@@ -281,7 +284,12 @@ export function Painel() {
 
     const pedidosAlmoco = pedidosDaRefeicao(almoco);
     const pedidosJanta = pedidosDaRefeicao(janta);
-    const subtitulo = pedidosAlmoco != null && pedidosJanta != null
+    // A forma compacta só vale enquanto "pedidos" for verdade nos DOIS números.
+    // Com retirada na hora no dia, o total inclui quem não pediu nada (docs/40
+    // §10.1), e a frase por refeição — que nomeia cada um — volta a valer.
+    const soPedido = !quebraDaContagem(almoco ?? { pedidos: 0 })
+      && !quebraDaContagem(janta ?? { pedidos: 0 });
+    const subtitulo = pedidosAlmoco != null && pedidosJanta != null && soPedido
       // A palavra "pedidos" uma vez só quando os dois números são pedidos: é
       // a linha da prancheta, e ela cabe onde duas frases inteiras não cabem.
       ? `almoço ${pedidosAlmoco} · janta ${pedidosJanta} pedidos`
