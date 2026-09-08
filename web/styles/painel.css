@@ -78,6 +78,19 @@
   cursor: pointer;
 }
 
+/* O SELETOR DE RÉGUA tem 36px de altura e é o controle que muda a leitura da
+   tela inteira — o último que pode errar o toque. Ele é um `<select>`, então
+   `height` fixo é o que manda: `min-height` não vence a altura declarada. */
+@media (max-width: 760px) {
+  .painel-criterio {
+    height: 44px;
+    /* E a FONTE junto: `<select>` abaixo de 16px dispara o zoom do Safari do
+       iOS igual a `<input>`. Subir só a altura consertava o dedo e deixava o
+       zoom. */
+    font-size: 16px;
+  }
+}
+
 .painel-criterio:focus {
   outline: none;
   border-color: var(--sas-dado-claro);

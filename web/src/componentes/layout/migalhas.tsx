@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 import { derivarContexto } from '../../dominio/contextoDaTela';
 import type { ContextoDaTela, RecorteDaTela } from '../../dominio/contextoDaTela';
@@ -89,9 +89,7 @@ const ADMIN = { texto: 'Administração', para: '/administracao' };
 
 export function useMigalhas(): Migalha[] {
   const { pathname } = useLocation();
-  const [params] = useSearchParams();
   const { titulo } = useContext(ContextoTitulo);
-  const aba = params.get('aba') === 'simulados' ? 'simulados' : 'ciclos';
 
   return useMemo(() => {
     const partes = pathname.split('/').filter(Boolean);
@@ -102,15 +100,24 @@ export function useMigalhas(): Migalha[] {
     switch (raiz) {
       case 'alunos':
         return temId ? [{ texto: 'Alunos', para: '/alunos' }, folha('Ficha do aluno')] : [{ texto: 'Alunos' }];
-      case 'provas':
-        return [PROVAS, { texto: aba === 'simulados' ? 'Simulados' : 'Ciclos' }];
+      // ⚠️ Isto lia `?aba=`, que MORREU na fase 3 do docs/39 quando as duas listas
+      // ganharam rota própria (`/provas/ciclos`, `/provas/simulados`). Sem o
+      // parâmetro o ternário caía sempre no `else`, e a migalha de
+      // `/provas/simulados` dizia "Provas › Ciclos" — a trilha apontando para a
+      // OUTRA tela. `/provas` sozinho é o hub e não tem segundo degrau.
+      case 'provas': {
+        const lista = partes[1];
+        if (lista === 'ciclos') return [PROVAS, { texto: 'Ciclos' }];
+        if (lista === 'simulados') return [PROVAS, { texto: 'Simulados' }];
+        return [{ texto: 'Provas' }];
+      }
       case 'ciclos':
         return temId
-          ? [PROVAS, { texto: 'Ciclos', para: '/provas' }, folha('Ficha do ciclo')]
+          ? [PROVAS, { texto: 'Ciclos', para: '/provas/ciclos' }, folha('Ficha do ciclo')]
           : [PROVAS, { texto: 'Ciclos' }];
       case 'simulados':
         return temId
-          ? [PROVAS, { texto: 'Simulados', para: '/provas?aba=simulados' }, folha('Ficha do simulado')]
+          ? [PROVAS, { texto: 'Simulados', para: '/provas/simulados' }, folha('Ficha do simulado')]
           : [PROVAS, { texto: 'Simulados' }];
       case 'banco':
         return [{ texto: 'Banco' }];
@@ -158,5 +165,5 @@ export function useMigalhas(): Migalha[] {
       default:
         return [{ texto: 'Painel' }];
     }
-  }, [pathname, aba, titulo]);
+  }, [pathname, titulo]);
 }

@@ -471,7 +471,29 @@ th[aria-sort='descending'] .alunos-tabela__seta {
     min-height: 0;
   }
 
+  /* ⚠️ `max-width: none` sozinho era o BUG, não a correção: com `flex: none`
+     herdado, tirar o teto deixou a régua crescer até o conteúdo — 613px num
+     visor de 390, e foi ela (não a tabela, que rola certo dentro da caixa) o
+     transbordo de `/alunos` medido em 07/09.
+
+     O teto sai porque no celular a régua ocupa a linha inteira; o que entra
+     junto é o direito de ENCOLHER, que é o que faltava. */
   .alunos-regua {
     max-width: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  /* A LINHA da tabela de varredura vira alvo de dedo. 31px de altura é
+     densidade de mesa — certa quando se compara 900 linhas com o olho, errada
+     quando se toca uma delas para abrir a ficha. A tabela fica mais alta, e no
+     celular ela já rola de qualquer jeito.
+
+     A largura do botão de ordenar (28px) fica como está de propósito: ele mora
+     no `<thead>` de uma tabela que rola, e alargá-lo empurraria a coluna
+     inteira — o alvo cresce em ALTURA, que é onde o dedo erra. */
+  .alunos-linha__link {
+    min-height: 44px;
   }
 }

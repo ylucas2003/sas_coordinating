@@ -98,6 +98,9 @@ export function Calibracao() {
         </div>
 
         {/* O efeito, em números — a trava 1 do comentário acima. */}
+        {/* SEM `--cartoes`: são DUAS colunas e elas cabem em 390px. O cartão
+            serve a tabela larga; aqui ele só deixaria seis linhas com o dobro da
+            altura, sem responder nada que a tabela já não responda. */}
         {valido && (
           <table className="data-table calibracao__pesos">
             <caption className="section__subtitle">
@@ -169,7 +172,7 @@ export function Calibracao() {
             desenhado.
           </p>
         ) : (
-          <table className="data-table">
+          <table className="data-table data-table--cartoes">
             <thead>
               <tr>
                 <th>Versão</th><th>Meia-vida</th><th>Janela</th>
@@ -179,11 +182,14 @@ export function Calibracao() {
             <tbody>
               {data.historico.map((v) => (
                 <tr key={v.versao}>
-                  <td>{v.versao}</td>
-                  <td>{Number(v.meia_vida_anos)} anos</td>
-                  <td>{v.janela_tendencia_anos} anos</td>
-                  <td>{new Date(v.criado_em).toLocaleDateString('pt-BR')}</td>
-                  <td>{v.criado_por ?? '—'}</td>
+                  {/* Sem `data-titulo`: o valor é só o número da versão, e um
+                      cartão intitulado "1" não diz de que ele é. Como linha
+                      rotulada lê "Versão · 1", que é a frase inteira. */}
+                  <td data-rotulo="Versão">{v.versao}</td>
+                  <td data-rotulo="Meia-vida">{Number(v.meia_vida_anos)} anos</td>
+                  <td data-rotulo="Janela">{v.janela_tendencia_anos} anos</td>
+                  <td data-rotulo="Quando">{new Date(v.criado_em).toLocaleDateString('pt-BR')}</td>
+                  <td data-rotulo="Quem">{v.criado_por ?? '—'}</td>
                   <td>{v.ativo ? <span className="sim-selo-ok">em vigor</span> : null}</td>
                 </tr>
               ))}

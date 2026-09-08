@@ -112,7 +112,9 @@ export function Contas() {
       </div>
 
       <section className="card">
-        <table className="data-table">
+        {/* `--cartoes`: no celular cada conta vira um cartão. Esta tabela mede
+            914px e era o pior transbordo da coordenação — +540px a 390px. */}
+        <table className="data-table data-table--cartoes">
           <thead>
             <tr>
               <th>Nome</th><th>E-mail</th><th>Papel</th><th>Último login</th><th>Situação</th>
@@ -192,7 +194,7 @@ export function Contas() {
       />
 
       <section className="card">
-        <table className="data-table">
+        <table className="data-table data-table--cartoes">
           <thead>
             <tr><th>Aluno</th><th>Matrícula</th><th>E-mail</th><th>Entra pelo Canvas</th><th>Último login</th></tr>
           </thead>
@@ -285,20 +287,22 @@ function LinhaCoordenador({
 
   return (
     <tr className={u.ativo ? '' : 'is-inativo'}>
-      <td>{u.nome}{souEu && <span className="sim-selo-ok" style={{ marginLeft: 8 }}>você</span>}</td>
-      <td>{u.email}</td>
-      <td>
+      <td data-rotulo="Nome" data-titulo>
+        {u.nome}{souEu && <span className="sim-selo-ok" style={{ marginLeft: 8 }}>você</span>}
+      </td>
+      <td data-rotulo="E-mail">{u.email}</td>
+      <td data-rotulo="Papel">
         {ehAdministrador
           ? <span className="sim-selo-ok" title="Cria logins e altera nota pelo painel.">administrador</span>
           : <span className="sim-selo-canvas">coordenador</span>}
       </td>
-      <td>{fmtQuando(u.ultimo_login_em)}</td>
-      <td>{u.ativo ? <span className="sim-selo-ok">ativa</span> : <span className="sim-selo-canvas">desativada</span>}</td>
+      <td data-rotulo="Último login" data-secundario>{fmtQuando(u.ultimo_login_em)}</td>
+      <td data-rotulo="Situação">{u.ativo ? <span className="sim-selo-ok">ativa</span> : <span className="sim-selo-canvas">desativada</span>}</td>
       {/* Nada de botão desabilitado para quem não é administrador: a coluna
           inteira some, e o cabeçalho junto. Botão cinza convida a clicar e
           ensina a pessoa a esperar recusa da tela. */}
       {souAdministrador && (
-        <td>
+        <td className="acoes-da-linha">
           <button className="btn-editar" onClick={renomear}>Renomear</button>
           <button className="btn-editar" onClick={novaSenha}>Nova senha</button>
           {/* As duas ações que mexem em PODER ficam juntas, e nenhuma delas
@@ -328,11 +332,14 @@ function LinhaCoordenador({
 function LinhaAluno({ aluno: a }: { aluno: AcessoAluno }) {
   return (
     <tr>
-      <td><Link to={`/alunos/${a.id}`}>{a.nome}</Link></td>
-      <td>{a.matricula || '—'}</td>
-      <td>{a.email || <span className="sim-selo-canvas">sem e-mail</span>}</td>
-      <td>{a.temCanvas ? <span className="sim-selo-ok">sim</span> : <span className="sim-selo-divergente">sem conta no Canvas</span>}</td>
-      <td>{fmtQuando(a.ultimoLoginEm)}</td>
+      <td data-rotulo="Aluno" data-titulo><Link to={`/alunos/${a.id}`}>{a.nome}</Link></td>
+      {/* São até 300 alunos nesta lista, e a pergunta dela é "esta pessoa
+          consegue entrar?". Matrícula e último login respondem outra coisa e
+          ficam na tabela do desktop. */}
+      <td data-rotulo="Matrícula" data-secundario>{a.matricula || '—'}</td>
+      <td data-rotulo="E-mail">{a.email || <span className="sim-selo-canvas">sem e-mail</span>}</td>
+      <td data-rotulo="Entra pelo Canvas">{a.temCanvas ? <span className="sim-selo-ok">sim</span> : <span className="sim-selo-divergente">sem conta no Canvas</span>}</td>
+      <td data-rotulo="Último login" data-secundario>{fmtQuando(a.ultimoLoginEm)}</td>
     </tr>
   );
 }

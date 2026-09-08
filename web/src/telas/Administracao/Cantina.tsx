@@ -256,7 +256,13 @@ export function DireitosDaCantina() {
           <thead>
             <tr>
               {souAdministrador && <th className="cant-direitos__marca" aria-label="Seleção" />}
-              <th>Aluno</th>
+              {/* `--coluna-aluno` é o gancho da coluna CONGELADA no celular: a
+                  tabela mede 760px e rola de lado, e sem o nome preso à
+                  esquerda a pessoa toca no direito de uma linha que já não sabe
+                  de quem é. Classe no TSX, e não `nth-child` no CSS, porque a
+                  posição muda: a coluna da caixa de seleção só existe para
+                  administrador. */}
+              <th className="cant-direitos__coluna-aluno">Aluno</th>
               <th>Turma</th>
               <th>Direito</th>
               <th>Restrição alimentar</th>
@@ -267,20 +273,27 @@ export function DireitosDaCantina() {
               <tr key={aluno.id} className={selecao.has(aluno.id) ? 'cant-direitos__linha--marcada' : ''}>
                 {souAdministrador && (
                   <td className="cant-direitos__marca">
-                    <input
-                      type="checkbox"
-                      aria-label={`Selecionar ${aluno.nome}`}
-                      checked={selecao.has(aluno.id)}
-                      onChange={() => setSelecao((s) => {
-                        const novo = new Set(s);
-                        if (novo.has(aluno.id)) novo.delete(aluno.id);
-                        else novo.add(aluno.id);
-                        return novo;
-                      })}
-                    />
+                    {/* O <label> É o alvo, e não enfeite: a caixa nativa mede
+                        13×13 e no celular ninguém acerta 13px — são ~900 delas,
+                        uma por aluno, e errar marca o aluno errado. O rótulo
+                        preenche a célula inteira e leva o toque à caixa, sem
+                        aumentar o desenho dela. */}
+                    <label className="cant-direitos__alvo">
+                      <input
+                        type="checkbox"
+                        aria-label={`Selecionar ${aluno.nome}`}
+                        checked={selecao.has(aluno.id)}
+                        onChange={() => setSelecao((s) => {
+                          const novo = new Set(s);
+                          if (novo.has(aluno.id)) novo.delete(aluno.id);
+                          else novo.add(aluno.id);
+                          return novo;
+                        })}
+                      />
+                    </label>
                   </td>
                 )}
-                <td>
+                <td className="cant-direitos__coluna-aluno">
                   <span className="cant-direitos__aluno">
                     <span className="cant-direitos__iniciais" aria-hidden="true">
                       {iniciais(aluno.nome)}

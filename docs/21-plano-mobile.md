@@ -14,6 +14,10 @@
 > **Prioridade:** alta. É a primeira vez que o produto vai ser usado no aparelho
 > em que o aluno de fato está.
 >
+> **Estado (07/09/2026): a P5 — coordenação — está FEITA, junto da cantina,
+> que não existia quando este plano foi escrito. Ver [§13](#13--estado-em-07092026--p5-feita-e-a-cantina-junto).
+> Falta a P4 (PWA) e a trava da §6.**
+>
 > **Estado (22/08/2026): Onda 1 e Onda 2 implementadas e verificadas no
 > browser com dado real (conta de teste do Benny Pereira Freitas, matrícula
 > 21217933, 17 notas). Onda 3 começada — painel, `/simulados` e o chat do
@@ -606,5 +610,126 @@ em runtime, com layout real:
   — mesma trava, metade resolvida.
 - **P3.2/3.3 no Safari real** — teclado empurrando o composer do chat, e os
   modais com o teclado aberto — seguem não verificáveis sem Xcode.
-- **P4 (PWA) e P5 (coordenação)** — não começados.
+- **P4 (PWA)** — não começado.
 - **A trava automatizada da §6** — ainda não escrita.
+
+---
+
+## 13 · Estado em 07/09/2026 — P5 feita, e a cantina junto
+
+> A P5 era "a primeira a cair" ([§5](#p5--coordenação-o-casco-antes-das-tabelas)).
+> Não caiu: foi executada inteira, e o escopo cresceu — quando ela foi escrita
+> (22/08) a **cantina não existia**, e ela é o casco mais usado no celular dos
+> três, porque quem serve está de pé no balcão com o telefone na mão.
+
+### A pergunta da §5.3 foi respondida: **trabalhar de verdade**
+
+Não "consultar sim, editar não". A régua passa a ser: tudo que se faz no
+desktop se faz no celular, e a tabela de 9 a 14 colunas vira cartão.
+
+### O que a auditoria de 07/09 mediu ANTES (390×844×3, `mobile,touch`)
+
+Nove rotas da coordenação e as quatro da cantina transbordavam na horizontal:
+
+| Rota | Transbordo | Culpado |
+|---|---|---|
+| `/administracao/contas` | +540px | `table.data-table` de 931px |
+| `/provas/simulados` | +467px | `sim-tabela` de 857px |
+| `/ciclos/:id/calibracao` | +356px | `ciclo-mapa__fases` de 706px |
+| `/provas/ciclos` | +271px | `data-table` de 661px |
+| `/cardapios` (cantina) | +270px | `cant-cabeca` + `cant-grade` de 640px |
+| `/cantina/cardapios` | +266px | `section.cant-grade` |
+| `/calibracao` | +172px | `data-table` de 562px |
+| as outras 3 da cantina | +101px | `cant-topo__conta` — **o Sair fora da tela** |
+| `/alunos` | +79px | `.alunos-regua` de 613px |
+| `/importar` | +70px | um `<pre>` com linha de comando |
+| `/ciclos/:id` | +50px | `.ciclo-identidade__acoes` de 424px |
+
+### O que se aprendeu, e não estava em lugar nenhum
+
+1. **Transbordo ALARGA o viewport de layout, e o estrago não fica onde ele
+   nasceu.** Com a página transbordando, `window.innerWidth` ia a 460 num visor
+   de 390, e a barra inferior — `position: fixed; left: 0; right: 0` — nascia
+   com 460px de largura, metade dela fora da tela. Por três rotas eu persegui a
+   barra achando que o defeito era dela. **Meça `innerWidth` contra
+   `clientWidth` antes de acusar qualquer elemento posicionado.**
+
+2. **`overflow` de ancestral muda quem é culpado.** O detector ingênuo
+   (`getBoundingClientRect().right > largura`) acusava a tabela de `/alunos`,
+   que rola certo dentro de `.alunos-caixa` há semanas. O culpado real era a
+   régua ao lado. Todo detector de transbordo precisa **subir a árvore
+   procurando ancestral que recorta** antes de apontar o dedo.
+
+3. **Decisão escrita não é decisão cumprida.** `cantina.css` dizia desde 05/09
+   que "o calendário rola na horizontal dentro da própria superfície, e a página
+   NÃO rola", e tinha o `min-width: 640px` para provar. Faltava a **caixa**:
+   `min-width` sozinho não cria scrollport, ele empurra o pai. A decisão passou
+   três meses invertida na prática, e ninguém viu porque ninguém abriu no
+   celular.
+
+4. **`@media` não acrescenta especificidade.** Uma media query declarada ANTES
+   da regra-base perde para ela. Aconteceu com `.painel-tabela__celula`: o
+   bloco de 760px ficou na linha 573, a base com `height: 42px` na 837, e o alvo
+   continuou curto sem nenhum aviso. **Bloco de celular vai DEPOIS da regra que
+   ele sobrescreve** — e vale conferir o arquivo inteiro, não só a vizinhança.
+
+5. **`max-width: none` pode ser o bug.** A regra de celular de `/alunos` tirava
+   o teto de 520px da régua, e com `flex: none` herdado ela cresceu até o
+   conteúdo — 613px. Tirar limite sem dar o direito de **encolher**
+   (`flex: 1 1 auto; min-width: 0`) troca um teto por nenhum.
+
+6. **O pior caso de largura é dado de fora, não desenho.**
+   `ANDRE.SANTOS@ALUNOBH.SANTOAGOSTINHO.COM.BR` — 443px sem um espaço — reabriu
+   o transbordo de `/administracao/contas` DEPOIS de a tabela já ter virado
+   cartão. Célula que exibe dado do Canvas leva `overflow-wrap: anywhere`, sem
+   supor comprimento máximo.
+
+### As duas respostas para tabela, e quando usar cada uma
+
+- **`.data-table--cartoes`** — tabela CURTA e larga, onde a linha é um objeto
+  com nome próprio. O rótulo sai de `data-rotulo` escrito à mão no `<td>`; a
+  primeira célula leva `data-titulo` e vira o título do cartão. Aplicada em
+  ciclos, simulados (as duas tabelas), contas (as duas), calibração (as duas),
+  a do ciclo, o mapa F1→F2, o histórico de importação e as estatísticas do
+  banco.
+- **rolagem lateral**, na caixa com `overflow` que cada tela de varredura já
+  tem (`.alunos-caixa`, `.painel-tabela-wrap`, `.cant-grade-rolagem`) — tabela
+  de VARREDURA: 900
+  linhas × 14 colunas, onde a tarefa é comparar e a coluna congelada é o que dá
+  sentido à linha. `/alunos`, a tabela do ciclo, o heatmap da ficha e
+  `/cantina/direitos` seguem tabela, com a LINHA subindo para 44px.
+
+**Por que não derivar o rótulo do `<thead>` em runtime:** casaria célula com
+coluna por índice, e é isso que quebra — em silêncio — quando alguém insere uma
+coluna no meio. Um `data-rotulo` faltando some da tela; um índice errado mente.
+
+### O casco da cantina virou barra inferior
+
+Mesma resolução que a coordenação já usava: os dois destinos descem para o
+polegar, o topo fica com marca e Sair. São só dois destinos, e é por isso que
+funciona — "Ler código", que é o que se repete o dia inteiro, passa a ficar a um
+toque.
+
+### Verificado
+
+`chrome` MCP contra o dev server, autenticado nos dois cascos:
+
+| | 390×844×3 escuro | 360×640×2 claro | 1440×900 |
+|---|---|---|---|
+| 24 rotas da coordenação | transbordo 0 | transbordo 0 | sem regressão |
+| 4 rotas da cantina | transbordo 0 | transbordo 0 | sem regressão |
+
+Nenhum campo abaixo de 16px (o zoom preso do Safari do iOS), nenhum alvo de
+toque abaixo de 44px de altura, zero erro de console. No desktop os cartões não
+vazam: `<td>` continua `table-cell` e o `<thead>` visível, conferido regra a
+regra.
+
+### O que NÃO foi verificado
+
+- **Safari real** — `100dvh` com a barra de endereço, `env(safe-area-inset-*)`
+  no notch e o teclado. Segue travado no Xcode ([§0.2](#02-xcode-completo--recomendado-não-bloqueante)).
+- **A câmera de `/ao-vivo`** — o navegador não deu permissão no ambiente de
+  teste, então a tela foi medida no estado "câmera parada". O layout está certo;
+  o vídeo com a mira sobreposta, não conferi.
+- **A trava automatizada da §6** continua não existindo. Esta auditoria foi um
+  script de sessão, e a próxima tela nova reintroduz o transbordo sem aviso.

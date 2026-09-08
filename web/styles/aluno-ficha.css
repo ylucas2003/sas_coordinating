@@ -504,6 +504,14 @@
   transition: color 120ms, background 120ms, border-color 120ms;
 }
 
+/* 40 → 44 no celular. É o botão que abre o menu de exportar da ficha — e a
+   ficha é uma das telas mais abertas da coordenação. */
+@media screen and (max-width: 760px) {
+  .export-menu__botao {
+    min-height: 44px;
+  }
+}
+
 .export-menu__botao:hover {
   color: var(--sas-texto);
   border-color: var(--sas-borda);

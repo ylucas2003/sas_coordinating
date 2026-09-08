@@ -409,6 +409,13 @@
   cursor: pointer;
 }
 
+/* 40 → 44, a régua de toque. */
+@media (max-width: 760px) {
+  .ciclo-ate-a-tabela {
+    height: 44px;
+  }
+}
+
 .ciclo-ate-a-tabela:hover {
   border-color: var(--sas-dado);
 }
@@ -535,10 +542,24 @@
     font-size: 22px;
   }
 
+  /* `flex: none` é o que mantém as ações inteiras ao lado do nome no desktop —
+     e é também o que as fazia medir 424px num visor de 390, porque item de
+     flex que não encolhe assume a largura do conteúdo mesmo com `wrap` ligado
+     (o `wrap` quebra o que está DENTRO, não o próprio item). Era o transbordo
+     de +50px de `/ciclos/:id`.
+
+     No celular elas ocupam a linha inteira, abaixo do nome, e aí encolher é o
+     comportamento certo. */
+  .ciclo-identidade__acoes {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
   .ciclo-vazio {
     gap: 24px;
     padding: 16px 0;
   }
+
 }
 
 
@@ -907,6 +928,26 @@
 .painel-tabela__aluno-link:hover .painel-tabela__nome {
   color: var(--sas-acao);
   text-decoration: underline;
+}
+
+/* ⚠️ ESTE BLOCO PRECISA FICAR DEPOIS das regras-base acima, e não junto do
+   outro `max-width: 760px` lá em cima: `@media` não acrescenta
+   especificidade, então `.painel-tabela__celula { height: 42px }` declarado
+   mais abaixo no arquivo VENCERIA a media query declarada antes. Já venceu —
+   a célula continuou com 42px e o alvo seguiu curto sem nenhum aviso.
+
+   A linha da varredura vira alvo de dedo, pela mesma conta de `/alunos`: 28px
+   é densidade de mesa, e no celular a tabela já rola. A largura NÃO muda —
+   alargar coluna numa tabela de 14 empurra a rolagem horizontal para todo
+   mundo, e o dedo erra em altura, não em largura. */
+@media (max-width: 760px) {
+  .painel-tabela__aluno-link {
+    min-height: 44px;
+  }
+
+  .painel-tabela__celula {
+    height: 44px;
+  }
 }
 
 /* ─── Status de corte no nome do aluno ────────────────────────────────────

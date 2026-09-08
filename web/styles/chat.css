@@ -45,6 +45,24 @@
   transform: translateY(8px);
 }
 
+/* ⚠️ Abaixo de 760px o rail da coordenação vira BARRA INFERIOR (casco.css), e
+   o FAB, ancorado em `bottom: 24px`, passa a pousar em cima dela — cobrindo os
+   dois últimos alvos, que são "Administração" e o Sair. Medido a 390px em
+   07/09: o botão de sair ficava inalcançável.
+
+   O FAB sobe para o vão acima da barra. A conta é a da barra: 52px de alvo +
+   12px de padding + a faixa de gestos do iPhone, e mais 12px de respiro. Casa
+   com o `padding-bottom` que `.casco__main` já reserva pelo mesmo motivo — se
+   um dos dois mudar, o outro muda junto.
+
+   Vale só dentro do casco da coordenação: a área do aluno tem barra e botão
+   próprios (`aluno-casco.css`), e o Tio Léo não é este FAB. */
+@media (max-width: 760px) {
+  .casco .chat-fab {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}
+
 @media (max-width: 540px) {
   .chat-fab__label { display: none; }
   .chat-fab { padding: 14px; border-radius: 50%; }
@@ -574,6 +592,14 @@
   max-height: 200px;
   overflow-y: auto;
   transition: border-color 150ms, box-shadow 150ms;
+}
+
+/* Mesmo motivo do `.dialog__input`: 14px num `<textarea>` dispara o zoom do
+   Safari do iOS. É por onde o coordenador fala com o assistente no celular. */
+@media screen and (max-width: 760px) {
+  .chat-composer__input {
+    font-size: 16px;
+  }
 }
 
 .chat-composer__input:focus {

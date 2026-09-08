@@ -250,7 +250,7 @@ function SecaoAgendados({ agendados }: { agendados: readonly Simulado[] }) {
 
       {erro && <div className="agendar__erro">{erro}</div>}
 
-      <table className="data-table sim-tabela">
+      <table className="data-table sim-tabela data-table--cartoes">
         <thead>
           <tr>
             {['Pn', 'Matéria', 'Fase', 'Ciclo', 'Data', 'Questões', 'Canvas', ''].map((h, i) => (
@@ -263,16 +263,16 @@ function SecaoAgendados({ agendados }: { agendados: readonly Simulado[] }) {
             const podeEnviar = s.origem === 'sas' && s.canvasEstado !== 'sincronizado' && s.canvasEstado !== 'pendente';
             return (
               <tr key={s.id} onClick={() => navegar(`/simulados/${s.id}`)}>
-                <td className="sim-tabela__pn">{s.rotuloCurto || '—'}</td>
-                <td>{s.materia?.nome || '—'}</td>
-                <td>{TIPO_LABEL[s.tipo ?? ''] || '—'}</td>
-                <td>{rotuloCiclo(s.cicloOrdem, s.vestibularAlvo)}</td>
-                <td className="sim-tabela__data">{fmtDataBR(s.dataAplicacao)}</td>
-                <td>{String(s.notaMaxima || '—')}</td>
-                <td>
+                <td className="sim-tabela__pn" data-rotulo="Pn" data-titulo>{s.rotuloCurto || '—'}</td>
+                <td data-rotulo="Matéria">{s.materia?.nome || '—'}</td>
+                <td data-rotulo="Fase" data-secundario>{TIPO_LABEL[s.tipo ?? ''] || '—'}</td>
+                <td data-rotulo="Ciclo" data-secundario>{rotuloCiclo(s.cicloOrdem, s.vestibularAlvo)}</td>
+                <td className="sim-tabela__data" data-rotulo="Data">{fmtDataBR(s.dataAplicacao)}</td>
+                <td data-rotulo="Questões">{String(s.notaMaxima || '—')}</td>
+                <td data-rotulo="Canvas">
                   <SeloCanvas estado={s.canvasEstado} erro={s.canvasErro} />
                 </td>
-                <td onClick={(ev) => ev.stopPropagation()}>
+                <td className="acoes-da-linha" onClick={(ev) => ev.stopPropagation()}>
                   {podeEnviar && (
                     <button className="btn-editar" onClick={() => aoRetry(s)}>
                       {s.canvasEstado === 'divergente' ? 'Enviar ao Canvas' : 'Tentar de novo'}

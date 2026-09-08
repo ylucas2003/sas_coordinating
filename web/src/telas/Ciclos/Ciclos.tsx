@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { TheadOrdenavel } from '../../componentes/ui/TabelaOrdenavel';
+import { OrdenarNoCelular, TheadOrdenavel } from '../../componentes/ui/TabelaOrdenavel';
 import { ordenarLinhas, proximaOrdenacao } from '../../componentes/ui/ordenacao';
 import type { ColunaTabela, Ordenacao } from '../../componentes/ui/ordenacao';
 import { BarraFiltros, Busca, Pills, RangeDatas } from '../../componentes/ui/filtros/BarraFiltros';
@@ -154,7 +154,20 @@ export function Ciclos() {
         ) : linhas.length === 0 ? (
           <div className="empty-state">Nenhum ciclo bate com os filtros.</div>
         ) : (
-          <table className="data-table">
+          // `--cartoes`: no celular cada ciclo vira um cartão. São dezenas de
+          // linhas, e cada uma é UM objeto com nome próprio — o caso em que a
+          // pilha lê melhor que a rolagem lateral (layout.css §Celular).
+          //
+          // `<OrdenarNoCelular>` vem junto e não é opcional: o cartão esconde o
+          // `<thead>`, e sem esta peça a tela perde a ordenação por completo no
+          // celular.
+          <>
+          <OrdenarNoCelular
+            colunas={COLUNAS}
+            ordenacao={ordenacao}
+            onOrdenar={(chave) => setOrdenacao((o) => proximaOrdenacao(o, chave))}
+          />
+          <table className="data-table data-table--cartoes">
             <TheadOrdenavel
               colunas={COLUNAS}
               ordenacao={ordenacao}
@@ -163,17 +176,26 @@ export function Ciclos() {
             <tbody>
               {linhas.map((c) => (
                 <tr key={c.id} onClick={() => navegar(`/ciclos/${c.id}`)}>
-                  <td>{c.nome}</td>
-                  <td>
+                  <td data-rotulo="Ciclo" data-titulo>{c.nome}</td>
+                  {/* `data-secundario`: o alvo JÁ está no nome do ciclo
+                      ("Ciclo 1 · IME · 2025"), que é o título do cartão. Repetir
+                      numa linha própria é 44px dizendo o que a pessoa acabou de
+                      ler. Na tabela ele fica: lá a coluna é o que permite
+                      comparar ciclos entre si. */}
+                  <td data-rotulo="Alvo" data-secundario>
                     {c.vestibularAlvo ? (
                       <span className="tag tone-navy">{c.vestibularAlvo}</span>
                     ) : (
                       '—'
                     )}
                   </td>
-                  <td>{`${fmtDataBR(c.periodoInicio)} → ${fmtDataBR(c.periodoFim)}`}</td>
-                  <td>{(c.simuladoIds ?? []).length}</td>
-                  <td><SeloCanvas estado={c.canvasEstado} erro={c.canvasErro} /></td>
+                  <td data-rotulo="Período">
+                    {`${fmtDataBR(c.periodoInicio)} → ${fmtDataBR(c.periodoFim)}`}
+                  </td>
+                  <td data-rotulo="Provas">{(c.simuladoIds ?? []).length}</td>
+                  <td data-rotulo="Canvas">
+                    <SeloCanvas estado={c.canvasEstado} erro={c.canvasErro} />
+                  </td>
                   <td>
                     <Link to={`/ciclos/${c.id}`} onClick={(ev) => ev.stopPropagation()}>
                       Ver →
@@ -183,6 +205,7 @@ export function Ciclos() {
               ))}
             </tbody>
           </table>
+          </>
         )}
       </section>
 

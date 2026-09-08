@@ -343,11 +343,28 @@ Três sprints, **uma frente por sprint**. "Escolher, não empilhar" ([10 §2.10]
 > ⚠️ **Furou a fila em 22/08:** mobile virou prioridade por decisão direta,
 > antes de qualquer uma das frentes abaixo. Plano em
 > [20-mobile.md](20-mobile.md) (decisão de rota e auditoria) e
-> [21-plano-mobile.md](21-plano-mobile.md) (execução — fundação de CSS e
-> login já implementados e verificados no browser; área do aluno em
-> andamento). Não renumerei o Sprint 3 abaixo porque a ordem dele entre si
-> não mudou, só a posição na fila — quando mobile for pro ar, esta nota sai
-> e o trabalho entra na [§1](#1--em-produção-hoje-portalsasonline).
+> [21-plano-mobile.md](21-plano-mobile.md) (execução). Não renumerei o Sprint 3
+> abaixo porque a ordem dele entre si não mudou, só a posição na fila — quando
+> mobile for pro ar, esta nota sai e o trabalho entra na
+> [§1](#1--em-produção-hoje-portalsasonline).
+>
+> **Estado do mobile:**
+>
+> | Parte | O quê | Estado |
+> |---|---|---|
+> | P1 | Fundação — toque, `100dvh`, peso do selo | ✅ 22/08 |
+> | P2 | Login | ✅ 22/08 |
+> | P3 | Área do aluno | ✅ 22/08 |
+> | **P5** | **Coordenação — casco, tabelas e alvos de toque** | **✅ 07/09** |
+> | **—** | **Cantina — casco próprio, calendário e "Ler código"** | **✅ 07/09** (não existia no plano original) |
+> | P4 | PWA instalável | ⬜ |
+> | §6 | A trava automatizada de transbordo em `portoes_locais` | ⬜ |
+>
+> A P5 estava marcada como "a primeira a cair" e foi feita inteira, com a
+> pergunta da §5.3 respondida como **trabalhar de verdade** (não só consultar):
+> a tabela de 9 a 14 colunas vira cartão no celular. Os seis aprendizados que
+> saíram disso — inclusive dois que valem para qualquer tela nova — estão em
+> [21 §13](21-plano-mobile.md#13--estado-em-07092026--p5-feita-e-a-cantina-junto).
 
 ### Sprint 3 · Fechar o Bloco A — *4 partes*
 

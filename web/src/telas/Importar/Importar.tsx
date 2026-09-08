@@ -120,7 +120,7 @@ function Historico({
   }
 
   return (
-    <table className="data-table">
+    <table className="data-table data-table--cartoes">
       <thead>
         <tr>
           <th>Arquivo</th>
@@ -132,10 +132,10 @@ function Historico({
       <tbody>
         {consulta.data.map((u) => (
           <tr key={u.id}>
-            <td>{u.arquivo_origem}</td>
-            <td><span className={`tag ${toneStatus(u.status)}`}>{u.status}</span></td>
-            <td>{u.linhas_aceitas == null ? '—' : String(u.linhas_aceitas)}</td>
-            <td>{formatarDataHora(u.criado_em)}</td>
+            <td data-rotulo="Arquivo" data-titulo>{u.arquivo_origem}</td>
+            <td data-rotulo="Status"><span className={`tag ${toneStatus(u.status)}`}>{u.status}</span></td>
+            <td data-rotulo="Linhas aceitas">{u.linhas_aceitas == null ? '—' : String(u.linhas_aceitas)}</td>
+            <td data-rotulo="Data">{formatarDataHora(u.criado_em)}</td>
           </tr>
         ))}
       </tbody>
