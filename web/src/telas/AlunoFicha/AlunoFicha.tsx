@@ -377,9 +377,16 @@ export function AlunoFicha() {
                   {`${filtrados.length} de ${simuladosDoAluno.length} · a nota abre a edição`}
                 </span>
               </div>
-              {/* A rolagem horizontal é da TABELA, nunca do corpo da página:
-                  a 390px as colunas não cabem, e o corpo rolando de lado leva
-                  junto o cabeçalho e a coluna lateral. */}
+              {/* ⚠️ Desde 07/09 esta tabela NÃO rola no celular: abaixo de
+                  760px ela vira pilha de cartões (`data-table--cartoes`, em
+                  layout.css), e a rolagem horizontal de `.ficha-tabela` só
+                  atua na faixa entre 760px e a largura em que as 14 colunas
+                  cabem — e na IMPRESSÃO, onde o cartão é desfeito de
+                  propósito (`documento.css`) para o PDF sair como tabela.
+
+                  A regra original continua valendo onde ela atua: a rolagem é
+                  da TABELA, nunca do corpo da página, senão o corpo rolando de
+                  lado leva junto o cabeçalho e a coluna lateral. */}
               <div className="ficha-tabela">
                 <TabelaSimulados
                   simulados={filtrados}

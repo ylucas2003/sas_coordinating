@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
@@ -121,6 +121,34 @@ interface Props {
 export function GradeDeCardapios({ ano, mes, dias, href }: Props) {
   const casas = useMemo(() => gradeDoMes(ano, mes), [ano, mes]);
   const hoje = isoDoDia(new Date());
+  const caixa = useRef<HTMLElement>(null);
+
+  // ⚠️ ROLA ATÉ HOJE ao abrir. No celular a grade tem 640px numa janela de
+  // 390: ela nasce mostrando domingo a quarta, e quinta a sábado ficam fora da
+  // tela — sem nada dizendo que existem. Se hoje é sexta, a cantina abre o
+  // calendário e NÃO VÊ o dia em que está, que é justamente o único que ela
+  // abre todo dia (revisão de 08/09).
+  //
+  // Centraliza a coluna de hoje em vez de encostá-la na borda: o dia de
+  // ontem e o de amanhã são o contexto que diz se o mês está em dia.
+  //
+  // Não roda no desktop porque lá `scrollWidth === clientWidth` e a conta dá
+  // zero — a guarda é a própria medida, não uma media query em JS, que
+  // dessincronizaria do CSS na primeira vez que alguém mexesse no breakpoint.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `casas` só muda com (ano, mes), e é a troca de MÊS que precisa reposicionar.
+  useEffect(() => {
+    const el = caixa.current;
+    if (!el) return;
+    const sobra = el.scrollWidth - el.clientWidth;
+    if (sobra <= 0) return;
+
+    const celula = el.querySelector<HTMLElement>('.cant-dia--hoje');
+    // Mês sem "hoje" (a cantina navegou para outro) abre no começo, como antes.
+    if (!celula) { el.scrollLeft = 0; return; }
+
+    const centro = celula.offsetLeft - (el.clientWidth - celula.offsetWidth) / 2;
+    el.scrollLeft = Math.max(0, Math.min(centro, sobra));
+  }, [ano, mes]);
 
   // Índice por `data|refeicao`: a grade pergunta uma célula de cada vez, e
   // varrer a lista dentro do laço seria O(dias × cardápios) para nada.
@@ -131,40 +159,62 @@ export function GradeDeCardapios({ ano, mes, dias, href }: Props) {
   }, [dias]);
 
   return (
-    // Sem `role="grid"`: o ARIA grid promete navegação por setas entre células,
-    // que esta grade não implementa — e papel que promete o que não cumpre é
-    // pior para o leitor de tela do que papel nenhum. Como toda célula é um
-    // link, uma região rotulada já entrega a leitura certa.
-    <section className="cant-grade" aria-label={`Cardápios de ${MESES[mes]} de ${ano}`}>
-      {CABECA_DA_SEMANA.map((d) => (
-        <div key={d} className="cant-grade__cabeca">{d}</div>
-      ))}
+    // A CAIXA QUE ROLA. No celular a grade de sete colunas não encolhe abaixo
+    // de 640px sem virar confete, e `cantina.css` já decidia isso desde 05/09
+    // — só que a decisão estava escrita sem a caixa que a cumpre, então quem
+    // rolava era a PÁGINA: +270px medidos a 390px, com o topo do casco (e o
+    // botão de sair) arrastados para fora da tela junto.
+    //
+    // `tabIndex={0}` porque um container que rola precisa ser alcançável pelo
+    // teclado — sem ele, quem não usa mouse não tem como chegar às colunas de
+    // quinta a sábado.
+    // `<section>` com `aria-label` JÁ é uma região para o leitor de tela — não
+    // precisa (nem deve) de `role="region"` escrito. E `tabIndex={0}` fica: um
+    // container que rola sem foco de teclado é falha de WCAG 2.1.1, e a regra
+    // do Biome que reclama disso (`noNoninteractiveTabindex`) não conhece a
+    // exceção de container rolável, que a própria WAI documenta.
+    <section
+      ref={caixa}
+      className="cant-grade-rolagem"
+      aria-label={`Cardápios de ${MESES[mes]} de ${ano}`}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: container que rola precisa ser alcançável pelo teclado (WCAG 2.1.1) — sem isto não há como chegar às colunas de quinta a sábado sem mouse.
+      tabIndex={0}
+    >
+      {/* Sem `role="grid"`: o ARIA grid promete navegação por setas entre
+          células, que esta grade não implementa — e papel que promete o que não
+          cumpre é pior para o leitor de tela do que papel nenhum. Como toda
+          célula é um link, uma região rotulada já entrega a leitura certa. */}
+      <div className="cant-grade">
+        {CABECA_DA_SEMANA.map((d) => (
+          <div key={d} className="cant-grade__cabeca">{d}</div>
+        ))}
 
-      {casas.map((iso, i) => (
-        <div
-          // Índice nas casas vazias porque elas não têm data — e são
-          // exatamente as que nunca reordenam.
-          key={iso ?? `vazio-${i}`}
-          className={`cant-dia${iso ? '' : ' cant-dia--vazio'}${iso === hoje ? ' cant-dia--hoje' : ''}`}
-        >
-          {iso && (
-            <>
-              <div className="cant-dia__topo">
-                <span className="cant-dia__numero">{Number(iso.slice(-2))}</span>
-                {iso === hoje && <span className="cant-dia__hoje">hoje</span>}
-              </div>
-              {REFEICOES.map((refeicao) => (
-                <Celula
-                  key={refeicao}
-                  dia={porDia.get(`${iso}|${refeicao}`)}
-                  refeicao={refeicao}
-                  para={href(iso, refeicao, porDia.get(`${iso}|${refeicao}`))}
-                />
-              ))}
-            </>
-          )}
-        </div>
-      ))}
+        {casas.map((iso, i) => (
+          <div
+            // Índice nas casas vazias porque elas não têm data — e são
+            // exatamente as que nunca reordenam.
+            key={iso ?? `vazio-${i}`}
+            className={`cant-dia${iso ? '' : ' cant-dia--vazio'}${iso === hoje ? ' cant-dia--hoje' : ''}`}
+          >
+            {iso && (
+              <>
+                <div className="cant-dia__topo">
+                  <span className="cant-dia__numero">{Number(iso.slice(-2))}</span>
+                  {iso === hoje && <span className="cant-dia__hoje">hoje</span>}
+                </div>
+                {REFEICOES.map((refeicao) => (
+                  <Celula
+                    key={refeicao}
+                    dia={porDia.get(`${iso}|${refeicao}`)}
+                    refeicao={refeicao}
+                    para={href(iso, refeicao, porDia.get(`${iso}|${refeicao}`))}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+          ))}
+      </div>
     </section>
   );
 }

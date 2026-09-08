@@ -38,6 +38,17 @@
   transition: background 120ms, color 120ms, border-color 120ms;
 }
 
+/* 30 → 44: os chips filtram o histórico de simulados dentro da ficha do aluno,
+   e são o controle mais tocado dela. O corpo de 12px fica — o que faltava era
+   área, e subir a fonte tiraria dois chips de cada linha. */
+@media screen and (max-width: 760px) {
+  .sim-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 .sim-chip:hover {
   border-color: var(--sas-borda);
   color: var(--sas-texto);
@@ -68,6 +79,12 @@
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
+}
+
+@media screen and (max-width: 760px) {
+  .sim-filtros__reset {
+    min-height: 44px;
+  }
 }
 
 .sim-filtros__reset:hover {
@@ -102,6 +119,13 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: color 120ms, background 120ms, border-color 120ms;
+}
+
+/* 40px de alvo, e a régua é 44. */
+@media (max-width: 760px) {
+  .sim-calendario-toggle {
+    min-height: 44px;
+  }
 }
 
 .sim-calendario-toggle:hover {

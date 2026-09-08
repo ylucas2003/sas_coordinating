@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { SeloCanvas } from '../ui/SeloCanvas';
-import { TheadOrdenavel } from '../ui/TabelaOrdenavel';
+import { OrdenarNoCelular, TheadOrdenavel } from '../ui/TabelaOrdenavel';
 import { ordenarLinhas } from '../ui/ordenacao';
 import type { ColunaTabela, Ordenacao } from '../ui/ordenacao';
 import { rotuloCiclo } from '../../dominio/simulados';
@@ -77,76 +77,91 @@ export function TabelaSimulados({
   const linhas = onOrdenar ? ordenarLinhas(simulados, colunas, ordenacao) : simulados;
 
   return (
-    <table className="data-table sim-tabela">
-      {onOrdenar ? (
-        <TheadOrdenavel colunas={colunas} ordenacao={ordenacao} onOrdenar={onOrdenar} />
-      ) : (
-        <thead>
-          <tr>
-            {colunas.map((c) => (
-              <th key={c.chave}>{c.label}</th>
-            ))}
-          </tr>
-        </thead>
+    <>
+      {/* O `<thead>` some no cartão, e com ele a ordenação — esta peça devolve
+          o controle no celular. Só quando a tela de fato ordena. */}
+      {onOrdenar && (
+        <OrdenarNoCelular colunas={colunas} ordenacao={ordenacao} onOrdenar={onOrdenar} />
       )}
 
-      <tbody>
-        {linhas.map((s) => {
-          const notaAluno = temAluno ? (notasAluno!.get(s.id) ?? null) : null;
-          return (
-            <tr key={s.id} onClick={() => navegar(`/simulados/${s.id}`)}>
-              <td className="sim-tabela__pn">
-                {s.rotuloCurto || '—'}
-                {/* Simulado do SAS que não reflete o Canvas — limbo ou escolha
-                    ('divergente'). Estado normal não ganha pixel; a ação de
-                    enviar fica na ficha (Ver →). */}
-                {s.canvasEstado && s.canvasEstado !== 'sincronizado' && (
-                  <span style={{ marginLeft: 8 }}>
-                    <SeloCanvas estado={s.canvasEstado} erro={s.canvasErro} />
-                  </span>
-                )}
-              </td>
-              <td>{s.materia?.nome || '—'}</td>
-              <td>{TIPO_LABEL[s.tipo ?? ''] || '—'}</td>
-              <td>{s.vestibularAlvo || '—'}</td>
-              <td>{rotuloCiclo(s.cicloOrdem, s.vestibularAlvo)}</td>
-              <td className="sim-tabela__data">{fmtDataBR(s.dataAplicacao)}</td>
-              {temAluno && <CelulaSuaNota nota={notaAluno} />}
-              <td>{fmtNota(s.media)}</td>
-              {temAluno && <CelulaDelta nota={notaAluno} media={s.media} />}
-              {!compacto && <td>{fmtNota(s.mediana)}</td>}
-              {!compacto && <td>{fmtNota(s.desvioPadrao)}</td>}
-              {!compacto && <td>{s.nPresentes == null ? '—' : String(s.nPresentes)}</td>}
-              <td>
-                <Link to={`/simulados/${s.id}`} onClick={(ev) => ev.stopPropagation()}>
-                  Ver →
-                </Link>
-              </td>
-              {temEditar && (
-                <td onClick={(ev) => ev.stopPropagation()}>
-                  <button className="btn-editar" onClick={() => onEditarNota!(s, notaAluno)}>
-                    Editar
-                  </button>
-                </td>
-              )}
+      {/* `--cartoes`: a mais larga das tabelas CURTAS — 14 colunas quando não é
+          compacta, 840px medidos, +467px de transbordo a 390px. Cada linha é
+          uma prova com nome próprio, então vira cartão (layout.css). */}
+      <table className="data-table sim-tabela data-table--cartoes">
+        {onOrdenar ? (
+          <TheadOrdenavel colunas={colunas} ordenacao={ordenacao} onOrdenar={onOrdenar} />
+        ) : (
+          <thead>
+            <tr>
+              {colunas.map((c) => (
+                <th key={c.chave}>{c.label}</th>
+              ))}
             </tr>
-          );
-        })}
-      </tbody>
-    </table>
+          </thead>
+        )}
+
+        <tbody>
+          {linhas.map((s) => {
+            const notaAluno = temAluno ? (notasAluno!.get(s.id) ?? null) : null;
+            return (
+              <tr key={s.id} onClick={() => navegar(`/simulados/${s.id}`)}>
+                <td className="sim-tabela__pn" data-rotulo="Prova" data-titulo>
+                  {s.rotuloCurto || '—'}
+                  {/* Simulado do SAS que não reflete o Canvas — limbo ou escolha
+                      ('divergente'). Estado normal não ganha pixel; a ação de
+                      enviar fica na ficha (Ver →). */}
+                  {s.canvasEstado && s.canvasEstado !== 'sincronizado' && (
+                    <span style={{ marginLeft: 8 }}>
+                      <SeloCanvas estado={s.canvasEstado} erro={s.canvasErro} />
+                    </span>
+                  )}
+                </td>
+                <td data-rotulo="Matéria">{s.materia?.nome || '—'}</td>
+                {/* `data-secundario`: some do CARTÃO, fica na tabela do desktop.
+                    Sem isto o cartão desta tabela media 546px — 153 deles davam
+                    99 telas de rolagem (medido a 390px em 07/09). O que sai é o
+                    que a ficha da prova responde melhor. */}
+                <td data-rotulo="Tipo" data-secundario>{TIPO_LABEL[s.tipo ?? ''] || '—'}</td>
+                <td data-rotulo="Alvo" data-secundario>{s.vestibularAlvo || '—'}</td>
+                <td data-rotulo="Ciclo" data-secundario>{rotuloCiclo(s.cicloOrdem, s.vestibularAlvo)}</td>
+                <td className="sim-tabela__data" data-rotulo="Aplicada">{fmtDataBR(s.dataAplicacao)}</td>
+                {temAluno && <CelulaSuaNota nota={notaAluno} />}
+                <td data-rotulo="Média">{fmtNota(s.media)}</td>
+                {temAluno && <CelulaDelta nota={notaAluno} media={s.media} />}
+                {!compacto && <td data-rotulo="Mediana" data-secundario>{fmtNota(s.mediana)}</td>}
+                {!compacto && <td data-rotulo="σ" data-secundario>{fmtNota(s.desvioPadrao)}</td>}
+                {!compacto && <td data-rotulo="n" data-secundario>{s.nPresentes == null ? '—' : String(s.nPresentes)}</td>}
+                <td>
+                  <Link to={`/simulados/${s.id}`} onClick={(ev) => ev.stopPropagation()}>
+                    Ver →
+                  </Link>
+                </td>
+                {temEditar && (
+                  <td className="acoes-da-linha" onClick={(ev) => ev.stopPropagation()}>
+                    <button className="btn-editar" onClick={() => onEditarNota!(s, notaAluno)}>
+                      Editar
+                    </button>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+          </tbody>
+      </table>
+    </>
   );
 }
 
 function CelulaSuaNota({ nota }: { nota: number | null }) {
-  return <td className="sim-tabela__sua">{nota == null ? '—' : fmtNota(nota)}</td>;
+  return <td className="sim-tabela__sua" data-rotulo="Sua nota">{nota == null ? '—' : fmtNota(nota)}</td>;
 }
 
 function CelulaDelta({ nota, media }: { nota: number | null; media: number | null }) {
-  if (nota == null || media == null) return <td>—</td>;
+  if (nota == null || media == null) return <td data-rotulo="Diferença">—</td>;
   const delta = nota - media;
   const tom = delta > 0.1 ? 'tone-verde' : delta < -0.1 ? 'tone-vermelho' : '';
   return (
-    <td className={`sim-tabela__delta ${tom}`}>
+    <td className={`sim-tabela__delta ${tom}`} data-rotulo="Diferença">
       {`${delta > 0 ? '+' : ''}${delta.toFixed(1).replace('.', ',')}`}
     </td>
   );

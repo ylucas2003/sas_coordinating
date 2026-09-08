@@ -4,7 +4,7 @@ import { LinhaTemporal } from '../../componentes/ui/LinhaTemporal';
 import type { PontoTemporal } from '../../componentes/ui/LinhaTemporal';
 import { ordenarLinhas, proximaOrdenacao } from '../../componentes/ui/ordenacao';
 import type { ColunaTabela, Ordenacao } from '../../componentes/ui/ordenacao';
-import { TheadOrdenavel } from '../../componentes/ui/TabelaOrdenavel';
+import { OrdenarNoCelular, TheadOrdenavel } from '../../componentes/ui/TabelaOrdenavel';
 import { resumoRecorrencia, seriesPorAno } from '../../dominio/banco';
 import { useEstatisticasBanco } from '../../hooks/banco';
 import type { MateriaBanco, RecorrenciaTopico, VestibularBanco } from '../../tipos/banco';
@@ -151,7 +151,14 @@ export function Estatisticas({ materiaInicial, vestibular }: Props) {
               <p className="banco-vazio">Nenhum assunto com questão nesta matéria.</p>
             ) : (
               <div className="banco-estatisticas__tabela">
-                <table className="data-table">
+                {/* O cartão esconde o `<thead>`; sem isto some a ordenação por
+                    total de questões, que é a pergunta da tela. */}
+                <OrdenarNoCelular
+                  colunas={COLUNAS}
+                  ordenacao={ordenacao}
+                  onOrdenar={(chave) => setOrdenacao((o) => proximaOrdenacao(o, chave))}
+                />
+                <table className="data-table data-table--cartoes">
                   <TheadOrdenavel
                     colunas={COLUNAS}
                     ordenacao={ordenacao}
@@ -160,7 +167,7 @@ export function Estatisticas({ materiaInicial, vestibular }: Props) {
                   <tbody>
                     {linhas.map((t) => (
                       <tr key={t.codigo}>
-                        <td>
+                        <td data-rotulo="Assunto" data-titulo>
                           <button
                             type="button"
                             className="btn-link-resolver"
@@ -170,12 +177,12 @@ export function Estatisticas({ materiaInicial, vestibular }: Props) {
                             {`${t.codigo} · ${t.nome}`}
                           </button>
                         </td>
-                        <td>{t.blocoNome}</td>
-                        <td>{t.total}</td>
-                        <td>{t.porVestibular.ITA ?? 0}</td>
-                        <td>{t.porVestibular.IME ?? 0}</td>
-                        <td>{t.porFase[1] ?? 0}</td>
-                        <td>{t.porFase[2] ?? 0}</td>
+                        <td data-rotulo="Bloco">{t.blocoNome}</td>
+                        <td data-rotulo="Total">{t.total}</td>
+                        <td data-rotulo="ITA">{t.porVestibular.ITA ?? 0}</td>
+                        <td data-rotulo="IME">{t.porVestibular.IME ?? 0}</td>
+                        <td data-rotulo="Fase 1" data-secundario>{t.porFase[1] ?? 0}</td>
+                        <td data-rotulo="Fase 2" data-secundario>{t.porFase[2] ?? 0}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -123,6 +123,42 @@ Não "modernize" essa pasta.
 - **Classes compartilhadas ficam globais** (`.card`, `.tone-*`, `.nota-badge`,
   `.btn`); só o CSS de prefixo próprio da tela vira módulo. Extração ao
   contrário trava.
+- **No celular a tabela tem DUAS respostas, e a escolha é por tabela**
+  (docs/21 §13, 07/09):
+  - `.data-table--cartoes` — tabela CURTA e larga, onde a linha é um objeto com
+    nome próprio (um ciclo, uma prova, uma conta). Abaixo de 760px cada linha
+    vira cartão. O rótulo sai de **`data-rotulo` escrito à mão em cada `<td>`**,
+    e a primeira célula leva `data-titulo` para virar o título. ⚠️ **Não derive
+    o rótulo do `<thead>` em runtime**: casaria célula com coluna por índice, e
+    é isso que quebra em silêncio quando alguém insere coluna no meio. Um
+    `data-rotulo` faltando some da tela; um índice errado mente.
+  - **rolagem lateral** — a caixa com `overflow` que cada tela de varredura já
+    tem (`.alunos-caixa`, `.painel-tabela-wrap`, `.cant-grade-rolagem`,
+    `.banco-estatisticas__tabela`) — para a tabela de VARREDURA: 900
+    linhas × 14 colunas, onde a tarefa é comparar e a coluna congelada dá
+    sentido à linha. Vira 900 cartões de 14 campos se você "converter". Só a
+    LINHA sobe para 44px.
+  - ⚠️ **Virar cartão esconde o `<thead>`, e com ele o único controle de
+    ORDENAÇÃO.** Toda tabela ordenável que ganhar `--cartoes` precisa levar
+    `<OrdenarNoCelular>` junto (`componentes/ui/TabelaOrdenavel.tsx`), com as
+    mesmas `colunas`/`ordenacao`/`onOrdenar` do `<TheadOrdenavel>`.
+  - ⚠️ **O bloco do cartão é `@media screen and (max-width: 760px)`.** Media
+    query de largura casa NA IMPRESSÃO, e a largura que ela consulta é a área
+    da página: A4 com margem de 14mm dá ~688px. Sem o `screen and`, o PDF da
+    ficha do aluno sai como pilha de cartões e sem as colunas `data-secundario`.
+    `documento.css` tem um `@media print` que desfaz isso por segurança.
+- **⚠️ Bloco de celular vai DEPOIS da regra que ele sobrescreve, no arquivo.**
+  `@media` **não** acrescenta especificidade: uma media query declarada antes da
+  regra-base perde para ela, e o sintoma é a regra simplesmente não valer, sem
+  erro. Aconteceu com `.painel-tabela__celula` (media na linha 573, base com
+  `height: 42px` na 837). Conferir o arquivo inteiro, não só a vizinhança.
+- **Transbordo horizontal ALARGA o viewport de layout, e o estrago não fica
+  onde nasceu.** Com a página transbordando, `window.innerWidth` vai a 460 num
+  visor de 390 e a barra inferior (`fixed; left: 0; right: 0`) nasce com 460px,
+  metade fora da tela. Antes de acusar um elemento posicionado, compare
+  `innerWidth` com `clientWidth` — e, ao caçar o culpado, **suba a árvore
+  procurando ancestral que recorta**, senão você acusa a tabela que rola certo
+  dentro da própria caixa.
 - **A cor tem uma pilha de quatro arquivos, e a ordem é obrigatória**
   (docs/37, docs/39 §0): `paleta.css` (os hexadecimais, uma vez cada) →
   `papeis.css` (os seis papéis e os três blocos de tema) → `aluno-tokens.css`

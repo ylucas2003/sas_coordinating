@@ -93,6 +93,15 @@
   transition: background 150ms, border-color 150ms, color 150ms;
 }
 
+/* 11 + 11 de padding + 17 de linha = 41px, e o mínimo de toque é 44. Faltavam
+   três pixels — o tipo de defeito que ninguém enxerga e que erra o alvo mesmo
+   assim, porque o dedo mira o centro e o botão perdoa menos do que parece. */
+@media (max-width: 760px) {
+  .btn {
+    min-height: 44px;
+  }
+}
+
 .btn:disabled,
 .btn[disabled] {
   opacity: 0.5;
@@ -626,6 +635,252 @@
 
 .data-table tbody tr:hover {
   background: var(--sas-superficie-2);
+}
+
+/* ─── Celular: a tabela curta vira pilha de cartões ──────────────────────
+   `.data-table` nasce dentro de `.card`, sem embrulho de rolagem — e é por
+   isso que a auditoria de 07/09 mediu +540px em `/administracao/contas`,
+   +467px em `/provas/simulados` e +271px em `/provas/ciclos`: a tabela empurra
+   a página inteira, e o transbordo alarga o viewport de layout (`innerWidth`
+   460 num visor de 390), o que arrasta a barra inferior do casco junto.
+
+   Há DUAS respostas, e a escolha é por tabela, não por gosto:
+
+   - **Pilha de cartões** (`--cartoes`) para a tabela CURTA e larga: dezenas de
+     linhas, cada uma um objeto com identidade própria — um ciclo, uma prova,
+     uma conta. Aqui a linha é o assunto, e ler uma linha por vez é o que se
+     faz no celular de qualquer jeito.
+   - **Rolagem lateral** — a caixa com `overflow` que cada tela de varredura já
+     tem (`.alunos-caixa`, `.painel-tabela-wrap`, `.cant-grade-rolagem`,
+     `.banco-estatisticas__tabela`) — para a tabela de VARREDURA: 900
+     linhas × 14 colunas, onde a tarefa é comparar e a coluna congelada é o que
+     dá sentido à linha. Virar cartão ali seriam 900 cartões de 14 campos —
+     pior do que rolar. É o que `/alunos`, a ficha do ciclo e o heatmap já
+     faziam certo, e continua.
+
+   O rótulo do cartão sai de `data-rotulo` no próprio `<td>`, escrito à mão no
+   TSX. É repetição, e é deliberada: derivar do `<thead>` em runtime obrigaria
+   cada tabela a ter cabeçalho de uma linha só e casaria célula com coluna por
+   índice — que é exatamente o que quebra quando alguém insere uma coluna no
+   meio, e quebra em silêncio. Um `data-rotulo` faltando some da tela; um
+   índice errado mente. */
+
+/* ⚠️ `screen and`, e não `(max-width: 760px)` puro. **A impressão também casa
+   uma media query de largura** — e a largura que ela consulta é a ÁREA DA
+   PÁGINA, não a da janela: `aluno-ficha.css` declara `@page { size: A4;
+   margin: 14mm }`, e 210mm − 28mm = 182mm ≈ 688px, abaixo do corte. Sem o
+   `screen and`, o "PDF da ficha" de `/alunos/:id` — que é `window.print()` na
+   própria página — sairia com a tabela de simulados virada pilha de cartões,
+   sem `<thead>` e com as colunas `data-secundario` APAGADAS do papel: o PDF
+   perderia dado que a tela mostra. Achado na revisão de 08/09; o reforço em
+   `documento.css` cobre o resto. */
+@media screen and (max-width: 760px) {
+  .data-table--cartoes,
+  .data-table--cartoes tbody,
+  .data-table--cartoes tr,
+  .data-table--cartoes td {
+    display: block;
+    width: auto;
+  }
+
+  /* O cabeçalho sai: cada rótulo desceu para dentro da célula. */
+  .data-table--cartoes thead {
+    display: none;
+  }
+
+  .data-table--cartoes tr {
+    border: var(--sas-borda-l) solid var(--sas-borda);
+    border-radius: var(--radius-lg);
+    padding: 2px 14px;
+    margin-bottom: 10px;
+    background: var(--sas-superficie);
+  }
+
+  /* `:hover` de linha não existe em toque, e o fundo que ele pinta some junto
+     — senão o cartão fica com a cor de "linha sob o cursor" fixa depois do
+     primeiro toque, em toda linha já tocada. */
+  .data-table--cartoes tbody tr:hover {
+    background: var(--sas-superficie);
+  }
+
+  /* ⚠️ O fio é `border-TOP`, e isso não é gosto. Com `border-bottom` ele
+     pertence à célula de CIMA, e some quando essa célula some — mas fica
+     quando some a de baixo. Como o cartão esconde célula vazia e célula
+     `data-secundario`, sobrava um fio solto no rodapé sempre que a última
+     escondida vinha depois de uma visível, e a exceção `td:last-child` mirava
+     uma célula que já não estava lá. Com `border-top` o fio pertence à célula
+     de BAIXO e desaparece junto com ela, sem exceção nenhuma a manter. */
+  .data-table--cartoes tbody td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 0;
+    border-top: 1px solid var(--sas-fio);
+    text-align: right;
+    /* ⚠️ `anywhere` e não `break-word`: o valor da célula é DADO de fora, e o
+       pior caso não é uma palavra longa — é um e-mail sem espaço nenhum.
+       `ANDRE.SANTOS@ALUNOBH.SANTOAGOSTINHO.COM.BR` mede 443px e sozinho
+       reabria o transbordo de `/administracao/contas` depois de a tabela já ter
+       virado cartão (+84px medidos). Como o dado vem do Canvas, não há
+       comprimento máximo a supor. */
+    overflow-wrap: anywhere;
+  }
+
+
+  /* ── O que NÃO vira linha do cartão ───────────────────────────────────
+     Uma tabela tem colunas fixas porque a grade precisa delas alinhadas: a
+     célula vazia de uma linha é o espaço que sustenta a coluna das outras. O
+     CARTÃO não tem esse compromisso — ele é UM registro, e ali "Média —" é uma
+     linha de 44px que não diz nada.
+
+     Medido a 390px antes desta regra: em `/provas/simulados` um cartão de prova
+     ainda não lançada tinha 4 das 9 linhas em travessão e media 546px; em
+     `/provas/ciclos`, 11 dos 23 cartões traziam a linha "Canvas" totalmente
+     vazia, porque `SeloCanvas` não desenha nada no estado normal.
+
+     ⚠️ Vale SÓ no cartão. Na tabela do desktop a célula vazia continua lá, e é
+     por isso que estas regras estão dentro do `@media` e presas a `--cartoes`. */
+  .data-table--cartoes tbody td:empty {
+    display: none;
+  }
+
+  /* ⚠️ `:empty` pega a célula sem NÓ nenhum — o caso do `SeloCanvas` que devolve
+     `null`. Ele NÃO pega a célula cujo texto é um travessão: `—` é nó de texto,
+     e CSS não lê conteúdo. Essa ausência se resolve no TSX, marcando a célula
+     como `data-secundario` (as três colunas de estatística) ou deixando o
+     travessão à mostra quando ele de fato informa — "Média —" numa prova ainda
+     não lançada quer dizer "sem nota ainda", e isso é resposta, não ruído. */
+
+  /* SECUNDÁRIO: o campo que a tabela mostra porque cabe numa coluna, e que no
+     cartão só afasta o que importa do topo. Não some do produto — está na ficha,
+     a um toque, e a tabela do desktop segue com ele.
+
+     Marcado no TSX com `data-secundario`, e não por índice de coluna, pelo mesmo
+     motivo de `data-rotulo`: índice mente em silêncio quando alguém insere uma
+     coluna no meio (web/CLAUDE.md). */
+  .data-table--cartoes tbody td[data-secundario] {
+    display: none;
+  }
+
+  /* ── UM plano, não dois ───────────────────────────────────────────────
+     No desktop a `section.card` É a superfície, e a tabela dentro dela é
+     conteúdo. No celular a tabela vira cartões que são superfície TAMBÉM — e aí
+     ficam duas molduras idênticas, uma dentro da outra. Medido a 390px no tema
+     claro: fundo `rgb(244,247,252)` nos dois, mesma borda de 2px
+     `rgb(220,230,247)`, mesmo raio de 18px. É o defeito que `casco.css` já
+     descreve no rail: "dois planos quase idênticos separados por um traço".
+
+     Quem se apaga é o de FORA, porque é o cartão que carrega o registro. O
+     `.card` continua existindo para agrupar (o título da seção fica), só deixa
+     de ser desenhado.
+
+     `:has(>)` e não descendente: um `.card` que contenha a tabela lá no fundo,
+     junto de outro conteúdo, continua sendo superfície com razão. */
+  .card:has(> .data-table--cartoes) {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+
+  /* ⚠️ `--sas-texto-2`, e NÃO `--sas-referencia`. Medido no browser: sobre
+     `--sas-superficie`, referência dá **2,87:1** no tema claro — reprova os
+     4,5:1 de texto pequeno —, enquanto texto-2 dá 5,2:1 (e 4,9:1 no escuro).
+     Referência é o papel do que NOMEIA uma escala de gráfico, onde ela nunca
+     precisa ser lida palavra por palavra; aqui o rótulo é a única coisa que
+     diz o que o valor é. */
+  .data-table--cartoes tbody td::before {
+    content: attr(data-rotulo);
+    flex: none;
+    text-align: left;
+    font-size: 13px;
+    color: var(--sas-texto-2);
+  }
+
+  /* Célula sem rótulo — a coluna de ações, que no desktop tem `<th />` vazio.
+     Sem isto ela abriria um vão de 16px à esquerda do botão. */
+  .data-table--cartoes tbody td:not([data-rotulo]) {
+    justify-content: flex-end;
+  }
+
+  /* A PRIMEIRA célula é o nome da coisa, e cartão precisa de título: ela ocupa
+     a linha inteira, alinhada à esquerda, sem rótulo repetindo o óbvio. */
+  .data-table--cartoes tbody td[data-rotulo][data-titulo] {
+    display: block;
+    text-align: left;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--sas-texto);
+    padding-top: 14px;
+    border-top: 0;
+  }
+
+  .data-table--cartoes tbody td[data-titulo]::before {
+    content: none;
+  }
+
+  /* Todo link DENTRO do cartão é alvo de dedo, e não texto sublinhado: o
+     "Ver →" media 37×24 e o nome do aluno 243×20. `inline-flex` + `min-height`
+     dá a área sem mexer no sublinhado nem empurrar a linha. */
+  /* `button` junto do `a`: em `/banco/estatisticas` o único caminho para abrir
+     o assunto é um `<button class="btn-link-resolver">`, e ele ficava de fora
+     de uma regra escrita só para links. */
+  .data-table--cartoes tbody td a,
+  .data-table--cartoes tbody td button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+/* ─── Ordenar no celular ─────────────────────────────────────────────────
+   O par de `OrdenarNoCelular` (componentes/ui/TabelaOrdenavel.tsx). Só existe
+   abaixo de 760px: acima, quem ordena é o `<thead>`, e dois controles para a
+   mesma coisa na mesma tela é engano à espera de acontecer. */
+.tabela-ordenar-celular {
+  display: none;
+}
+
+@media screen and (max-width: 760px) {
+  .tabela-ordenar-celular {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .tabela-ordenar-celular__rotulo {
+    flex: none;
+    font-size: 13px;
+    color: var(--sas-texto-2);
+  }
+
+  /* 16px porque é `<select>`, e `<select>` abaixo de 16px dispara o zoom do
+     Safari do iOS igual a `<input>`. */
+  .tabela-ordenar-celular__campo {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 10px;
+    font-family: var(--font-family);
+    font-size: 16px;
+    color: var(--sas-texto);
+    background: var(--sas-superficie);
+    border: 1px solid var(--sas-borda);
+    border-radius: var(--radius-md);
+  }
+
+  .tabela-ordenar-celular__dir {
+    flex: none;
+    width: 44px;
+    min-height: 44px;
+    font-size: 16px;
+    color: var(--sas-texto);
+    background: var(--sas-superficie);
+    border: 1px solid var(--sas-borda);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
 }
 
 /* ─── Tags / pílulas inline ─────────────────────────────────────────── */
@@ -1812,6 +2067,28 @@
   }
 }
 
+/* Os alvos da faixa, medidos a 390px: `alternar` 81×34 e `limpar` 108×38 —
+   os dois abaixo dos 44px de dedo, e presentes nas NOVE superfícies que têm
+   faixa. `.pill` mede 34 pela mesma conta.
+
+   Sobe a altura, não a fonte: 13px é o corpo desenhado para a pílula e ela
+   deixaria de caber em duas por linha se crescesse. O que faltava era área de
+   toque, e `min-height` a dá sem mexer no desenho. */
+@media (max-width: 760px) {
+  .barra-filtros__alternar,
+  .barra-filtros__limpar,
+  .pill {
+    min-height: 44px;
+  }
+
+  .barra-filtros__alternar,
+  .barra-filtros__limpar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 /* ─── Pílula selecionável ───────────────────────────────────────────────
    Um só desenho para filtro, chip e seletor. Inativa é contorno; ativa é
    navy sólido — a diferença precisa sobreviver a uma olhada de meio segundo.
@@ -1855,6 +2132,21 @@
   border: 1px solid var(--sas-borda);
   background: var(--sas-superficie);
   color: var(--sas-texto);
+}
+
+/* ⚠️ 13px é campo, e campo abaixo de 16px faz o Safari do iOS dar zoom ao
+   receber foco — e ele NÃO desfaz sozinho. A faixa de filtros aparece em nove
+   superfícies, então esta é a porta de entrada mais provável do defeito.
+
+   A regra genérica de `base.css` (`input { font-size: 16px }`) perde para esta
+   por especificidade, e por isso a exceção tem de ser escrita aqui, e não lá.
+   Os 13px continuam valendo no desktop: lá não há zoom a evitar e a pílula foi
+   desenhada nessa medida. */
+@media (max-width: 760px) {
+  .pill-campo {
+    font-size: 16px;
+    padding: 10px 16px;
+  }
 }
 
 /* ─── Abas ──────────────────────────────────────────────────────────────
@@ -2009,6 +2301,14 @@
 
 .camadas__degrau:hover { color: var(--sas-texto); }
 
+/* Os 32px vieram do alvo de 36px que o docs/20 pedia; a régua do projeto hoje
+   é 44 (docs/21 §1.3), e no celular o trilho tem espaço de sobra para dar. */
+@media (max-width: 760px) {
+  .camadas__degrau {
+    min-height: 44px;
+  }
+}
+
 .camadas__degrau:focus-visible {
   outline: 2px solid var(--sas-dado-claro);
   outline-offset: 1px;
@@ -2101,12 +2401,31 @@
   color: var(--sas-texto);
 }
 
+/* ⚠️ FUNDO e COR declarados. Sem eles o `<input>` cai no padrão do navegador —
+   branco com texto preto — e no tema NOITE isso é uma caixa branca acesa no meio
+   da tela. Passou despercebido enquanto ela media 160px; virou faixa de tela
+   inteira quando o celular tirou o teto de largura, e aí não dava mais para não
+   ver. Os outros campos do produto (`.dialog__input`, `.pill-campo`) sempre
+   declararam os dois — este ficou de fora. */
 .calibracao__campo input {
   padding: 9px 12px;
   border: 1px solid var(--sas-borda);
   border-radius: 8px;
   font-size: 15px;
   max-width: 160px;
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
+  font-family: var(--font-family);
+}
+
+/* Mesmo motivo do `.pill-campo`: 15px passa despercebido no desktop e vira
+   zoom preso no iOS. E o alvo sobe para 44px de altura. */
+@media (max-width: 760px) {
+  .calibracao__campo input {
+    font-size: 16px;
+    min-height: 44px;
+    max-width: none;
+  }
 }
 
 /* A tabela do efeito é uma prévia, não um relatório: estreita, para ficar ao

@@ -321,6 +321,18 @@
   text-underline-offset: 3px;
 }
 
+/* O elo quieto mede 24px de altura — é texto sublinhado, não botão, e no
+   desktop isso está certo. No celular ele é alvo de dedo como qualquer outro,
+   e ganha área SEM ganhar peso visual: o `padding` vertical não muda o
+   sublinhado nem a cor, só o que o toque acerta. */
+@media screen and (max-width: 760px) {
+  .campo-elo {
+    /* 11 e não 10: com 10 a caixa fechava em 43,6px — passava a régua por
+       arredondamento, que é o mesmo que não passar. */
+    padding: 11px 0;
+  }
+}
+
 .campo-elo__contagem {
   color: var(--sas-texto-2);
   font-variant-numeric: tabular-nums;
@@ -373,6 +385,30 @@
 
   .campo-cabeca__titulo {
     font-size: 24px;
+  }
+
+  /* ⚠️ A CABEÇA QUEBRA EM LINHA. `.campo-cabeca` é um flex de três itens —
+     voltar (44px fixos), título (`flex: 1; min-width: 0`) e as ações — sem
+     `flex-wrap`. Quando as ações são largas e não encolhem (em
+     `/cantina/direitos` elas são dois KPIs de ~160px), o único item que pode
+     ceder é o título, e com `min-width: 0` ele cede até ZERO: medido a 390px,
+     `.campo-cabeca__titulo` com `width: 0` e o texto "Quem come aqui?"
+     desenhado por cima dos KPIs, ilegível.
+
+     Quebrando, o título fica com a linha inteira e as ações descem para a
+     seguinte. O `flex-basis: 100%` é o que força a quebra sem depender da
+     largura do que vem depois. */
+  .campo-cabeca {
+    flex-wrap: wrap;
+  }
+
+  .campo-cabeca__titulo {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .campo-cabeca__acoes {
+    flex: 1 0 100%;
   }
 }
 

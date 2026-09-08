@@ -152,3 +152,55 @@
     --sas-borda-l: 1px;
   }
 }
+
+/* ─── O papel nunca recebe layout de celular ─────────────────────────────
+   Media query de LARGURA casa na impressão, e a largura consultada é a área da
+   página: A4 com margem de 14mm dá ~688px, abaixo dos 760px em que a
+   coordenação vira layout de celular. Ou seja: todo bloco `@media (max-width:
+   760px)` do projeto vale no papel, a não ser que diga `screen and`.
+
+   O bloco do cartão em `layout.css` já diz. Este aqui é o cinto além do
+   suspensório, e existe porque a falha é SILENCIOSA: ninguém abre o PDF depois
+   de mexer no CSS de celular, e o defeito só aparece quando alguém imprime uma
+   ficha meses depois. Está neste arquivo porque ele é o ÚLTIMO da pilha
+   (`main.tsx`), então ganha de qualquer bloco declarado antes.
+
+   Não desfaz o que é inofensivo no papel (alvo de 44px, fonte de 16px em campo
+   — botão e campo nem chegam à folha); desfaz o que RESTRUTURA. */
+@media print {
+  /* A tabela volta a ser tabela. */
+  .data-table--cartoes,
+  .data-table--cartoes tbody,
+  .data-table--cartoes tr,
+  .data-table--cartoes td {
+    display: revert;
+  }
+
+  .data-table--cartoes thead {
+    display: table-header-group;
+  }
+
+  /* O que o cartão dobra por ser estreito NÃO se dobra no papel: a folha tem
+     largura para a coluna, e um PDF com menos dado que a tela é pior do que um
+     PDF comprido. */
+  .data-table--cartoes tbody td[data-secundario],
+  .data-table--cartoes tbody td:empty {
+    display: table-cell;
+  }
+
+  .data-table--cartoes tbody td::before {
+    content: none;
+  }
+
+  /* O vão que a barra inferior e o FAB reservam não existe no papel. */
+  .casco__main,
+  .cant-main {
+    padding-bottom: 0;
+  }
+
+  /* Elemento fixo em impressão repete a cada página em vários motores. */
+  .cant-nav,
+  .rail {
+    position: static;
+  }
+}

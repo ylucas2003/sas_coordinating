@@ -457,8 +457,16 @@
     display: none;
   }
 
+  /* O vão de baixo reserva a barra INFERIOR **e o FAB do chat**, que no celular
+     subiu para cima dela (chat.css). Só a barra seriam 78px; com o FAB são
+     ~128, e sem eles o último botão do último cartão fica embaixo do FAB — foi
+     o que aconteceu com "Nova senha" em `/administracao/contas`.
+
+     ⚠️ Três medidas dependem uma da outra e vivem em arquivos diferentes: a
+     altura da barra (aqui), o `bottom` do FAB (`chat.css`) e este vão. Mexer
+     numa sem as outras reabre a sobreposição. */
   .casco__main {
-    padding: 18px 16px calc(78px + env(safe-area-inset-bottom));
+    padding: 18px 16px calc(128px + env(safe-area-inset-bottom));
   }
 
   .topbar {

@@ -341,7 +341,7 @@ export function TabelaSimuladosDoCiclo({ simulados }: { simulados: Simulado[] })
       {simulados.length === 0 ? (
         <p className="section__subtitle">Ciclo sem simulados associados.</p>
       ) : (
-        <table className="data-table">
+        <table className="data-table data-table--cartoes">
           <thead>
             <tr>
               <th>Simulado</th>
@@ -356,12 +356,12 @@ export function TabelaSimuladosDoCiclo({ simulados }: { simulados: Simulado[] })
           <tbody>
             {simulados.map((s) => (
               <tr key={s.id} onClick={() => navegar(`/simulados/${s.id}`)}>
-                <td>{s.nome}</td>
-                <td>{s.dataAplicacao}</td>
-                <td>{fmtNota(s.media)}</td>
-                <td>{fmtNota(s.mediana)}</td>
-                <td>{fmtNota(s.desvioPadrao)}</td>
-                <td>{String(s.nPresentes ?? '—')}</td>
+                <td data-rotulo="Simulado" data-titulo>{s.nome}</td>
+                <td data-rotulo="Data">{s.dataAplicacao}</td>
+                <td data-rotulo="Média">{fmtNota(s.media)}</td>
+                <td data-rotulo="Mediana" data-secundario>{fmtNota(s.mediana)}</td>
+                <td data-rotulo="Desvio" data-secundario>{fmtNota(s.desvioPadrao)}</td>
+                <td data-rotulo="Presentes">{String(s.nPresentes ?? '—')}</td>
                 <td>
                   <Link to={`/simulados/${s.id}`} onClick={(ev) => ev.stopPropagation()}>Ver →</Link>
                 </td>

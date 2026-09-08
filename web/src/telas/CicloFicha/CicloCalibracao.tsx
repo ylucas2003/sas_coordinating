@@ -332,7 +332,7 @@ function DeFaseAFase({ recortes }: { recortes: readonly RecorteMateria[] }) {
       <div className="section__subtitle">
         A mesma matéria nas duas aplicações. O sinal é a direção; a régua não muda entre as fases.
       </div>
-      <table className="data-table ciclo-mapa__fases">
+      <table className="data-table ciclo-mapa__fases data-table--cartoes">
         <thead>
           <tr>
             <th>Matéria</th>
@@ -347,13 +347,13 @@ function DeFaseAFase({ recortes }: { recortes: readonly RecorteMateria[] }) {
         <tbody>
           {comDelta.map((rec) => (
             <tr key={rec.materia.codigo}>
-              <td>{rec.materia.nome}</td>
-              <td>{fmtNota(rec.fase1?.stats.media)}</td>
-              <td>{fmtNota(rec.fase2?.stats.media)}</td>
-              <td className="ciclo-mapa__delta">{sinalOuTraco(rec.deltaF1F2?.media)}</td>
-              <td>{pct(rec.fase1?.stats.pctAprovados)}</td>
-              <td>{pct(rec.fase2?.stats.pctAprovados)}</td>
-              <td className="ciclo-mapa__delta">
+              <td data-rotulo="Matéria" data-titulo>{rec.materia.nome}</td>
+              <td data-rotulo="Média F1">{fmtNota(rec.fase1?.stats.media)}</td>
+              <td data-rotulo="Média F2">{fmtNota(rec.fase2?.stats.media)}</td>
+              <td className="ciclo-mapa__delta" data-rotulo="Δ média">{sinalOuTraco(rec.deltaF1F2?.media)}</td>
+              <td data-rotulo="Aprovados F1">{pct(rec.fase1?.stats.pctAprovados)}</td>
+              <td data-rotulo="Aprovados F2">{pct(rec.fase2?.stats.pctAprovados)}</td>
+              <td className="ciclo-mapa__delta" data-rotulo="Δ aprovados">
                 {sinalOuTraco(rec.deltaF1F2?.pctAprovados, ' p.p.')}
               </td>
             </tr>

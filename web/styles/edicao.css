@@ -106,6 +106,25 @@
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 
+/* ⚠️ 14px é campo, e campo abaixo de 16px faz o Safari do iOS dar zoom ao
+   receber foco — e não desfaz. Este é o campo de TODO diálogo da coordenação
+   (editar nota, renomear conta, criar ciclo, agendar prova), ou seja, o
+   caminho inteiro de "trabalhar de verdade" no celular.
+
+   A varredura de 07/09 não pegou porque mediu as telas com os diálogos
+   FECHADOS: `document.querySelectorAll('input')` não enxerga o que ainda não
+   montou. Achado na revisão de 08/09.
+
+   A exceção mora aqui, e não em `base.css`, porque a regra genérica de lá
+   (`input { font-size: 16px }`) perde por especificidade para `.dialog__input`
+   — mesma razão já registrada para `.pill-campo`. */
+@media screen and (max-width: 760px) {
+  .dialog__input {
+    font-size: 16px;
+    min-height: 44px;
+  }
+}
+
 .dialog__input:focus {
   border-color: var(--sas-dado);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--sas-dado) 16%, transparent);
@@ -245,6 +264,34 @@
   color: var(--sas-acao-texto);
 }
 
+/* No celular ele mede 74×25 e o mínimo de toque é 44 — e são até cinco deles
+   na mesma célula de ações (`/administracao/contas`), lado a lado. Viram uma
+   faixa que quebra em linha, cada botão com altura de dedo.
+
+   `.acoes-da-linha` é a célula, e ela existe porque a coluna de ações não tem
+   `data-rotulo`: o cartão não tem o que escrever à esquerda de um botão. */
+@media screen and (max-width: 760px) {
+  .btn-editar {
+    min-height: 44px;
+    padding: 3px 14px;
+    font-size: 13px;
+  }
+
+  /* ⚠️ `tbody` no seletor não é enfeite: sem ele esta regra tem (0,2,1) e
+     EMPATA com `.data-table--cartoes tbody td:not([data-rotulo])` de
+     `layout.css`, que alinha à direita — e no empate ganha quem vier depois.
+     `edicao.css` carrega depois de `layout.css`, então empatar até funcionava
+     por acidente; com `tbody` a regra passa a (0,2,2) e ganha por mérito, que
+     é o que sobrevive a alguém reordenar os imports. */
+  .data-table--cartoes tbody td.acoes-da-linha {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 12px 0 14px;
+  }
+}
+
 /* Botão de editar no header do simulado */
 .btn-editar-sim {
   font-size: 12px;
@@ -257,6 +304,13 @@
   font-family: var(--font-family);
   font-weight: 500;
   transition: background 0.1s, color 0.1s;
+}
+
+/* 32 → 44 no celular, como o `.btn-editar` logo acima. */
+@media (max-width: 760px) {
+  .btn-editar-sim {
+    min-height: 44px;
+  }
 }
 
 .btn-editar-sim:hover {

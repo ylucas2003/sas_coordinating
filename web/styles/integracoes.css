@@ -220,6 +220,15 @@
   white-space: nowrap;
 }
 
+/* 58×22 era o menor alvo da coordenação inteira, e é o link que ABRE a aula. */
+@media (max-width: 760px) {
+  .gravacao__assistir {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 640px) {
   .gravacoes-grade {
     grid-template-columns: 1fr;

@@ -31,6 +31,17 @@ textarea {
   font-size: 16px;
 }
 
+/* Linha de comando não quebra em espaço sem virar outra linha de comando, e
+   por isso `<pre>` rola em vez de embrulhar. Sem isto o comando de
+   `scripts/importar_planilha.py` empurra a página de `/importar` em 70px a
+   390px — e um `<pre>` largo é o transbordo mais fácil de deixar passar,
+   porque ele não parece um componente. */
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
 button,
 a,
 [role='button'],

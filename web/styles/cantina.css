@@ -52,10 +52,24 @@
   text-decoration: none;
 }
 
-.cant-nav__link.active,
+/* ⚠️ ATIVO e HOVER eram a MESMA pintura — `color-mix` de `--sas-dado` a 10%,
+   que dá ~1,14:1 contra a superfície. Ou seja: o destino em que a pessoa ESTÁ
+   não se distinguia do destino sob o cursor, e no celular, onde hover não
+   existe, não se distinguia de nada. É a mesma gramática que o `.rail__item`
+   da coordenação já resolve: realce de fundo + cor de magnitude + peso. */
+.cant-nav__link.active {
+  background: var(--sas-realce);
+  color: var(--sas-magnitude);
+  font-weight: 700;
+}
+
 .cant-nav__link:hover {
-  background: color-mix(in srgb, var(--sas-dado) 10%, transparent);
   color: var(--sas-texto);
+}
+
+.cant-nav__link:focus-visible {
+  outline: 2px solid var(--sas-dado-claro);
+  outline-offset: 2px;
 }
 
 .cant-topo__conta { display: flex; align-items: center; gap: 12px; }
@@ -1037,11 +1051,39 @@ span.cant-pilula { cursor: default; }
 .cant-senha__acoes { display: flex; gap: 10px; flex-wrap: wrap; }
 .cant-senha .cant-sub { margin: 0; }
 
-/* ─── Celular ────────────────────────────────────────────────────────── */
+/* ─── Celular ────────────────────────────────────────────────────────────
+   A cantina é o casco MAIS usado no celular dos três, e era o único sem
+   nenhuma regra de largura: quem serve está de pé no balcão, com o telefone
+   numa mão e a bandeja na outra. A auditoria de 07/09 mediu +101px em TODAS as
+   quatro rotas — o transbordo era o próprio topo, e o que saía da tela pela
+   direita era o botão de Sair.
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* A CAIXA QUE ROLA (o par da `<div>` de `GradeDeCardapios.tsx`).
+
+   Fora do celular ela é transparente: `overflow: auto` num container que cabe
+   não desenha nada e não intercepta gesto nenhum. */
+.cant-grade-rolagem {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-lg);
+}
+
+/* O foco é do container, não de um filho — e ele PRECISA aparecer, porque é
+   por ele que o teclado chega às colunas de quinta a sábado. */
+.cant-grade-rolagem:focus-visible {
+  outline: 2px solid var(--sas-acao);
+  outline-offset: 2px;
+}
 
 @media (max-width: 700px) {
   /* O calendário de sete colunas não cabe em 390px sem virar confete: ele
-     rola na horizontal dentro da própria superfície, e a página NÃO rola. */
+     rola na horizontal dentro da própria superfície, e a página NÃO rola.
+
+     ⚠️ Esta decisão está escrita aqui desde 05/09 e ficou TRÊS meses sem a
+     caixa que a cumpre: `min-width` sozinho não cria scrollport, ele só empurra
+     o pai. Quem rolava era a página. A caixa é `.cant-grade-rolagem`, acima. */
   .cant-grade { min-width: 640px; }
 
   .cant-magnitude__numero { font-size: 28px; }
@@ -1049,10 +1091,244 @@ span.cant-pilula { cursor: default; }
   .cant-primeiro-dia__desenho { display: none; }
 }
 
+/* ── O topo vira topo + barra inferior ──────────────────────────────────
+   Mesma resolução que o casco da coordenação já usa (casco.css): os destinos
+   descem para o polegar e o topo fica com marca e saída. São só DOIS destinos,
+   e é justamente por isso que a barra funciona aqui — "Ler código" passa a
+   ficar a um toque, que é o que a pessoa no balcão repete o dia inteiro.
+
+   O breakpoint é 760px, o mesmo da coordenação, e não os 700px do bloco acima:
+   aquele é sobre a grade de sete colunas caber; este é sobre o casco. Medidas
+   diferentes porque são perguntas diferentes. */
+@media (max-width: 760px) {
+  .cant-topo {
+    gap: 12px;
+    padding: 8px 14px;
+  }
+
+  /* O nome do estabelecimento sai: ele existe para o dia em que houver DUAS
+     cantinas, e nesse dia a pessoa não descobre em qual está pelo topo do
+     celular — descobre no login. O que não pode sumir é o Sair. */
+  .cant-marca__sub {
+    display: none;
+  }
+
+  .cant-topo__nome {
+    display: none;
+  }
+
+  .cant-topo__conta {
+    margin-left: auto;
+  }
+
+  /* ⚠️ As MEDIDAS E CORES SÃO AS DA BARRA DA COORDENAÇÃO (`casco.css`), e isso
+     é decisão de sistema, não coincidência: o produto tem duas barras
+     inferiores, e duas barras com desenhos diferentes leem como dois produtos.
+     Fundo `--sas-fundo` (não superfície), alvo de 52px, raio médio e o mesmo
+     peso de 14/600 do `.rail__item`. Ao mexer numa, mexa na outra. */
+  .cant-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin-left: 0;
+    gap: 2px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: var(--sas-fundo);
+    border-top: 1px solid var(--sas-borda);
+    z-index: 50;
+  }
+
+  .cant-nav__link {
+    flex: 1;
+    justify-content: center;
+    min-height: 52px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* O vão da barra, para o último cartão da tela não ficar debaixo dela.
+     Mesma conta do `.casco__main` da coordenação: 52 de alvo + 12 de padding
+     + a faixa de gestos + respiro. */
+  .cant-main {
+    padding: 16px 14px calc(78px + env(safe-area-inset-bottom));
+  }
+
+  /* A célula do calendário mede 64×34 e o mínimo de toque é 44. Ela é o alvo
+     mais repetido da cantina — é por ela que se abre o dia. */
+  .cant-celula {
+    min-height: 44px;
+  }
+
+  /* As duas variantes de tecla ABAIXAM o alvo de 44 para 40 — o que é uma
+     decisão de densidade de mesa, e no celular não vale. Elas voltam à régua
+     sem perder o desenho (a `--fina` segue com peso normal, a `--nua` segue
+     sem borda). */
+  .cant-tecla--fina,
+  .cant-tecla--nua {
+    min-height: 44px;
+  }
+
+  .cant-pilula {
+    min-height: 44px;
+  }
+
+  /* ⚠️ A CAIXA DE SELEÇÃO de `/cantina/direitos` mede 13×13 — o menor alvo dos
+     dois cascos, e são ~900 delas, uma por aluno. É por ela que a coordenação
+     libera quem pode comer, e errar o toque aqui marca o aluno errado.
+
+     São DUAS coisas, e elas se dividem assim: a caixa cresce de 13×13 para
+     22×22 por `width`/`height` aqui — é o que se ENXERGA —, e a área de toque
+     de 44×44 vem do `<label class="cant-direitos__alvo">` que preenche a
+     célula, logo abaixo — é o que se ACERTA. Nenhuma das duas sozinha
+     resolve. */
+  /* `.data-table tbody td` tem (0,2,0) e vence `.cant-direitos__marca` (0,1,0):
+     sem o prefixo o `padding: 0` era descartado e a célula ficava com os 16px
+     da tabela, alargando a coluna da caixa de seleção à toa. */
+  .data-table .cant-direitos__marca {
+    padding: 0;
+  }
+
+  .cant-direitos__marca input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* O elo dentro de texto corrido não é controle — subir a altura dele
+     quebraria o parágrafo. O padding com margem negativa dá a área de toque
+     SEM mexer no fluxo: a linha ocupa os mesmos pixels de antes.
+
+     São os quatro lugares em que a cantina põe link dentro de frase: a nota de
+     rodapé, o aviso ("Ver os pedidos"), a introdução e o rótulo da caixa de
+     seleção ("Ler código"). */
+  .cant-nota a,
+  .cant-aviso a,
+  .cant-intro a,
+  .cant-checkbox a {
+    display: inline-block;
+    padding: 14px 0;
+    margin: -14px 0;
+  }
+
+  /* ── O EDITOR DE CARDÁPIO ────────────────────────────────────────────
+     Esta tela media 0 de transbordo e por isso quase passou batido — e
+     "não transborda" não é "dá para usar de pé, no balcão". Medido a 390px:
+     quatro caixas de seleção de 13×13, os campos de mín./máx. com 36px de
+     altura, e o rótulo "disponível" com 20px. É a tela em que a cantina LANÇA
+     o cardápio; errar o toque aqui publica a refeição errada.
+
+     `.cant-checkbox` já dava 44px porque o `<label>` embrulha o `<input>` — o
+     alvo é o rótulo inteiro. `.cant-mini` não dava: ele é o mesmo padrão
+     (rótulo embrulhando controle) sem a altura. */
+  .cant-mini {
+    min-height: 44px;
+  }
+
+  /* ⚠️ A FONTE junto da altura. `.cant-input--numero` não declara tamanho, e
+     `.cant-input` usa `font: inherit` — então ele herda os 12px do rótulo
+     `.cant-mini` que o embrulha, e 12px num campo é zoom preso no Safari do
+     iOS. Subir só o alvo consertava o dedo e deixava o zoom. */
+  .cant-input--numero {
+    min-height: 44px;
+    width: 76px;
+    font-size: 16px;
+  }
+
+  /* A caixa nativa de 13px é pequena de VER, não só de acertar — e o alvo de
+     44px do rótulo não ajuda quem precisa enxergar se está marcada. */
+  .cant-checkbox input[type='checkbox'],
+  .cant-mini input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+    flex: none;
+  }
+
+  .cant-direitos__alvo {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* ── A COLUNA DO ALUNO, CONGELADA ─────────────────────────────────────
+     A tabela tem `min-width: 760px` e rola de lado num visor de 390: com o
+     nome rolando junto, a pessoa arrasta até a coluna "Direito", toca em
+     conceder — e já não vê de quem é a linha. É a mesma decisão que
+     `/alunos` e a ficha do ciclo já tomaram (`.alunos-tabela__td-aluno`), pelo
+     mesmo motivo: numa varredura lateral, o nome é o que dá sentido à linha.
+
+     `left: 44px` quando há caixa de seleção (ela também gruda, em `left: 0`),
+     `left: 0` quando não há — é o que `:first-child` distingue.
+
+     Fundo OPACO: `--sas-realce` da linha marcada é translúcido, e sem a camada
+     as colunas passariam por baixo do nome. */
+  .cant-direitos .cant-direitos__marca {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--sas-superficie);
+  }
+
+  .cant-direitos__coluna-aluno {
+    position: sticky;
+    left: 44px;
+    z-index: 2;
+    background: var(--sas-superficie);
+    border-right: 1px solid var(--sas-fio);
+  }
+
+  .cant-direitos__coluna-aluno:first-child {
+    left: 0;
+  }
+
+  /* O cabeçalho gruda nos DOIS eixos, senão ao rolar de lado o "Aluno" sai da
+     tela enquanto a coluna dele fica. */
+  .cant-direitos thead .cant-direitos__marca,
+  .cant-direitos thead .cant-direitos__coluna-aluno {
+    z-index: 4;
+  }
+
+  /* Nome comprido não pode empurrar a coluna congelada até comer a tela. */
+  .cant-direitos__coluna-aluno .cant-direitos__nome {
+    display: block;
+    max-width: 190px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* `.cant-saude__acoes .cant-tecla` tem (0,2,0) e mantinha os 40px da tecla
+     fina mesmo com o bloco de toque acima — o mesmo empate por especificidade
+     de duas linhas atrás, na outra ponta da folha. */
+  .cant-saude__acoes .cant-tecla {
+    min-height: 44px;
+  }
+}
+
+/* O alvo da caixa de seleção: o rótulo preenche a célula, então o toque vale
+   em qualquer ponto dela e não só nos 22px da caixa.
+
+   ⚠️ O que vale em TODA largura é só o `display`/`cursor` — reservar 44×44 no
+   desktop engordaria em 12px cada uma das ~900 linhas desta tabela, numa tela
+   cuja tarefa é varrer. A medida de dedo fica no bloco de celular, onde a
+   célula já perdeu o padding para acomodá-la. */
+.cant-direitos__alvo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
 /* ─── Exportar, total e seletor ──────────────────────────────────────── */
 
 .cant-exportar { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.cant-exportar__erro { font-size: 12px; color: var(--color-text-primary); }
+/* ⚠️ Estes quatro liam `--color-*`, o alias da coordenação que MORREU na fase 0
+   do docs/39 junto com `tokens.css`. `var()` indefinido é descartado em
+   silêncio — a cor não ficava errada, ficava NENHUMA, e o elemento herdava a do
+   pai. `dominio/tokensCss.test.ts` existe por causa deste tipo exato de perda;
+   estes escaparam porque a folha da cantina nasceu depois dele. Traduzidos para
+   o papel: `text-primary` → texto, `text-secondary` → texto-2, `magnitude` →
+   magnitude. (Achado de passagem no sprint de mobile, 07/09.) */
+.cant-exportar__erro { font-size: 12px; color: var(--sas-texto); }
 
 /* A faixa das abas com a soma do dia à direita: o total é consequência dos
    pedidos, não identidade da tela, então não sobe para o cabeçalho. */
@@ -1064,11 +1340,11 @@ span.cant-pilula { cursor: default; }
   flex-wrap: wrap;
 }
 
-.cant-total { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
-.cant-total b { color: var(--color-magnitude); font-size: 16px; }
+.cant-total { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--sas-texto-2); }
+.cant-total b { color: var(--sas-magnitude); font-size: 16px; }
 
 .cant-seletor { display: inline-flex; align-items: center; gap: 6px; }
-.cant-seletor__rotulo { font-size: 12px; color: var(--color-text-secondary); }
+.cant-seletor__rotulo { font-size: 12px; color: var(--sas-texto-2); }
 .cant-seletor .cant-input { min-height: 36px; width: auto; }
 
 /* ─── Ler código (docs/40 §7) ────────────────────────────────────────── */
