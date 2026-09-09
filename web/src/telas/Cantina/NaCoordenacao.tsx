@@ -319,7 +319,11 @@ function useResumoDosCustos() {
   const texto = useMemo(() => {
     if (!data?.refeicoes) return null;
     const dinheiro = data.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const partes = [nomeDoMes(hoje.getMonth()), dinheiro, `${data.refeicoes} refeições`];
+    // ⚠️ "1 refeições" — visto na tela, não no teste. A tela de custos já
+    // acertava o singular; este card, não. Duas redações do mesmo número em
+    // dois lugares é como esse tipo de defeito nasce.
+    const quantas = `${data.refeicoes} ${data.refeicoes === 1 ? 'refeição' : 'refeições'}`;
+    const partes = [nomeDoMes(hoje.getMonth()), dinheiro, quantas];
     // O buraco aparece já no card: quem lê "R$ 4.320" precisa saber que doze
     // refeições ficaram de fora por não terem preço (docs/40 §12.11.2).
     if (data.semValor) partes.push(`${data.semValor} sem valor`);

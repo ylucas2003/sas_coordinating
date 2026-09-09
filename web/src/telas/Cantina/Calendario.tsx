@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react';
 import {
   fraseDaQuebra, isoDoDia, quebraDaContagem, rotuloDaContagem, somarContagens,
 } from '../../dominio/cantina';
-import { useCalendarioDaCantina } from '../../hooks/cantina';
+import { useCalendarioDaCantina, useMinhaCantina } from '../../hooks/cantina';
+import { BotaoDaGrade } from './BotaoDaGrade';
 import { AvisoSemPublico } from './AvisoSemPublico';
 import { GradeDeCardapios, janelaDoMes, NavegadorDeMes } from './GradeDeCardapios';
 
@@ -23,6 +24,13 @@ export function Calendario() {
 
   const [de, ate] = useMemo(() => janelaDoMes(ano, mes), [ano, mes]);
   const { data: dias = [], isLoading, isError } = useCalendarioDaCantina(de, ate);
+  const { data: minha } = useMinhaCantina();
+  // Só o que está PUBLICADO vai para a parede: rascunho na parede é promessa
+  // que a cozinha ainda pode desfazer.
+  const publicadosDoMes = useMemo(
+    () => dias.filter((d) => d.estado === 'aberto' || d.estado === 'fechado'),
+    [dias],
+  );
 
   function andar(passo: number) {
     const d = new Date(ano, mes + passo, 1);
@@ -60,7 +68,13 @@ export function Calendario() {
                     : '')}
           </p>
         </div>
-        <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />
+        <div className="cant-cabeca__acoes">
+          {/* A grade para o MURAL (docs/40 §12.5.3). Não é o XLSX de outra
+              forma: não se prega planilha na parede, e é a folha impressa que
+              a cozinha usa hoje. */}
+          <BotaoDaGrade dias={publicadosDoMes} cantina={minha?.nome ?? null} />
+          <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />
+        </div>
       </header>
 
       <AvisoSemPublico refeicoes={['almoco', 'janta']} />

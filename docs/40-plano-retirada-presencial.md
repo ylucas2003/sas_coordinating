@@ -496,6 +496,45 @@ As linhas de produção continuam vazias: o passo 1 depende de acesso logado a
 `portalsas.online`. Tudo o mais foi medido — no build, no browser local contra o
 `dist` de verdade, ou por teste que falha se o número voltar.
 
+### 12.1.6 · O browser, com sessão de verdade *(09/09)*
+
+Verificado no compose, logado nos DOIS cascos — a conta `dev@local`
+(administrador) e a conta da cantina, esta última com a senha trocada **pela
+rota nova**, que é como a F7 acabou testada de ponta a ponta: o servidor
+recusou `cantina123` com "precisa de pelo menos 12 caracteres" e aceitou a
+definida.
+
+| O quê | Resultado |
+|---|---|
+| Hub com quatro cards, nomes novos e o gesto de exportar | ✅ e o gatilho é **irmão** do link na árvore de acessibilidade, não filho |
+| Tema claro por padrão | ✅ com `localStorage` limpo. Com `sas_tema: noite` gravado, o escuro vence — que é a regra |
+| Tela de custos, os quatro recortes, as barras e o XLSX | ✅ |
+| Lista de trabalho e o diálogo do aluno | ✅ |
+| "Visualizar pedidos" com dia e refeição pré-preenchidos | ✅ |
+| Casco da cantina com três destinos | ✅ os rótulos quebram em duas linhas em 390px — cabe, e confirma que três é o teto |
+| Transbordo em 390×844 nas cinco rotas de cantina da coordenação | ✅ **0** em todas |
+| Console | ✅ nenhum erro em toda a sessão |
+
+⚠️ **Quatro defeitos saíram daí, e nenhum deles apareceria em portão nenhum:**
+
+1. **A lista era impossível de abrir.** `.cant-lista__abrir` tinha
+   `display: contents`, que tira a CAIXA do elemento: o botão continuava na
+   árvore de acessibilidade, sem área para receber clique. HTML certo, tipos
+   certos, teste passando, tela quebrada;
+2. **"1 refeições"** no card de custos — a tela de custos acertava o singular,
+   o card não;
+3. **A migalha de `/cantina/custos` dizia "Cantina › Cardápios › Custos"**, um
+   caminho que não existe: toda rota nova sob `/cantina` precisa entrar no mapa
+   de `migalhas.tsx`, ou passa a afirmar que está dentro do calendário;
+4. **As telas de destino ainda tinham os nomes antigos** ("Quem come aqui?",
+   "Quem lança o cardápio?") enquanto os cards que levam até elas já diziam os
+   novos. Foi a renomeação da §12.2 que criou a incoerência.
+
+⚠️ **O que continua NÃO verificado:** as telas do ALUNO — o card em Hoje, a
+tela do cardápio e, principalmente, **o QR girando**. O aluno entra só pelo SSO
+do Canvas, que exige a Developer Key e não existe no compose. A rotação está
+coberta por 25 testes (15 no servidor, 10 no cliente), mas ninguém a viu girar.
+
 A última linha é a que prova o §12.1.1, e hoje ela não tem número porque
 ninguém mediu — é também o teste do passo 2 (§12.7).
 
@@ -615,7 +654,11 @@ Data      Hora   Aluno         Turma  Cantina  Modo     Tamanho  Salada         
 * **Uma coluna por bloco**, na ordem do cardápio — é o que a planilha do Google
   faz, e é o que deixa a coluna somável no Excel;
 * **um arquivo cobre o intervalo** ("08/09 a 11/09 · ALMOÇO"), com data e
-  refeição em coluna. ⚠️ Cardápios de dias diferentes podem ter blocos
+  refeição em coluna. ⚠️ **Quem faz isso é o XLSX do §12.11.3, e não um segundo
+  gerador no cliente.** O CSV da tela continua sendo de UM dia — ele é o gesto
+  rápido de quem está servindo agora, e a aba *Pedidos* do relatório já cobre o
+  período inteiro com as mesmas colunas. Dois geradores para a mesma planilha
+  divergiriam no primeiro caso de borda. ⚠️ Cardápios de dias diferentes podem ter blocos
   diferentes: as colunas são a **união** dos blocos do intervalo, e a célula
   fica vazia no dia em que aquele bloco não existiu. A planilha antiga
   resolvia isso repetindo o conjunto de colunas por dia, o que é ilegível
@@ -641,8 +684,14 @@ Salada     1  Folhas     Folhas     Folhas     máximo 1 opção
 
 Blocos nas linhas, dias nas colunas, opções numeradas — e a coluna da direita
 juntando o que o SAS já sabe (`escolhas_minimas`/`escolhas_maximas`) com o
-texto livre da §12.5.4. PDF em paisagem, porque a semana não cabe em retrato; e
-CSV com a mesma grade, para quem quiser mexer.
+texto livre da §12.5.4. PDF em paisagem, porque a semana não cabe em retrato.
+
+⚠️ **A grade existe DUAS vezes, e não é descuido**: como aba do XLSX
+(§12.11.3) e como PDF impresso, no botão "Imprimir a grade" do calendário da
+cantina. **Não se prega planilha na parede** — a folha impressa é a tabela que
+a cozinha usa hoje, e o XLSX serve a outra pergunta, que é fechar a conta do
+mês. O que NÃO existe é um CSV da grade: para mexer nos números, o XLSX já
+está lá.
 
 ### 12.5.4 · Migration 0053 — a observação do bloco
 
@@ -1147,8 +1196,15 @@ gráficos desenhados, e um mês inteiro gerado sem a API parar de responder.*
 
 **Passo 15 · F3 e os portões.** O gesto de exportar nos cards do hub, e então
 `pytest`, `ruff`, `npm test`, `npm run lint`, `tsc --noEmit`, `npm run build`,
-`npm run inventario`. ⚠️ **E o browser** — incluindo a medição do "depois"
-(§12.1.5), que é o entregável desta fase inteira.
+`npm run inventario`. ⚠️ **E o browser** — feito em 09/09, com sessão de
+verdade nos dois cascos, e o que ele achou está na §12.1.6: quatro defeitos que
+nenhum portão pegaria, um deles uma tela impossível de clicar.
+
+⚠️ **O que ficou de fora, e é a mesma lacuna de sempre:** as telas do ALUNO. Ele
+entra só pelo SSO do Canvas, que precisa da Developer Key e não existe no
+compose — então o QR girando nunca foi visto girar. E a medição do "antes"/
+"depois" em produção (passo 1) continua pendente de acesso logado a
+`portalsas.online`.
 
 **Fora deste plano, de propósito**: o deploy.
 

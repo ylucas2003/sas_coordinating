@@ -4,7 +4,7 @@ import { BotoesDeExportar } from './BotoesDeExportar';
 import { ListaDeQuemVaiComer } from './ListaDeQuemVaiComer';
 import {
   contagemPorModo, fraseDaQuebra, isoDoDia, quebraDaContagem,
-  refeicaoPorHorario, ROTULO_DA_REFEICAO, rotuloDaContagem, rotuloDoDia,
+  refeicaoPorHorario, ROTULO_DA_REFEICAO, rotuloDoDia,
 } from '../../dominio/cantina';
 import {
   useCalendarioDaCantina, useContagem, useMinhaCantina, usePedidosDoCardapio,
@@ -44,8 +44,7 @@ export function PedidosPorData() {
   const { data: minha } = useMinhaCantina();
 
   const valor = refeicao === 'almoco' ? minha?.valor_almoco : minha?.valor_janta;
-  const total = contagemPorModo(pedidos);
-  const quebra = quebraDaContagem(total);
+  const quebra = quebraDaContagem(contagemPorModo(pedidos));
 
   return (
     <div className="tela">
@@ -121,10 +120,11 @@ export function PedidosPorData() {
 
       {doDia && !isLoading && (
         <>
-          <p className="cant-intro">
-            {pedidos.length} {rotuloDaContagem(total)}
-            {quebra && ` · ${fraseDaQuebra(quebra)}`}
-          </p>
+          {/* ⚠️ Só a QUEBRA aqui, nunca o total: a lista abaixo já diz "1
+              pedido" no próprio cabeçalho, e dizer duas vezes o mesmo número
+              na mesma tela faz procurar a diferença entre os dois. Visto no
+              browser, não no teste. */}
+          {quebra && <p className="cant-intro">{fraseDaQuebra(quebra)}</p>}
 
           <ListaDeQuemVaiComer
             pedidos={pedidos}

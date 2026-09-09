@@ -1,9 +1,9 @@
 import {
-  blocoDeCadaOpcao, blocosDaContagem, escolhasPorBloco,
+  blocoDeCadaOpcao, blocosDaContagem, escolhasPorBloco, instrucaoDoBloco,
   contagemPorModo, escolhasDaLinha, fraseDaQuebra, marcaDoModo, presencialDoCardapio,
   quebraDaContagem, ROTULO_DA_REFEICAO, rotuloDaContagem, rotuloDoDia,
 } from '../../dominio/cantina';
-import type { ContagemDeOpcao, PedidoDeAluno, Refeicao } from '../../tipos/cantina';
+import type { BlocoCardapio, ContagemDeOpcao, PedidoDeAluno, Refeicao } from '../../tipos/cantina';
 
 // Exportação dos pedidos de um dia — CSV e PDF, para a cantina e para a
 // coordenação.
@@ -322,6 +322,106 @@ export function exportarPedidosPDF(dia: DiaExportavel): void {
 
   // Sem imagem nem fonte externa, então não há o que esperar carregar — ao
   // contrário do exportador do Banco, que aguarda o `load` de cada figura.
+  janela.focus();
+  janela.print();
+}
+
+// ─── A grade da semana, para o MURAL (docs/40 §12.5.3) ───────────────────
+
+/** Um dia da grade: o cardápio de uma refeição, já com blocos e opções. */
+export interface DiaDaGrade {
+  data: string;
+  refeicao: Refeicao;
+  blocos: BlocoCardapio[];
+}
+
+/**
+ * O cardápio da semana em grade — blocos nas linhas, dias nas colunas.
+ *
+ * ⚠️ **Existe apesar de o XLSX já ter uma aba "Cardápio".** Não é duplicação
+ * por descuido: **não se prega planilha na parede.** A grade é a tabela que a
+ * cozinha desenha no papel hoje, e o que ela precisa é sair da impressora
+ * pronta para o mural — em paisagem, com a coluna "Obs!" ao lado. O XLSX serve
+ * a outra pergunta, que é fechar a conta do mês.
+ *
+ * A coluna "Obs!" junta o que o SAS sabe em NÚMERO (`escolhas_minimas`/
+ * `maximas`) com o texto livre da migration 0053 — as duas metades da mesma
+ * regra, e separá-las faria quem lê a parede achar que são duas.
+ */
+export function exportarGradeDaSemanaPDF(dias: DiaDaGrade[], cantina?: string | null): void {
+  if (!dias.length) throw new Error('Não há cardápio lançado neste período.');
+
+  const janela = window.open('', '_blank');
+  if (!janela) {
+    throw new Error(
+      'O navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente de novo.',
+    );
+  }
+
+  const doc = janela.document;
+  const ordenados = [...dias].sort(
+    (a, b) => a.data.localeCompare(b.data) || a.refeicao.localeCompare(b.refeicao),
+  );
+  doc.title = `cardapio-${ordenados[0].data}-a-${ordenados[ordenados.length - 1].data}`;
+  doc.documentElement.lang = 'pt-BR';
+  regrasDePagina(doc);
+  // ⚠️ PAISAGEM: a semana tem quatro ou cinco colunas de dia mais a de
+  // observação, e em retrato o nome do prato quebra em três linhas.
+  const paisagem = doc.createElement('style');
+  paisagem.textContent = '@page { size: landscape; margin: 12mm; }';
+  doc.head.appendChild(paisagem);
+  doc.body.style.cssText = ESTILO_CORPO;
+
+  // Os blocos, na ordem da bandeja, pela união dos dias: um bloco que só
+  // existe na sexta continua tendo linha na grade inteira.
+  const ordemDoBloco = new Map<string, number>();
+  for (const dia of ordenados) {
+    for (const bloco of dia.blocos) {
+      const atual = ordemDoBloco.get(bloco.nome);
+      if (atual === undefined || bloco.ordem < atual) ordemDoBloco.set(bloco.nome, bloco.ordem);
+    }
+  }
+  const nomesDeBloco = [...ordemDoBloco.keys()].sort(
+    (a, b) => (ordemDoBloco.get(a) ?? 0) - (ordemDoBloco.get(b) ?? 0),
+  );
+
+  const cabecalho = [
+    '', 'Opção',
+    ...ordenados.map((d) => `${rotuloDoDia(d.data)} · ${ROTULO_DA_REFEICAO[d.refeicao]}`),
+    'Obs!',
+  ];
+
+  const linhas: Array<Array<{ texto: string; estilo?: string }>> = [];
+  for (const nome of nomesDeBloco) {
+    const porDia = ordenados.map(
+      (d) => d.blocos.find((b) => b.nome === nome)?.opcoes.filter((o) => o.disponivel) ?? [],
+    );
+    const quantas = Math.max(...porDia.map((o) => o.length), 0);
+    const modelo = ordenados
+      .map((d) => d.blocos.find((b) => b.nome === nome))
+      .find(Boolean);
+
+    for (let i = 0; i < quantas; i += 1) {
+      linhas.push([
+        // O nome do bloco só na PRIMEIRA linha dele: repetir "Guarnição" sete
+        // vezes na coluna da esquerda é o que faz a grade de papel virar lista.
+        { texto: i === 0 ? nome : '', estilo: i === 0 ? 'font-weight: 600;' : '' },
+        { texto: `Opção ${i + 1}` },
+        ...porDia.map((opcoes) => ({ texto: opcoes[i]?.nome ?? '' })),
+        { texto: i === 0 && modelo ? instrucaoDoBloco(modelo) : '' },
+      ]);
+    }
+  }
+
+  doc.body.append(
+    no(doc, 'h1', ESTILO_TITULO, 'Cardápio da semana'),
+    no(
+      doc, 'p', ESTILO_SUBTITULO,
+      [cantina, `gerado em ${new Date().toLocaleString('pt-BR')}`].filter(Boolean).join(' · '),
+    ),
+    tabela(doc, cabecalho, linhas),
+  );
+
   janela.focus();
   janela.print();
 }
