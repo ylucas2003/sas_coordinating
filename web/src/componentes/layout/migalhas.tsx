@@ -146,12 +146,22 @@ export function useMigalhas(): Migalha[] {
         const CANTINA = { texto: 'Cantina', para: '/cantina' };
         const nomeados: Record<string, string> = {
           cardapios: 'Cardápios',
-          direitos: 'Quem come aqui',
+          // Os nomes que os cards do hub passaram a usar (docs/40 §12.2): a
+          // migalha é a mesma frase que a pessoa clicou, senão ela chega numa
+          // tela cujo caminho não bate com o botão.
+          direitos: 'Alunos com direito',
           acesso: 'Administrar cantinas',
+          custos: 'Custos',
         };
         const segundo = partes[1] ?? '';
         const nomeado = nomeados[segundo];
         if (nomeado) return [ADMIN, CANTINA, { texto: nomeado }];
+        // ⚠️ Só chega aqui o que NÃO está no mapa acima. Antes de a rota de
+        // custos entrar nele, `/cantina/custos` caía neste ramo e a migalha
+        // dizia "Cantina › Cardápios › Custos" — um caminho que não existe.
+        // Toda rota nova sob `/cantina` precisa entrar no mapa, ou passa a
+        // afirmar que está dentro do calendário.
+        //
         // O que sobra é uma DATA (`/cantina/:data` e `/cantina/:data/:refeicao`),
         // e aí quem nomeia a folha é a tela, por `useTituloDaTela` — só ela sabe
         // dizer "9 de setembro" em vez de repetir o ISO da URL.

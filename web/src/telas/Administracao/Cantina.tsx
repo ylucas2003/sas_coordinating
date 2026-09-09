@@ -136,7 +136,11 @@ export function DireitosDaCantina() {
   return (
     <div className="tela">
       <CabecaDeCampo
-        titulo="Quem come aqui?"
+        // ⚠️ O MESMO nome do card que traz até aqui (docs/40 §12.2). Clicar
+        // em "Alunos com direito" e chegar numa tela chamada "Quem come
+        // aqui?" faz a pessoa conferir se navegou para o lugar certo — e a
+        // migalha, que já usa o nome do card, contradiria o título.
+        titulo="Alunos com direito"
         para="/cantina"
         destino="a cantina"
         acoes={
@@ -501,7 +505,7 @@ export function AcessoDaCantina() {
 
   return (
     <div className="tela">
-      <CabecaDeCampo titulo="Quem lança o cardápio?" para="/cantina" destino="a cantina" />
+      <CabecaDeCampo titulo="Administrar cantinas" para="/cantina" destino="a cantina" />
       <p className="cant-intro">
         {cantinas.length
           ? 'A cantina como estabelecimento, e as contas que lançam por ela. Nada aqui é apagado.'
