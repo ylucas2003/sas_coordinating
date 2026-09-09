@@ -476,3 +476,163 @@
   border-radius: 4px;
   background: var(--sas-referencia-fraca);
 }
+
+/* ── A escolha de senha ───────────────────────────────────────────────────
+ *
+ * `componentes/ui/EscolhaDeSenha.tsx` — usada nos dois diálogos de conta, o da
+ * cantina e o da coordenação (docs/40 §12.7). Mora aqui, e não numa folha de
+ * tela, porque atravessa duas telas de cascos diferentes: em `cantina.css` ela
+ * ficaria invisível para `/administracao/contas`.
+ */
+
+.senha-escolha {
+  border: 1px solid var(--sas-fio);
+  border-radius: var(--radius-md);
+  padding: 12px 14px 14px;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.senha-escolha__legenda {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sas-referencia);
+  padding: 0 4px;
+}
+
+.senha-escolha__opcao {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  /* 44px de alvo, contando o texto de ajuda: a linha inteira é clicável, e é
+     ela que o polegar acerta no celular. */
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.senha-escolha__opcao input {
+  margin-top: 3px;
+}
+
+.senha-escolha__ajuda {
+  display: block;
+  font-size: 12px;
+  color: var(--sas-referencia);
+}
+
+.senha-escolha__campo {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.senha-escolha__campo .input {
+  flex: 1 1 auto;
+  /* ⚠️ 16px é o piso, e não é estética: abaixo disso o Safari do iOS dá zoom
+     sozinho ao focar o campo, e a pessoa perde o diálogo de vista. */
+  min-width: 0;
+  font-size: 16px;
+}
+
+.senha-escolha__regra {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sas-referencia);
+}
+
+.senha-escolha__regra--falha {
+  color: var(--sas-alerta);
+}
+
+/* ── Exportar de dentro do card (docs/40 §12.3) ───────────────────────────
+ *
+ * ⚠️ O card inteiro é um `<Link>`, e a ação é IRMÃ dele — nunca filha. Um
+ * `<button>` dentro de uma âncora é HTML inválido e armadilha de teclado. O
+ * invólucro abaixo é o que permite os dois ficarem lado a lado no DOM e
+ * sobrepostos na tela.
+ */
+
+.campo-cartao-wrap {
+  position: relative;
+  display: grid;
+}
+
+.campo-cartao__acao {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  /* Acima do link, senão o clique atravessa e navega. */
+  z-index: 1;
+}
+
+.campo-exportar {
+  position: relative;
+}
+
+.campo-exportar__gatilho {
+  /* 44px de alvo, contra os 16px do ícone: é o mínimo de toque, e este botão
+     fica ao lado de um link que ocupa o card inteiro — errar aqui navega. */
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--sas-referencia);
+  cursor: pointer;
+  list-style: none;
+}
+
+/* O triângulo que o Safari desenha no `<summary>`. */
+.campo-exportar__gatilho::-webkit-details-marker { display: none; }
+
+.campo-exportar__gatilho:hover,
+.campo-exportar[open] .campo-exportar__gatilho {
+  background: var(--sas-superficie-2);
+  color: var(--sas-texto);
+}
+
+.campo-exportar__menu {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  min-width: 200px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  z-index: 2;
+}
+
+.campo-exportar__item {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--sas-texto);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.campo-exportar__item:hover {
+  background: var(--sas-superficie-2);
+}
+
+.campo-exportar__item--inerte {
+  color: var(--sas-referencia);
+  cursor: default;
+}
+
+.campo-exportar__item small {
+  display: block;
+  font-size: 11px;
+}

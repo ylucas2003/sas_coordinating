@@ -229,10 +229,15 @@
    dois cards não são a mesma grade. `max-width` acompanha, senão dois cards
    esticam para a largura de três e viram outra coisa. */
 .cant-hub { display: grid; gap: 16px; }
+/* Duas composições declaradas, e não uma grade com buraco: o card que a pessoa
+   não pode abrir SOME (docs/40 §12.11.4). Com o card de Custos são três e
+   quatro; eram dois e três. */
+.cant-hub--quatro { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 1120px; }
 .cant-hub--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1120px; }
 .cant-hub--dois { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; }
 
 @media (max-width: 1000px) {
+  .cant-hub--quatro,
   .cant-hub--tres,
   .cant-hub--dois { grid-template-columns: 1fr; max-width: none; }
 }
@@ -1380,13 +1385,25 @@ span.cant-pilula { cursor: default; }
 .cant-aovivo__video { width: 100%; height: 100%; object-fit: cover; }
 
 /* A mira: um quadrado de contorno no meio, para a pessoa saber ONDE encostar o
-   celular. Não é decoração — sem ela a leitura vira tentativa e erro. */
+   celular.
+
+   ⚠️ **Isto não é desenho, é o retângulo que a leitura recorta** — o laço de
+   `telas/Cantina/AoVivo.tsx` mede esta caixa e analisa só o que está dentro
+   dela (`dominio/mira.ts`; o porquê, medido, está em `LADO_MAXIMO_DO_RECORTE`).
+   Mudar `width` aqui muda o que é lido E o custo por quadro, junto e na mesma
+   proporção. Encolher demais deixa de tolerar mira torta; crescer demais traz
+   de volta o custo do quadro inteiro.
+
+   O contorno é branco COM sombra escura por fora porque o fundo é a cena de um
+   balcão: azulejo claro e cardápio impresso engolem um traço branco sozinho, e
+   uma mira que não se enxerga é uma mira que ninguém usa. */
 .cant-aovivo__mira {
   position: absolute;
   width: 58%;
   aspect-ratio: 1;
-  border: 2px solid rgb(255 255 255 / 0.85);
+  border: 2px solid rgb(255 255 255 / 0.9);
   border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 3px rgb(0 0 0 / 0.45), inset 0 0 0 1px rgb(0 0 0 / 0.25);
 }
 
 .cant-aovivo__semcamera { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; }
@@ -1478,4 +1495,159 @@ span.cant-pilula { cursor: default; }
   font-size: 10px;
   color: var(--sas-texto-2);
   white-space: nowrap;
+}
+
+/* ── A lista de trabalho (docs/40 §12.4) ──────────────────────────────────
+ *
+ * A mesma peça nos dois cascos: `telas/Cantina/ListaDeQuemVaiComer.tsx`.
+ */
+
+.cant-lista-trabalho {
+  display: grid;
+  gap: 14px;
+}
+
+/* A linha inteira é o alvo. `button` e não `div` com onClick — quem navega por
+   teclado precisa chegar aqui, e quem usa leitor de tela precisa ouvir que é
+   acionável. Reset do visual de botão, mantendo o comportamento. */
+.cant-lista__abrir {
+  display: contents;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cant-lista__hora {
+  font-size: 12px;
+  color: var(--sas-referencia);
+  font-variant-numeric: tabular-nums;
+}
+
+.cant-lista__de {
+  font-weight: 400;
+  color: var(--sas-referencia);
+}
+
+.cant-detalhe {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) 1fr;
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.cant-detalhe dt {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sas-referencia);
+  align-self: center;
+}
+
+.cant-detalhe dd {
+  margin: 0;
+}
+
+/* ⚠️ DEPOIS da regra-base, e não antes: `@media` não acrescenta
+   especificidade, e um bloco de celular declarado acima perderia para a base
+   sem nenhum aviso (docs/21 §13, aprendizado 4). */
+@media screen and (max-width: 760px) {
+  .cant-detalhe {
+    grid-template-columns: 1fr;
+    gap: 2px 0;
+  }
+
+  .cant-detalhe dd {
+    margin-bottom: 10px;
+  }
+}
+
+/* ── A escolha de dia e refeição (docs/40 §12.8.2) ────────────────────────
+ *
+ * "Visualizar pedidos" — dois campos no topo, já preenchidos, para a lista
+ * aparecer sem clique.
+ */
+
+.cant-escolha-do-dia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin: 0 0 18px;
+}
+
+.cant-escolha-do-dia .cant-input {
+  /* ⚠️ 16px é o piso: abaixo disso o Safari do iOS dá zoom ao focar, e no
+     balcão a pessoa perde a tela de vista com a fila esperando. */
+  font-size: 16px;
+  /* `min-width: 0` para o campo poder ENCOLHER dentro do flex — sem ele, um
+     `input[type=date]` guarda a largura intrínseca e empurra a linha, que é
+     como o transbordo horizontal nasce (docs/21 §13, aprendizado 5). */
+  min-width: 0;
+}
+
+
+/* ── As barras do relatório de custos (docs/40 §12.11.4) ──────────────────
+ *
+ * `div` com largura em porcentagem, sem SVG e sem biblioteca de gráfico: mais
+ * leve para barra horizontal, e o texto continua sendo texto — leitor de tela
+ * lê, Ctrl+F acha.
+ *
+ * ⚠️ Sem semáforo e sem escala de cor. É o mesmo papel de dado em todas as
+ * barras, e a diferença que interessa é o COMPRIMENTO: pintar a maior de
+ * vermelho diria que gastar mais é errado, o que esta tela não sabe.
+ */
+
+.cant-barras {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 22px;
+}
+
+.cant-barras__linha {
+  display: grid;
+  grid-template-columns: minmax(90px, 22%) 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.cant-barras__rotulo {
+  font-size: 12px;
+  color: var(--sas-texto-2);
+  overflow-wrap: anywhere;
+}
+
+.cant-barras__trilho {
+  background: var(--sas-superficie-2);
+  border-radius: var(--radius-pill);
+  height: 14px;
+  overflow: hidden;
+}
+
+.cant-barras__barra {
+  display: block;
+  height: 100%;
+  background: var(--sas-dado);
+  border-radius: var(--radius-pill);
+}
+
+.cant-barras__valor {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sas-texto);
+}
+
+@media screen and (max-width: 760px) {
+  .cant-barras__linha {
+    grid-template-columns: 1fr auto;
+  }
+
+  /* No celular o rótulo sobe para a própria linha: 90px de rótulo ao lado de
+     uma barra deixam as duas ilegíveis. */
+  .cant-barras__rotulo {
+    grid-column: 1 / -1;
+  }
 }

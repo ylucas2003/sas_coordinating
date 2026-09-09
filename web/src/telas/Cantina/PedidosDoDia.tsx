@@ -2,15 +2,16 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import {
-  contagemPorModo, escolhasDaLinha, fraseDaQuebra, marcaDoModo,
+  contagemPorModo, fraseDaQuebra,
   presencialDoCardapio, quebraDaContagem,
   ROTULO_DA_REFEICAO, ROTULO_DO_ESTADO, rotuloDaContagem, rotuloDoDia,
 } from '../../dominio/cantina';
 import {
   useCalendarioDaCantina, useContagem, useMinhaCantina, usePedidosDoCardapio,
 } from '../../hooks/cantina';
-import type { ContagemDeOpcao, Refeicao } from '../../tipos/cantina';
+import type { ContagemDeOpcao, PedidoDeAluno, Refeicao } from '../../tipos/cantina';
 import { BotoesDeExportar } from './BotoesDeExportar';
+import { ListaDeQuemVaiComer } from './ListaDeQuemVaiComer';
 
 // OS PEDIDOS DE UM DIA — e são DUAS leituras, porque são dois momentos.
 //
@@ -31,6 +32,9 @@ type Aba = 'contagem' | 'lista';
 export function PedidosDoDia() {
   const { data = '', refeicao = 'almoco' } = useParams<{ data: string; refeicao: Refeicao }>();
   const [aba, setAba] = useState<Aba>('contagem');
+  // O recorte que a lista devolve, para a folha impressa ser a que está na
+  // tela (docs/40 §12.4).
+  const [pedidosNaTela, setPedidosNaTela] = useState<PedidoDeAluno[]>([]);
 
   const { data: doDia = [] } = useCalendarioDaCantina(data, data);
   const cardapio = doDia.find((d) => d.refeicao === refeicao);
@@ -83,7 +87,11 @@ export function PedidosDoDia() {
         <div className="cant-cabeca__acoes">
           <BotoesDeExportar
             dia={{
-              data, refeicao, pedidos,
+              data, refeicao,
+              // O que a TELA mostra, e não a lista inteira: se a cantina
+              // filtrou "com restrição" para conferir três pratos, a folha que
+              // ela imprime é a dos três (docs/40 §12.4).
+              pedidos: pedidosNaTela,
               // A exportação leva as linhas por OPÇÃO, que é o que a planilha
               // do balcão sempre teve. O presencial não entra nelas de
               // propósito (docs/40 §10.1): ele não tem prato para somar, e
@@ -183,37 +191,18 @@ export function PedidosDoDia() {
       )}
 
       {!isLoading && aba === 'lista' && (
-        <ul className="cant-lista">
-          {pedidos.map((pedido) => (
-            <li key={pedido.alunoId} className="cant-lista__linha">
-              <div className="cant-lista__aluno">
-                <b>{pedido.nome ?? '—'}</b>
-                {pedido.turma && <span className="cant-lista__turma">{pedido.turma}</span>}
-                {/* A marca de modo, para o balcão saber se procura um prato ou
-                    espera um código (docs/40 §7). Ela não é semáforo: é
-                    contorno e palavra, como o resto dos estados desta folha. */}
-                {pedido.modo === 'presencial' && (
-                  <span className="cant-tarja">{marcaDoModo(pedido)}</span>
-                )}
-              </div>
-              {/* Sai de `escolhasDaLinha`, e não de um ternário aqui: esta é a
-                  MESMA célula que a folha impressa e a tela da coordenação
-                  mostram. Era a única das três escrita à mão — e a única sem
-                  teste —, então mudar a frase no domínio corrigia duas
-                  superfícies e deixava para trás justamente a que fica aberta
-                  no balcão. */}
-              <div className="cant-lista__escolhas">
-                {escolhasDaLinha(pedido) || '—'}
-              </div>
-              {/* A restrição fica em destaque, e não numa coluna qualquer: é a
-                  informação que muda o que sai do balcão. */}
-              {pedido.restricaoAlimentar && (
-                <div className="cant-lista__restricao">⚠ {pedido.restricaoAlimentar}</div>
-              )}
-            </li>
-          ))}
-          {!pedidos.length && <p className="cant-vazio">Nenhum pedido ainda.</p>}
-        </ul>
+        /* A MESMA lista da coordenação (docs/40 §12.4) — busca, pílulas,
+           ordenação e o diálogo de detalhe. A diferença que sobrevive é a
+           restrição alimentar: aqui ela sai por extenso, porque é ela que muda
+           o que vai no prato, e quem lê esta tela é quem cozinha. */
+        <ListaDeQuemVaiComer
+          pedidos={pedidos}
+          superficie="cantina.pedidos.balcao"
+          comTextoDaRestricao
+          refeicao={refeicao}
+          data={data}
+          onRecorte={setPedidosNaTela}
+        />
       )}
     </div>
   );

@@ -157,6 +157,23 @@ class Query:
                     for outra in tabela.values():
                         if outra.get("chave_idempotencia") == chave and outra.get("estado") != "cancelado":
                             raise RuntimeError(f"unique violation: {chave}")
+                # `pedido_refeicao_um_por_dia`, da 0055: um aluno come uma vez
+                # por refeição por dia, ainda que duas cantinas publiquem o
+                # mesmo dia. A mensagem carrega o NOME do índice porque é por
+                # ele que a rota reconhece a recusa e a traduz em frase
+                # (`_inserir_pedido`, routes/cantina.py) — mudar o texto aqui
+                # sem mudar lá faz o aluno receber 500 em vez de 409.
+                if self.tabela == "pedido_refeicao" and linha.get("data"):
+                    for outra in tabela.values():
+                        if (
+                            outra.get("aluno_id") == linha.get("aluno_id")
+                            and outra.get("data") == linha.get("data")
+                            and outra.get("refeicao") == linha.get("refeicao")
+                        ):
+                            raise RuntimeError(
+                                "duplicate key value violates unique constraint "
+                                '"pedido_refeicao_um_por_dia"'
+                            )
                 tabela[linha["id"]] = linha
                 criados.append(linha)
             return Resp(criados)

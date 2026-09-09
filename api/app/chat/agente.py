@@ -27,6 +27,7 @@ Limites:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -132,14 +133,24 @@ async def _gerar(
     for turno in range(MAX_TURNOS):
         log.info("chat thread=%s turno=%d msgs=%d", thread_id, turno, len(mensagens))
         try:
-            response = client.chat.completions.create(
-                model=modelo,
-                temperature=TEMPERATURA,
-                max_tokens=MAX_TOKENS_RESPOSTA,
-                messages=mensagens,
-                tools=perfil.schemas,
-                tool_choice="auto",
-                stream=False,  # Streaming + tools no MVP é mais simples sem token-streaming.
+            # ⚠️ `to_thread` e não a chamada direta: o cliente da OpenAI é o
+            # SÍNCRONO, e este `async def` roda no ÚNICO event loop do processo
+            # (`UVICORN_WORKERS=1`, invariante do CLAUDE.md). Chamado direto,
+            # ele congela a API inteira enquanto o modelo pensa — e uma volta de
+            # tool calling passa de 60s com folga, tanto que o nginx reserva
+            # 300s para ela. Quem esperava era todo mundo: o balcão da cantina
+            # parava de ler QR porque um coordenador abriu o assistente
+            # (docs/40 §12.1.1).
+            response = await asyncio.to_thread(
+                lambda: client.chat.completions.create(
+                    model=modelo,
+                    temperature=TEMPERATURA,
+                    max_tokens=MAX_TOKENS_RESPOSTA,
+                    messages=mensagens,
+                    tools=perfil.schemas,
+                    tool_choice="auto",
+                    stream=False,  # Streaming + tools no MVP é mais simples sem token-streaming.
+                )
             )
         except Exception as e:
             log.exception("erro na chamada OpenAI")
@@ -186,7 +197,12 @@ async def _gerar(
                     "args": args,
                 })
 
-                resultado = perfil.executar(nome, cliente_db, args)
+                # Pelo mesmo motivo da chamada acima: as tools leem o banco pelo
+                # cliente PostgREST, que é síncrono. Uma tool que varre notas
+                # segurava o loop junto com o modelo.
+                resultado = await asyncio.to_thread(
+                    perfil.executar, nome, cliente_db, args
+                )
                 tool_calls_executadas.append({
                     "id": tc.id, "nome": nome, "args": args, "resultado": resultado,
                 })

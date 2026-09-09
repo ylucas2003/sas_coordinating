@@ -33,13 +33,14 @@ pareciam responder à mesma (docs/40 §10.1).
 
 from __future__ import annotations
 
-import secrets
+import asyncio
 from datetime import UTC, date, datetime, time, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from .. import cantina_relatorio, senha_definida
 from ..auditoria import registrar as auditar
 from ..auth import (
     get_current_administrador,
@@ -59,7 +60,15 @@ from ..cantina_eventos import (
     para_o_aluno,
     publicar_cardapio_mudou,
 )
-from ..cantina_token import RetiradaIlegivel, assinar_retirada, ler_retirada
+from ..cantina_token import (
+    SEGUNDOS_DA_JANELA,
+    RetiradaIlegivel,
+    assinar_retirada,
+    janela_de,
+    ler_qr_rotativo,
+    ler_retirada,
+    semente_da_retirada,
+)
 from ..supabase_client import ClienteDados, get_supabase
 
 REFEICOES = ("almoco", "janta")
@@ -220,26 +229,56 @@ def _cardapio_da_cantina(cliente: ClienteDados, cardapio_id: str, cantina_id: st
     return linha[0]
 
 
-def _montar_cardapio(cliente: ClienteDados, cardapio: dict, agora: datetime) -> dict:
-    """Cardápio + blocos + opções, ordenados, prontos para a tela.
+def _blocos_por_cardapio(
+    cliente: ClienteDados, cardapio_ids: list[str]
+) -> dict[str, list[dict]]:
+    """Blocos e opções de VÁRIOS cardápios, numa ida só.
 
-    A ordenação é feita aqui e não no PostgREST porque o `order` dele não
-    alcança relação aninhada em dois níveis — e as listas são de dezenas de
-    itens, não de milhares.
+    ⚠️ Existe por causa de um N+1 medido, não por elegância: `cantina_do_aluno`
+    chamava `_montar_cardapio` dentro do `for`, e uma semana lançada com almoço
+    e janta são ~10 idas ao PostgREST **em série** — cada uma bloqueando o event
+    loop, porque o cliente é síncrono (docs/40 §12.1.3). E essa rota tem
+    `refetchInterval` de 60 s por aluno com direito.
+
+    A ordenação continua em Python: o `order` do PostgREST não alcança relação
+    aninhada em dois níveis, e as listas são de dezenas de itens.
     """
+    if not cardapio_ids:
+        return {}
     blocos = (
         cliente.table("cardapio_bloco")
         .select("*, cardapio_opcao(*)")
-        .eq("cardapio_id", cardapio["id"])
+        .in_("cardapio_id", cardapio_ids)
         .execute()
         .data
         or []
     )
-    blocos.sort(key=lambda b: b.get("ordem") or 0)
+    por_cardapio: dict[str, list[dict]] = {}
     for bloco in blocos:
         opcoes = bloco.pop("cardapio_opcao", None) or []
         opcoes.sort(key=lambda o: o.get("ordem") or 0)
         bloco["opcoes"] = opcoes
+        por_cardapio.setdefault(bloco["cardapio_id"], []).append(bloco)
+    for lista in por_cardapio.values():
+        lista.sort(key=lambda b: b.get("ordem") or 0)
+    return por_cardapio
+
+
+def _montar_cardapio(
+    cliente: ClienteDados,
+    cardapio: dict,
+    agora: datetime,
+    *,
+    blocos: list[dict] | None = None,
+) -> dict:
+    """Cardápio + blocos + opções, ordenados, prontos para a tela.
+
+    `blocos` já resolvidos evitam a consulta — é como o laço de
+    `cantina_do_aluno` deixou de ser N+1. Quem monta UM cardápio só continua
+    chamando sem o parâmetro, e a consulta acontece aqui.
+    """
+    if blocos is None:
+        blocos = _blocos_por_cardapio(cliente, [cardapio["id"]]).get(cardapio["id"], [])
     aceita_pedido, aceita_presencial = _modos_do_cardapio(cardapio)
     return {
         **cardapio,
@@ -284,6 +323,10 @@ class OpcaoBody(BaseModel):
 
 
 class BlocoBody(BaseModel):
+    #: A regra que o número não expressa — "a escolha da opção 4 anula a 1 e a
+    #: 2" (migration 0053). ⚠️ É ESCRITA, não vigiada: o servidor não recusa a
+    #: combinação que ela proíbe (docs/40 §12.5.4).
+    observacao: str | None = None
     id: str | None = None
     nome: str
     escolhas_minimas: int = Field(default=0, ge=0)
@@ -379,7 +422,9 @@ async def eventos_da_coordenacao() -> StreamingResponse:
 # ─── A cantina: calendário ────────────────────────────────────────────────
 
 
-def _calendario(cliente: ClienteDados, cantina_id: str, de: date, ate: date) -> list[dict]:
+def _calendario(
+    cliente: ClienteDados, cantina_id: str | list[str], de: date, ate: date
+) -> list[dict]:
     """Um objeto por cardápio existente na janela, com estado e quem vai comer.
 
     Dia sem cardápio não vem: quem sabe quais dias existem no mês é o
@@ -394,13 +439,23 @@ def _calendario(cliente: ClienteDados, cantina_id: str, de: date, ate: date) -> 
     batem, e viram chamado de bug.
     """
     agora = _agora()
-    cardapios = (
+    # Uma cantina ou várias na MESMA consulta. A versão que aceitava só uma
+    # levava quem quisesse o total a chamar isto num `for` — e duas idas por
+    # cantina é o N+1 que a §12.1.3 tirou da rota do aluno; reintroduzi-lo aqui
+    # no mesmo trabalho seria trocar de lugar, não consertar.
+    ids = [cantina_id] if isinstance(cantina_id, str) else list(cantina_id)
+    if not ids:
+        return []
+    consulta = (
         cliente.table("cardapio")
         .select(
-            "id, data, refeicao, pedidos_ate, publicado_em, sem_refeicao, "
+            "id, cantina_id, data, refeicao, pedidos_ate, publicado_em, sem_refeicao, "
             "aceita_pedido, aceita_presencial"
         )
-        .eq("cantina_id", cantina_id)
+    )
+    consulta = consulta.eq("cantina_id", ids[0]) if len(ids) == 1 else consulta.in_("cantina_id", ids)
+    cardapios = (
+        consulta
         .gte("data", de.isoformat())
         .lte("data", ate.isoformat())
         .execute()
@@ -432,6 +487,10 @@ def _calendario(cliente: ClienteDados, cantina_id: str, de: date, ate: date) -> 
         saida.append(
             {
                 "id": c["id"],
+                # O id da cantina viaja junto desde que o calendário pode somar
+                # mais de uma: sem ele, dois cardápios de almoço no mesmo dia
+                # são indistinguíveis na resposta.
+                "cantinaId": c.get("cantina_id"),
                 "data": c["data"],
                 "refeicao": c["refeicao"],
                 "estado": _estado(c, agora),
@@ -630,6 +689,10 @@ async def salvar_cardapio(
             "ordem": indice,
             "escolhas_minimas": bloco.escolhas_minimas,
             "escolhas_maximas": max(bloco.escolhas_maximas, bloco.escolhas_minimas),
+            # Vazio vira NULL, e não string vazia: são a mesma coisa para quem
+            # lê, e duas representações do mesmo nada é o tipo de coisa que
+            # depois vira `if obs and obs.strip()` espalhado por três telas.
+            "observacao": (bloco.observacao or '').strip() or None,
         }
         if bloco.id:
             cliente.table("cardapio_bloco").update(campos).eq("id", bloco.id).execute()
@@ -898,7 +961,9 @@ def _contagem_presencial(cliente: ClienteDados, cardapio_id: str) -> dict:
     return {"pendentes": len(linhas) - retirados, "retirados": retirados}
 
 
-def _pedidos_do_cardapio(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
+def _pedidos_do_cardapio(
+    cliente: ClienteDados, cardapio_id: str, *, contagem: list[dict] | None = None
+) -> list[dict]:
     """Linha por aluno: nome, turma, restrição e o que ele marcou.
 
     ⚠️ **É tudo que a cantina vê do aluno** (docs/38 §8.2.2). Nenhuma consulta
@@ -928,9 +993,13 @@ def _pedidos_do_cardapio(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
         .data
         or []
     )
-    nomes = {
-        linha["opcao_id"]: linha["opcao"] for linha in _contagem(cliente, cardapio_id)
-    }
+    # A contagem entra por parâmetro quando quem chama já a tem: em
+    # `cardapio_para_a_coordenacao` ela era calculada DUAS vezes na mesma
+    # requisição — uma para a tela, outra aqui só para descobrir o nome das
+    # opções (docs/40 §12.1.3).
+    if contagem is None:
+        contagem = _contagem(cliente, cardapio_id)
+    nomes = {linha["opcao_id"]: linha["opcao"] for linha in contagem}
     escolhas: dict[str, list[str]] = {}
     for item in itens:
         escolhas.setdefault(item["pedido_id"], []).append(
@@ -1083,6 +1152,54 @@ def _ficha_do_aluno(cliente: ClienteDados, aluno_id: str) -> dict:
     }
 
 
+def _ler_o_que_veio_do_qr(conteudo: str) -> dict[str, str]:
+    """Aceita os DOIS formatos de QR, e a ordem do `if` é a decisão.
+
+    O formato rotativo (`pedido.janela.codigo`, docs/40 §12.9.2) é o novo; o
+    JWT de 120 s é o que as telas já abertas ainda estão mostrando.
+
+    ⚠️ **Os dois convivem por uma janela de transição, não para sempre.** Um
+    aluno com a tela aberta desde antes do deploy continua com o QR antigo, e
+    recusá-lo seria trocar um problema de segurança por uma fila parada. Quando
+    o produto estiver há mais de dois minutos no ar, o ramo do JWT deixa de ser
+    alcançado por qualquer cliente atual — e aí ele sai daqui.
+    """
+    if conteudo.count(".") == 2 and " " not in conteudo.strip():
+        # Um JWT também tem dois pontos. O que os separa é o formato do meio:
+        # aqui a janela é um inteiro, e no JWT é base64 de um JSON.
+        partes = conteudo.strip().split(".")
+        if partes[1].isdigit():
+            pedido_id = ler_qr_rotativo(conteudo)
+            return _pedido_para_confirmar(pedido_id)
+    return ler_retirada(conteudo)
+
+
+def _pedido_para_confirmar(pedido_id: str) -> dict[str, str]:
+    """Os campos que o resto da rota espera, buscados pelo id do pedido.
+
+    O QR rotativo carrega só o `pedido_id` — cardápio e aluno vêm do banco.
+    ⚠️ Uma consulta a mais no caminho mais apressado do produto, e ela é o preço
+    de o QR não carregar mais do que precisa: quanto menos viaja no código,
+    menos um print entrega.
+    """
+    linha = (
+        get_supabase()
+        .table("pedido_refeicao")
+        .select("id, cardapio_id, aluno_id")
+        .eq("id", pedido_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not linha:
+        raise RetiradaIlegivel("pedido inexistente")
+    return {
+        "pedido_id": str(linha[0]["id"]),
+        "cardapio_id": str(linha[0]["cardapio_id"]),
+        "aluno_id": str(linha[0]["aluno_id"]),
+    }
+
+
 def _porque_a_leitura_nao_pegou(cliente: ClienteDados, pedido_id: str) -> str:
     """A frase do 409, depois de o UPDATE condicional não ter achado a linha.
 
@@ -1129,10 +1246,10 @@ async def confirmar_retirada(
     e cobre de graça o caso de o aluno ter virado `pedido` nesse meio-tempo.
     """
     try:
-        codigo = ler_retirada(body.token)
+        codigo = _ler_o_que_veio_do_qr(body.token)
     except RetiradaIlegivel:
-        # `from None`: qual das quatro portas fechou é informação para quem
-        # tenta forjar, não para quem está na fila (ver `cantina_token`).
+        # `from None`: qual das portas fechou é informação para quem tenta
+        # forjar, não para quem está na fila (ver `cantina_token`).
         raise HTTPException(
             status_code=422,
             detail="Código inválido ou vencido. Peça para o aluno atualizar a tela.",
@@ -1252,6 +1369,22 @@ async def cantina_do_aluno(aluno: dict = Depends(get_current_aluno)) -> dict:
         return {"direitos": direitos, "dias": []}
 
     ids = [c["id"] for c in cardapios]
+    # ⚠️ O NOME da cantina viaja com cada dia desde que pode haver duas
+    # (docs/40 §12.12.3). Sem ele, dois almoços da mesma terça chegam à tela do
+    # aluno indistinguíveis — e escolher entre dois cartões idênticos é escolher
+    # no escuro. Uma consulta para todas, não uma por cardápio.
+    cantina_ids = sorted({c["cantina_id"] for c in cardapios})
+    nomes_de_cantina = {
+        linha["id"]: linha["nome"]
+        for linha in (
+            cliente.table("cantina")
+            .select("id, nome")
+            .in_("id", cantina_ids)
+            .execute()
+            .data
+            or []
+        )
+    }
     meus = (
         cliente.table("pedido_refeicao")
         .select("id, cardapio_id, modo, retirado_em, pedido_refeicao_item(opcao_id)")
@@ -1262,6 +1395,11 @@ async def cantina_do_aluno(aluno: dict = Depends(get_current_aluno)) -> dict:
         or []
     )
     linha_por_cardapio = {p["cardapio_id"]: p for p in meus}
+    # ⚠️ FORA do laço, e é o ponto. Aqui dentro, `_montar_cardapio` fazia uma
+    # ida ao PostgREST por cardápio: a semana inteira lançada eram ~10 idas em
+    # série, num loop que já está bloqueado pelo cliente síncrono
+    # (docs/40 §12.1.3).
+    blocos_por_cardapio = _blocos_por_cardapio(cliente, ids)
 
     dias = []
     for c in cardapios:
@@ -1269,7 +1407,9 @@ async def cantina_do_aluno(aluno: dict = Depends(get_current_aluno)) -> dict:
         modo = (minha or {}).get("modo") or (MODO_PEDIDO if minha else None)
         dias.append(
             {
-                **_montar_cardapio(cliente, c, agora),
+                **_montar_cardapio(
+                    cliente, c, agora, blocos=blocos_por_cardapio.get(c["id"], [])
+                ),
                 # ⚠️ `meuPedido` continua sendo O PEDIDO, e por isso é nulo no
                 # modo presencial: uma linha presencial não tem prato, e
                 # devolvê-la como lista vazia faria a tela mostrar "você pediu
@@ -1282,6 +1422,7 @@ async def cantina_do_aluno(aluno: dict = Depends(get_current_aluno)) -> dict:
                 ),
                 "modo": modo,
                 "retiradoEm": (minha or {}).get("retirado_em"),
+                "cantina": nomes_de_cantina.get(c["cantina_id"]),
             }
         )
     dias.sort(key=lambda d: (d["data"], d["refeicao"]))
@@ -1462,14 +1603,12 @@ async def salvar_pedido(
         # e um diff aqui seria código para manter sem ganho nenhum.
         cliente.table("pedido_refeicao_item").delete().eq("pedido_id", pedido_id).execute()
     else:
-        pedido_id = (
-            cliente.table("pedido_refeicao")
-            .insert(
-                {"cardapio_id": cardapio_id, "aluno_id": aluno_id},
-                returning="representation",
-            )
-            .execute()
-        ).data[0]["id"]
+        pedido_id = _inserir_pedido(
+            cliente,
+            cardapio=cardapio,
+            aluno_id=aluno_id,
+            modo=MODO_PEDIDO,
+        )
 
     if body.opcao_ids:
         cliente.table("pedido_refeicao_item").insert(
@@ -1516,6 +1655,74 @@ async def cancelar_pedido(
 # estados por (cardápio, aluno) é ASSIMÉTRICA de propósito: `pedido` compromete
 # a cozinha com um prato específico e por isso é final; `presencial` não
 # compromete nada até o QR ser lido, e por isso é reversível (docs/40 §2).
+
+
+#: O que o Postgres devolve quando o índice de um-por-dia recusa a linha.
+_TRAVA_DO_DIA = "pedido_refeicao_um_por_dia"
+
+
+def _inserir_pedido(
+    cliente: ClienteDados, *, cardapio: dict, aluno_id: str, modo: str
+) -> str:
+    """A ÚNICA porta de entrada de uma linha em `pedido_refeicao`.
+
+    Existe por dois motivos que só juntos justificam a função:
+
+    1. **`data` e `refeicao` têm de ser copiados do cardápio** (migration 0055).
+       São a cópia que sustenta o índice de um-por-dia, porque unicidade não
+       atravessa tabela no Postgres. Dois lugares inserindo — o pedido e a
+       retirada presencial — são dois lugares para alguém esquecer a cópia, e o
+       esquecimento só apareceria como `NOT NULL violation` em produção;
+    2. **a recusa do índice precisa virar frase.** O erro cru do Postgres diz
+       "duplicate key value violates unique constraint", que é verdade e não
+       ajuda ninguém na fila do balcão.
+
+    ⚠️ A trava vale para os DOIS modos e para as DUAS cantinas: pedir na do Ari
+    e declarar presença na Food no mesmo almoço é a mesma linha lógica, e é
+    exatamente o que o índice existe para impedir (docs/40 §12.12.2).
+    """
+    try:
+        return (
+            cliente.table("pedido_refeicao")
+            .insert(
+                {
+                    "cardapio_id": cardapio["id"],
+                    "aluno_id": aluno_id,
+                    "modo": modo,
+                    # Cópia do cardápio, e não do relógio: o dia é o do
+                    # cardápio, não o de quem está pedindo.
+                    "data": cardapio["data"],
+                    "refeicao": cardapio["refeicao"],
+                    # O preço de HOJE, congelado no fato (migration 0054). Lido
+                    # da cantina do cardápio, que com duas cantinas já não é "a"
+                    # cantina.
+                    "valor_cobrado": _valor_da_refeicao(cliente, cardapio),
+                },
+                returning="representation",
+            )
+            .execute()
+        ).data[0]["id"]
+    except Exception as erro:
+        if _TRAVA_DO_DIA not in str(erro):
+            raise
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Você já tem uma refeição marcada para este dia. "
+                "Cancele a outra antes de escolher esta."
+            ),
+        ) from erro
+
+
+def _valor_da_refeicao(cliente: ClienteDados, cardapio: dict) -> float | None:
+    """Quanto vale esta refeição NESTA cantina, agora.
+
+    `None` quando ninguém cadastrou o preço — que é diferente de zero, e a
+    coluna é anulável exatamente por isso (migration 0050).
+    """
+    cantina = _cantina_por_id(cliente, cardapio["cantina_id"])
+    coluna = "valor_almoco" if cardapio["refeicao"] == "almoco" else "valor_janta"
+    return cantina.get(coluna)
 
 
 def _pedido_do_aluno(cliente: ClienteDados, cardapio_id: str, aluno_id: str) -> dict | None:
@@ -1598,14 +1805,12 @@ async def gerar_retirada(
             raise HTTPException(status_code=409, detail="Esta refeição já foi retirada.")
         pedido_id = existente["id"]
     else:
-        pedido_id = (
-            cliente.table("pedido_refeicao")
-            .insert(
-                {"cardapio_id": cardapio_id, "aluno_id": aluno_id, "modo": MODO_PRESENCIAL},
-                returning="representation",
-            )
-            .execute()
-        ).data[0]["id"]
+        pedido_id = _inserir_pedido(
+            cliente,
+            cardapio=cardapio,
+            aluno_id=aluno_id,
+            modo=MODO_PRESENCIAL,
+        )
         # O aviso só sai quando a linha NASCE. A renovação do QR acontece a cada
         # dois minutos enquanto a tela estiver aberta, e publicar nela encheria
         # o barramento de eventos que não mudam contagem nenhuma.
@@ -1617,7 +1822,22 @@ async def gerar_retirada(
     token, expira_em = assinar_retirada(
         pedido_id=str(pedido_id), cardapio_id=cardapio_id, aluno_id=aluno_id
     )
-    return {"token": token, "expiraEm": expira_em.isoformat()}
+    # ⚠️ A SEMENTE viaja na resposta e **nunca no QR** (docs/40 §12.9.2). É ela
+    # que o aparelho usa para derivar um código novo a cada 10 s sem pedir nada
+    # à rede — e é por ela não estar no QR que a rotação vale alguma coisa: um
+    # print carrega o código de UMA janela, que morre em dez segundos.
+    #
+    # `janela` é o número da janela AGORA, no relógio do servidor. O cliente
+    # conta o tempo decorrido a partir dela, e não a hora do mundo: assim um
+    # celular com o relógio adiantado continua gerando o código certo.
+    return {
+        "token": token,
+        "expiraEm": expira_em.isoformat(),
+        "semente": semente_da_retirada(str(pedido_id)),
+        "pedidoId": str(pedido_id),
+        "janela": janela_de(),
+        "segundosDaJanela": SEGUNDOS_DA_JANELA,
+    }
 
 
 @router_aluno.delete("/retiradas/{cardapio_id}")
@@ -1693,9 +1913,28 @@ def _cantina_padrao(cliente: ClienteDados, cantina_id: str | None) -> dict:
 
 
 @router_admin.get("/cantina/calendario")
-async def calendario_da_coordenacao(de: date, ate: date, cantina: str | None = None) -> list[dict]:
+async def calendario_da_coordenacao(
+    de: date, ate: date, cantina: str | None = None, todas: bool = False
+) -> list[dict]:
+    """O mês da coordenação — de UMA cantina, ou de todas somadas.
+
+    `todas=true` existe para o card do hub, que é visão de topo e não pode
+    dizer "5 dias publicados" quando a segunda cantina publicou outros três
+    (docs/40 §12.6). As telas de calendário continuam pedindo UMA: um mês com
+    dois cardápios de almoço na mesma terça, misturados, não é calendário —
+    é lista.
+
+    ⚠️ `cantina` vence `todas` quando os dois vêm. Um recorte explícito na URL
+    é escolha de quem está olhando, e uma flag não pode desfazê-la em silêncio.
+    """
     cliente = get_supabase()
-    return _calendario(cliente, _cantina_padrao(cliente, cantina)["id"], de, ate)
+    if cantina:
+        return _calendario(cliente, _cantina_por_id(cliente, cantina)["id"], de, ate)
+    if not todas:
+        return _calendario(cliente, _cantina_padrao(cliente, None)["id"], de, ate)
+
+    ativas = cliente.table("cantina").select("id").eq("ativo", True).execute().data or []
+    return _calendario(cliente, [linha["id"] for linha in ativas], de, ate)
 
 
 @router_admin.get("/cantina/cardapios/{cardapio_id}")
@@ -1718,9 +1957,10 @@ async def cardapio_para_a_coordenacao(cardapio_id: str) -> dict:
     if not linha:
         raise HTTPException(status_code=404, detail="cardápio não encontrado")
     montado = _montar_cardapio(cliente, linha[0], _agora())
-    montado["contagem"] = _contagem(cliente, cardapio_id)
+    contagem = _contagem(cliente, cardapio_id)
+    montado["contagem"] = contagem
     montado["presencial"] = _contagem_presencial(cliente, cardapio_id)
-    montado["pedidos"] = _pedidos_do_cardapio(cliente, cardapio_id)
+    montado["pedidos"] = _pedidos_do_cardapio(cliente, cardapio_id, contagem=contagem)
     return montado
 
 
@@ -1745,6 +1985,100 @@ class RestricaoBody(BaseModel):
     #: `None` ou vazio apaga o campo. Não existe "sem informação" separado de
     #: "não tem restrição": os dois são a mesma coisa para quem serve o prato.
     restricao: str | None = None
+
+
+@router_admin.get("/cantina/custos")
+async def custos_da_cantina(de: date, ate: date, cantina: str | None = None) -> dict:
+    """Os números do relatório, para a TELA (docs/40 §12.11.4).
+
+    Mesmo agregador do XLSX: dois caminhos para a mesma soma divergem no
+    primeiro caso de borda, e a divergência aparece como "a planilha não bate
+    com a tela".
+    """
+    if ate < de:
+        raise HTTPException(status_code=422, detail="O fim do período vem antes do começo.")
+    return await asyncio.to_thread(
+        cantina_relatorio.agregados, get_supabase(), de=de, ate=ate, cantina_id=cantina
+    )
+
+
+@router_admin.get("/cantina/relatorio.xlsx")
+async def relatorio_de_custos(
+    de: date, ate: date, cantina: str | None = None
+) -> Response:
+    """O relatório de custos, em XLSX com gráfico (docs/40 §12.11.3).
+
+    ⚠️ **A primeira rota de exportação da API**, e a exceção tem motivo: gráfico
+    em XLSX não se faz no navegador. O CSV e o PDF continuam do lado do cliente.
+
+    ⚠️ **`to_thread` desde a primeira linha.** Montar a planilha é trabalho de
+    CPU, síncrono, e o processo tem um event loop só: sem isto, um mês inteiro
+    congelaria a API para todo mundo — o mesmo defeito que a §12.1.1 acabou de
+    consertar no chat, voltando pela porta que esta rota abriu.
+
+    Leitura de qualquer coordenador: ver quanto custou não é o mesmo que
+    decidir quanto custa, e cadastrar o valor continua sendo do administrador
+    (docs/40 §12.11.4).
+    """
+    if ate < de:
+        raise HTTPException(status_code=422, detail="O fim do período vem antes do começo.")
+
+    conteudo = await asyncio.to_thread(
+        cantina_relatorio.montar, get_supabase(), de=de, ate=ate, cantina_id=cantina
+    )
+    nome = f"cantina-{de.isoformat()}-a-{ate.isoformat()}.xlsx"
+    return Response(
+        content=conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        # `filename*` além de `filename`: o nome não tem acento hoje, e a forma
+        # RFC 5987 é o que impede o dia em que tiver de virar mojibake no
+        # Windows.
+        headers={"Content-Disposition": f'attachment; filename="{nome}"; filename*=UTF-8\'\'{nome}'},
+    )
+
+
+@router_admin.get("/cantina/resumo")
+async def resumo_da_cantina() -> dict:
+    """Os três números do card do hub, e **só** eles.
+
+    ⚠️ Existe por causa de uma medição, não de um pedido de tela: para escrever
+    "3 de 2050 alunos · 3 almoço · 3 janta", o hub chamava `GET /alunos` — a
+    leitura mais cara do produto, que monta turmas, sedes, classificações,
+    vestibulares, sparklines, simulados e **todas as notas**. Medido no compose
+    em 09/09: só a consulta de `nota` são **78.107 linhas e 9,31 MB**, e o
+    cliente PostgREST é síncrono, então esse tempo todo é event loop parado
+    (docs/40 §12.1.2).
+
+    `ativos` sai por `count="exact"`, que é um `HEAD` no PostgREST: o número
+    volta no header e nenhuma linha viaja. Os direitos vêm inteiros porque a
+    tabela é limitada por aluno — no máximo dois por pessoa, ~1.800 linhas no
+    teto do colégio —, o mesmo raciocínio de `publico_da_cantina`.
+
+    ⚠️ **Devolve contagem, nunca lista.** O irmão desta rota
+    (`/direito-refeicao`) traz a restrição alimentar de cada aluno junto, e é
+    dado de saúde de menor (docs/38 §2.6) — um card de resumo não pode ser o
+    caminho mais fácil para ele sair da tela onde a revelação é deliberada.
+    """
+    cliente = get_supabase()
+    ativos = (
+        cliente.table("aluno").select("id", count="exact").eq("ativo", True).limit(1).execute()
+    ).count or 0
+
+    linhas = (
+        cliente.table("direito_refeicao_aluno").select("aluno_id, refeicao").execute().data or []
+    )
+    por_refeicao = {refeicao: 0 for refeicao in REFEICOES}
+    for linha in linhas:
+        if linha["refeicao"] in por_refeicao:
+            por_refeicao[linha["refeicao"]] += 1
+
+    return {
+        "ativos": ativos,
+        # Alunos DISTINTOS com algum direito — não a soma das duas refeições,
+        # que contaria duas vezes quem come nas duas.
+        "comDireito": len({linha["aluno_id"] for linha in linhas}),
+        **por_refeicao,
+    }
 
 
 @router_admin.get("/direito-refeicao")
@@ -1925,6 +2259,15 @@ class NovaContaCantinaBody(BaseModel):
     cantina_id: str
     email: str
     nome: str
+    #: A senha escolhida pelo administrador. `None` = sorteie uma, que é o
+    #: comportamento de sempre — nenhum cliente antigo precisa mudar
+    #: (docs/40 §12.7).
+    senha: str | None = None
+
+
+class RedefinirSenhaBody(BaseModel):
+    #: Mesmo contrato do cadastro: `None` sorteia.
+    senha: str | None = None
 
 
 class EditarContaCantinaBody(BaseModel):
@@ -2066,7 +2409,7 @@ async def criar_conta_de_cantina(
     if existente:
         raise HTTPException(status_code=409, detail=f"Já existe conta para {email}.")
 
-    senha = secrets.token_urlsafe(12)
+    senha = senha_definida.resolver(body.senha, email=email)
     linha = (
         cliente.table("usuario_cantina")
         .insert(
@@ -2143,10 +2486,31 @@ async def editar_conta_de_cantina(
 async def redefinir_senha_de_cantina(
     usuario_id: str,
     request: Request,
+    body: RedefinirSenhaBody | None = None,
     administrador: dict = Depends(get_current_administrador),
 ) -> dict:
+    """Troca a senha: por uma sorteada, ou pela que o administrador digitou.
+
+    ⚠️ Continua não existindo "ver a senha" — o hash é de mão única. O que
+    existe é DEFINIR: quem define, sabe, e era isso que "ver" queria resolver
+    (docs/40 §12.7).
+    """
     cliente = get_supabase()
-    senha = secrets.token_urlsafe(12)
+    conta = (
+        cliente.table("usuario_cantina")
+        .select("email")
+        .eq("id", usuario_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not conta:
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+    # A validação lê o e-mail DA CONTA, não o do corpo: é o e-mail com que a
+    # pessoa vai entrar, e é dele que a senha não pode ser derivada.
+    senha = senha_definida.resolver(
+        body.senha if body else None, email=conta[0]["email"]
+    )
     atualizado = (
         cliente.table("usuario_cantina")
         .update({"senha_hash": hash_senha(senha)}, returning="representation")

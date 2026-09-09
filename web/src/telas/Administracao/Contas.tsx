@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { Campo, Dialogo, Linha2 } from '../../componentes/dialogos/Dialogo';
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
+import { useEscolhaDeSenha } from '../../componentes/ui/EscolhaDeSenha';
 import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
 import { Kpi } from '../../componentes/ui/Kpi';
@@ -279,11 +280,11 @@ function LinhaCoordenador({
     await alterarPapel.mutateAsync({ id: u.id, papel: destino });
   }
 
-  async function novaSenha() {
-    if (!window.confirm(`Redefinir a senha de ${u.nome}? A atual deixa de valer na hora.`)) return;
-    const r = await redefinir.mutateAsync(u.id);
-    onSenha(r.senha_nova);
-  }
+  // ⚠️ Era um `window.confirm`, e ele deixou de servir: um confirm responde
+  // sim ou não, e agora há uma TERCEIRA coisa a dizer — qual senha. Com duas
+  // saídas possíveis, confirmar sem escolher decidiria por quem clicou
+  // (docs/40 §12.7).
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
 
   return (
     <tr className={u.ativo ? '' : 'is-inativo'}>
@@ -304,7 +305,18 @@ function LinhaCoordenador({
       {souAdministrador && (
         <td className="acoes-da-linha">
           <button className="btn-editar" onClick={renomear}>Renomear</button>
-          <button className="btn-editar" onClick={novaSenha}>Nova senha</button>
+          <button className="btn-editar" onClick={() => setTrocandoSenha(true)}>Nova senha</button>
+          {trocandoSenha && (
+            <DialogoNovaSenha
+              nome={u.nome}
+              onFechar={() => setTrocandoSenha(false)}
+              onTrocar={async (escolhida) => {
+                const r = await redefinir.mutateAsync({ id: u.id, senha: escolhida });
+                onSenha(r.senha_nova);
+                setTrocandoSenha(false);
+              }}
+            />
+          )}
           {/* As duas ações que mexem em PODER ficam juntas, e nenhuma delas
               vale para a própria conta: o último administrador se rebaixando
               (ou se desativando) deixaria a casa sem quem cria login — nem
@@ -344,16 +356,70 @@ function LinhaAluno({ aluno: a }: { aluno: AcessoAluno }) {
   );
 }
 
+/**
+ * Trocar a senha de uma conta de coordenação.
+ *
+ * ⚠️ O subtítulo diz que a senha atual **não pode ser mostrada**, e isso não é
+ * desculpa: é o que o produto faz. O hash é de mão única, e a tela que
+ * prometesse revelar a senha guardada estaria descrevendo outro sistema
+ * (docs/40 §12.7).
+ */
+function DialogoNovaSenha({
+  nome, onFechar, onTrocar,
+}: {
+  nome: string;
+  onFechar: () => void;
+  onTrocar: (senha: string | null) => Promise<void>;
+}) {
+  const [senha, campoDeSenha] = useEscolhaDeSenha();
+  const [salvando, setSalvando] = useState(false);
+
+  return (
+    <Dialogo
+      titulo={`Nova senha · ${nome}`}
+      subtitulo="A senha atual não pode ser mostrada — ela é guardada como hash. A que você definir aqui passa a valer na hora."
+      onFechar={onFechar}
+      rodape={(
+        <>
+          <button type="button" className="btn btn--fino" onClick={onFechar}>Cancelar</button>
+          <button
+            type="button" className="btn"
+            disabled={!senha.pronta || salvando}
+            onClick={async () => {
+              setSalvando(true);
+              try {
+                await onTrocar(senha.senha);
+              } finally {
+                setSalvando(false);
+              }
+            }}
+          >
+            {salvando ? 'Trocando…' : 'Trocar'}
+          </button>
+        </>
+      )}
+    >
+      {campoDeSenha}
+    </Dialogo>
+  );
+}
+
 function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string } | null) => void }) {
   const criar = useCriarCoordenador();
   const [email, setEmail] = useState('');
   const [nome, setNome] = useState('');
   const [erro, setErro] = useState('');
+  // A MESMA escolha da tela da cantina: é o mesmo hash e a mesma tela de
+  // administração, e deixar só um dos dois com a opção criaria duas regras
+  // para a mesma coisa (docs/40 §12.7).
+  const [senha, campoDeSenha] = useEscolhaDeSenha();
 
   async function salvar() {
     setErro('');
     try {
-      const r = await criar.mutateAsync({ email: email.trim(), nome: nome.trim() });
+      const r = await criar.mutateAsync({
+        email: email.trim(), nome: nome.trim(), senha: senha.senha,
+      });
       onFechar({ email: r.email, senha: r.senha_inicial });
     } catch (e) {
       setErro((e as Error).message || 'Falha ao criar.');
@@ -363,12 +429,16 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
   return (
     <Dialogo
       titulo="Nova conta da coordenação"
-      subtitulo="A senha inicial é sorteada e mostrada uma vez"
+      subtitulo="Gere uma senha ou defina a que você vai passar para a pessoa"
       onFechar={() => onFechar(null)}
       rodape={
         <>
           <button className="btn btn--ghost" onClick={() => onFechar(null)}>Cancelar</button>
-          <button className="btn btn--primary" disabled={criar.isPending || !email || !nome} onClick={salvar}>
+          <button
+            className="btn btn--primary"
+            disabled={criar.isPending || !email || !nome || !senha.pronta}
+            onClick={salvar}
+          >
             {criar.isPending ? 'Criando…' : 'Criar'}
           </button>
         </>
@@ -385,6 +455,7 @@ function NovaConta({ onFechar }: { onFechar: (r: { email: string; senha: string 
           <input className="dialog__input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </Campo>
       </Linha2>
+      {campoDeSenha}
       <p className="agendar__ajuda">
         A conta nasce <b>coordenadora</b> e entra por e-mail e senha. Se ela precisar criar
         logins e alterar nota pelo painel, promova depois pelo botão <b>Promover</b> na linha

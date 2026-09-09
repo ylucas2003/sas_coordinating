@@ -31,8 +31,30 @@ const CHAVE = 'sas_tema';
     escolhido não perder a escolha ao abrir depois desta versão. */
 const CHAVE_ANTIGA = 'sas_tema_aluno';
 
-/** A preferência do aparelho — só decide o PRIMEIRO acesso. */
-function preferidoPeloSistema(): Tema {
+/**
+ * O tema de quem nunca escolheu. **Claro, em todo o produto** (docs/40 §12.10).
+ *
+ * Era `preferidoPeloSistema()`, e o efeito prático disso é que quem decidia o
+ * tema do SAS era a configuração do Chrome de quem abrisse: a coordenação
+ * aparecia escura sem ninguém ter pedido escuro, e duas pessoas na mesma sala
+ * viam produtos diferentes.
+ *
+ * ⚠️ Isto muda a ÁREA DO ALUNO, que foi desenhada com o escuro em mente
+ * (docs/24 §7.2) — é o casco que se usa à noite, no celular. A decisão de 09/09
+ * pesou esse custo: vale mais um produto com UM padrão do que um padrão que
+ * depende do aparelho de quem abre. O remédio, se aparecer reclamação, já está
+ * na tela: o botão existe nos três cascos e a escolha persiste.
+ */
+const TEMA_PADRAO: Tema = 'dia';
+
+/**
+ * A preferência do aparelho. **Não é mais chamada** — ver `TEMA_PADRAO`.
+ *
+ * Continua escrita de propósito: é o que permite voltar atrás em uma linha, e
+ * apagá-la esconderia que a escolha existiu. Se algum dia o padrão voltar a
+ * seguir o sistema, é esta função que volta para dentro de `lido()`.
+ */
+export function preferidoPeloSistema(): Tema {
   return typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches
     ? 'noite'
     : 'dia';
@@ -44,9 +66,11 @@ function lido(): Tema {
     if (v === 'dia' || v === 'noite') return v;
   } catch {
     // Navegação privada e "bloquear dados de site" fazem o acessor LANÇAR, não
-    // devolver null. Cair no sistema é o comportamento certo.
+    // devolver null. Cair no padrão é o comportamento certo — e agora o padrão
+    // é o mesmo para todo mundo, então este caminho deixou de ser uma segunda
+    // resposta possível.
   }
-  return preferidoPeloSistema();
+  return TEMA_PADRAO;
 }
 
 let atual: Tema = lido();

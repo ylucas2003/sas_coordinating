@@ -38,12 +38,11 @@ Três regras que não são detalhe:
 from __future__ import annotations
 
 import base64
-import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
-from .. import storage
+from .. import senha_definida, storage
 from ..auditoria import registrar as auditar
 from ..auth import (
     PAPEIS_DE_COORDENACAO,
@@ -71,6 +70,12 @@ def _ip(request: Request) -> str | None:
 # ─── Contas de coordenação ────────────────────────────────────────────────
 
 
+class RedefinirSenhaBody(BaseModel):
+    """`None` sorteia; texto é validado por `app/senha_definida.py`."""
+
+    senha: str | None = None
+
+
 class CriarCoordenadorBody(BaseModel):
     email: str
     nome: str
@@ -78,6 +83,9 @@ class CriarCoordenadorBody(BaseModel):
     # é uma só (docs/35 §11.2). Quem esquecer o campo cria a conta MENOS
     # poderosa, que é o lado seguro do esquecimento.
     papel: str = "coordenador"
+    #: A senha escolhida pelo administrador. `None` = sorteie uma
+    #: (docs/40 §12.7).
+    senha: str | None = None
 
     @field_validator("papel")
     @classmethod
@@ -177,7 +185,7 @@ async def criar_coordenador(
     # O `canvas_user_id` NÃO é mais procurado nem gravado aqui: ele só servia
     # para habilitar o login pelo Canvas da coordenação, que saiu (docs/35
     # §11.6). A conta nasce entrando por e-mail + senha, e é o único jeito.
-    senha = secrets.token_urlsafe(12)
+    senha = senha_definida.resolver(body.senha, email=email)
     linha = (
         cliente.table("usuario_coordenacao")
         .insert(
@@ -347,11 +355,29 @@ async def alterar_papel_do_coordenador(
 async def redefinir_senha_coordenador(
     usuario_id: str,
     request: Request,
+    body: RedefinirSenhaBody | None = None,
     administrador: dict = Depends(get_current_administrador),
 ) -> dict:
-    """Sorteia uma senha nova. Volta UMA vez; o titular troca no primeiro uso."""
+    """Troca a senha: por uma sorteada, ou pela que o administrador digitou.
+
+    A escolha "gerar / definir" é a mesma da tela da cantina, e a régua também
+    (`app/senha_definida.py`). Deixar só a cantina com a opção criaria duas
+    regras para a mesma coisa, na mesma tela de administração (docs/40 §12.7).
+    """
     cliente = get_supabase()
-    senha = secrets.token_urlsafe(12)
+    conta = (
+        cliente.table("usuario_coordenacao")
+        .select("email")
+        .eq("id", usuario_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not conta:
+        raise HTTPException(status_code=404, detail="conta não encontrada")
+    senha = senha_definida.resolver(
+        body.senha if body else None, email=conta[0]["email"]
+    )
     atualizado = (
         cliente.table("usuario_coordenacao")
         .update({"senha_hash": hash_senha(senha)}, returning="representation")

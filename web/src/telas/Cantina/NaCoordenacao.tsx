@@ -3,17 +3,22 @@ import { Link, useParams } from 'react-router-dom';
 
 import { CabecaDeCampo, CartaoDeCampo } from '../../componentes/ui/Campo';
 import {
-  type ContagemDoDia, contagemPorModo, escolhasDaLinha, fraseDaQuebra, instrucaoDoBloco,
+  type ContagemDoDia, contagemPorModo, fraseDaQuebra, instrucaoDoBloco,
   marcaDoModo, prazoLegivel, presencialDoCardapio, quebraDaContagem, ROTULO_DA_REFEICAO,
   ROTULO_DO_ESTADO, rotuloDaContagem, rotuloDoDia, somarContagens,
 } from '../../dominio/cantina';
-import { useAlunos, useDiaDaCantina } from '../../hooks/consultas';
-import { useCalendarioNaCoordenacao, useCantinas, useCardapioNaCoordenacao } from '../../hooks/cantina';
+import { useDiaDaCantina } from '../../hooks/consultas';
+import {
+  useCalendarioNaCoordenacao, useCantinas, useCardapioNaCoordenacao, useCustosDaCantina,
+  useDireitos, useResumoDaCantina,
+} from '../../hooks/cantina';
 import { useTituloDaTela } from '../../componentes/layout/migalhas';
 import { useEventosDaCantina } from '../../hooks/eventosCantina';
 import { BotoesDeExportar } from './BotoesDeExportar';
+import { ListaDeQuemVaiComer } from './ListaDeQuemVaiComer';
+import { ExportarNoCard } from './ExportarNoCard';
+import { enderecoDoRelatorio } from '../../servicos/api';
 import { SeletorDeCantina, useCantinaSelecionada } from './SeletorDeCantina';
-import type { Aluno } from '../../tipos/dominio';
 import type {
   CantinaAdmin, DiaDoCalendario, EstadoCardapio, PedidoDeAluno, Refeicao,
 } from '../../tipos/cantina';
@@ -55,7 +60,37 @@ import * as sessao from '../../servicos/sessao';
  * ⚠️ Este hub já ficou ÓRFÃO uma vez nesta parte do produto (docs/38, corrigido
  * em f96e961). Quem o segura é o card da Administração, que aponta para cá — e
  * o chevron daqui volta para lá, fechando o caminho nos dois sentidos.
+ *
+ * ⚠️ **Aqui os cards NOMEIAM; nos outros hubs eles ainda perguntam.** O padrão
+ * de campo nasceu com o título em forma de pergunta ("O que foi lançado?"), e
+ * em 09/09 esta tela passou a nomear a coisa ("Cardápios lançados") — decisão
+ * do docs/40 §12.2. Os outros 10 cards do produto (Painel, Administração,
+ * ficha de ciclo) continuam perguntando **de propósito**: era para ver a
+ * cantina primeiro e decidir depois. Se a propagação acontecer, esta nota sai.
+ *
+ * A etiqueta do terceiro card é "Acesso", e não "Administrar cantinas": com o
+ * título nomeando, repetir a mesma frase em cima e embaixo seria dizer duas
+ * vezes a mesma coisa no mesmo cartão.
  */
+/** Baixa um CSV montado no cliente — o mesmo dialeto de `exportar.ts`: `;`,
+    vírgula decimal e BOM UTF-8, que é o que o Excel pt-BR abre sem perguntar. */
+function baixarCsv(nome: string, linhas: unknown[][]): void {
+  const texto = linhas.map((l) => l.map(escaparCsv).join(';')).join('\r\n');
+  const url = URL.createObjectURL(
+    new Blob(['\ufeff', texto], { type: 'text/csv;charset=utf-8' }),
+  );
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function escaparCsv(valor: unknown): string {
+  const texto = valor == null ? '' : String(valor);
+  return /[;"\n\r]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+}
+
 export function HubDaCantina() {
   // O stream da coordenação, nas três telas de cantina e só nelas. No `AppShell`
   // valeria para o Painel e a ficha de aluno também, e um coordenador olhando
@@ -65,6 +100,17 @@ export function HubDaCantina() {
   const mes = useResumoDoMes();
   const direitos = useResumoDosDireitos();
   const acesso = useResumoDoAcesso();
+  const custos = useResumoDosCustos();
+  // Os dados que os cards exportam. Já estão em cache — os resumos os pediram.
+  const { data: direitosParaExportar } = useDireitos();
+  const { data: cantinasParaExportar } = useCantinas();
+  // `janelaDoMesAtual` e não `mes`: `mes` já é o resumo do card de cardápios,
+  // logo acima.
+  const janelaDoMesAtual = useMemo(() => {
+    const agora = new Date();
+    const [de, ate] = janelaDoMes(agora.getFullYear(), agora.getMonth());
+    return { de, ate };
+  }, []);
 
   return (
     <div className="tela">
@@ -73,11 +119,26 @@ export function HubDaCantina() {
         A cantina lança o cardápio; aqui se lê o que ela lançou e se decide quem come.
       </p>
 
-      <div className={`cant-hub${souAdministrador ? ' cant-hub--tres' : ' cant-hub--dois'}`}>
+      {/* ⚠️ Continuam sendo DUAS composições declaradas, agora de três e quatro
+          cards — e não uma grade de quatro com um buraco. O card ausente SOME
+          para quem não é administrador; botão que existe só para dar erro
+          ensina a desconfiar da tela (docs/40 §12.11.4). */}
+      <div className={`cant-hub${souAdministrador ? ' cant-hub--quatro' : ' cant-hub--tres'}`}>
         <CartaoDeCampo
           olho="Cardápios"
-          titulo="O que foi lançado?"
+          titulo="Cardápios lançados"
           para="/cantina/cardapios"
+          // ⚠️ A planilha do servidor traz a GRADE do cardápio numa aba
+          // (docs/40 §12.11.3) — não há um segundo gerador para a mesma coisa.
+          acao={
+            <ExportarNoCard
+              oQue="os cardápios do mês"
+              saidas={[{
+                rotulo: 'Planilha do mês (.xlsx)',
+                href: enderecoDoRelatorio(janelaDoMesAtual.de, janelaDoMesAtual.ate),
+              }]}
+            />
+          }
           carregando={mes.carregando}
           subtitulo={mes.texto}
           vazio="A cantina ainda não lançou nada neste mês."
@@ -92,8 +153,29 @@ export function HubDaCantina() {
 
         <CartaoDeCampo
           olho="Direitos"
-          titulo="Quem come aqui?"
+          titulo="Alunos com direito"
           para="/cantina/direitos"
+          acao={
+            <ExportarNoCard
+              oQue="os alunos com direito"
+              saidas={[{
+                rotulo: 'Planilha (.csv)',
+                // ⚠️ SEM o texto da restrição alimentar, como a tela. Um CSV
+                // que o levasse contornaria pelo caminho mais fácil a decisão
+                // de revelá-lo só em /cantina/direitos (docs/38 §2.6).
+                onEscolher: () => baixarCsv('alunos-com-direito.csv', [
+                  ['aluno', 'matricula', 'turma', 'almoco', 'janta', 'tem_restricao'],
+                  ...(direitosParaExportar?.alunos ?? []).map((a) => [
+                    a.nome, a.matricula ?? '', a.turma ?? '',
+                    a.direitos.includes('almoco') ? 'sim' : '',
+                    a.direitos.includes('janta') ? 'sim' : '',
+                    a.restricaoAlimentar ? 'sim' : '',
+                  ]),
+                ]),
+                indisponivel: direitosParaExportar ? undefined : 'carregando…',
+              }]}
+            />
+          }
           carregando={direitos.carregando}
           subtitulo={direitos.texto}
           vazio="Nenhum aluno com direito a refeição ainda."
@@ -104,9 +186,27 @@ export function HubDaCantina() {
             quem não é administrador. Ver o comentário do componente. */}
         {souAdministrador && (
           <CartaoDeCampo
-            olho="Administrar cantinas"
-            titulo="Quem lança o cardápio?"
+            olho="Acesso"
+            titulo="Administrar cantinas"
             para="/cantina/acesso"
+            acao={
+              <ExportarNoCard
+                oQue="as cantinas e as contas"
+                saidas={[{
+                  rotulo: 'Planilha (.csv)',
+                  onEscolher: () => baixarCsv('cantinas.csv', [
+                    ['cantina', 'ativa', 'contas_ativas', 'prazo', 'valor_almoco', 'valor_janta'],
+                    ...(cantinasParaExportar ?? []).map((c) => [
+                      c.nome, c.ativo ? 'sim' : 'não',
+                      c.contas.filter((k) => k.ativo).length,
+                      regraDePrazo(c),
+                      c.valor_almoco ?? '', c.valor_janta ?? '',
+                    ]),
+                  ]),
+                  indisponivel: cantinasParaExportar ? undefined : 'carregando…',
+                }]}
+              />
+            }
             carregando={acesso.carregando}
             subtitulo={acesso.texto}
             vazio="Nenhuma cantina cadastrada ainda."
@@ -118,6 +218,30 @@ export function HubDaCantina() {
             }
           />
         )}
+
+        <CartaoDeCampo
+          olho="Custos"
+          titulo="Quanto a cantina custou"
+          para="/cantina/custos"
+          acao={
+            <ExportarNoCard
+              oQue="os custos do mês"
+              saidas={[{
+                rotulo: 'Relatório do mês (.xlsx)',
+                href: enderecoDoRelatorio(janelaDoMesAtual.de, janelaDoMesAtual.ate),
+              }]}
+            />
+          }
+          carregando={custos.carregando}
+          subtitulo={custos.texto}
+          vazio="Nenhuma refeição com valor registrada neste mês."
+          glifo={
+            <>
+              <path d="M35 12v46" />
+              <path d="M46 22H29a7 7 0 0 0 0 14h12a7 7 0 0 1 0 14H23" />
+            </>
+          }
+        />
       </div>
 
       {!souAdministrador && (
@@ -137,14 +261,22 @@ function useResumoDoMes() {
     () => janelaDoMes(hoje.getFullYear(), hoje.getMonth()),
     [hoje],
   );
-  const { data: dias, isLoading, isError } = useCalendarioNaCoordenacao(de, ate);
+  // `todas` — o card do hub é visão de topo, e dizer "5 dias publicados"
+  // ignorando o que a segunda cantina lançou é mentir por omissão
+  // (docs/40 §12.6). As TELAS de calendário continuam pedindo uma cantina só.
+  const { data: dias, isLoading, isError } = useCalendarioNaCoordenacao(de, ate, undefined, true);
+  const { data: cantinas } = useCantinas();
 
   const texto = useMemo(() => {
     if (!dias) return null;
     const resumo = resumirOMes(dias);
     if (!resumo) return null;
-    return `${nomeDoMes(hoje.getMonth())} · ${resumo}`;
-  }, [dias, hoje]);
+    // "em 2 cantinas" só aparece quando há mais de uma: com uma só, dizê-lo
+    // seria explicar uma soma que não somou nada.
+    const ativas = (cantinas ?? []).filter((c) => c.ativo).length;
+    const onde = ativas > 1 ? ` · em ${ativas} cantinas` : '';
+    return `${nomeDoMes(hoje.getMonth())} · ${resumo}${onde}`;
+  }, [dias, hoje, cantinas]);
 
   // Falha de consulta NÃO vira "0 dias": um número errado é pior que nenhum.
   return { texto: isError ? null : texto, carregando: isLoading };
@@ -152,17 +284,47 @@ function useResumoDoMes() {
 
 /** "87 de 900 alunos · 62 almoço · 41 janta" */
 function useResumoDosDireitos() {
-  // ⚠️ `useAlunos()`, e **não** `useDireitos()`: o painel de direitos traz a
-  // restrição alimentar de cada aluno junto, e puxá-lo só para ter uma contagem
-  // carregaria dado de saúde de menor numa tela que não pede nenhum
-  // (docs/38 §2.6, e o mesmo aviso está em `hooks/consultas.ts`).
-  const { data: alunos, isLoading, isError } = useAlunos();
+  // ⚠️ Três hooks já ocuparam este lugar, e a história vale mais que a linha:
+  //
+  //   `useDireitos()`  — recusado por trazer a restrição alimentar de cada
+  //                      aluno junto: dado de saúde de menor num card de
+  //                      resumo (docs/38 §2.6);
+  //   `useAlunos()`    — o substituto, e ele era PIOR. Custava 9,31 MB de
+  //                      notas e ~300 ms de event loop BLOQUEADO para escrever
+  //                      uma linha de texto. Medido em 09/09, não estimado;
+  //   `useResumoDaCantina()` — uma contagem no banco, corpo de 0 byte para o
+  //                      total de alunos (docs/40 §12.1.2).
+  //
+  // A régua que sobreviveu às três é a mesma: o card mostra número, então a
+  // rota devolve número.
+  const { data, isLoading, isError } = useResumoDaCantina();
   const texto = useMemo(() => {
-    const conta = contarDireitos(alunos);
-    if (!conta) return null;
-    return `${conta.comDireito} de ${conta.ativos} alunos`
-      + ` · ${conta.almoco} almoço · ${conta.janta} janta`;
-  }, [alunos]);
+    if (!data) return null;
+    return `${data.comDireito} de ${data.ativos} alunos`
+      + ` · ${data.almoco} almoço · ${data.janta} janta`;
+  }, [data]);
+  return { texto: isError ? null : texto, carregando: isLoading };
+}
+
+/** "setembro · R$ 4.320 · 240 refeições" */
+function useResumoDosCustos() {
+  const hoje = useMemo(() => new Date(), []);
+  const [de, ate] = useMemo(
+    () => janelaDoMes(hoje.getFullYear(), hoje.getMonth()),
+    [hoje],
+  );
+  // Sem recorte de cantina: o card do hub é visão de topo e soma todas
+  // (docs/40 §12.6).
+  const { data, isLoading, isError } = useCustosDaCantina(de, ate);
+  const texto = useMemo(() => {
+    if (!data?.refeicoes) return null;
+    const dinheiro = data.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const partes = [nomeDoMes(hoje.getMonth()), dinheiro, `${data.refeicoes} refeições`];
+    // O buraco aparece já no card: quem lê "R$ 4.320" precisa saber que doze
+    // refeições ficaram de fora por não terem preço (docs/40 §12.11.2).
+    if (data.semValor) partes.push(`${data.semValor} sem valor`);
+    return partes.join(' · ');
+  }, [data, hoje]);
   return { texto: isError ? null : texto, carregando: isLoading };
 }
 
@@ -274,7 +436,10 @@ export function DiaNaCoordenacao() {
   const { data = '' } = useParams<{ data: string }>();
   const selecionada = useCantinaSelecionada();
   const { data: dia, isLoading, isError } = useDiaDaCantina(data, selecionada);
-  const { data: alunos } = useAlunos();
+  // A contagem, e não a lista de alunos: esta tela só quer saber quantos podem
+  // pedir cada refeição, e a rota de alunos custava 9,31 MB para responder isso
+  // (docs/40 §12.1.2).
+  const { data: conta } = useResumoDaCantina();
   const { data: cantinas = [] } = useCantinas();
 
   const titulo = useMemo(() => capitalizar(rotuloDoDia(data)), [data]);
@@ -285,7 +450,6 @@ export function DiaNaCoordenacao() {
   const almoco = useCardapioNaCoordenacao(dia?.almoco?.id);
   const janta = useCardapioNaCoordenacao(dia?.janta?.id);
 
-  const conta = contarDireitos(alunos);
   // As duas refeições numa contagem só. Aqui ela serve para NOMEAR a magnitude
   // — com retirada na hora ligada, o total do dia já não é "pedidos" —, e a
   // quebra em dois números fica com os cartões abaixo, que é onde ela tem ao
@@ -545,6 +709,10 @@ export function CardapioNaCoordenacao() {
   const selecionada = useCantinaSelecionada();
   const { data: dia } = useDiaDaCantina(data, selecionada);
   const { data: cantinasParaExportar = [] } = useCantinas();
+  // ⚠️ O export leva o que a TELA mostra, não a lista inteira. Um botão que
+  // exporta 47 linhas embaixo de uma tela filtrada em 44 é um botão que mente,
+  // e a diferença só aparece na cozinha (docs/40 §12.4).
+  const [pedidosNaTela, setPedidosNaTela] = useState<PedidoDeAluno[]>([]);
   const doDia = refeicao === 'almoco' ? dia?.almoco : dia?.janta;
   const { data: cardapio, isLoading } = useCardapioNaCoordenacao(doDia?.id);
 
@@ -589,7 +757,7 @@ export function CardapioNaCoordenacao() {
             dia={{
               data,
               refeicao,
-              pedidos: cardapio.pedidos,
+              pedidos: pedidosNaTela,
               contagem: cardapio.contagem,
               cantina: nomeDaCantina(cantinasParaExportar, cardapio.cantina_id),
               valor: valorDaRefeicao(cantinasParaExportar, cardapio.cantina_id, refeicao),
@@ -663,43 +831,18 @@ export function CardapioNaCoordenacao() {
           )}
         </div>
 
-        <div>
-          {/* A palavra muda com o que o número conta: esta lista passou a
-              incluir quem não pediu nada, e chamá-la de "quem pediu" era
-              afirmar sobre os 47 o que só vale para 44 — a contradição com a
-              linha de intro, três linhas acima (docs/40 §10.1). */}
-          <h2 className="cant-refeicao__olho">
-            {doCardapio.pedidos} {rotuloDaContagem(doCardapio)}
-          </h2>
-          <ul className="cant-lista">
-            {cardapio.pedidos.map((pedido) => (
-              <li key={pedido.alunoId} className="cant-lista__linha">
-                <span className="cant-lista__aluno">
-                  {pedido.nome ?? 'sem nome'}
-                  {pedido.turma && <span className="cant-lista__turma">{pedido.turma}</span>}
-                  {/* Os três estados do docs/40 §8, nas palavras do editor da
-                      cantina: `pedido`, `retirada na hora` e `retirada na hora
-                      · retirado`. Não é dado sensível como a restrição
-                      alimentar — é rótulo de fluxo —, então aparece igual para
-                      os dois papéis. */}
-                  {pedido.modo === 'presencial' && (
-                    <span className="cant-tarja">{marcaDoModo(pedido)}</span>
-                  )}
-                </span>
-                {/* A tarja ao lado do nome já disse o fluxo; aqui vai o que
-                    fazer com a linha. É a mesma frase da folha impressa, que
-                    sem ela mostrava um traço e mandava procurar prato. */}
-                <span className="cant-lista__escolhas">{escolhasDaLinha(pedido)}</span>
-                {/* A marca, não o texto: quem precisa do texto abre em
-                    /cantina/direitos, onde a revelação é deliberada. */}
-                {pedido.restricaoAlimentar && (
-                  <span className="cant-lista__marca">tem restrição alimentar</span>
-                )}
-              </li>
-            ))}
-            {!cardapio.pedidos.length && <li className="cant-vazio">Ninguém pediu ainda.</li>}
-          </ul>
-        </div>
+        {/* A lista virou peça compartilhada com o balcão (docs/40 §12.4): a
+            mesma busca, as mesmas pílulas e o mesmo diálogo de detalhe. O que
+            NÃO é igual é a restrição alimentar — aqui só a marca de que existe,
+            porque revelar o texto é uma escolha, e ela é feita em
+            `/cantina/direitos` (docs/38 §2.6). */}
+        <ListaDeQuemVaiComer
+          pedidos={cardapio.pedidos}
+          superficie="cantina.pedidos.coordenacao"
+          refeicao={refeicao}
+          data={data}
+          onRecorte={setPedidosNaTela}
+        />
       </section>
     </div>
   );
@@ -738,35 +881,6 @@ function resumirOMes(dias: DiaDoCalendario[]): string | null {
   }
   if (quebra) partes.push(fraseDaQuebra(quebra));
   return partes.length ? partes.join(' · ') : null;
-}
-
-interface ContagemDeDireitos {
-  ativos: number;
-  comDireito: number;
-  almoco: number;
-  janta: number;
-}
-
-/**
- * Quantos comem aqui, a partir da lista de alunos.
- *
- * Devolve `null` — e não zeros — quando NENHUM aluno traz o campo `direitos`:
- * `Aluno.direitos` é opcional porque nem toda rota o manda, e "não veio" não é
- * "ninguém tem". Zero no lugar de "não sei" é a mentira mais barata de escrever
- * e a mais cara de descobrir.
- */
-function contarDireitos(alunos: Aluno[] | undefined): ContagemDeDireitos | null {
-  if (!alunos) return null;
-  if (!alunos.some((a) => a.direitos != null)) return null;
-  const ativos = alunos.filter((a) => a.ativo);
-  const com = (refeicao: Refeicao) =>
-    ativos.filter((a) => a.direitos?.includes(refeicao)).length;
-  return {
-    ativos: ativos.length,
-    comDireito: ativos.filter((a) => a.direitos?.length).length,
-    almoco: com('almoco'),
-    janta: com('janta'),
-  };
 }
 
 /** "1 dia antes, às 10h" — a regra da casa, não o prazo de um dia. */

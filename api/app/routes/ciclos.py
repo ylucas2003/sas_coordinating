@@ -1,5 +1,6 @@
 """Endpoints de ciclos."""
 
+import asyncio
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -560,7 +561,18 @@ async def estatisticas_do_ciclo(
 
     payload["criterio"] = _descrever_criterio(regua)
     if com_insights:
-        _anexar_insights(cliente, payload)
+        # ⚠️ `to_thread` porque `_anexar_insights` faz até QUATRO chamadas
+        # síncronas de LLM em série (conjunta prática, conjunta técnica, e o par
+        # de cada matéria), e este handler é `async def` no event loop único do
+        # processo. Chamado direto, um `?insights=true` congelava a API inteira
+        # por dezenas de segundos — o balcão da cantina esperando a ficha de
+        # ciclo de outra pessoa (docs/40 §12.1.1).
+        #
+        # O irmão desta rota, `GET /me/insight`, já resolvia isto de outro
+        # jeito: o handler de lá é `def`, e o FastAPI o roda no threadpool
+        # sozinho. Aqui não dava para fazer o mesmo — o resto do handler é
+        # `async` e tem `await` — então a fronteira é explícita.
+        await asyncio.to_thread(_anexar_insights, cliente, payload)
     return payload
 
 

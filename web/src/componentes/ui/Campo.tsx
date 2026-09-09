@@ -114,12 +114,21 @@ interface PropsCartao {
    * a dele.
    */
   compacto?: boolean;
+  /**
+   * Uma ação que NÃO navega, no canto do card — hoje, exportar (docs/40 §12.3).
+   *
+   * ⚠️ Ela é renderizada como IRMÃ do `<Link>`, e não dentro dele: um botão
+   * dentro de uma âncora é HTML inválido e armadilha de teclado. Quem passa
+   * `acao` recebe um invólucro em volta do card; sem ela, o card continua
+   * sendo o `<Link>` cru de sempre.
+   */
+  acao?: ReactNode;
 }
 
 export function CartaoDeCampo({
   olho, titulo, para, glifo, carregando = false, subtitulo = null, vazio,
   magnitude, magnitudeLegenda, aviso = null, marca = null, inerte = false,
-  compacto = false,
+  compacto = false, acao = null,
 }: PropsCartao) {
   const semDestino = inerte || !para;
   const classe = [
@@ -190,7 +199,21 @@ export function CartaoDeCampo({
   // barata de escrever e a mais cara de descobrir.
   if (semDestino) return <div className={classe}>{conteudo}</div>;
 
-  return <Link className={classe} to={para!}>{conteudo}</Link>;
+  const cartao = <Link className={classe} to={para!}>{conteudo}</Link>;
+  if (!acao) return cartao;
+
+  // ⚠️ **A ação é IRMÃ do link, nunca filha.** Um `<button>` dentro de uma
+  // âncora é HTML inválido e armadilha de teclado: o navegador aninha os dois
+  // alvos, o Enter dispara o link, e quem usa leitor de tela ouve um controle
+  // dentro do outro. O invólucro `position: relative` deixa os dois lado a
+  // lado no DOM e sobrepostos na tela — dois alvos honestos, dois pontos de
+  // tabulação (docs/40 §12.3).
+  return (
+    <div className="campo-cartao-wrap">
+      {cartao}
+      <div className="campo-cartao__acao">{acao}</div>
+    </div>
+  );
 }
 
 interface PropsCabeca {
