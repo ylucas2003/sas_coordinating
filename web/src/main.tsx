@@ -4,6 +4,21 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { App } from './App';
+// ⚠️ **Import por EFEITO, e ele é obrigatório aqui.** `servicos/tema.ts` estampa
+// `data-tema` no `<html>` no escopo do módulo, antes do primeiro render — é o
+// que evita o piscão de tema.
+//
+// Ele não era importado daqui porque a topbar da coordenação o puxava, e a
+// topbar vinha no bundle de entrada. **A divisão do bundle (docs/40 §12.1.4)
+// quebrou isso em silêncio:** com os cascos em `lazy()`, ninguém carrega o
+// módulo na tela de login, `data-tema` fica ausente, e o CSS cai no
+// `@media (prefers-color-scheme: dark)` — a porta voltava a nascer escura num
+// aparelho escuro, exatamente o que a §12.10 tinha acabado de corrigir.
+//
+// Achado no browser, não no build: nenhum portão pega isto. Se algum dia o
+// tema parecer "ignorar a escolha" numa tela nova, esta linha é o primeiro
+// lugar a olhar.
+import './servicos/tema';
 
 // CSS global, na mesma ordem em que o `index.html` os carregava. Os arquivos
 // por tela vão virando CSS Modules conforme cada tela migra; o que fica aqui
@@ -22,11 +37,19 @@ import '../styles/paleta.css';
 import '../styles/papeis.css';
 import '../styles/forma.css';
 import '../styles/base.css';
-// KaTeX vem antes do nosso `markdown.css`, que ajusta corpo e margem do que ele
-// desenha. As fontes vêm no próprio pacote npm e o Vite as emite como asset do
-// nosso domínio — nenhuma requisição sai para CDN (CLAUDE.md, armadilha 6).
-import 'katex/dist/katex.min.css';
-import '../styles/markdown.css';
+// ⚠️ `katex.min.css` e `markdown.css` SAÍRAM daqui, e foram JUNTOS para
+// `componentes/ui/Markdown.tsx` — na mesma ordem, que é obrigatória (o nosso
+// ajusta corpo e margem do que o KaTeX desenha).
+//
+// O motivo é a divisão do bundle (docs/40 §12.1.4): enquanto o CSS do KaTeX era
+// importado daqui, o Vite o tratava como dependência da ENTRADA e punha um
+// `modulepreload` do KaTeX no `index.html` — 75 KB comprimidos baixados em toda
+// rota, inclusive no login da cantina, que nunca desenha uma fórmula.
+//
+// Foram os dois porque separá-los quebraria a ordem: o nosso ficaria aqui, o
+// deles chegaria depois no pedaço, e o ajuste de margem perderia para o
+// original sem erro nenhum. As classes `.md*` só existem em `Markdown.tsx`,
+// então a folha inteira pertence a ele.
 import '../styles/casco.css';
 import '../styles/layout.css';
 import '../styles/simulados.css';

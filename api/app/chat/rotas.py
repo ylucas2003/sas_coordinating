@@ -18,6 +18,7 @@ o aluno recebe um perfil de tools restrito aos próprios dados.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -541,7 +542,12 @@ async def _stream_mensagem(
     titulo_novo = None
     eh_primeira_resposta = _historico_tem_apenas_user(historico) or len(historico) == 0
     if eh_primeira_resposta and texto_final:
-        titulo_novo = agente.gerar_titulo(texto_user, texto_final)
+        # `to_thread` porque `gerar_titulo` faz uma chamada SÍNCRONA à OpenAI, e
+        # este gerador roda no event loop único do processo. Sem isto, a
+        # primeira resposta de toda thread nova congela a API por alguns
+        # segundos — depois de o usuário já ter lido a resposta, o que torna a
+        # causa invisível (docs/40 §12.1.1).
+        titulo_novo = await asyncio.to_thread(agente.gerar_titulo, texto_user, texto_final)
 
     update_patch: dict = {"ultima_msg_em": datetime.now(UTC).isoformat()}
     # Atualiza também pro caso de erro mais cedo, mas aqui sempre marca.

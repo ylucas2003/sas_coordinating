@@ -45,6 +45,18 @@ export interface BlocoCardapio {
   escolhas_minimas: number;
   escolhas_maximas: number;
   opcoes: OpcaoCardapio[];
+  /**
+   * A regra do bloco que o número não expressa (migration 0053).
+   *
+   * "Máximo 2 opções" já é `escolhas_maximas`; o que sobra é "a escolha da
+   * opção 4 anula a 1 e a 2" — a coluna "Obs!" da tabela que a cozinha usa no
+   * papel.
+   *
+   * ⚠️ **É escrita, não vigiada** (docs/40 §12.5.4): o servidor não recusa a
+   * combinação que ela proíbe, e o aluno pode marcá-la. A tela mostra o texto
+   * para quem escolhe; garantir é outra feature.
+   */
+  observacao: string | null;
 }
 
 export interface Cardapio {
@@ -163,6 +175,19 @@ export interface PedidoDeAluno {
 export interface TokenDeRetirada {
   token: string;
   expiraEm: string;
+  /**
+   * A SEMENTE do código rotativo, e ela **nunca entra no QR** (docs/40 §12.9.2).
+   *
+   * Com ela o aparelho deriva um código novo a cada 10 s, sem rede. Se ela
+   * viajasse no QR, um print carregaria o material para derivar as janelas
+   * seguintes — e a rotação seria decoração.
+   */
+  semente: string;
+  pedidoId: string;
+  /** A janela no relógio DO SERVIDOR quando a resposta saiu. O cliente conta o
+      tempo decorrido a partir dela, e não a hora do aparelho. */
+  janela: number;
+  segundosDaJanela: number;
 }
 
 /**
@@ -207,6 +232,17 @@ export interface DiaDoAluno extends Cardapio {
   modo: ModoDeRefeicao | null;
   /** Preenchido = já comi. Final: não há desfazer (docs/40 §2). */
   retiradoEm: string | null;
+  /**
+   * De QUEM é este cardápio.
+   *
+   * ⚠️ Passou a importar quando "Food" — que a planilha da coordenação
+   * registrava como um local de consumo — revelou-se o nome de uma segunda
+   * CANTINA (docs/40 §12.12). Com duas publicando o mesmo almoço, dois cartões
+   * do mesmo dia chegam a esta tela, e sem o nome eles são indistinguíveis.
+   *
+   * `null` só em base antiga: o servidor sempre manda.
+   */
+  cantina: string | null;
 }
 
 // ─── Administração ───────────────────────────────────────────────────────
@@ -266,4 +302,45 @@ export interface PainelDeDireitos {
   total: number;
   comDireito: number;
   alunos: AlunoComDireito[];
+}
+
+/**
+ * O resumo do card do hub — contagem, e nada de lista.
+ *
+ * A ausência de `alunos` aqui é o ponto: este é o contrato que permite ao card
+ * saber "3 de 2050" sem que nome, turma ou restrição alimentar de ninguém
+ * cheguem à tela (docs/40 §12.1.2).
+ */
+export interface ResumoDaCantina {
+  ativos: number;
+  /** Alunos DISTINTOS com algum direito — não a soma de almoço e janta. */
+  comDireito: number;
+  almoco: number;
+  janta: number;
+}
+
+/** Uma linha de qualquer recorte do relatório de custos (docs/40 §12.11). */
+export interface LinhaDeCusto {
+  rotulo: string;
+  refeicoes: number;
+  total: number;
+}
+
+export interface CustosDaCantina {
+  de: string;
+  ate: string;
+  refeicoes: number;
+  total: number;
+  /**
+   * Quantos pedidos ficaram SEM preço carimbado.
+   *
+   * ⚠️ A tela precisa DIZER este número. Um relatório que soma zero em silêncio
+   * faz a coordenação fechar a conta errada e nunca saber; "12 sem valor
+   * registrado" transforma o buraco em pergunta (docs/40 §12.11.2).
+   */
+  semValor: number;
+  porDia: LinhaDeCusto[];
+  porTurma: LinhaDeCusto[];
+  porAluno: LinhaDeCusto[];
+  porCantina: LinhaDeCusto[];
 }

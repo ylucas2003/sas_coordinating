@@ -124,7 +124,18 @@ export function DiaDaCantina({ dia }: { dia: DiaDoAluno }) {
   return (
     <Bloco
       fonte="cantina"
-      olho={`${ROTULO_DA_REFEICAO[dia.refeicao]} · ${rotuloDoDia(dia.data)}`}
+      // ⚠️ O nome da cantina entra no olho quando ELE EXISTE, e só aí.
+      //
+      // Com uma cantina, dizê-lo em todo cartão seria repetir a única resposta
+      // possível. Com duas — e "Food" é uma segunda cantina (docs/40 §12.12) —,
+      // dois cartões do mesmo almoço chegam a esta tela, e sem o nome o aluno
+      // escolhe entre dois cartões idênticos. Quem decide é o servidor, que só
+      // manda o campo preenchido.
+      olho={[
+        ROTULO_DA_REFEICAO[dia.refeicao],
+        rotuloDoDia(dia.data),
+        dia.cantina,
+      ].filter(Boolean).join(' · ')}
       acao={
         // O prazo é do PEDIDO. Numa retirada presencial ele não governa nada
         // (docs/40 §3), e repeti-lo ali diria a coisa errada com destaque.

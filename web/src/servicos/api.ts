@@ -6,7 +6,7 @@
 
 import { del, get, patch, post, put, qs, streamSSE } from './http';
 import type { ContextoDaTela } from '../dominio/contextoDaTela';
-import type { EventoSSE } from './http';
+import type { EventoSSE, OpcoesDeRequisicao } from './http';
 import type {
   Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria,
   PainelAcessos, PainelGravacoes, PapelCoordenacao, PendenciasCanvas, ResultadoLoteCanvas, Sede,
@@ -15,7 +15,7 @@ import type {
 import type {
   CantinaAdmin, CantinaDoAluno, Cardapio, ContaDeCantina, ContagemDeOpcao, ContagemDoCardapio,
   ContagemPresencial, DiaDoCalendario, MinhaCantina, PainelDeDireitos, PedidoDeAluno, Refeicao,
-  RetiradaConfirmada, TokenDeRetirada,
+  CustosDaCantina, ResumoDaCantina, RetiradaConfirmada, TokenDeRetirada,
 } from '../tipos/cantina';
 import { normalizarContagem } from '../dominio/cantina';
 
@@ -333,7 +333,7 @@ export const listarAuditoria = (filtro: FiltroAuditoria) =>
 // ─── Administração ───────────────────────────────────────────────────────
 
 export const listarCoordenadores = () => get<UsuarioCoordenacao[]>('/administracao/coordenadores');
-export const criarCoordenador = (corpo: { email: string; nome: string; canvas_user_id?: string }) =>
+export const criarCoordenador = (corpo: { email: string; nome: string; canvas_user_id?: string; senha?: string | null }) =>
   post<UsuarioCoordenacao & { senha_inicial: string }>('/administracao/coordenadores', corpo);
 export const editarCoordenador = (id: string, corpo: { nome?: string; ativo?: boolean; canvas_user_id?: string }) =>
   patch<UsuarioCoordenacao>(`/administracao/coordenadores/${enc(id)}`, corpo);
@@ -351,8 +351,11 @@ export const alterarPapelDoCoordenador = (id: string, papel: PapelCoordenacao) =
   patch<Pick<UsuarioCoordenacao, 'id' | 'email' | 'nome' | 'ativo' | 'papel'>>(
     `/administracao/coordenadores/${enc(id)}/papel`, { papel },
   );
-export const redefinirSenhaCoordenador = (id: string) =>
-  post<{ id: string; senha_nova: string }>(`/administracao/coordenadores/${enc(id)}/redefinir-senha`, {});
+/** `senha` nula = o servidor sorteia, como sempre fez (docs/40 §12.7). */
+export const redefinirSenhaCoordenador = (id: string, senha: string | null = null) =>
+  post<{ id: string; senha_nova: string }>(
+    `/administracao/coordenadores/${enc(id)}/redefinir-senha`, { senha },
+  );
 export const acessosDeAlunos = () => get<PainelAcessos>('/administracao/alunos-acesso');
 export const fotoDeCoordenador = (id: string) =>
   get<RespostaFoto>(`/administracao/coordenadores/${enc(id)}/foto`);
@@ -417,6 +420,8 @@ export interface CorpoCardapio {
     nome: string;
     escolhas_minimas: number;
     escolhas_maximas: number;
+    /** Vazio e ausente são a mesma coisa: o servidor grava NULL nos dois. */
+    observacao?: string | null;
     opcoes: Array<{ id?: string; nome: string; disponivel: boolean }>;
   }>;
 }
@@ -437,9 +442,13 @@ export const cancelarPedido = (cardapioId: string) =>
  * caminho normal, não um erro: é assim que o token de 2 minutos se renova
  * enquanto o QR está na tela. Ela não olha `pedidos_ate`: presencial é
  * justamente o caminho de quem não se planejou.
+ *
+ * ⚠️ É a única rota do arquivo que recebe `opcoes`, e o motivo é o prazo: quem
+ * chama pede segundos em vez dos 300 s do gateway, porque um código que demora é
+ * um código que já não serve (`hooks/cantina.ts::useTokenDeRetirada`).
  */
-export const iniciarRetirada = (cardapioId: string) =>
-  post<TokenDeRetirada>(`/me/cantina/retiradas/${enc(cardapioId)}`, {});
+export const iniciarRetirada = (cardapioId: string, opcoes?: OpcoesDeRequisicao) =>
+  post<TokenDeRetirada>(`/me/cantina/retiradas/${enc(cardapioId)}`, {}, opcoes);
 /** Desistir — só enquanto ninguém leu o QR. Depois de `retirado_em`, o
     servidor recusa: o aluno já comeu, e não há desfazer. */
 export const desistirDaRetirada = (cardapioId: string) =>
@@ -455,11 +464,21 @@ export const confirmarRetirada = (token: string) =>
 // A coordenação — leitura do cardápio, e a administração do direito e das
 // contas. As de escrita são todas do administrador; o 403 vem do servidor, e a
 // tela esconde o botão antes disso.
-/** `cantina` vazio = a primeira ativa, que hoje é a única. O parâmetro existe
-    para o dia em que houver duas, e para a tela não precisar mudar quando
-    houver (docs/38 §8.1.1). */
-export const calendarioNaCoordenacao = (de: string, ate: string, cantina?: string) =>
-  get<DiaDoCalendario[]>(`/administracao/cantina/calendario${qs({ de, ate, ...(cantina ? { cantina } : {}) })}`);
+/**
+ * `cantina` recorta; `todas` soma.
+ *
+ * Sem nenhum dos dois, o servidor cai na primeira ativa — comportamento antigo,
+ * mantido para não quebrar link salvo. As TELAS de calendário passam `cantina`
+ * (um mês com dois cardápios de almoço na mesma terça, misturados, não é
+ * calendário); o CARD DO HUB passa `todas`, porque visão de topo que ignora a
+ * segunda cantina mente por omissão (docs/40 §12.6).
+ */
+export const calendarioNaCoordenacao = (
+  de: string, ate: string, cantina?: string, todas = false,
+) =>
+  get<DiaDoCalendario[]>(`/administracao/cantina/calendario${qs({
+    de, ate, ...(cantina ? { cantina } : {}), ...(todas ? { todas: 'true' } : {}),
+  })}`);
 /**
  * ⚠️ `presencial` é OPCIONAL de propósito, e a rota o manda desde a leva da
  * retirada na hora (docs/40 §10.1). Quem lê a tela contra um servidor anterior
@@ -473,6 +492,33 @@ export const cardapioNaCoordenacao = (id: string) =>
     presencial?: ContagemPresencial | null;
     pedidos: PedidoDeAluno[];
   }>(`/administracao/cantina/cardapios/${enc(id)}`);
+/**
+ * Os três números do card do hub — contagem pura, sem lista.
+ *
+ * ⚠️ Não use `listarDireitos` para isto. Além de trazer a restrição alimentar
+ * de cada aluno (dado de saúde de menor, docs/38 §2.6), a versão anterior deste
+ * card chamava `listarAlunos`, que puxa 9,31 MB de notas para escrever uma
+ * linha de texto (docs/40 §12.1.2).
+ */
+/** Os números do relatório de custos, para a tela. O XLSX sai da rota irmã. */
+export const custosDaCantina = (de: string, ate: string, cantina?: string) =>
+  get<CustosDaCantina>(`/administracao/cantina/custos${qs({
+    de, ate, ...(cantina ? { cantina } : {}),
+  })}`);
+
+/**
+ * O endereço do XLSX. **Não é `get`**: o arquivo é baixado pelo navegador, e
+ * passá-lo por `fetch` só para recolocá-lo num blob gastaria memória e perderia
+ * o nome que o servidor manda no `Content-Disposition`.
+ */
+export const enderecoDoRelatorio = (de: string, ate: string, cantina?: string) =>
+  `/api/administracao/cantina/relatorio.xlsx${qs({
+    de, ate, ...(cantina ? { cantina } : {}),
+  })}`;
+
+export const resumoDaCantina = () =>
+  get<ResumoDaCantina>('/administracao/cantina/resumo');
+
 export const listarDireitos = () => get<PainelDeDireitos>('/administracao/direito-refeicao');
 /** Um aluno ou oitenta, pela mesma rota — a concessão em lote existe porque só
     o administrador concede (docs/38 §3.4). */
@@ -508,12 +554,17 @@ export const editarCantina = (
     aceita_presencial_almoco?: boolean; aceita_presencial_janta?: boolean;
   },
 ) => patch<CantinaAdmin>(`/administracao/cantinas/${enc(id)}`, corpo);
-export const criarContaDeCantina = (corpo: { cantina_id: string; email: string; nome: string }) =>
+export const criarContaDeCantina = (
+  corpo: { cantina_id: string; email: string; nome: string; senha?: string | null },
+) =>
   post<ContaDeCantina & { senha_inicial: string }>('/administracao/usuarios-cantina', corpo);
 export const editarContaDeCantina = (id: string, corpo: { nome?: string; ativo?: boolean }) =>
   patch<ContaDeCantina>(`/administracao/usuarios-cantina/${enc(id)}`, corpo);
-export const redefinirSenhaDeCantina = (id: string) =>
-  post<{ id: string; senha_nova: string }>(`/administracao/usuarios-cantina/${enc(id)}/redefinir-senha`, {});
+/** `senha` nula = o servidor sorteia, como sempre fez (docs/40 §12.7). */
+export const redefinirSenhaDeCantina = (id: string, senha: string | null = null) =>
+  post<{ id: string; senha_nova: string }>(
+    `/administracao/usuarios-cantina/${enc(id)}/redefinir-senha`, { senha },
+  );
 
 // ─── Integrações · gravações de aula ─────────────────────────────────────
 

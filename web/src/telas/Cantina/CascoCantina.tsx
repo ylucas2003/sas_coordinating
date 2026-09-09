@@ -1,11 +1,22 @@
+import { lazy, Suspense } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 
 import { useEventosDaCantina } from '../../hooks/eventosCantina';
+import { Esqueleto } from '../../componentes/ui/Esqueleto';
 import * as sessao from '../../servicos/sessao';
-import { AoVivo } from './AoVivo';
 import { Calendario } from './Calendario';
 import { CardapioDoDia } from './CardapioDoDia';
 import { PedidosDoDia } from './PedidosDoDia';
+import { PedidosPorData } from './PedidosPorData';
+
+/**
+ * A leitura de QR num pedaço próprio, porque ela arrasta o `jsqr` junto.
+ *
+ * A cantina passa a manhã em "Cardápios" e só liga a câmera na hora de servir.
+ * Carregar o decodificador junto do calendário é pagar por ele todo dia de
+ * manhã, quando ele só é usado ao meio-dia (docs/40 §12.1.4).
+ */
+const AoVivo = lazy(() => import('./AoVivo').then((m) => ({ default: m.AoVivo })));
 
 // O casco da cantina — o TERCEIRO do produto, e deliberadamente o mais pobre.
 //
@@ -20,19 +31,37 @@ import { PedidosDoDia } from './PedidosDoDia';
 // cantina (docs/38 §1). Se um dia alguém montar este casco por engano para
 // outro tipo de conta, ele não terá o que mostrar — em vez de mostrar demais.
 
-// Duas portas, e são os dois trabalhos da cantina: LANÇAR o cardápio (de
+// ⚠️ TRÊS destinos são o teto desta barra. Em 390px, três rótulos com alvo de
+// 44px cabem; o quarto obrigaria a virar só-ícone, e ícone sem rótulo em casco
+// que se usa uma vez por dia é adivinhação. Se houver um quarto, a barra muda
+// de desenho — não se aperta (docs/40 §12.8.2).
+//
+// Os trabalhos da cantina: LANÇAR o cardápio (de
 // manhã, sentada) e SERVIR (ao meio-dia, de pé, com a câmera ligada). "Pedidos
 // ao vivo" é destino de topo e não uma aba dentro do dia porque fica aberto o
 // serviço inteiro — enterrá-lo em `/cardapios/:data/:refeicao` obrigaria a
 // reencontrá-lo a cada recarregamento, com a fila esperando (docs/40 §7).
 const DESTINOS = [
   { para: '/cardapios', rotulo: 'Cardápios' },
-  // ⚠️ "Ler código", e não "Pedidos ao vivo": aqui ninguém pediu nada — o
+  // A terceira porta (docs/40 §12.8.2): a lista de quem vai comer, pela DATA
+  // em vez de pelo calendário. As duas portas para a mesma lista são de
+  // propósito — quem monta a semana chega pelo calendário, quem serve hoje
+  // chega por aqui.
+  { para: '/pedidos', rotulo: 'Visualizar pedidos' },
+  // ⚠️ "Validar ENTREGA", e o substantivo custou uma conversa (docs/40 §12.8.1).
+  //
+  // "Ler" descreve o gesto; "validar" descreve o que acontece, e é o verbo de
+  // quem está servindo. O substantivo é que exigiu cuidado: "pedido" seria
+  // falso exatamente sobre as pessoas a quem o QR serve — quem chegou SEM ter
+  // pedido. "Entrega" é verdade para os dois públicos.
+  //
+  // O comentário abaixo é o original, e continua explicando por que não é
+  // "Pedidos ao vivo": aqui ninguém pediu nada — o
   // contador da própria tela conta RETIRADAS. E este é o destino mais visível
   // do casco, então o nome antigo levava quem queria conferir a lista de
   // pedidos a abrir a câmera, com pedido de permissão e tudo. O verbo diz o que
   // acontece ao clicar, que era justamente a surpresa.
-  { para: '/ao-vivo', rotulo: 'Ler código' },
+  { para: '/ao-vivo', rotulo: 'Validar entrega' },
 ];
 
 function sair() {
@@ -89,7 +118,17 @@ export function CascoCantina() {
               para onde apontar. */}
           <Route path="/cardapios/:data/:refeicao" element={<CardapioDoDia />} />
           <Route path="/cardapios/:data/:refeicao/pedidos" element={<PedidosDoDia />} />
-          <Route path="/ao-vivo" element={<AoVivo />} />
+          {/* A MESMA tela, por outra porta. Sem `:data/:refeicao` na URL: aqui
+              a escolha é por campo, com hoje já preenchido, e a lista aparece
+              sem clique (docs/40 §12.8.2). */}
+          <Route path="/pedidos" element={<PedidosPorData />} />
+          {/* `Suspense` local: o casco com a barra de destinos continua de pé
+              enquanto o decodificador chega. No balcão, a tela sumir inteira
+              por meio segundo pareceria queda. */}
+          <Route
+            path="/ao-vivo"
+            element={<Suspense fallback={<Esqueleto />}><AoVivo /></Suspense>}
+          />
           <Route path="*" element={<Navigate to="/cardapios" replace />} />
         </Routes>
       </main>

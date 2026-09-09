@@ -1,16 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import type { BlocoCardapio, Cardapio, DiaDoAluno, RetiradaConfirmada } from '../tipos/cantina';
+import type {
+  BlocoCardapio, Cardapio, ContagemDeOpcao, DiaDoAluno, PedidoDeAluno, RetiradaConfirmada,
+} from '../tipos/cantina';
 import {
-  cardDaCantina, contagemPorModo, dataLocal, deInputLocal, escolhasDaLinha, FOLGA_DE_RENOVACAO_MS,
-  fraseDaQuebra, gradeDoMes, horaLegivel, instrucaoDoBloco, isoDoDia, lerRespostaDoQr, marcaDoModo,
+  blocoDeCadaOpcao, blocosDaContagem, blocosDoPeriodo,
+  cardDaCantina, codigoNaTela, contagemPorModo, dataLocal, deInputLocal, escolhasDaLinha,
+  escolhasPorBloco, horaDaLinha, recortarPedidos,
+  FOLGA_DE_RENOVACAO_MS, fraseDaQuebra, gradeDoMes, horaLegivel, instrucaoDoBloco, isoDoDia,
+  lerRespostaDoQr, MARGEM_DE_EXIBICAO_MS, marcaDoModo,
   marcadasNoBloco, msAteRenovar, normalizarContagem, paraInputLocal, pendenciaDoPedido,
+  placaDaRetirada, PRAZO_DA_RENOVACAO_MS,
   podeMarcarMais, prazoAberto, prazoLegivel, presencialDoCardapio, quebraDaContagem,
   refeicaoPorHorario, resumoDoPedido, rotuloDaContagem, rotuloDoDia, situacaoDoDia, somarContagens,
 } from './cantina';
 
 const bloco = (parcial: Partial<BlocoCardapio>): BlocoCardapio => ({
   id: 'b', nome: 'Guarnição', ordem: 0, escolhas_minimas: 0, escolhas_maximas: 2,
+  observacao: null,
   opcoes: [
     { id: 'arroz', nome: 'Arroz', ordem: 0, disponivel: true },
     { id: 'feijao', nome: 'Feijão', ordem: 1, disponivel: true },
@@ -188,7 +195,8 @@ describe('o card em Hoje', () => {
     id: 'c', cantina_id: 'x', data: '2026-09-07', refeicao: 'almoco',
     pedidos_ate: ABERTO, publicado_em: '2026-09-01', sem_refeicao: false,
     estado: 'aberto', blocos: [], meuPedido: null,
-    aceitaPedido: true, aceitaPresencial: false, modo: null, retiradoEm: null, ...p,
+    aceitaPedido: true, aceitaPresencial: false, modo: null, retiradoEm: null,
+    cantina: null, ...p,
   });
 
   it('sem dia nenhum, o card some', () => {
@@ -253,7 +261,8 @@ describe('a máquina de estados do dia', () => {
     id: 'c', cantina_id: 'x', data: '2026-09-07', refeicao: 'almoco',
     pedidos_ate: ABERTO, publicado_em: '2026-09-01', sem_refeicao: false,
     estado: 'aberto', blocos: [], meuPedido: null,
-    aceitaPedido: true, aceitaPresencial: true, modo: null, retiradoEm: null, ...p,
+    aceitaPedido: true, aceitaPresencial: true, modo: null, retiradoEm: null,
+    cantina: null, ...p,
   });
 
   it('dia em aberto oferece os dois caminhos quando o cardápio aceita os dois', () => {
@@ -341,7 +350,8 @@ describe('o card em Hoje com retirada', () => {
     id: 'c', cantina_id: 'x', data: '2026-09-07', refeicao: 'almoco',
     pedidos_ate: ABERTO, publicado_em: '2026-09-01', sem_refeicao: false,
     estado: 'aberto', blocos: [], meuPedido: null,
-    aceitaPedido: true, aceitaPresencial: true, modo: null, retiradoEm: null, ...p,
+    aceitaPedido: true, aceitaPresencial: true, modo: null, retiradoEm: null,
+    cantina: null, ...p,
   });
 
   it('retirada pendente de hoje vira linha com o caminho para o código', () => {
@@ -396,6 +406,143 @@ describe('renovação do token do QR', () => {
   it('sem token ainda, espera o piso', () => {
     expect(msAteRenovar(null, AGORA)).toBe(5_000);
     expect(msAteRenovar('não é data', AGORA)).toBe(5_000);
+  });
+});
+
+describe('o QR que vai para a tela', () => {
+  const CHEGOU = new Date('2026-09-07T12:00:00-03:00').getTime();
+  /** `expiraEm` de um token que vale `segundos` a partir da chegada. */
+  const validoPor = (segundos: number) => new Date(CHEGOU + segundos * 1000).toISOString();
+
+  it('token recém-chegado vai para a placa', () => {
+    expect(codigoNaTela(validoPor(120), CHEGOU, CHEGOU).vale).toBe(true);
+  });
+
+  it('agenda a própria reavaliação para o instante em que o código morre', () => {
+    // Nada na tela muda quando o token vence: sem este prazo, o QR morto ficaria
+    // na placa até a próxima resposta do servidor.
+    expect(codigoNaTela(validoPor(120), CHEGOU, CHEGOU).msAteVencer)
+      .toBe(120_000 - MARGEM_DE_EXIBICAO_MS);
+  });
+
+  it('vencido não vai para a tela — um QR morto no balcão é uma leitura recusada', () => {
+    const r = codigoNaTela(validoPor(120), CHEGOU, CHEGOU + 121_000);
+    expect(r.vale).toBe(false);
+    // Nada a agendar: quem devolve o QR é a renovação, não o relógio.
+    expect(r.msAteVencer).toBe(null);
+  });
+
+  it('sai da placa ANTES do vencimento, pela margem entre o olho e a câmera', () => {
+    expect(codigoNaTela(validoPor(120), CHEGOU, CHEGOU + 119_000).vale).toBe(false);
+  });
+
+  it('sem token não há código a mostrar', () => {
+    expect(codigoNaTela(null, CHEGOU, CHEGOU)).toEqual({ vale: false, msAteVencer: null });
+    expect(codigoNaTela(undefined, CHEGOU, CHEGOU).vale).toBe(false);
+  });
+
+  it('celular com a hora adiantada continua mostrando o código', () => {
+    // O aparelho acha que a validade já passou; o servidor, que é quem julga,
+    // acabou de emitir. Esconder aqui deixaria este aluno sem QR nenhum, sempre.
+    const dezMinutosAdiantado = CHEGOU + 10 * 60_000;
+    const r = codigoNaTela(validoPor(120), dezMinutosAdiantado, dezMinutosAdiantado);
+    expect(r.vale).toBe(true);
+    expect(r.msAteVencer).toBe(null);
+  });
+
+  it('`expiraEm` ilegível não esconde o código', () => {
+    expect(codigoNaTela('não é data', CHEGOU, CHEGOU)).toEqual({ vale: true, msAteVencer: null });
+  });
+});
+
+describe('o prazo da renovação', () => {
+  it('é curto o bastante para o erro chegar ANTES de o código sair da placa', () => {
+    // A desigualdade é a razão de ser do número: a renovação dispara
+    // `FOLGA_DE_RENOVACAO_MS` antes de vencer, e o QR sai da placa
+    // `MARGEM_DE_EXIBICAO_MS` antes disso. Um prazo maior que essa diferença faz
+    // a tela chegar ao vencimento SEM SABER que a renovação falhou — que é
+    // exatamente o "Renovando o código…" para sempre, com a fila na frente.
+    expect(PRAZO_DA_RENOVACAO_MS).toBeLessThan(FOLGA_DE_RENOVACAO_MS - MARGEM_DE_EXIBICAO_MS);
+  });
+
+  it('não é o teto do gateway disfarçado', () => {
+    // 300 s é o `proxy_read_timeout` do nginx, e ele está certo para o lote do
+    // Canvas. Cinco minutos de tela sem QR não são o prazo de ninguém na fila.
+    expect(PRAZO_DA_RENOVACAO_MS).toBeLessThan(60_000);
+  });
+});
+
+describe('a placa do QR na tela do aluno', () => {
+  const semFalha = { falha: null };
+
+  it('código válido na mão vai para a placa', () => {
+    expect(placaDaRetirada({ temCodigo: true, codigoVale: true, ...semFalha }))
+      .toEqual({ tipo: 'codigo' });
+  });
+
+  it('⚠️ código válido VENCE a falha da última renovação', () => {
+    // O defeito que este teste tranca: a tela escondia a placa inteira em
+    // `isError`, e o reducer do `query-core` PRESERVA `data` no caso "error" —
+    // ou seja, jogava fora um QR que ainda valia 23 segundos, com o aluno na
+    // frente da fila. Quem julga o código é o servidor, no balcão.
+    const r = placaDaRetirada({
+      temCodigo: true,
+      codigoVale: true,
+      falha: { status: 0, mensagem: 'Sem resposta do servidor.' },
+    });
+    expect(r).toEqual({ tipo: 'codigo' });
+  });
+
+  it('primeira resposta ainda não chegou: gerando', () => {
+    expect(placaDaRetirada({ temCodigo: false, codigoVale: false, ...semFalha }))
+      .toEqual({ tipo: 'gerando' });
+  });
+
+  it('código vencido com a renovação a caminho: renovando', () => {
+    expect(placaDaRetirada({ temCodigo: true, codigoVale: false, ...semFalha }))
+      .toEqual({ tipo: 'renovando' });
+  });
+
+  it('sem resposta e sem código: a falha do transporte, com saída', () => {
+    const r = placaDaRetirada({
+      temCodigo: true,
+      codigoVale: false,
+      falha: { status: 0, mensagem: 'O servidor não respondeu a tempo. Tente de novo.' },
+    });
+    expect(r.tipo).toBe('sem-resposta');
+    // ⚠️ A frase do transporte NÃO passa: ela foi escrita para a coordenação, que
+    // tem botão, e nesta tela ficava ao lado de "não há nada para atualizar".
+    expect(r).toHaveProperty('mensagem', expect.not.stringContaining('Tente de novo'));
+    expect(r).toHaveProperty('mensagem', expect.stringContaining('sozinho'));
+  });
+
+  it('servidor caído é ausência de resposta, não veredito sobre este aluno', () => {
+    expect(placaDaRetirada({
+      temCodigo: false,
+      codigoVale: false,
+      falha: { status: 502, mensagem: 'Bad gateway' },
+    }).tipo).toBe('sem-resposta');
+  });
+
+  it('a recusa do servidor passa inteira — ela explica a regra', () => {
+    expect(placaDaRetirada({
+      temCodigo: false,
+      codigoVale: false,
+      falha: { status: 409, mensagem: 'Você já fez o pedido — não dá para trocar.' },
+    })).toEqual({ tipo: 'recusado', mensagem: 'Você já fez o pedido — não dá para trocar.' });
+  });
+
+  it('o `POST /x → 422` cru vira frase de gente, e sem prometer tentativa', () => {
+    // Nenhuma segunda tentativa muda uma recusa definitiva, e a tela não oferece
+    // botão aqui: mandar "tente de novo" seria mandar bater na mesma porta.
+    const r = placaDaRetirada({
+      temCodigo: false,
+      codigoVale: false,
+      falha: { status: 422, mensagem: 'POST /me/cantina/retiradas/c1 → 422' },
+    });
+    expect(r.tipo).toBe('recusado');
+    expect(r).toHaveProperty('mensagem', expect.not.stringContaining('→'));
+    expect(r).toHaveProperty('mensagem', expect.not.stringContaining('de novo'));
   });
 });
 
@@ -533,6 +680,27 @@ describe('a leitura do QR no balcão', () => {
     const r = lerRespostaDoQr({ status: 403, mensagem: 'Cardápio de outra cantina.' }, 'almoco');
     expect(r).toEqual({ tipo: 'recusado', mensagem: 'Cardápio de outra cantina.' });
   });
+
+  it('sem status não é recusa: é ausência de resposta, e a ação é ler de novo', () => {
+    // `status: 0` é a convenção de `servicos/http.ts` para "a requisição não
+    // voltou" — rede caída, ou o teto de tempo abortando. Cair em `recusado`
+    // mandaria embora, com "não dá para servir por aqui", um aluno que tem
+    // direito à refeição e só precisa que se leia o código outra vez.
+    const r = lerRespostaDoQr({ status: 0, mensagem: '' }, 'almoco');
+    expect(r.tipo).toBe('sem-resposta');
+    expect(r).toHaveProperty('mensagem', expect.stringContaining('de novo'));
+  });
+
+  it('a frase do transporte passa inteira quando existe', () => {
+    const r = lerRespostaDoQr(
+      { status: 0, mensagem: 'O servidor não respondeu a tempo. Tente de novo.' },
+      'almoco',
+    );
+    expect(r).toEqual({
+      tipo: 'sem-resposta',
+      mensagem: 'O servidor não respondeu a tempo. Tente de novo.',
+    });
+  });
 });
 
 describe('o serviço em curso', () => {
@@ -642,5 +810,135 @@ describe('a contagem vinda da lista do balcão', () => {
 
   it('lista vazia não inventa quebra', () => {
     expect(quebraDaContagem(contagemPorModo([]))).toBeNull();
+  });
+});
+
+// ─── A planilha larga (docs/40 §12.5.2) ──────────────────────────────────
+
+describe('uma coluna por bloco', () => {
+  const linha = (bloco: string, ordem: number, opcao: string): ContagemDeOpcao => ({
+    cardapio_id: 'c', bloco_id: `b-${bloco}`, bloco, bloco_ordem: ordem,
+    opcao_id: `o-${opcao}`, opcao, opcao_ordem: 1, disponivel: true, quantos: 0,
+  });
+
+  const CONTAGEM: ContagemDeOpcao[] = [
+    linha('Guarnição', 1, 'Arroz'),
+    linha('Guarnição', 1, 'Feijão'),
+    linha('Proteína', 2, 'Frango'),
+    linha('Salada', 3, 'Folhas'),
+  ];
+
+  it('lê os blocos na ordem da bandeja, não em ordem alfabética', () => {
+    expect(blocosDaContagem(CONTAGEM)).toEqual(['Guarnição', 'Proteína', 'Salada']);
+  });
+
+  it('mantém a coluna do bloco em que ninguém pediu nada', () => {
+    // A contagem traz a opção com `quantos: 0`, e é por isso que ela sai da
+    // contagem e não dos pedidos: um dia sem salada pedida perderia a coluna.
+    expect(blocosDaContagem(CONTAGEM)).toContain('Salada');
+  });
+
+  it('distribui as escolhas de um aluno pelas colunas certas', () => {
+    const blocos = blocosDaContagem(CONTAGEM);
+    const mapa = blocoDeCadaOpcao(CONTAGEM);
+    const celulas = escolhasPorBloco(
+      { modo: 'pedido', escolhas: ['Arroz', 'Feijão', 'Frango'] }, blocos, mapa,
+    );
+    expect(celulas).toEqual(['Arroz; Feijão', 'Frango', '']);
+  });
+
+  it('quem pega na hora sai com traço, e não com célula vazia', () => {
+    // Vazio numa planilha lê-se como "faltou o dado". O traço diz que não
+    // havia dado a ter (docs/40 §10.1).
+    const blocos = blocosDaContagem(CONTAGEM);
+    const celulas = escolhasPorBloco(
+      { modo: 'presencial', escolhas: [] }, blocos, blocoDeCadaOpcao(CONTAGEM),
+    );
+    expect(celulas).toEqual(['—', '—', '—']);
+  });
+
+  it('a semana usa a UNIÃO dos blocos, na ordem em que apareceram', () => {
+    const terca = [linha('Guarnição', 1, 'Arroz'), linha('Proteína', 2, 'Frango')];
+    const quarta = [linha('Guarnição', 1, 'Baião'), linha('Sobremesa', 3, 'Pudim')];
+    expect(blocosDoPeriodo([terca, quarta]))
+      .toEqual(['Guarnição', 'Proteína', 'Sobremesa']);
+  });
+
+  it('opção de nome repetido cai no primeiro bloco, sem sumir', () => {
+    // Ambiguidade do CARDÁPIO, não do código. Resolver aqui escondendo uma das
+    // duas seria pior que repetir o nome na coluna errada.
+    const ambiguo = [linha('Vegetariano', 1, 'Ovo'), linha('Guarnição', 2, 'Ovo')];
+    expect(blocoDeCadaOpcao(ambiguo).get('Ovo')).toBe('Vegetariano');
+  });
+});
+
+// ─── A lista de trabalho (docs/40 §12.4) ─────────────────────────────────
+
+describe('recortar a lista de quem vai comer', () => {
+  const p = (parcial: Partial<PedidoDeAluno>): PedidoDeAluno => ({
+    alunoId: 'a', nome: 'Ana', turma: 'ITA-A', restricaoAlimentar: null,
+    escolhas: [], pedidoEm: '2026-09-07T17:00:00Z', modo: 'pedido', retiradoEm: null,
+    ...parcial,
+  });
+
+  const LISTA: PedidoDeAluno[] = [
+    p({ alunoId: '1', nome: 'Caio', turma: 'ITA-B', pedidoEm: '2026-09-07T19:50:00Z' }),
+    p({ alunoId: '2', nome: 'Ana', turma: 'ITA-A', pedidoEm: '2026-09-07T17:10:00Z' }),
+    p({ alunoId: '3', nome: 'Bruno', turma: 'ITA-A', modo: 'presencial',
+        retiradoEm: '2026-09-08T12:07:00Z', pedidoEm: '2026-09-08T12:00:00Z' }),
+    p({ alunoId: '4', nome: 'Édis', turma: 'IME-A', restricaoAlimentar: 'sem lactose' }),
+  ];
+
+  const recorte = (o: Partial<Parameters<typeof recortarPedidos>[1]> = {}) =>
+    recortarPedidos(LISTA, { filtros: new Set(), busca: '', ordem: 'nome', ...o })
+      .map((x) => x.nome);
+
+  it('sem filtro nem busca, ordena por nome', () => {
+    expect(recorte()).toEqual(['Ana', 'Bruno', 'Caio', 'Édis']);
+  });
+
+  it('a busca ignora acento e caixa', () => {
+    // "Edis" tem de achar "Édis" — quem digita na fila não põe acento.
+    expect(recorte({ busca: 'edis' })).toEqual(['Édis']);
+    expect(recorte({ busca: 'CA' })).toEqual(['Caio']);
+  });
+
+  it('os filtros se ACUMULAM, não se somam', () => {
+    // Marcar dois é procurar quem satisfaz os dois. União faria a lista
+    // CRESCER ao filtrar, que é o oposto do que a pílula promete.
+    expect(recorte({ filtros: new Set(['presencial', 'retirado']) })).toEqual(['Bruno']);
+    expect(recorte({ filtros: new Set(['pediu', 'retirado']) })).toEqual([]);
+  });
+
+  it('"retirado" olha a hora da retirada, não o modo', () => {
+    expect(recorte({ filtros: new Set(['retirado']) })).toEqual(['Bruno']);
+  });
+
+  it('ordena por hora, e quem não tem hora vai para o fim', () => {
+    const semHora = [...LISTA, p({ alunoId: '5', nome: 'Zoe', pedidoEm: '' })];
+    const nomes = recortarPedidos(semHora, {
+      filtros: new Set(), busca: '', ordem: 'hora',
+    }).map((x) => x.nome);
+    expect(nomes[nomes.length - 1]).toBe('Zoe');
+    // Édis carrega a hora padrão da fábrica (17:00), antes da Ana (17:10).
+    expect(nomes.slice(0, 3)).toEqual(['Édis', 'Ana', 'Caio']);
+  });
+
+  it('ordena por turma e, dentro dela, por nome', () => {
+    expect(recorte({ ordem: 'turma' })).toEqual(['Édis', 'Ana', 'Bruno', 'Caio']);
+  });
+});
+
+describe('a hora na linha', () => {
+  it('prefere a retirada ao pedido', () => {
+    // Entre "quando marcou" e "quando comeu", quem confere a fila quer a segunda.
+    const linha = horaDaLinha({
+      pedidoEm: '2026-09-07T17:00:00Z', retiradoEm: '2026-09-08T15:07:00Z',
+    });
+    expect(linha).toContain('retirado');
+  });
+
+  it('sem hora nenhuma, não inventa texto', () => {
+    expect(horaDaLinha({ pedidoEm: '', retiradoEm: null })).toBeNull();
   });
 });

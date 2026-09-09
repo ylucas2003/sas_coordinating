@@ -4,7 +4,7 @@
 > contam *por que* e *como*; este diz só *onde estamos*. Quando divergirem,
 > corrija aqui primeiro — é o que se lê antes de qualquer sprint.
 >
-> Atualizado em **05/09/2026**. O deploy de 24/08 juntou o redesenho do
+> Atualizado em **09/09/2026**. O deploy de 24/08 juntou o redesenho do
 > casco, a SPRINT FOTO e o acervo histórico do banco de questões — ver §9.8
 > de [23-banco-questoes-historico.md](23-banco-questoes-historico.md) pra
 > como isso quase saiu errado (checkout desatualizado, importador sem
@@ -21,11 +21,17 @@
 > `AWS_*`/`YOUTUBE_*` preenchidos, migrations `0034`–`0036` aplicadas, 7 aulas
 > no canal). Com isso a antiga **§1.5 deixou de existir**.
 >
-> ⚠️ Mas "não há nada escrito fora de produção" **voltou a ser falso**: em
-> **05/09** entraram, nesta ordem e ainda sem deploy, a cantina
-> ([38](38-plano-cantina.md)), o promover/rebaixar pela tela e a **refatoração
-> de design da coordenação** ([39](39-plano-refatoracao-design.md), fases 0 a
-> 5). Os três estão no fim da §3.
+> Em **05/09** entraram a cantina ([38](38-plano-cantina.md)), o
+> promover/rebaixar pela tela e a **refatoração de design da coordenação**
+> ([39](39-plano-refatoracao-design.md), fases 0 a 5); em **07/09**, a retirada
+> presencial ([40 §1 a §11](40-plano-retirada-presencial.md)) e a coordenação e
+> a cantina no celular ([21 §13](21-plano-mobile.md)). ⚠️ **Tudo isso está em
+> produção** — este parágrafo dizia "ainda sem deploy" até 09/09, e a correção
+> veio de um print da tela, não de um documento. Os blocos estão no fim da §3.
+>
+> ⚠️ O que **não** está em produção é a fase 2 da cantina
+> ([40 §12](40-plano-retirada-presencial.md)), planejada em 09/09 e sem uma
+> linha de código.
 
 ---
 
@@ -546,12 +552,15 @@ o que é novo é pequeno e não depende de nada:
 
 ### ✅ Sprint Cantina · o cardápio, o pedido e um terceiro tipo de sessão *(05/09)*
 
-> **ESCRITA, fora de produção.** As quatro fases estão no código e verificadas
-> fora do browser: 530 testes no backend (+27), 392 no front (+23), portões
-> limpos, as três migrations aplicadas no compose e um smoke de 37 passos
-> exercitando as três sessões contra a API de verdade. **Falta o deploy e a
-> verificação no browser** — a lista do que não foi olhado está em
-> [38 §10.2](38-plano-cantina.md), no molde do §6 do docs/37.
+> **EM PRODUÇÃO** *(corrigido em 09/09 — este bloco dizia "fora de produção" e
+> estava errado)*. As quatro fases foram escritas em 05/09 e verificadas fora
+> do browser (530 testes no backend, 392 no front, portões limpos, smoke de 37
+> passos), e subiram logo depois: os defeitos do [38 §3.3.1](38-plano-cantina.md)
+> foram **achados no primeiro uso em produção**.
+>
+> ⚠️ **A verificação no browser continua não feita** — a lista do que nunca foi
+> olhado está em [38 §10.2](38-plano-cantina.md), no molde do §6 do docs/37. O
+> deploy aconteceu antes dela, não no lugar dela.
 
 Frente **nova**, fora da fila do brainstorming de 29/08: alunos com direito a
 alimentação escolhem o prato no painel; a cantina entra por porta própria
@@ -607,7 +616,47 @@ item* — 160 mil a 1,4 milhão de linhas no primeiro ano, num sistema **sem
 paginação em lugar nenhum** (CLAUDE.md, armadilha 2). A contagem de produção
 nasce como view agregada, não como soma em Python ([38 §2.4](38-plano-cantina.md)).
 
-**Total à frente: 7 sprints, 34 partes + as 4 fases da cantina**, mais o polimento avulso de 6 itens.
+### ✅ Retirada presencial · pegar a refeição sem ter pedido *(07/09)*
+
+> **EM PRODUÇÃO.** Nenhum documento registrava isso até 09/09 — o
+> [40-plano-retirada-presencial.md](40-plano-retirada-presencial.md) ainda
+> dizia "em implementação" e este roadmap não o citava em lugar nenhum. É a
+> mesma orfandade que o docs/38 já tinha sofrido.
+
+Um segundo jeito de comer, ao lado do pedido com antecedência: **chegar,
+mostrar um QR Code gerado na hora, e a cantina lê**. Migrations `0051` e
+`0052`, token assinado, máquina de estados por (cardápio, aluno), a tela
+`/ao-vivo` com câmera, e cada cantina decidindo quais dos dois jeitos valem
+para cada refeição. Plano e decisões nas §1 a §11 do docs/40.
+
+### 🔨 Cantina · fase 2 — desempenho e os ajustes de uso *(09/09)*
+
+> **PLANEJADA, nenhuma linha de código.** Doze frentes em
+> [40 §12](40-plano-retirada-presencial.md). A fase que existia como "2" (a
+> janela de horário) virou **3**, e o reconhecimento facial virou **4**.
+
+⚠️ **A primeira frente não é de cantina.** O pedido foi *"o site está
+demorando"*, e a medição de 09/09 achou quatro causas, nenhuma delas na
+cantina: o cliente **síncrono** da OpenAI dentro de `async def` num processo de
+uma thread só — que congela a API inteira enquanto o chat ou os insights rodam
+—, o hub da cantina baixando **9,31 MB** de notas para escrever uma linha de
+resumo, um N+1 em `cantina_do_aluno`, e o front inteiro num bundle de 306 KB
+gzip sem um `lazy()` sequer. As outras onze frentes são de uso: nomes dos
+cards, exportação em PDF e CSV com os campos do processo real da cozinha, a
+lista de quem vai comer virando lista de trabalho, o recorte por cantina, senha
+manual, um terceiro destino no casco da cantina, o QR girando a cada 10 s e o
+tema claro deixando de depender da configuração do Chrome de quem abre, e o
+relatório de custos — com a planilha saindo do servidor, em XLSX com gráficos.
+
+⚠️ **E uma frente que não foi pedida: a segunda cantina.** Ao ler a planilha do
+processo atual descobriu-se que "Food" é uma **cantina**, não um local de
+consumo — e três premissas do código param de valer no dia em que ela for
+cadastrada, nenhuma delas com erro: o aluno passa a ver dois almoços do mesmo
+dia, o direito não sabe dizer de qual cantina ele come, e a trava de
+`UNIQUE(cardápio, aluno)` deixa ele pedir nas duas. É o mesmo padrão do
+`foto_perfil.py` no docs/38 §1.1.
+
+**Total à frente: 7 sprints, 34 partes + as fases 2 a 4 da cantina**, mais o polimento avulso de 6 itens.
 
 ---
 

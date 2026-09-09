@@ -1,4 +1,15 @@
 import katex from 'katex';
+
+// ⚠️ A ORDEM destas duas linhas é regra, não estilo: `markdown.css` ajusta
+// corpo e margem do que o KaTeX desenha, então tem de vir DEPOIS dele. As duas
+// moravam em `main.tsx` e vieram para cá juntas quando o bundle foi dividido —
+// aqui elas viajam com o pedaço de quem realmente desenha fórmula, em vez de
+// descerem na entrada de todo mundo (docs/40 §12.1.4).
+//
+// As fontes vêm no próprio pacote npm e o Vite as emite como asset do nosso
+// domínio — nenhuma requisição sai para CDN (CLAUDE.md, armadilha 7).
+import 'katex/dist/katex.min.css';
+import '../../../styles/markdown.css';
 import { Fragment, useMemo } from 'react';
 import { type Bloco, type Trecho, analisarMarkdown } from '../../dominio/markdown';
 

@@ -12,6 +12,7 @@ import {
 import { ErroApi } from '../../servicos/http';
 import type { CorpoCardapio } from '../../servicos/api';
 import type { Refeicao } from '../../tipos/cantina';
+import { normalizar } from '../../util/formato';
 import { AvisoSemPublico } from './AvisoSemPublico';
 
 // O EDITOR de um dia — blocos, opções, quantas o aluno escolhe, e o prazo.
@@ -39,6 +40,19 @@ interface BlocoEditavel {
   escolhas_minimas: number;
   escolhas_maximas: number;
   opcoes: OpcaoEditavel[];
+  /** A coluna "Obs!" da tabela de papel — a regra que o par mín./máx. não diz
+      (migration 0053). Escrita, não vigiada (docs/40 §12.5.4). */
+  observacao?: string | null;
+}
+
+/** O bloco que a planilha da coordenação espera encontrar, por nome.
+
+    ⚠️ Casa por NOME normalizado, e é frágil de propósito: renomear "Tamanho"
+    para "Porção" faz o aviso voltar. É o menor mal — a alternativa seria marcar
+    o bloco no schema, e aí "Tamanho" deixaria de ser um bloco como os outros
+    para virar um tipo especial que o editor precisa saber tratar. */
+function temBlocoDeTamanho(blocos: ReadonlyArray<BlocoEditavel>): boolean {
+  return blocos.some((b) => normalizar(b.nome) === 'tamanho');
 }
 
 /** Os quatro blocos da planilha da cantina, para o dia em branco não começar
@@ -124,6 +138,7 @@ function Editor({
             nome: b.nome,
             escolhas_minimas: b.escolhas_minimas,
             escolhas_maximas: b.escolhas_maximas,
+            observacao: b.observacao,
             opcoes: b.opcoes.map((o) => ({ id: o.id, nome: o.nome, disponivel: o.disponivel })),
           }))
         : BLOCOS_SUGERIDOS.map((b) => ({ ...b, opcoes: [] })),
@@ -171,6 +186,7 @@ function Editor({
           nome: b.nome.trim(),
           escolhas_minimas: b.escolhas_minimas,
           escolhas_maximas: Math.max(b.escolhas_maximas, b.escolhas_minimas),
+          observacao: (b.observacao ?? '').trim() || null,
           opcoes: b.opcoes
             .filter((o) => o.nome.trim())
             .map((o) => ({ id: o.id, nome: o.nome.trim(), disponivel: o.disponivel })),
@@ -320,6 +336,35 @@ function Editor({
             </section>
           )}
 
+          {/* ⚠️ Aviso, e não obrigação (docs/40 §12.5.1).
+              "Tamanho" (500g/750g) não é campo do pedido no SAS: é um BLOCO
+              como salada, e por isso alguém precisa cadastrá-lo. Obrigar
+              quebraria a janta que não tem tamanho; não avisar deixaria a
+              coluna sumir da planilha da coordenação, que leria a ausência
+              como defeito do sistema. */}
+          {!temBlocoDeTamanho(blocos) && (
+            <p className="cant-aviso">
+              Este cardápio não tem o bloco <b>Tamanho</b>. Sem ele, a planilha da
+              coordenação sai sem a coluna de 500g/750g.
+              <button
+                type="button" className="cant-tecla cant-tecla--fina"
+                onClick={() => {
+                  setSujo(true);
+                  setBlocos((a) => [...a, {
+                    nome: 'Tamanho', escolhas_minimas: 1, escolhas_maximas: 1,
+                    observacao: null,
+                    opcoes: [
+                      { nome: '500g', disponivel: true },
+                      { nome: '750g', disponivel: true },
+                    ],
+                  }]);
+                }}
+              >
+                Criar o bloco
+              </button>
+            </p>
+          )}
+
           <section className="cant-blocos">
             {blocos.map((bloco, i) => (
               <BlocoEditor
@@ -435,8 +480,25 @@ function BlocoEditor({
       {/* A leitura em linguagem de gente do par mín./máx. — é o que o aluno vai
           ver, e mostrá-lo aqui evita publicar "escolha de 0 a 0" sem perceber. */}
       <p className="cant-bloco__instrucao">{instrucaoDoBloco({
-        ...bloco, id: '', ordem: 0, opcoes: [],
+        ...bloco, id: '', ordem: 0, opcoes: [], observacao: bloco.observacao ?? null,
       })}</p>
+
+      {/* A observação é a coluna "Obs!" da tabela que a cozinha usa no papel:
+          a regra que o par mín./máx. não sabe dizer (docs/40 §12.5.4).
+
+          ⚠️ **Ela é escrita, não vigiada.** O servidor não recusa a combinação
+          que o texto proíbe — quem garante é quem serve. Se um dia isso virar
+          reclamação, o conserto não é aqui: é um par de opções incompatíveis
+          no schema, com validação nos dois lados. */}
+      <label className="cant-campo">
+        <span className="cant-campo__rotulo">Observação (opcional)</span>
+        <input
+          className="cant-input"
+          value={bloco.observacao ?? ''}
+          placeholder="ex.: a opção 4 anula a 1 e a 2"
+          onChange={(e) => onAlterar({ observacao: e.target.value })}
+        />
+      </label>
 
       <ul className="cant-opcoes">
         {bloco.opcoes.map((opcao, i) => (

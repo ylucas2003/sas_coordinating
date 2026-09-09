@@ -214,3 +214,45 @@
   color: var(--alu-texto-2);
   font-size: 13px;
 }
+
+/* ── Quem é você, acima do código (docs/40 §12.9.1) ───────────────────────
+ *
+ * ⚠️ Não é enfeite: o código rotativo resolve a cópia no TEMPO, a foto resolve
+ * a cópia no ESPAÇO. Quem mostrar o celular de outro aparece com a cara de
+ * outro — e quem serve olha para a pessoa de qualquer jeito.
+ */
+
+.alu-retirada__quem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.alu-retirada__foto,
+.alu-retirada__iniciais {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  object-fit: cover;
+}
+
+.alu-retirada__iniciais {
+  display: grid;
+  place-items: center;
+  background: var(--alu-superficie-2);
+  color: var(--alu-texto-2);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.alu-retirada__nome {
+  font-weight: 600;
+  /* O nome pode ser longo e não pode empurrar a tela: transbordo horizontal
+     alarga o viewport e o estrago não fica onde nasce (docs/21 §13). */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}

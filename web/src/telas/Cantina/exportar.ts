@@ -1,4 +1,5 @@
 import {
+  blocoDeCadaOpcao, blocosDaContagem, escolhasPorBloco,
   contagemPorModo, escolhasDaLinha, fraseDaQuebra, marcaDoModo, presencialDoCardapio,
   quebraDaContagem, ROTULO_DA_REFEICAO, rotuloDaContagem, rotuloDoDia,
 } from '../../dominio/cantina';
@@ -95,18 +96,38 @@ export function exportarPedidosCSV(dia: DiaExportavel): void {
   // da quebra na tela: acréscimo que aparece sempre vira ruído na planilha de
   // quem nunca ligou a feature — e, no dia em que ele diz algo, é ele que
   // separa quem tem prato de quem só aparece.
-  const colunas = ['aluno', 'turma', ...(quebra ? ['modo'] : []), 'escolhas', 'pedido_em'];
-  if (comRestricao) colunas.splice(2, 0, 'restricao_alimentar');
+  // ⚠️ UMA COLUNA POR BLOCO, e não uma coluna `escolhas` com tudo junto
+  // (docs/40 §12.5.2). É o formato que a coordenação já usa no formulário do
+  // Google, e é o que torna a coluna somável no Excel — "Arroz | Frango | Folhas"
+  // numa célula só não responde "quantos pediram frango" sem alguém separar à
+  // mão. Os blocos saem da CONTAGEM, que carrega a ordem da bandeja.
+  const blocos = blocosDaContagem(dia.contagem);
+  const deQualBloco = blocoDeCadaOpcao(dia.contagem);
+
+  const colunas = [
+    'data',
+    // A cantina entra quando o export sabe de qual é. Com duas cantinas
+    // publicando o mesmo almoço (docs/40 §12.12), a planilha sem esta coluna
+    // junta duas cozinhas na mesma contagem.
+    ...(dia.cantina ? ['cantina'] : []),
+    'aluno', 'turma',
+    ...(quebra ? ['modo'] : []),
+    ...blocos,
+    'hora_do_pedido',
+  ];
+  if (comRestricao) colunas.splice(dia.cantina ? 4 : 3, 0, 'restricao_alimentar');
   const linhas = [colunas.join(';')];
   for (const pedido of dia.pedidos) {
     const celulas = [
+      dia.data,
+      ...(dia.cantina ? [dia.cantina] : []),
       pedido.nome ?? '',
       pedido.turma ?? '',
       ...(quebra ? [marcaDoModo(pedido)] : []),
-      escolhasDaLinha(pedido, ' | '),
+      ...escolhasPorBloco(pedido, blocos, deQualBloco),
       pedido.pedidoEm ? new Date(pedido.pedidoEm).toLocaleString('pt-BR') : '',
     ];
-    if (comRestricao) celulas.splice(2, 0, pedido.restricaoAlimentar ?? '');
+    if (comRestricao) celulas.splice(dia.cantina ? 4 : 3, 0, pedido.restricaoAlimentar ?? '');
     linhas.push(celulas.map(escapar).join(';'));
   }
 
@@ -139,7 +160,7 @@ export function exportarPedidosCSV(dia: DiaExportavel): void {
     // A quebra, que era o motivo de ele mudar de forma, mora no bloco acima.
     //
     // `refeicoes` e não `pedidos`: a coluna conta as duas portas desde a Fase 1
-    // (retirada na hora soma no mesmo valor de tabela, docs/40 §14), e o nome
+    // (retirada na hora soma no mesmo valor de tabela, docs/40 §15), e o nome
     // antigo afirmava que 47 pessoas pediram quando 3 não pediram nada.
     linhas.push('', ['valor_unitario', 'refeicoes', 'total'].join(';'));
     const total = dia.valor * dia.pedidos.length;

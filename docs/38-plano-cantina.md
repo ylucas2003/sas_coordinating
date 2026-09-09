@@ -600,11 +600,18 @@ cantina não é trabalho diário de coordenação (ver §8.8).
 
 ## 7 · Faseamento
 
-> **Estado em 05/09: as quatro fases estão ESCRITAS e verificadas fora do
-> browser.** 530 testes no backend (+27), 392 no front (+23), ruff, Biome,
-> `tsc` e `npm run build` limpos, as três migrations aplicadas no compose e um
-> smoke ponta a ponta exercitando as três sessões contra a API de verdade
-> (§10). **Não está em produção** — falta o deploy e a verificação no browser.
+> **Estado em 09/09: as quatro fases estão EM PRODUÇÃO.** Escritas em 05/09 e
+> verificadas fora do browser — 530 testes no backend (+27), 392 no front
+> (+23), ruff, Biome, `tsc` e `npm run build` limpos, as três migrations
+> aplicadas e um smoke ponta a ponta exercitando as três sessões contra a API
+> de verdade (§10) —, e no ar logo depois: o §3.3.1 e o §3.3.2 deste documento
+> são defeitos **achados no primeiro uso em produção**, o que não seria
+> possível se ela não estivesse lá.
+>
+> ⚠️ A verificação no browser da lista do §10.2 continua **não feita** — o
+> deploy aconteceu antes dela, não no lugar dela. E o desempenho, que ninguém
+> tinha medido, virou a primeira frente da fase 2 do
+> [docs/40 §12](40-plano-retirada-presencial.md).
 
 Quatro fases. A ordem não é arbitrária: **a fase perigosa é a primeira e vai
 sozinha**, para o risco de segurança ser revisado sem cardápio nenhum no

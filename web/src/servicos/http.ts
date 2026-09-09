@@ -18,6 +18,87 @@ import * as sessao from './sessao';
 
 const BASE_URL = '/api';
 
+// ─── O teto de tempo, e por que ele NÃO vale para streaming ──────────────
+//
+// `fetch` não tem tempo limite nenhum. Uma requisição cuja resposta nunca chega
+// — o wi-fi que oscila e leva a conexão junto — fica pendente para sempre, e a
+// promessa **nunca assenta**: nem `then`, nem `catch`, nem `finally`. Quem
+// esperava por ela espera para sempre também. Foi assim que o leitor de QR do
+// balcão parou de ler com a fila na frente, sem erro nenhum na tela
+// (`telas/Cantina/AoVivo.tsx`, cuja trava de "uma confirmação por vez" só é
+// solta no `finally`).
+//
+// ⚠️ **O teto vale para requisição normal e não para streaming — e a separação
+// não é um sinalizador, é a forma do arquivo.** Só `requisitar()` é
+// pergunta-e-resposta. Os dois streams do app têm `fetch` próprio, cada um com
+// o seu fim de vida: `streamSSE()` aqui embaixo (o chat, que dura o quanto o
+// modelo levar para responder) e `servicos/eventos.ts` (os três canais de tempo
+// real da cantina, abertos o expediente inteiro, com heartbeat e reconexão).
+// Um teto aplicado a eles cortaria a resposta do chat no meio e derrubaria os
+// canais a cada N segundos — o remédio seria pior que a doença, e mais difícil
+// de enxergar.
+//
+// O NÚMERO é o mesmo do nginx (`infra/vps/nginx.conf`: `proxy_read_timeout
+// 300s`), e isso é escolha, não coincidência. Passado esse ponto o gateway já
+// desistiu do upstream, então **nenhuma resposta legítima pode mais chegar**:
+// o teto não tem como cortar uma requisição que o servidor ainda ia responder.
+// É o que separa este número de um chute — as rotas lentas do SAS (o lote do
+// Canvas, os insights do LLM) são calibradas para caber nesses mesmos 300 s;
+// ver `TETO_NOTAS_POR_LOTE` em `api/app/routes/ciclos.py`, que existe
+// justamente para não estourá-los. Qualquer teto mais curto seria eu adivinhando
+// quanto tempo o Canvas leva, e erraria em silêncio: a tela diria "falhou" com o
+// servidor ainda escrevendo.
+//
+// ⚠️ E é por isso que ele **não é o prazo de uma tela**. Cinco minutos de balcão
+// cego continuam sendo cinco minutos, e quem conhece a tarefa é quem sabe quanto
+// ela pode esperar — por isso o prazo é PEDÍVEL na chamada
+// (`OpcoesDeRequisicao.tempoLimiteMs`). O pedido só encurta: acima deste teto não
+// há resposta legítima para esperar, então deixar alguém pedir mais seria vender
+// um tempo que o gateway não entrega.
+//
+// ⚠️ Antes daqui esta decisão dizia "quem precisa de resposta em segundos põe o
+// próprio relógio em cima da chamada", e era meia verdade. Um `setTimeout` ao
+// lado da chamada **não cancela a requisição**: ele solta o estado local e deixa
+// a promessa pendurada. Funciona onde o estado é um `ref` — `AoVivo.tsx` solta
+// `ocupadoRef` e a câmera volta a ler —, e NÃO funciona onde o estado é a própria
+// promessa: no React Query o `fetchStatus` fica em `fetching` para sempre, e a
+// tela do aluno (`telas/Aluno/CantinaRetirada.tsx`) ficava em "Renovando o
+// código…" sem QR, sem erro e sem saída, com a fila na frente (docs/40 §6).
+const TEMPO_LIMITE_MS = 300_000;
+
+/** O que quem chama pode pedir a mais desta requisição. */
+export interface OpcoesDeRequisicao {
+  /**
+   * O teto de tempo DESTA chamada, em ms — e ele só encurta.
+   *
+   * Um valor maior que `TEMPO_LIMITE_MS` é ignorado (fica no teto do gateway), e
+   * um valor absurdo — zero, negativo, `NaN` — também: um teto que aborta antes
+   * de a requisição sair é pior que teto nenhum, porque falha sempre e parece
+   * problema de rede.
+   */
+  tempoLimiteMs?: number;
+  /**
+   * O sinal de quem chamou — o desmonte da tela, o cancelamento do React Query,
+   * o botão que substitui uma tentativa pendurada por uma nova.
+   *
+   * Sem ele, cancelar do lado de fora só descarta o RESULTADO: a requisição
+   * continua de pé até o teto. É o que faz `query.cancel()` do React Query virar
+   * gesto vazio quando a `queryFn` não repassa o `signal` que recebeu.
+   */
+  sinal?: AbortSignal;
+}
+
+/**
+ * O prazo desta chamada, dentro do teto do gateway.
+ *
+ * Pedido ausente ou sem sentido cai no teto — a chamada continua exatamente como
+ * era antes de existir esta opção.
+ */
+function prazoDaChamada(pedido: number | undefined): number {
+  if (pedido == null || !Number.isFinite(pedido) || pedido <= 0) return TEMPO_LIMITE_MS;
+  return Math.min(TEMPO_LIMITE_MS, pedido);
+}
+
 /** Erro de API que preserva o status e o `detail` explicado pelo backend. */
 export class ErroApi extends Error {
   readonly status: number;
@@ -59,33 +140,103 @@ async function detalhe(res: Response): Promise<string> {
   }
 }
 
-async function requisitar<T>(metodo: string, caminho: string, corpo?: unknown): Promise<T> {
-  const res = await fetch(`${BASE_URL}${caminho}`, {
-    method: metodo,
-    headers: {
-      ...(corpo !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...cabecalhosAuth(),
-    },
-    body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
-  });
-
-  seNaoAutorizado(res.status, caminho);
-  if (!res.ok) {
-    throw new ErroApi((await detalhe(res)) || `${metodo} ${caminho} → ${res.status}`, res.status);
+/**
+ * A falha SEM resposta, dita para gente.
+ *
+ * `status: 0` é a convenção que `postArquivo` já usa aqui embaixo para "não
+ * houve resposta HTTP nenhuma" — e é o que distingue este caso de um 4xx: não há
+ * veredito do servidor, só ausência. Sem esta tradução a tela mostraria o texto
+ * do motor de JS (`TypeError: Failed to fetch`, `signal is aborted without
+ * reason`) para quem está no balcão, e `erro instanceof ErroApi` — que é como
+ * toda tela decide o que escrever — daria falso.
+ *
+ * O que não for falha de transporte volta intacto: um corpo com JSON quebrado é
+ * `SyntaxError` e continua sendo, porque "sem conexão" seria mentira.
+ */
+function comoFalhaDeRede(erro: unknown): unknown {
+  if (erro instanceof Error && erro.name === 'AbortError') {
+    return new ErroApi('O servidor não respondeu a tempo. Tente de novo.', 0);
   }
-  return res.json() as Promise<T>;
+  if (erro instanceof TypeError) {
+    return new ErroApi('Sem resposta do servidor. Verifique a conexão e tente de novo.', 0);
+  }
+  return erro;
 }
 
-export function get<T>(caminho: string): Promise<T> {
-  return requisitar<T>('GET', caminho);
+async function requisitar<T>(
+  metodo: string,
+  caminho: string,
+  corpo?: unknown,
+  { tempoLimiteMs, sinal }: OpcoesDeRequisicao = {},
+): Promise<T> {
+  const abortador = new AbortController();
+  const relogio = window.setTimeout(() => abortador.abort(), prazoDaChamada(tempoLimiteMs));
+
+  // Dois gatilhos, um abortador: o teto e quem chamou. `AbortSignal.any([...])`
+  // faria isto em uma linha, e é Safari 17.4 — mais novo que a base de aparelhos
+  // que abre esta tela na fila (o mesmo motivo que já obriga `useTelaAcesa` a
+  // degradar em silêncio). Chamar um estático que não existe não degrada: joga
+  // `TypeError` e derruba TODA requisição naquele aparelho.
+  const propagar = () => abortador.abort();
+  if (sinal) {
+    if (sinal.aborted) abortador.abort();
+    else sinal.addEventListener('abort', propagar);
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}${caminho}`, {
+      method: metodo,
+      headers: {
+        ...(corpo !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...cabecalhosAuth(),
+      },
+      body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
+      signal: abortador.signal,
+    });
+
+    seNaoAutorizado(res.status, caminho);
+    if (!res.ok) {
+      throw new ErroApi((await detalhe(res)) || `${metodo} ${caminho} → ${res.status}`, res.status);
+    }
+    // O `await` aqui não é decoração: sem ele a leitura do corpo escaparia do
+    // `try` e do relógio. O nginx da produção serve `/api/` com
+    // `proxy_buffering off`, então a resposta chega em pedaços — um corpo que
+    // para no meio prenderia a promessa DEPOIS de os cabeçalhos terem chegado,
+    // que é o mesmo travamento com outra cara.
+    return (await res.json()) as T;
+  } catch (erro) {
+    // ⚠️ Um aborto de quem chamou volta com a mesma frase de "não respondeu a
+    // tempo", e isso é aceito: quem cancela sabe que cancelou, e o React Query
+    // descarta a rejeição da tentativa que ele mesmo substituiu (`cancel({
+    // silent: true })`). Nenhuma tela lê essa frase por esse caminho.
+    throw comoFalhaDeRede(erro);
+  } finally {
+    // Sempre: um relógio de 5 minutos vivo por requisição bem-sucedida seguraria
+    // a closure inteira, e esta tela fica horas aberta. O ouvinte do sinal de
+    // fora sai junto — ele aponta para este abortador, que já morreu.
+    window.clearTimeout(relogio);
+    sinal?.removeEventListener('abort', propagar);
+  }
 }
 
-export function post<T>(caminho: string, corpo?: unknown): Promise<T> {
-  return requisitar<T>('POST', caminho, corpo);
+export function get<T>(caminho: string, opcoes?: OpcoesDeRequisicao): Promise<T> {
+  return requisitar<T>('GET', caminho, undefined, opcoes);
 }
 
-export function patch<T>(caminho: string, corpo: unknown): Promise<T> {
-  return requisitar<T>('PATCH', caminho, corpo);
+export function post<T>(
+  caminho: string,
+  corpo?: unknown,
+  opcoes?: OpcoesDeRequisicao,
+): Promise<T> {
+  return requisitar<T>('POST', caminho, corpo, opcoes);
+}
+
+export function patch<T>(
+  caminho: string,
+  corpo: unknown,
+  opcoes?: OpcoesDeRequisicao,
+): Promise<T> {
+  return requisitar<T>('PATCH', caminho, corpo, opcoes);
 }
 
 /**
@@ -93,12 +244,12 @@ export function patch<T>(caminho: string, corpo: unknown): Promise<T> {
  * (aluno, questão) nasce na primeira marcação e é substituída nas seguintes —
  * upsert, não remendo de recurso existente (docs/22 §P6).
  */
-export function put<T>(caminho: string, corpo: unknown): Promise<T> {
-  return requisitar<T>('PUT', caminho, corpo);
+export function put<T>(caminho: string, corpo: unknown, opcoes?: OpcoesDeRequisicao): Promise<T> {
+  return requisitar<T>('PUT', caminho, corpo, opcoes);
 }
 
-export function del<T>(caminho: string): Promise<T> {
-  return requisitar<T>('DELETE', caminho);
+export function del<T>(caminho: string, opcoes?: OpcoesDeRequisicao): Promise<T> {
+  return requisitar<T>('DELETE', caminho, undefined, opcoes);
 }
 
 /** Monta uma query string, ignorando valores nulos. */
@@ -209,7 +360,17 @@ export interface EventoSSE {
   dados: unknown;
 }
 
-/** Envia `corpo` por POST e chama `onEvento` a cada evento do stream. */
+/**
+ * Envia `corpo` por POST e chama `onEvento` a cada evento do stream.
+ *
+ * ⚠️ **Sem `AbortController` e sem teto de tempo, de propósito** — não é
+ * esquecimento, e não "falta padronizar com `requisitar()`". Aqui a promessa
+ * dura o quanto o modelo levar para responder, e uma volta de tool calling passa
+ * de 60 s com folga (é o que o `proxy_read_timeout 300s` do nginx compra). Um
+ * teto por requisição cortaria a resposta do chat no meio de uma frase, e o
+ * usuário veria a bolha parar sem erro. O que encerra este stream é o servidor
+ * fechar o corpo.
+ */
 export async function streamSSE(
   caminho: string,
   corpo: unknown,

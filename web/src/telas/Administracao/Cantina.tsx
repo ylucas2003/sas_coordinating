@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Campo, Dialogo, Linha2 } from '../../componentes/dialogos/Dialogo';
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
+import { useEscolhaDeSenha } from '../../componentes/ui/EscolhaDeSenha';
 import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
@@ -725,11 +726,18 @@ function ContasDaCantina({
   onSenha: (s: { email: string; senha: string }) => void;
 }) {
   const editar = useEditarContaDeCantina();
-  const redefinir = useRedefinirSenhaDeCantina();
+  const [redefinindo, setRedefinindo] = useState<ContaDeCantina | null>(null);
   const contas = cantina.contas;
 
   return (
     <div className="cant-contas">
+      {redefinindo && (
+        <DialogoRedefinirSenha
+          conta={redefinindo}
+          onFechar={() => setRedefinindo(null)}
+          onSenha={onSenha}
+        />
+      )}
       <header className="cant-contas__cabeca">
         <span className="cant-refeicao__olho">
           Contas que lançam cardápio · {contas.length}
@@ -752,12 +760,13 @@ function ContasDaCantina({
             {conta.ativo ? 'ativa' : 'inativa'}
           </span>
           <div className="cant-conta__acoes">
+            {/* Abre um diálogo em vez de trocar a senha no clique. O botão
+                direto bastava enquanto só havia uma saída (sortear); com duas,
+                clicar sem escolher decidiria por quem clicou — e a escolha é
+                justamente o ponto da mudança (docs/40 §12.7). */}
             <button
               type="button" className="cant-tecla cant-tecla--fina"
-              disabled={redefinir.isPending}
-              onClick={() => redefinir.mutate(conta.id, {
-                onSuccess: (r) => onSenha({ email: conta.email, senha: r.senha_nova }),
-              })}
+              onClick={() => setRedefinindo(conta)}
             >
               Redefinir senha
             </button>
@@ -1019,21 +1028,25 @@ function DialogoNovaConta({
 }) {
   const [email, setEmail] = useState('');
   const [nome, setNome] = useState('');
+  const [senha, campoDeSenha] = useEscolhaDeSenha();
   const criar = useCriarContaDeCantina();
 
   return (
     <Dialogo
       titulo="Nova conta de cantina"
-      subtitulo="A senha é sorteada e mostrada uma única vez, na tela atrás deste diálogo."
+      subtitulo="Gere uma senha ou defina a que você vai passar para a cantina."
       onFechar={onFechar}
       rodape={(
         <>
           <button type="button" className="btn btn--fino" onClick={onFechar}>Cancelar</button>
           <button
             type="button" className="btn"
-            disabled={!email.trim() || !nome.trim() || criar.isPending}
+            disabled={!email.trim() || !nome.trim() || !senha.pronta || criar.isPending}
             onClick={() => criar.mutate(
-              { cantina_id: cantinaId, email: email.trim(), nome: nome.trim() },
+              {
+                cantina_id: cantinaId, email: email.trim(), nome: nome.trim(),
+                senha: senha.senha,
+              },
               { onSuccess: (r) => onSenha({ email: r.email, senha: r.senha_inicial }) },
             )}
           >
@@ -1048,7 +1061,60 @@ function DialogoNovaConta({
       <Campo label="E-mail">
         <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </Campo>
+      {campoDeSenha}
       {criar.isError && <p className="cant-erro" role="alert">{(criar.error as Error).message}</p>}
+    </Dialogo>
+  );
+}
+
+/**
+ * Trocar a senha de uma conta de cantina — sorteando ou definindo.
+ *
+ * ⚠️ **Não existe "ver a senha", e o subtítulo diz isso em voz alta.** O hash é
+ * de mão única; a tela que promete mostrar uma senha guardada estaria mentindo
+ * sobre o que o produto faz. O que ela oferece é o que resolve a mesma
+ * necessidade: definir uma que você já sabe (docs/40 §12.7).
+ */
+function DialogoRedefinirSenha({
+  conta, onFechar, onSenha,
+}: {
+  conta: ContaDeCantina;
+  onFechar: () => void;
+  onSenha: (s: { email: string; senha: string }) => void;
+}) {
+  const [senha, campoDeSenha] = useEscolhaDeSenha();
+  const redefinir = useRedefinirSenhaDeCantina();
+
+  return (
+    <Dialogo
+      titulo={`Redefinir senha · ${conta.nome}`}
+      subtitulo="A senha atual não pode ser mostrada — ela é guardada como hash. O que dá para fazer é trocá-la."
+      onFechar={onFechar}
+      rodape={(
+        <>
+          <button type="button" className="btn btn--fino" onClick={onFechar}>Cancelar</button>
+          <button
+            type="button" className="btn"
+            disabled={!senha.pronta || redefinir.isPending}
+            onClick={() => redefinir.mutate(
+              { id: conta.id, senha: senha.senha },
+              {
+                onSuccess: (r) => {
+                  onSenha({ email: conta.email, senha: r.senha_nova });
+                  onFechar();
+                },
+              },
+            )}
+          >
+            {redefinir.isPending ? 'Trocando…' : 'Trocar'}
+          </button>
+        </>
+      )}
+    >
+      {campoDeSenha}
+      {redefinir.isError && (
+        <p className="cant-erro" role="alert">{(redefinir.error as Error).message}</p>
+      )}
     </Dialogo>
   );
 }

@@ -113,7 +113,9 @@ function invalidarAdministracao(queryClient: ReturnType<typeof useQueryClient>) 
 export function useCriarCoordenador() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (corpo: { email: string; nome: string; canvas_user_id?: string }) => api.criarCoordenador(corpo),
+    mutationFn: (corpo: {
+      email: string; nome: string; canvas_user_id?: string; senha?: string | null;
+    }) => api.criarCoordenador(corpo),
     onSuccess: () => invalidarAdministracao(queryClient),
   });
 }
@@ -147,7 +149,8 @@ export function useAlterarPapelCoordenador() {
 export function useRedefinirSenhaCoordenador() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.redefinirSenhaCoordenador(id),
+    mutationFn: ({ id, senha }: { id: string; senha: string | null }) =>
+      api.redefinirSenhaCoordenador(id, senha),
     onSuccess: () => invalidarAdministracao(queryClient),
   });
 }
