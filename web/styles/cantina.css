@@ -1509,9 +1509,17 @@ span.cant-pilula { cursor: default; }
 
 /* A linha inteira é o alvo. `button` e não `div` com onClick — quem navega por
    teclado precisa chegar aqui, e quem usa leitor de tela precisa ouvir que é
-   acionável. Reset do visual de botão, mantendo o comportamento. */
+   acionável.
+   ⚠️ **`display: contents` NÃO serve aqui, e o browser provou.** Ele tira a
+   CAIXA do elemento: o botão continua na árvore de acessibilidade, mas não tem
+   área para receber clique, e o clique atravessa para os filhos. Foi assim que
+   a primeira versão desta lista ficou impossível de abrir — e nenhum portão
+   pegou, porque o HTML e os tipos estavam certos. O botão é `grid`, e é ele
+   que carrega o layout que era da `<li>`. */
 .cant-lista__abrir {
-  display: contents;
+  display: grid;
+  gap: 2px;
+  width: 100%;
   background: none;
   border: 0;
   padding: 0;
@@ -1519,6 +1527,21 @@ span.cant-pilula { cursor: default; }
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+/* A `<li>` que contém o botão perde o padding: quem desenha a linha agora é o
+   botão, para a área clicável ser a linha inteira e não o miolo dela. */
+.cant-lista__linha:has(> .cant-lista__abrir) {
+  padding: 0;
+}
+
+.cant-lista__linha > .cant-lista__abrir {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+}
+
+.cant-lista__abrir:hover {
+  background: var(--sas-superficie-2);
 }
 
 .cant-lista__hora {
