@@ -506,15 +506,10 @@ export const custosDaCantina = (de: string, ate: string, cantina?: string) =>
     de, ate, ...(cantina ? { cantina } : {}),
   })}`);
 
-/**
- * O endereço do XLSX. **Não é `get`**: o arquivo é baixado pelo navegador, e
- * passá-lo por `fetch` só para recolocá-lo num blob gastaria memória e perderia
- * o nome que o servidor manda no `Content-Disposition`.
- */
-export const enderecoDoRelatorio = (de: string, ate: string, cantina?: string) =>
-  `/api/administracao/cantina/relatorio.xlsx${qs({
-    de, ate, ...(cantina ? { cantina } : {}),
-  })}`;
+// `enderecoDoRelatorio` SAIU em 14/09. Ele montava a URL para um
+// `<a href download>`, e esse link nunca funcionou fora do dev: o token viaja
+// só no cabeçalho `Authorization`, que um link não manda — produção respondia
+// 401. Downloads da API passam por `servicos/baixar.ts`.
 
 export const resumoDaCantina = () =>
   get<ResumoDaCantina>('/administracao/cantina/resumo');

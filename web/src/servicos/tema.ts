@@ -1,5 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
+import { temaInicial, VERSAO_DA_PREFERENCIA } from '../dominio/temaInicial';
+
 // O tema do SAS inteiro. DOIS, e só dois: dia e noite (docs/24 §7.2).
 //
 // Mora em `servicos/` e não mais em `telas/Aluno/pecas/` porque desde o tema
@@ -30,6 +32,8 @@ const CHAVE = 'sas_tema';
 /** A chave de quando o tema era só do aluno. Lida uma vez, para quem já tinha
     escolhido não perder a escolha ao abrir depois desta versão. */
 const CHAVE_ANTIGA = 'sas_tema_aluno';
+/** A versão da regra sob a qual a escolha foi gravada (`dominio/temaInicial.ts`). */
+const CHAVE_VERSAO = 'sas_tema_versao';
 
 /**
  * O tema de quem nunca escolheu. **Claro, em todo o produto** (docs/40 §12.10).
@@ -62,15 +66,26 @@ export function preferidoPeloSistema(): Tema {
 
 function lido(): Tema {
   try {
-    const v = localStorage.getItem(CHAVE) ?? localStorage.getItem(CHAVE_ANTIGA);
-    if (v === 'dia' || v === 'noite') return v;
+    // A decisão mora em `dominio/temaInicial.ts`, onde tem teste. Aqui só se
+    // lê e se obedece.
+    const decisao = temaInicial({
+      tema: localStorage.getItem(CHAVE),
+      temaAntigo: localStorage.getItem(CHAVE_ANTIGA),
+      versao: localStorage.getItem(CHAVE_VERSAO),
+    }, TEMA_PADRAO);
+    if (decisao.zerar) {
+      // ⚠️ Zera UMA vez (decisão de 14/09): escolha gravada antes desta
+      // versão não é escolha feita sob a regra de hoje.
+      localStorage.removeItem(CHAVE);
+      localStorage.removeItem(CHAVE_ANTIGA);
+    }
+    localStorage.setItem(CHAVE_VERSAO, VERSAO_DA_PREFERENCIA);
+    return decisao.tema;
   } catch {
     // Navegação privada e "bloquear dados de site" fazem o acessor LANÇAR, não
-    // devolver null. Cair no padrão é o comportamento certo — e agora o padrão
-    // é o mesmo para todo mundo, então este caminho deixou de ser uma segunda
-    // resposta possível.
+    // devolver null. Cair no padrão é o comportamento certo.
+    return TEMA_PADRAO;
   }
-  return TEMA_PADRAO;
 }
 
 let atual: Tema = lido();
@@ -96,6 +111,7 @@ export function trocarTema(novo: Tema): void {
   aplicar(novo);
   try {
     localStorage.setItem(CHAVE, novo);
+    localStorage.setItem(CHAVE_VERSAO, VERSAO_DA_PREFERENCIA);
   } catch {
     // Sem persistência a escolha vale só para esta visita. É melhor que
     // derrubar a tela por causa de uma preferência.

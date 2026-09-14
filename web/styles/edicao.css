@@ -641,3 +641,25 @@
   /* Numa coluna, a nota fica ao lado do operador e o × fecha a linha. */
   .criterio__requisito > select:first-child { grid-column: 1 / -1; }
 }
+
+/* O diálogo de painel: formato e período lado a lado no desktop (`Exportar` da
+   cantina). No celular ele já ocupa a largura toda pela regra de cima.
+
+   ⚠️ NÃO é `.dialog--largo`: esse nome já existe, com 480px, e é o da ficha de
+   nota (`DialogoComDiff`). Reaproveitá-lo alargou aquela ficha para 720px.
+
+   Quem rola é o CORPO, não o diálogo: no celular formato e calendário empilham,
+   passam da altura da tela, e com o diálogo inteiro rolando o botão "Exportar"
+   ficava embaixo do calendário, fora da vista. */
+.dialog--painel {
+  max-width: 720px;
+  max-height: min(760px, 92dvh);
+  overflow: hidden;
+}
+
+.dialog--painel .dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

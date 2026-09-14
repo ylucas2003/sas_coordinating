@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Campo, Dialogo, Linha2 } from '../../componentes/dialogos/Dialogo';
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { useEscolhaDeSenha } from '../../componentes/ui/EscolhaDeSenha';
+import { Exportar } from '../Cantina/BotaoDeExportar';
+import { saidasDeAcesso, saidasDeDireitos } from '../Cantina/saidasDeExportacao';
 import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
 import { Kpi } from '../../componentes/ui/Kpi';
 import { resumirSelecao, resumirTexto } from '../../dominio/filtros';
@@ -144,6 +146,11 @@ export function DireitosDaCantina() {
         para="/cantina"
         destino="a cantina"
         acoes={
+          // ⚠️ O "Exportar" DENTRO da tela, com rótulo (decisão de 14/09). Antes a
+          // única saída era uma seta solta no card do hub — quem entrava aqui
+          // não achava botão nenhum. Vem DEPOIS dos KPIs para ficar no canto,
+          // no mesmo lugar em que está nas outras telas da cantina.
+          <>
           <div className="cant-kpis">
             <div className="cant-kpi">
               <Kpi rotulo="Alunos ativos" valor={painel?.total ?? '—'} />
@@ -159,6 +166,8 @@ export function DireitosDaCantina() {
               </span>
             </div>
           </div>
+          <Exportar oQue="os alunos com direito" saidas={saidasDeDireitos(painel?.alunos)} />
+          </>
         }
       />
 
@@ -505,7 +514,14 @@ export function AcessoDaCantina() {
 
   return (
     <div className="tela">
-      <CabecaDeCampo titulo="Administrar cantinas" para="/cantina" destino="a cantina" />
+      <CabecaDeCampo
+        titulo="Administrar cantinas"
+        para="/cantina"
+        destino="a cantina"
+        acoes={
+          <Exportar oQue="as cantinas e as contas" saidas={saidasDeAcesso(cantinas)} />
+        }
+      />
       <p className="cant-intro">
         {cantinas.length
           ? 'A cantina como estabelecimento, e as contas que lançam por ela. Nada aqui é apagado.'

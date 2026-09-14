@@ -8,6 +8,12 @@ interface Props {
   children: ReactNode;
   /** Botões do rodapé. */
   rodape: ReactNode;
+  /**
+   * Diálogo com duas colunas de conteúdo — hoje, o "Exportar" da cantina, com
+   * formato e calendário lado a lado no desktop. O padrão de 420px continua
+   * sendo o de quase todo diálogo: formulário curto não precisa de largura.
+   */
+  largo?: boolean;
 }
 
 /**
@@ -17,7 +23,7 @@ interface Props {
  *
  * Reusa as classes `.dialog*` de styles/edicao.css.
  */
-export function Dialogo({ titulo, subtitulo, onFechar, children, rodape }: Props) {
+export function Dialogo({ titulo, subtitulo, onFechar, children, rodape, largo = false }: Props) {
   return createPortal(
     <div
       className="dialog-overlay"
@@ -26,7 +32,7 @@ export function Dialogo({ titulo, subtitulo, onFechar, children, rodape }: Props
         if (ev.target === ev.currentTarget) onFechar();
       }}
     >
-      <div className="dialog">
+      <div className={largo ? 'dialog dialog--painel' : 'dialog'}>
         <div className="dialog__header">
           <div className="dialog__titulo">{titulo}</div>
           {subtitulo && <div className="dialog__subtitulo">{subtitulo}</div>}

@@ -10,14 +10,14 @@ import {
 import { useDiaDaCantina } from '../../hooks/consultas';
 import {
   useCalendarioNaCoordenacao, useCantinas, useCardapioNaCoordenacao, useCustosDaCantina,
-  useDireitos, useResumoDaCantina,
+  useResumoDaCantina,
 } from '../../hooks/cantina';
 import { useTituloDaTela } from '../../componentes/layout/migalhas';
 import { useEventosDaCantina } from '../../hooks/eventosCantina';
-import { BotoesDeExportar } from './BotoesDeExportar';
 import { ListaDeQuemVaiComer } from './ListaDeQuemVaiComer';
-import { ExportarNoCard } from './ExportarNoCard';
-import { enderecoDoRelatorio } from '../../servicos/api';
+import { Exportar } from './BotaoDeExportar';
+import { fonteDaCoordenacao } from './fontesDeExportacao';
+import { saidasDeCardapios, saidasDePedidos } from './saidasDeExportacao';
 import { SeletorDeCantina, useCantinaSelecionada } from './SeletorDeCantina';
 import type {
   CantinaAdmin, DiaDoCalendario, EstadoCardapio, PedidoDeAluno, Refeicao,
@@ -72,25 +72,6 @@ import * as sessao from '../../servicos/sessao';
  * título nomeando, repetir a mesma frase em cima e embaixo seria dizer duas
  * vezes a mesma coisa no mesmo cartão.
  */
-/** Baixa um CSV montado no cliente — o mesmo dialeto de `exportar.ts`: `;`,
-    vírgula decimal e BOM UTF-8, que é o que o Excel pt-BR abre sem perguntar. */
-function baixarCsv(nome: string, linhas: unknown[][]): void {
-  const texto = linhas.map((l) => l.map(escaparCsv).join(';')).join('\r\n');
-  const url = URL.createObjectURL(
-    new Blob(['\ufeff', texto], { type: 'text/csv;charset=utf-8' }),
-  );
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nome;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function escaparCsv(valor: unknown): string {
-  const texto = valor == null ? '' : String(valor);
-  return /[;"\n\r]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
-}
-
 export function HubDaCantina() {
   // O stream da coordenação, nas três telas de cantina e só nelas. No `AppShell`
   // valeria para o Painel e a ficha de aluno também, e um coordenador olhando
@@ -101,16 +82,6 @@ export function HubDaCantina() {
   const direitos = useResumoDosDireitos();
   const acesso = useResumoDoAcesso();
   const custos = useResumoDosCustos();
-  // Os dados que os cards exportam. Já estão em cache — os resumos os pediram.
-  const { data: direitosParaExportar } = useDireitos();
-  const { data: cantinasParaExportar } = useCantinas();
-  // `janelaDoMesAtual` e não `mes`: `mes` já é o resumo do card de cardápios,
-  // logo acima.
-  const janelaDoMesAtual = useMemo(() => {
-    const agora = new Date();
-    const [de, ate] = janelaDoMes(agora.getFullYear(), agora.getMonth());
-    return { de, ate };
-  }, []);
 
   return (
     <div className="tela">
@@ -119,7 +90,12 @@ export function HubDaCantina() {
         A cantina lança o cardápio; aqui se lê o que ela lançou e se decide quem come.
       </p>
 
-      {/* ⚠️ Continuam sendo DUAS composições declaradas, agora de três e quatro
+      {/* ⚠️ Os cards NÃO exportam (decisão de 14/09). Havia uma seta solta no
+          canto de cada um, e quem a via tinha de adivinhar que ela baixava
+          alguma coisa — e, dentro da tela, não havia botão nenhum. Exportar
+          mora agora num botão "Exportar" com rótulo, dentro de cada tela.
+
+          ⚠️ Continuam sendo DUAS composições declaradas, agora de três e quatro
           cards — e não uma grade de quatro com um buraco. O card ausente SOME
           para quem não é administrador; botão que existe só para dar erro
           ensina a desconfiar da tela (docs/40 §12.11.4). */}
@@ -128,17 +104,6 @@ export function HubDaCantina() {
           olho="Cardápios"
           titulo="Cardápios lançados"
           para="/cantina/cardapios"
-          // ⚠️ A planilha do servidor traz a GRADE do cardápio numa aba
-          // (docs/40 §12.11.3) — não há um segundo gerador para a mesma coisa.
-          acao={
-            <ExportarNoCard
-              oQue="os cardápios do mês"
-              saidas={[{
-                rotulo: 'Planilha do mês (.xlsx)',
-                href: enderecoDoRelatorio(janelaDoMesAtual.de, janelaDoMesAtual.ate),
-              }]}
-            />
-          }
           carregando={mes.carregando}
           subtitulo={mes.texto}
           vazio="A cantina ainda não lançou nada neste mês."
@@ -155,27 +120,6 @@ export function HubDaCantina() {
           olho="Direitos"
           titulo="Alunos com direito"
           para="/cantina/direitos"
-          acao={
-            <ExportarNoCard
-              oQue="os alunos com direito"
-              saidas={[{
-                rotulo: 'Planilha (.csv)',
-                // ⚠️ SEM o texto da restrição alimentar, como a tela. Um CSV
-                // que o levasse contornaria pelo caminho mais fácil a decisão
-                // de revelá-lo só em /cantina/direitos (docs/38 §2.6).
-                onEscolher: () => baixarCsv('alunos-com-direito.csv', [
-                  ['aluno', 'matricula', 'turma', 'almoco', 'janta', 'tem_restricao'],
-                  ...(direitosParaExportar?.alunos ?? []).map((a) => [
-                    a.nome, a.matricula ?? '', a.turma ?? '',
-                    a.direitos.includes('almoco') ? 'sim' : '',
-                    a.direitos.includes('janta') ? 'sim' : '',
-                    a.restricaoAlimentar ? 'sim' : '',
-                  ]),
-                ]),
-                indisponivel: direitosParaExportar ? undefined : 'carregando…',
-              }]}
-            />
-          }
           carregando={direitos.carregando}
           subtitulo={direitos.texto}
           vazio="Nenhum aluno com direito a refeição ainda."
@@ -189,24 +133,6 @@ export function HubDaCantina() {
             olho="Acesso"
             titulo="Administrar cantinas"
             para="/cantina/acesso"
-            acao={
-              <ExportarNoCard
-                oQue="as cantinas e as contas"
-                saidas={[{
-                  rotulo: 'Planilha (.csv)',
-                  onEscolher: () => baixarCsv('cantinas.csv', [
-                    ['cantina', 'ativa', 'contas_ativas', 'prazo', 'valor_almoco', 'valor_janta'],
-                    ...(cantinasParaExportar ?? []).map((c) => [
-                      c.nome, c.ativo ? 'sim' : 'não',
-                      c.contas.filter((k) => k.ativo).length,
-                      regraDePrazo(c),
-                      c.valor_almoco ?? '', c.valor_janta ?? '',
-                    ]),
-                  ]),
-                  indisponivel: cantinasParaExportar ? undefined : 'carregando…',
-                }]}
-              />
-            }
             carregando={acesso.carregando}
             subtitulo={acesso.texto}
             vazio="Nenhuma cantina cadastrada ainda."
@@ -223,15 +149,6 @@ export function HubDaCantina() {
           olho="Custos"
           titulo="Quanto a cantina custou"
           para="/cantina/custos"
-          acao={
-            <ExportarNoCard
-              oQue="os custos do mês"
-              saidas={[{
-                rotulo: 'Relatório do mês (.xlsx)',
-                href: enderecoDoRelatorio(janelaDoMesAtual.de, janelaDoMesAtual.ate),
-              }]}
-            />
-          }
           carregando={custos.carregando}
           subtitulo={custos.texto}
           vazio="Nenhuma refeição com valor registrada neste mês."
@@ -380,15 +297,24 @@ export function CalendarioNaCoordenacao() {
   return (
     <div className="tela">
       <CabecaDeCampo
-        titulo="O que foi lançado?"
+        // O MESMO nome do card que traz até aqui (docs/40 §12.2).
+        titulo="Cardápios lançados"
         para="/cantina"
         destino="a cantina"
         acoes={(
           <>
-            {/* Some quando há uma cantina só, que é o estado de hoje — um
-                seletor de uma opção é controle que não decide nada. */}
+            {/* Sempre visível, inclusive com uma cantina só: com uma, ele não
+                decide — informa de quem é o cardápio (docs/40 §12.6). */}
             <SeletorDeCantina />
             <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />
+            <Exportar
+              oQue="os cardápios"
+              periodoInicial={{ de, ate }}
+              saidas={saidasDeCardapios(
+                fonteDaCoordenacao(selecionada),
+                nomeDaCantina(cantinas, selecionada) ?? cantinas.find((c) => c.ativo)?.nome ?? null,
+              )}
+            />
           </>
         )}
       />
@@ -478,9 +404,10 @@ export function DiaNaCoordenacao() {
         para="/cantina/cardapios"
         destino="o calendário"
         acoes={
-          // A magnitude do dia. Um número só, e ele responde "vale abrir isto
-          // hoje?" — a mesma regra do card com magnitude do Painel.
-          isLoading ? null : (
+          <>
+          {/* A magnitude do dia. Um número só, e ele responde "vale abrir isto
+              hoje?" — a mesma regra do card com magnitude do Painel. */}
+          {isLoading ? null : (
             <span className="cant-magnitude">
               <span className="cant-magnitude__numero">{noDia.pedidos}</span>
               {/* A palavra muda com o que o número conta: com retirada na hora
@@ -489,7 +416,13 @@ export function DiaNaCoordenacao() {
                 {rotuloDaContagem(noDia)} no dia
               </span>
             </span>
-          )
+          )}
+          <Exportar
+            oQue="o cardápio do dia"
+            periodoInicial={{ de: data, ate: data }}
+            saidas={saidasDeCardapios(fonteDaCoordenacao(selecionada), cantina)}
+          />
+          </>
         }
       />
       {cantina && <p className="cant-intro">{cantina}</p>}
@@ -757,22 +690,18 @@ export function CardapioNaCoordenacao() {
         para={`/cantina/${data}`}
         destino="o dia"
         acoes={
-          <BotoesDeExportar
-            dia={{
-              data,
+          <Exportar
+            oQue="os pedidos"
+            periodoInicial={{ de: data, ate: data }}
+            saidas={saidasDePedidos(fonteDaCoordenacao(selecionada), {
               refeicao,
-              pedidos: pedidosNaTela,
-              contagem: cardapio.contagem,
               cantina: nomeDaCantina(cantinasParaExportar, cardapio.cantina_id),
               valor: valorDaRefeicao(cantinasParaExportar, cardapio.cantina_id, refeicao),
-              // ⚠️ A coordenação exporta SEM o texto da restrição alimentar.
-              // A tela mostra só a marca "tem restrição alimentar", e a
-              // revelação é deliberada em /cantina/direitos — um CSV que
-              // vazasse o texto contornaria essa decisão pelo caminho mais
-              // fácil, que é justamente o que não pode acontecer com dado de
-              // saúde de menor.
-              incluirRestricao: false,
-            }}
+              // A folha deste dia leva a lista como está na tela. E, pela
+              // fonte da coordenação, nunca o texto da restrição alimentar
+              // (docs/38 §2.6) — em nenhum formato.
+              telaNoDia: { data, pedidos: pedidosNaTela },
+            })}
           />
         }
       />

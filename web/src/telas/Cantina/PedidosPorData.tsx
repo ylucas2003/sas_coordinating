@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
 
-import { BotoesDeExportar } from './BotoesDeExportar';
+import { Exportar } from './BotaoDeExportar';
+import { fonteDaCantina } from './fontesDeExportacao';
+import { saidasDePedidos } from './saidasDeExportacao';
 import { ListaDeQuemVaiComer } from './ListaDeQuemVaiComer';
 import {
   contagemPorModo, fraseDaQuebra, isoDoDia, quebraDaContagem,
   refeicaoPorHorario, ROTULO_DA_REFEICAO, rotuloDoDia,
 } from '../../dominio/cantina';
 import {
-  useCalendarioDaCantina, useContagem, useMinhaCantina, usePedidosDoCardapio,
+  useCalendarioDaCantina, useMinhaCantina, usePedidosDoCardapio,
 } from '../../hooks/cantina';
 import type { PedidoDeAluno, Refeicao } from '../../tipos/cantina';
 
@@ -40,7 +42,6 @@ export function PedidosPorData() {
   const doDia = dias.find((d) => d.refeicao === refeicao);
 
   const { data: pedidos = [], isLoading } = usePedidosDoCardapio(doDia?.id);
-  const { data: contagem } = useContagem(doDia?.id);
   const { data: minha } = useMinhaCantina();
 
   const valor = refeicao === 'almoco' ? minha?.valor_almoco : minha?.valor_janta;
@@ -60,16 +61,17 @@ export function PedidosPorData() {
         <div className="cant-cabeca__acoes">
           {/* O botão fica no TOPO, como você pediu, e leva o recorte da tela —
               não a lista inteira (docs/40 §12.4). */}
-          <BotoesDeExportar
-            dia={{
-              data, refeicao,
-              pedidos: pedidosNaTela,
-              contagem: contagem?.opcoes ?? [],
+          <Exportar
+            oQue="os pedidos"
+            periodoInicial={{ de: data, ate: data }}
+            saidas={saidasDePedidos(fonteDaCantina(), {
+              refeicao,
               cantina: minha?.nome ?? null,
               valor: valor ?? null,
-              // O balcão leva o texto da restrição: é o que muda o prato.
-              incluirRestricao: true,
-            }}
+              // A folha do DIA que está na tela leva a lista como ela está —
+              // filtrada, se a cantina filtrou (docs/40 §12.4).
+              telaNoDia: { data, pedidos: pedidosNaTela },
+            })}
           />
         </div>
       </header>

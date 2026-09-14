@@ -4,7 +4,9 @@ import {
   fraseDaQuebra, isoDoDia, quebraDaContagem, rotuloDaContagem, somarContagens,
 } from '../../dominio/cantina';
 import { useCalendarioDaCantina, useMinhaCantina } from '../../hooks/cantina';
-import { BotaoDaGrade } from './BotaoDaGrade';
+import { Exportar } from './BotaoDeExportar';
+import { fonteDaCantina } from './fontesDeExportacao';
+import { saidasDeCardapios } from './saidasDeExportacao';
 import { AvisoSemPublico } from './AvisoSemPublico';
 import { GradeDeCardapios, janelaDoMes, NavegadorDeMes } from './GradeDeCardapios';
 
@@ -25,12 +27,6 @@ export function Calendario() {
   const [de, ate] = useMemo(() => janelaDoMes(ano, mes), [ano, mes]);
   const { data: dias = [], isLoading, isError } = useCalendarioDaCantina(de, ate);
   const { data: minha } = useMinhaCantina();
-  // Só o que está PUBLICADO vai para a parede: rascunho na parede é promessa
-  // que a cozinha ainda pode desfazer.
-  const publicadosDoMes = useMemo(
-    () => dias.filter((d) => d.estado === 'aberto' || d.estado === 'fechado'),
-    [dias],
-  );
 
   function andar(passo: number) {
     const d = new Date(ano, mes + passo, 1);
@@ -69,11 +65,15 @@ export function Calendario() {
           </p>
         </div>
         <div className="cant-cabeca__acoes">
-          {/* A grade para o MURAL (docs/40 §12.5.3). Não é o XLSX de outra
-              forma: não se prega planilha na parede, e é a folha impressa que
-              a cozinha usa hoje. */}
-          <BotaoDaGrade dias={publicadosDoMes} cantina={minha?.nome ?? null} />
+          {/* O "Exportar" da tela, com rótulo, no canto (decisão de 14/09):
+              imagem e PDF de um dia, grade para o mural e planilha de um
+              período. Abre no mês que está na tela. */}
           <NavegadorDeMes ano={ano} mes={mes} onAndar={andar} />
+          <Exportar
+            oQue="os cardápios"
+            periodoInicial={{ de, ate }}
+            saidas={saidasDeCardapios(fonteDaCantina(), minha?.nome ?? null)}
+          />
         </div>
       </header>
 

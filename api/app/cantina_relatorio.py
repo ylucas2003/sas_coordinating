@@ -117,7 +117,12 @@ def agregados(
 
 
 def _ler(
-    cliente: ClienteDados, *, de: date, ate: date, cantina_id: str | None
+    cliente: ClienteDados,
+    *,
+    de: date,
+    ate: date,
+    cantina_id: str | None,
+    com_restricao: bool = False,
 ) -> dict:
     """Todas as consultas do relatório, em LOTE.
 
@@ -159,7 +164,10 @@ def _ler(
     alunos = (
         (
             cliente.table("aluno")
-            .select("id, nome")
+            # ⚠️ A restrição alimentar só é LIDA quando quem chama é a cantina
+            # (docs/38 §2.6). Não basta não escrevê-la na planilha: o que não é
+            # lido não tem como vazar por uma aba nova escrita às pressas.
+            .select("id, nome, restricao_alimentar" if com_restricao else "id, nome")
             .in_("id", aluno_ids)
             .execute()
             .data
@@ -231,6 +239,10 @@ def _ler(
         "por_cardapio": por_cardapio,
         "pedidos": sorted(pedidos, key=lambda p: (p.get("data") or "", p.get("refeicao") or "")),
         "nome_do_aluno": {a["id"]: a["nome"] for a in alunos},
+        "restricao_do_aluno": (
+            {a["id"]: a.get("restricao_alimentar") for a in alunos} if com_restricao else {}
+        ),
+        "com_restricao": com_restricao,
         "turma_do_aluno": {
             m["aluno_id"]: (m.get("turma") or {}).get("section_original") for m in matriculas
         },
@@ -261,15 +273,21 @@ def _bloco_de_cada_opcao(dados: dict) -> tuple[dict[str, str], dict[str, str], l
     return opcao_nome, opcao_bloco, colunas
 
 
-def _aba_pedidos(wb: Workbook, dados: dict) -> None:
-    """Uma linha por aluno-dia, com **uma coluna por bloco** (docs/40 §12.5.2).
+def _linhas_de_pedidos(dados: dict) -> tuple[list[str], list[list]]:
+    """`(cabeçalho, linhas)` da planilha de pedidos — **um montador para os dois
+    formatos**.
 
-    É o formato do formulário que a coordenação já usa, e é o que torna a
-    coluna somável: "Arroz | Frango | Folhas" numa célula só não responde
-    "quantos pediram frango" sem alguém separar à mão.
+    O XLSX e o CSV saem daqui. Dois montadores divergiriam no primeiro caso de
+    borda (a coluna de restrição, o traço de quem pega na hora), e a divergência
+    apareceria como "o CSV não bate com a planilha".
+
+    Uma linha por aluno-dia, com **uma coluna por bloco** (docs/40 §12.5.2): é o
+    formato do formulário que a coordenação já usa, e é o que torna a coluna
+    somável — "Arroz | Frango | Folhas" numa célula só não responde "quantos
+    pediram frango" sem alguém separar à mão.
     """
-    ws = wb.create_sheet("Pedidos")
     opcao_nome, opcao_bloco, colunas = _bloco_de_cada_opcao(dados)
+    com_restricao = dados.get("com_restricao", False)
 
     escolhas_do_pedido: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
     for item in dados["itens"]:
@@ -279,9 +297,12 @@ def _aba_pedidos(wb: Workbook, dados: dict) -> None:
                 opcao_nome.get(item["opcao_id"], "")
             )
 
-    ws.append(
-        ["Data", "Cantina", "Refeição", "Aluno", "Turma", "Modo", *colunas, "Valor", "Hora"]
-    )
+    cabecalho = [
+        "Data", "Cantina", "Refeição", "Aluno", "Turma",
+        *(["Restrição alimentar"] if com_restricao else []),
+        "Modo", *colunas, "Valor", "Hora",
+    ]
+    linhas = []
     for p in dados["pedidos"]:
         cardapio = dados["por_cardapio"].get(p["cardapio_id"], {})
         presencial = (p.get("modo") or "pedido") == "presencial"
@@ -292,17 +313,27 @@ def _aba_pedidos(wb: Workbook, dados: dict) -> None:
             "—" if presencial else "; ".join(escolhas_do_pedido[p["id"]].get(bloco, []))
             for bloco in colunas
         ]
-        ws.append([
+        linhas.append([
             p.get("data") or cardapio.get("data"),
             dados["nome_da_cantina"].get(cardapio.get("cantina_id"), ""),
             _ROTULO.get(p.get("refeicao") or cardapio.get("refeicao"), ""),
             dados["nome_do_aluno"].get(p["aluno_id"], ""),
             dados["turma_do_aluno"].get(p["aluno_id"], ""),
+            *([dados["restricao_do_aluno"].get(p["aluno_id"]) or ""] if com_restricao else []),
             _MODO.get(p.get("modo") or "pedido", ""),
             *celulas,
             p.get("valor_cobrado"),
             (p.get("retirado_em") or p.get("criado_em") or "")[:19].replace("T", " "),
         ])
+    return cabecalho, linhas
+
+
+def _aba_pedidos(wb: Workbook, dados: dict) -> None:
+    ws = wb.create_sheet("Pedidos")
+    cabecalho, linhas = _linhas_de_pedidos(dados)
+    ws.append(cabecalho)
+    for linha in linhas:
+        ws.append(linha)
 
 
 def _somar(dados: dict, chave) -> list[tuple[str, int, float]]:
@@ -433,3 +464,182 @@ def _limite_em_palavras(bloco: dict) -> str:
     if minimo == 0:
         return f"máximo {maximo} {'opção' if maximo == 1 else 'opções'}"
     return f"de {minimo} a {maximo} opções"
+
+
+# ─── As exportações de cada tela (decisão de 14/09) ──────────────────────
+#
+# Cada tela de cantina exporta o que faz sentido para ela, e as planilhas saem
+# daqui porque XLSX não se faz no navegador sem uma biblioteca de ~1 MB. Todas
+# são para chamar por `asyncio.to_thread` — ver `montar`.
+
+
+def _xlsx(abas: list[tuple[str, list[str], list[list]]]) -> bytes:
+    wb = Workbook(write_only=True)
+    for titulo, cabecalho, linhas in abas:
+        ws = wb.create_sheet(titulo)
+        ws.append(cabecalho)
+        for linha in linhas:
+            ws.append(linha)
+    saida = io.BytesIO()
+    wb.save(saida)
+    return saida.getvalue()
+
+
+def planilha_de_pedidos(
+    cliente: ClienteDados,
+    *,
+    de: date,
+    ate: date,
+    cantina_id: str | None = None,
+    com_restricao: bool = False,
+) -> bytes:
+    """Só os pedidos do período, sem as abas de custo.
+
+    ⚠️ `com_restricao=True` é da CANTINA, e só dela: é ela que monta o prato. A
+    coordenação vê que a restrição existe, não o texto (docs/38 §2.6).
+    """
+    dados = _ler(cliente, de=de, ate=ate, cantina_id=cantina_id, com_restricao=com_restricao)
+    return _xlsx([("Pedidos", *_linhas_de_pedidos(dados))])
+
+
+#: Começos que o Excel interpreta como FÓRMULA ao abrir um CSV. Um nome vindo do
+#: Canvas começando com `=` viraria célula executável na máquina de quem abriu.
+_INICIO_DE_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _celula_csv(valor: object) -> str:
+    if valor is None:
+        return ""
+    if isinstance(valor, (int, float)):
+        # Vírgula decimal: é o que o Excel pt-BR lê como número.
+        return f"{valor:.2f}".replace(".", ",") if isinstance(valor, float) else str(valor)
+    texto = str(valor)
+    if texto.startswith(_INICIO_DE_FORMULA):
+        texto = "'" + texto
+    if any(c in texto for c in (";", '"', "\n", "\r")):
+        texto = '"' + texto.replace('"', '""') + '"'
+    return texto
+
+
+def csv_de_pedidos(
+    cliente: ClienteDados,
+    *,
+    de: date,
+    ate: date,
+    cantina_id: str | None = None,
+    com_restricao: bool = False,
+) -> bytes:
+    """Os mesmos pedidos da planilha, em CSV — pelo MESMO montador de linhas.
+
+    `;` e BOM UTF-8: é o dialeto que o Excel pt-BR abre sem perguntar nada, o
+    mesmo do CSV que já sai do navegador em `telas/Cantina/exportar.ts`.
+    """
+    dados = _ler(cliente, de=de, ate=ate, cantina_id=cantina_id, com_restricao=com_restricao)
+    cabecalho, linhas = _linhas_de_pedidos(dados)
+    texto = "\r\n".join(
+        ";".join(_celula_csv(c) for c in linha) for linha in [cabecalho, *linhas]
+    )
+    return ("﻿" + texto).encode("utf-8")
+
+
+def planilha_do_cardapio(
+    cliente: ClienteDados, *, de: date, ate: date, cantina_id: str | None = None
+) -> bytes:
+    """A grade do período — blocos nas linhas, dias nas colunas."""
+    dados = _ler(cliente, de=de, ate=ate, cantina_id=cantina_id)
+    wb = Workbook(write_only=True)
+    _aba_cardapio(wb, dados)
+    saida = io.BytesIO()
+    wb.save(saida)
+    return saida.getvalue()
+
+
+def planilha_de_direitos(cliente: ClienteDados) -> bytes:
+    """Quem tem direito a quê, hoje.
+
+    ⚠️ **"Tem restrição" é sim ou vazio, nunca o texto** (docs/38 §2.6). O texto
+    é lido do banco só para virar o sim — a coordenação sabe que existe, e a
+    revelação continua sendo um gesto deliberado em `/cantina/direitos`.
+    """
+    alunos = (
+        cliente.table("aluno")
+        .select("id, nome, matricula, restricao_alimentar")
+        .eq("ativo", True)
+        .execute()
+        .data
+        or []
+    )
+    direitos: dict[str, set[str]] = defaultdict(set)
+    for linha in cliente.table("direito_refeicao_aluno").select("aluno_id, refeicao").execute().data or []:
+        direitos[linha["aluno_id"]].add(linha["refeicao"])
+    matriculas = (
+        cliente.table("matricula_turma")
+        .select("aluno_id, turma(section_original)")
+        .is_("ativo_ate", "null")
+        .execute()
+        .data
+        or []
+    )
+    turma = {m["aluno_id"]: (m.get("turma") or {}).get("section_original") for m in matriculas}
+
+    linhas = [
+        [
+            a["nome"],
+            a.get("matricula") or "",
+            turma.get(a["id"]) or "",
+            "sim" if "almoco" in direitos[a["id"]] else "",
+            "sim" if "janta" in direitos[a["id"]] else "",
+            "sim" if (a.get("restricao_alimentar") or "").strip() else "",
+        ]
+        for a in sorted(alunos, key=lambda a: (a["nome"] or "").casefold())
+    ]
+    return _xlsx([(
+        "Alunos com direito",
+        ["Aluno", "Matrícula", "Turma", "Almoço", "Janta", "Tem restrição"],
+        linhas,
+    )])
+
+
+def planilha_de_acesso(cliente: ClienteDados) -> bytes:
+    """As cantinas, a regra da casa e as contas de cada uma.
+
+    Uma linha por CONTA, com a cantina repetida: é o que deixa filtrar por
+    cantina no Excel. Cantina sem conta aparece uma vez, com as colunas da conta
+    vazias — sumir com ela esconderia justamente a que precisa de conta.
+    Senha não entra, e não há o que entrar: o hash é de mão única (docs/40 §12.7).
+    """
+    cantinas = cliente.table("cantina").select("*").execute().data or []
+    contas = (
+        cliente.table("usuario_cantina")
+        .select("cantina_id, email, nome, ativo, ultimo_login_em")
+        .execute()
+        .data
+        or []
+    )
+    por_cantina: dict[str, list[dict]] = defaultdict(list)
+    for conta in contas:
+        por_cantina[conta["cantina_id"]].append(conta)
+
+    linhas = []
+    for c in sorted(cantinas, key=lambda c: (c["nome"] or "").casefold()):
+        dias = c.get("prazo_padrao_dias_antes") or 0
+        hora = str(c.get("prazo_padrao_hora") or "")[:5]
+        prazo = f"{'no próprio dia' if dias == 0 else f'{dias} dia(s) antes'}, às {hora}"
+        base = [
+            c["nome"], "sim" if c.get("ativo") else "não", prazo,
+            c.get("valor_almoco"), c.get("valor_janta"),
+        ]
+        do_estabelecimento = sorted(por_cantina.get(c["id"], []), key=lambda k: (k["nome"] or "").casefold())
+        if not do_estabelecimento:
+            linhas.append([*base, "", "", "", ""])
+        for k in do_estabelecimento:
+            linhas.append([
+                *base, k["nome"], k["email"], "sim" if k.get("ativo") else "não",
+                (k.get("ultimo_login_em") or "")[:16].replace("T", " "),
+            ])
+    return _xlsx([(
+        "Cantinas e contas",
+        ["Cantina", "Ativa", "Prazo padrão", "Valor almoço", "Valor janta",
+         "Conta", "E-mail", "Conta ativa", "Último acesso"],
+        linhas,
+    )])

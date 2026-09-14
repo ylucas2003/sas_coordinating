@@ -92,6 +92,13 @@
 .cant-main { flex: 1; padding: 20px; }
 .cant-tela { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
 
+/* No desktop largo o casco da cantina deixa de ser coluna de celular
+   centralizada: listas e calendário usam a tela (decisão de 14/09). */
+@media (min-width: 1280px) {
+  .cant-tela { max-width: 1440px; gap: 16px; }
+  .cant-main { padding: 20px 32px; }
+}
+
 /* ─── Cabeçalho de tela ──────────────────────────────────────────────── */
 
 .cant-cabeca {
@@ -99,6 +106,17 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* As ações da cabeça numa LINHA, encostadas à direita. A classe existia em
+   cinco telas sem regra nenhuma: era um bloco, e no calendário o "Exportar"
+   empilhava em cima do navegador de mês em vez de ficar no canto. */
+.cant-cabeca__acoes {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -232,14 +250,51 @@
 /* Duas composições declaradas, e não uma grade com buraco: o card que a pessoa
    não pode abrir SOME (docs/40 §12.11.4). Com o card de Custos são três e
    quatro; eram dois e três. */
-.cant-hub--quatro { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 1120px; }
-.cant-hub--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1120px; }
-.cant-hub--dois { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; }
+/* ⚠️ DENSIDADE POR LARGURA, e é decisão de 14/09: o desktop tem de se
+   distinguir do celular pelo jeito de usar a tela, e não só pela quantidade de
+   colunas. Três faixas, e cada uma com o seu desenho:
 
-@media (max-width: 1000px) {
+     celular  (< 760px)   um card por linha, alto, com glifo — é para o polegar;
+     tablet   (760–1279)  dois por linha;
+     desktop  (≥ 1280px)  TODOS numa linha só, compactos, sem teto de largura —
+                          o hub inteiro cabe acima da dobra e sobra tela.
+
+   Era um 2×2 com `max-width: 1120px` no desktop: o celular esticado, com um
+   terço da tela vazio à direita. */
+.cant-hub--quatro,
+.cant-hub--tres,
+.cant-hub--dois { grid-template-columns: 1fr; }
+
+@media (min-width: 760px) {
   .cant-hub--quatro,
-  .cant-hub--tres,
-  .cant-hub--dois { grid-template-columns: 1fr; max-width: none; }
+  .cant-hub--dois { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cant-hub--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1280px) {
+  .cant-hub--quatro { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .cant-hub--dois { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; }
+
+  /* O card compacto do padrão de campo, aplicado por largura e não por prop:
+     no celular ele segue alto e tocável. */
+  .cant-hub .campo-cartao {
+    min-height: 136px;
+    padding: 18px;
+  }
+
+  .cant-hub .campo-cartao__titulo {
+    font-size: 20px;
+    line-height: 1.1;
+  }
+
+  .cant-hub .campo-cartao__sub {
+    font-size: 13px;
+  }
+
+  .cant-hub .campo-cartao__glifo {
+    width: 48px;
+    height: 48px;
+  }
 }
 
 /* ─── O calendário ───────────────────────────────────────────────────── */
@@ -1323,17 +1378,18 @@ span.cant-pilula { cursor: default; }
   cursor: pointer;
 }
 
-/* ─── Exportar, total e seletor ──────────────────────────────────────── */
+/* ─── Total e seletor ────────────────────────────────────────────────── */
 
-.cant-exportar { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-/* ⚠️ Estes quatro liam `--color-*`, o alias da coordenação que MORREU na fase 0
+/* O `.cant-exportar` da dupla CSV/PDF saiu em 14/09 com `BotoesDeExportar`:
+   exportar é `BotaoDeExportar.tsx`, com rótulo, e o estilo dele está no fim
+   desta folha. */
+/* ⚠️ As regras desta seção liam `--color-*`, o alias da coordenação que MORREU na fase 0
    do docs/39 junto com `tokens.css`. `var()` indefinido é descartado em
    silêncio — a cor não ficava errada, ficava NENHUMA, e o elemento herdava a do
    pai. `dominio/tokensCss.test.ts` existe por causa deste tipo exato de perda;
    estes escaparam porque a folha da cantina nasceu depois dele. Traduzidos para
    o papel: `text-primary` → texto, `text-secondary` → texto-2, `magnitude` →
    magnitude. (Achado de passagem no sprint de mobile, 07/09.) */
-.cant-exportar__erro { font-size: 12px; color: var(--sas-texto); }
 
 /* A faixa das abas com a soma do dia à direita: o total é consequência dos
    pedidos, não identidade da tela, então não sobe para o cabeçalho. */
@@ -1407,7 +1463,13 @@ span.cant-pilula { cursor: default; }
 }
 
 .cant-aovivo__semcamera { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; }
-.cant-aovivo__semcamera .cant-aviso { max-width: 46ch; }
+/* Fundo OPACO aqui: o aviso comum é translúcido, e dentro da caixa preta da
+   câmera o texto do tema claro (escuro) sumia no preto. Com a cantina nascendo
+   no claro (docs/40 §12.16.3), era o estado de todo dia. */
+.cant-aovivo__semcamera .cant-aviso {
+  max-width: 46ch;
+  background: color-mix(in srgb, var(--sas-valor) 16%, var(--sas-superficie));
+}
 
 .cant-aovivo__resultado { min-height: 180px; display: grid; align-content: start; }
 
@@ -1673,4 +1735,157 @@ span.cant-pilula { cursor: default; }
   .cant-barras__rotulo {
     grid-column: 1 / -1;
   }
+}
+
+/* ── Exportar (decisão de 14/09) ───────────────────────────────────────────
+ *
+ * `telas/Cantina/Exportar.tsx` — o único lugar de exportar em toda tela de
+ * cantina. Botão COM rótulo: a seta solta que existia no card do hub obrigava a
+ * adivinhar.
+ */
+
+/* `margin-left: auto`: no celular as ações da cabeça quebram linha, e o botão
+   cairia sozinho à ESQUERDA, embaixo dos KPIs. Assim ele fica sempre no lado
+   direito — o mesmo lugar que tem no desktop. */
+.cant-exportar-botao {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cant-exportar-botao:hover {
+  border-color: var(--sas-dado);
+  background: var(--sas-superficie-2);
+}
+
+.cant-exportacao {
+  display: grid;
+  gap: 20px;
+}
+
+/* Desktop: formato à esquerda, período à direita — as duas perguntas lado a
+   lado, sem rolar. Celular: uma embaixo da outra. */
+@media (min-width: 760px) {
+  .cant-exportacao--com-periodo {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    align-items: start;
+  }
+}
+
+.cant-exportacao__formatos {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cant-exportacao__legenda {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sas-referencia);
+  margin-bottom: 4px;
+}
+
+.cant-formato {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.cant-formato input { margin-top: 3px; }
+.cant-formato--ativo { border-color: var(--sas-dado); background: var(--sas-realce); }
+.cant-formato--inerte { cursor: default; opacity: 0.6; }
+.cant-formato__rotulo { display: block; font-weight: 600; }
+.cant-formato__descricao { display: block; font-size: 12px; color: var(--sas-texto-2); }
+
+.cant-exportacao__periodo { display: grid; gap: 10px; }
+.cant-exportacao__atalhos { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.cant-exportacao__escolhido { margin: 0; font-size: 13px; font-weight: 600; color: var(--sas-texto); }
+.cant-exportacao__escolhido--falta { color: var(--sas-alerta-texto); }
+
+.cant-cal {
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  padding: 10px;
+}
+
+.cant-cal__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+/* Sem `capitalize`: ele fazia "Setembro De 2026". Minúsculo, como o mês no
+   cabeçalho da própria tela. */
+.cant-cal__mes { font-weight: 600; }
+
+.cant-cal__seta {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--sas-texto);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.cant-cal__seta:hover { background: var(--sas-superficie-2); }
+
+.cant-cal__grade {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.cant-cal__semana {
+  text-align: center;
+  font-size: 11px;
+  color: var(--sas-referencia);
+  padding: 4px 0;
+}
+
+.cant-cal__dia {
+  /* 36px no desktop e 40px no celular (abaixo): sete colunas de 44px não
+     cabem em 390px com a borda do diálogo, e o dia é tocado com a tela parada
+     — não andando. */
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--sas-texto);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cant-cal__dia:hover { background: var(--sas-superficie-2); }
+.cant-cal__dia--hoje { font-weight: 700; color: var(--sas-dado); }
+.cant-cal__dia--dentro { background: var(--sas-realce); }
+.cant-cal__dia--ponta { background: var(--sas-dado); color: var(--sas-dado-texto-forte); }
+
+@media screen and (max-width: 759px) {
+  .cant-cal__dia { height: 40px; }
 }

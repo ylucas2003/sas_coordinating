@@ -26,12 +26,12 @@ import type { BlocoCardapio, ContagemDeOpcao, PedidoDeAluno, Refeicao } from '..
 // Duas saídas porque são dois usos: o CSV vai para a planilha de quem fecha a
 // conta do mês; o PDF é a folha que desce impressa para o balcão.
 
-const ESTILO_CORPO =
+export const ESTILO_CORPO =
   'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;'
   + 'color: #1a1d24; line-height: 1.5; margin: 0; padding: 24px; max-width: 820px;';
-const ESTILO_TITULO = 'font-size: 22px; font-weight: 600; margin: 0 0 4px;';
-const ESTILO_SUBTITULO = 'font-size: 12px; color: #5a5d65; margin: 0 0 22px;';
-const ESTILO_SECAO = 'font-size: 15px; font-weight: 600; margin: 22px 0 8px;';
+export const ESTILO_TITULO = 'font-size: 22px; font-weight: 600; margin: 0 0 4px;';
+export const ESTILO_SUBTITULO = 'font-size: 12px; color: #5a5d65; margin: 0 0 22px;';
+export const ESTILO_SECAO = 'font-size: 15px; font-weight: 600; margin: 22px 0 8px;';
 const ESTILO_TABELA =
   'width: 100%; border-collapse: collapse; font-size: 12px; break-inside: auto;';
 const ESTILO_TH =
@@ -42,7 +42,7 @@ const ESTILO_TR = 'break-inside: avoid;';
 const ESTILO_RESTRICAO = 'color: #8a5a00; font-weight: 600;';
 // A nota que explica por que duas contagens da mesma folha não batem. Colada na
 // tabela de cima, e não solta: é resposta a ela.
-const ESTILO_NOTA = 'font-size: 12px; color: #5a5d65; margin: 8px 0 0;';
+export const ESTILO_NOTA = 'font-size: 12px; color: #5a5d65; margin: 8px 0 0;';
 
 export interface DiaExportavel {
   data: string;
@@ -186,7 +186,7 @@ function baixar(blob: Blob, nome: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-function no(doc: Document, tag: string, estilo: string, texto?: string): HTMLElement {
+export function no(doc: Document, tag: string, estilo: string, texto?: string): HTMLElement {
   const elemento = doc.createElement(tag);
   if (estilo) elemento.style.cssText = estilo;
   if (texto != null) elemento.textContent = texto;
@@ -194,7 +194,7 @@ function no(doc: Document, tag: string, estilo: string, texto?: string): HTMLEle
 }
 
 /** `@page` só existe em folha de estilo — não há atributo equivalente. */
-function regrasDePagina(doc: Document): void {
+export function regrasDePagina(doc: Document): void {
   const folha = doc.createElement('style');
   doc.head.appendChild(folha);
   try {
@@ -205,7 +205,7 @@ function regrasDePagina(doc: Document): void {
   }
 }
 
-function tabela(
+export function tabela(
   doc: Document,
   cabecalho: string[],
   linhas: Array<Array<{ texto: string; estilo?: string }>>,
@@ -229,14 +229,28 @@ function tabela(
   return tab;
 }
 
-export function exportarPedidosPDF(dia: DiaExportavel): void {
+/**
+ * Abre a janela de impressão — e é para chamar DENTRO do clique.
+ *
+ * O navegador só deixa `window.open` acontecer em resposta direta a um gesto.
+ * Quem precisa buscar dado antes (o dia escolhido no painel de exportar não é o
+ * dia da tela) abre a janela primeiro, busca, e preenche depois.
+ */
+export function abrirJanelaDeImpressao(): Window {
   const janela = window.open('', '_blank');
   if (!janela) {
     throw new Error(
       'O navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente de novo.',
     );
   }
+  return janela;
+}
 
+export function exportarPedidosPDF(dia: DiaExportavel): void {
+  preencherPedidosPDF(abrirJanelaDeImpressao(), dia);
+}
+
+export function preencherPedidosPDF(janela: Window, dia: DiaExportavel): void {
   const doc = janela.document;
   doc.title = nomeDeArquivo(dia, 'pdf');
   doc.documentElement.lang = 'pt-BR';
@@ -350,14 +364,15 @@ export interface DiaDaGrade {
  */
 export function exportarGradeDaSemanaPDF(dias: DiaDaGrade[], cantina?: string | null): void {
   if (!dias.length) throw new Error('Não há cardápio lançado neste período.');
+  preencherGradePDF(abrirJanelaDeImpressao(), dias, cantina);
+}
 
-  const janela = window.open('', '_blank');
-  if (!janela) {
-    throw new Error(
-      'O navegador bloqueou a janela de impressão. Permita pop-ups para este site e tente de novo.',
-    );
+/** A grade numa janela JÁ aberta — para quem busca os cardápios depois do clique. */
+export function preencherGradePDF(janela: Window, dias: DiaDaGrade[], cantina?: string | null): void {
+  if (!dias.length) {
+    janela.close();
+    throw new Error('Não há cardápio lançado neste período.');
   }
-
   const doc = janela.document;
   const ordenados = [...dias].sort(
     (a, b) => a.data.localeCompare(b.data) || a.refeicao.localeCompare(b.refeicao),
@@ -367,9 +382,19 @@ export function exportarGradeDaSemanaPDF(dias: DiaDaGrade[], cantina?: string | 
   regrasDePagina(doc);
   // ⚠️ PAISAGEM: a semana tem quatro ou cinco colunas de dia mais a de
   // observação, e em retrato o nome do prato quebra em três linhas.
+  // ⚠️ Por CSSOM, e não `<style>` com texto: a CSP de produção é
+  // `style-src 'self'`, e a janela aberta por `window.open` a herda — o texto
+  // seria descartado em silêncio e a grade sairia em RETRATO (src/exportacao/
+  // LEIA-ME.md). A primeira versão desta função fazia exatamente isso, e o dev,
+  // com CSP mais frouxa, não mostrava.
   const paisagem = doc.createElement('style');
-  paisagem.textContent = '@page { size: landscape; margin: 12mm; }';
   doc.head.appendChild(paisagem);
+  try {
+    paisagem.sheet?.insertRule('@page { size: landscape; margin: 12mm; }', 0);
+  } catch {
+    // Navegador que recuse a regra imprime em retrato — perde-se a orientação,
+    // não o documento.
+  }
   doc.body.style.cssText = ESTILO_CORPO;
 
   // Os blocos, na ordem da bandeja, pela união dos dias: um bloco que só

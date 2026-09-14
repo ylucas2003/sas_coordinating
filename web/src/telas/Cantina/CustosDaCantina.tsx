@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react';
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { useCustosDaCantina } from '../../hooks/cantina';
 import { useTituloDaTela } from '../../componentes/layout/migalhas';
-import { enderecoDoRelatorio } from '../../servicos/api';
+import { Exportar } from './BotaoDeExportar';
+import { saidasDeCustos } from './saidasDeExportacao';
 import { janelaDoMes, NavegadorDeMes, nomeDoMes } from './GradeDeCardapios';
 import { SeletorDeCantina, useCantinaSelecionada } from './SeletorDeCantina';
 import type { LinhaDeCusto } from '../../tipos/cantina';
@@ -55,17 +56,18 @@ export function CustosDaCantina() {
         para="/cantina"
         destino="a cantina"
         acoes={
-          <a
-            className="btn btn--fino"
-            href={enderecoDoRelatorio(de, ate, cantina)}
-            // ⚠️ `<a download>` e não um `fetch`: o arquivo já vem pronto do
-            // servidor, com nome no `Content-Disposition`. Passá-lo por
-            // JavaScript só para recolocá-lo num blob gastaria memória e
-            // perderia o nome.
-            download
-          >
-            Baixar planilha (.xlsx)
-          </a>
+          // ⚠️ Era um `<a href download>` direto para a API — e NUNCA funcionou
+          // fora do dev: o token mora em `sessionStorage` e só viaja no
+          // cabeçalho, que um link não manda. Produção respondia 401 (medido em
+          // 14/09). Todo download passa por `servicos/baixar.ts` agora.
+          <Exportar
+            oQue="os custos"
+            periodoInicial={{ de, ate }}
+            saidas={saidasDeCustos(cantina, {
+              chave: recorte,
+              rotulo: RECORTES.find((r) => r.valor === recorte)?.rotulo ?? 'Por dia',
+            })}
+          />
         }
       />
 
