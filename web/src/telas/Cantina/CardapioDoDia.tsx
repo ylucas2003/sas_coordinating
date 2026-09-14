@@ -14,6 +14,10 @@ import type { CorpoCardapio } from '../../servicos/api';
 import type { Refeicao } from '../../tipos/cantina';
 import { normalizar } from '../../util/formato';
 import { AvisoSemPublico } from './AvisoSemPublico';
+import { Exportar } from './BotaoDeExportar';
+import { fonteDaCantina } from './fontesDeExportacao';
+import { saidasDeCardapios } from './saidasDeExportacao';
+import * as sessao from '../../servicos/sessao';
 
 // O EDITOR de um dia — blocos, opções, quantas o aluno escolhe, e o prazo.
 //
@@ -552,6 +556,16 @@ function Cabeca({
           {ROTULO_DA_REFEICAO[refeicao]} · {rotuloDoDia(data)}
         </h1>
         <p className="cant-sub">{ROTULO_DO_ESTADO[estado]}</p>
+      </div>
+      <div className="cant-cabeca__acoes">
+        {/* Publicou, compartilha: a imagem do dia sai daqui mesmo, sem voltar
+            ao calendário. `nomeDaCantina` vem da sessão — este cabeçalho não
+            tem hook, e não precisa de um para saber de quem é a cozinha. */}
+        <Exportar
+          oQue="o cardápio"
+          periodoInicial={{ de: data, ate: data }}
+          saidas={saidasDeCardapios(fonteDaCantina(), sessao.nomeDaCantina() || null)}
+        />
       </div>
     </header>
   );

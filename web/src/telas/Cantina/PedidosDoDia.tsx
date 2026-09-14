@@ -10,7 +10,9 @@ import {
   useCalendarioDaCantina, useContagem, useMinhaCantina, usePedidosDoCardapio,
 } from '../../hooks/cantina';
 import type { ContagemDeOpcao, PedidoDeAluno, Refeicao } from '../../tipos/cantina';
-import { BotoesDeExportar } from './BotoesDeExportar';
+import { Exportar } from './BotaoDeExportar';
+import { fonteDaCantina } from './fontesDeExportacao';
+import { saidasDePedidos } from './saidasDeExportacao';
 import { ListaDeQuemVaiComer } from './ListaDeQuemVaiComer';
 
 // OS PEDIDOS DE UM DIA — e são DUAS leituras, porque são dois momentos.
@@ -85,25 +87,17 @@ export function PedidosDoDia() {
         </div>
 
         <div className="cant-cabeca__acoes">
-          <BotoesDeExportar
-            dia={{
-              data, refeicao,
-              // O que a TELA mostra, e não a lista inteira: se a cantina
-              // filtrou "com restrição" para conferir três pratos, a folha que
-              // ela imprime é a dos três (docs/40 §12.4).
-              pedidos: pedidosNaTela,
-              // A exportação leva as linhas por OPÇÃO, que é o que a planilha
-              // do balcão sempre teve. O presencial não entra nelas de
-              // propósito (docs/40 §10.1): ele não tem prato para somar, e
-              // uma linha "presencial 3" no meio de "arroz 47" seria lida como
-              // mais um prato.
-              contagem: contagem?.opcoes ?? [],
+          <Exportar
+            oQue="os pedidos"
+            periodoInicial={{ de: data, ate: data }}
+            saidas={saidasDePedidos(fonteDaCantina(), {
+              refeicao,
               cantina: minha?.nome ?? null,
               valor: valor ?? null,
-              // A cantina LEVA o texto da restrição: é o que muda o que sai do
-              // balcão, e a folha impressa é justamente para o balcão.
-              incluirRestricao: true,
-            }}
+              // A folha do DIA que está na tela leva a lista como ela está —
+              // filtrada, se a cantina filtrou (docs/40 §12.4).
+              telaNoDia: { data, pedidos: pedidosNaTela },
+            })}
           />
         </div>
       </header>

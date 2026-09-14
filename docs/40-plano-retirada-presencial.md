@@ -1237,6 +1237,101 @@ passo 7** — desempenho e schema de um lado, telas do outro.
   esta fase acrescenta superfície nova em celular — inclusive o terceiro
   destino da barra.
 
+## 12.16 · Ajustes de 14/09 — exportar, densidade e o tema
+
+Pedido depois da fase 2 ir ao ar, sobre as três portas que tocam a cantina.
+Cinco incômodos, e o que ficou decidido para cada um.
+
+### 12.16.1 · O que foi pedido, e a decisão
+
+| Incômodo | Decisão |
+|---|---|
+| Desktop e celular não se distinguem no hub | **Mesmo desenho, mais denso** (escolha do usuário): 1 coluna no celular, 2 a partir de 760px, **4 numa linha** a partir de 1280px, com cartão mais baixo e tela até 1440px |
+| O único exportar era uma seta sem rótulo no card do hub | **Botão "Exportar", com rótulo, no canto superior direito de TODA tela de cantina.** As setas do hub saíram |
+| Só havia XLSX | Formatos por tela (§12.16.2) — inclusive **PNG 1080×1350** do cardápio de um dia, para compartilhar |
+| Exportar sem escolher data | O botão abre um painel com **formato e calendário** no desenho da plataforma: atalhos (Hoje, Esta semana, Este mês, Mês passado) e dois cliques para intervalo; formato de um dia só vira seleção de um dia |
+| As plataformas abrem escuras | **Porta clara** e a escolha antiga de tema **zerada uma vez** (§12.16.3) |
+
+### 12.16.2 · A tabela de formatos
+
+Mora num arquivo só, `web/src/telas/Cantina/saidasDeExportacao.ts` — mudar um
+formato é mudar uma linha ali.
+
+| Tela | Um dia | Período / sem data |
+|---|---|---|
+| Cardápios | PNG para compartilhar · PDF do dia | Grade para o mural (PDF, paisagem) · XLSX |
+| Pedidos | Folha do balcão (PDF) | CSV · XLSX |
+| Alunos com direito | — | CSV · XLSX · PDF |
+| Administrar cantinas | — | CSV · XLSX (sem senha: o hash é de mão única) |
+| Custos | — | XLSX com gráficos · PDF · PNG do gráfico |
+
+⚠️ **As duas portas buscam de lugares diferentes** (`fontesDeExportacao.ts`): a
+coordenação usa `/administracao/cantina/*`, que nunca traz o texto da restrição
+alimentar ("Tem restrição": sim ou vazio); a cantina usa `/cantina/*`, presa ao
+`cantina_id` do token e COM o texto — é ela que monta o prato (docs/38 §2.6).
+`api/tests/test_cantina_exportacao.py` trava as duas regras.
+
+⚠️ **Toda exportação por período no servidor tem teto de 93 dias** (422 acima
+disso). É a armadilha 2 do CLAUDE.md: não há paginação, e um ano de pedidos
+numa leitura só é o tipo de coisa que funciona no teste e trava em produção.
+
+CSV sai com BOM, `;` e vírgula decimal (o Excel brasileiro abre direito), e com
+a guarda de fórmula: célula começando com `= + - @` ganha `'` na frente — nas
+duas pontas, `cantina_relatorio._celula_csv` e `exportarTelas.ts`.
+
+### 12.16.3 · O tema
+
+O padrão já era claro desde §12.10; o que aparecia escuro era (1) o painel da
+porta, escuro por desenho, e (2) `sas_tema = noite` gravado de antes. Agora:
+
+* a porta tem painel claro, com as cores em variáveis `--porta-*` e o escuro
+  preservado em `data-tema='noite'`;
+* a preferência ganhou versão (`sas_tema_versao = 2`,
+  `dominio/temaInicial.ts`): quem chega sem ela tem `sas_tema` e
+  `sas_tema_aluno` apagados **uma vez** e cai no claro. Quem trocar depois disso
+  mantém a escolha. Para zerar de novo algum dia, sobe-se a versão.
+
+### 12.16.4 · ⚠️ Dois defeitos que estavam em produção
+
+* **"Baixar planilha" dos custos nunca funcionou fora do dev (desde #60).** Era
+  `<a href="/api/…" download>`, e o token vive em `sessionStorage` e só viaja no
+  cabeçalho `Authorization`: o link ia sem ele e voltava 401 (medido com curl).
+  Todo download da API passa agora por `servicos/baixar.ts::baixarDaApi`.
+* **A grade do mural não saía em paisagem (desde #61).** O `@page` ia num
+  `<style>` com texto, que a CSP `style-src 'self'` descarta em silêncio na
+  janela de impressão. Agora é `insertRule` — a mesma régua de
+  `src/exportacao/LEIA-ME.md`.
+
+### 12.16.5 · O que o browser achou, e o que ele NÃO viu
+
+Verificado em 14/09 com sessão real nos dois cascos, em 1440×900 e 390×844:
+hub com 4 cartões numa linha e 1 coluna no celular, sem transbordo; o Exportar
+em Alunos com direito, Cardápios (coordenação e cantina) e Visualizar pedidos;
+o painel nos dois modos; o PNG gerado (1080×1350); XLSX de direitos, XLSX de
+custos (o que dava 401) e CSV da cantina baixando com 200, com a coluna de
+restrição só na cantina; o reset do tema; a porta clara.
+
+O que ele pegou e foi consertado na hora — nenhum portão pegaria:
+
+* `.dialog--largo` **já existia** (480px, ficha de nota), e reaproveitar o nome
+  alargou aquela ficha para 720px. O painel usa `.dialog--painel`.
+* No celular o diálogo inteiro rolava e o botão "Exportar" do rodapé ficava
+  fora da vista, embaixo do calendário. Agora rola só o corpo.
+* `.cant-cabeca__acoes` estava em cinco telas **sem regra CSS nenhuma**: no
+  calendário da cantina o Exportar empilhava em cima do navegador de mês.
+* Em modo "um dia", o painel começava no dia 1 do mês da tela; começa em hoje.
+* "Setembro De 2026" (`text-transform: capitalize`); o botão principal sem
+  destaque; "TURMA ITA/IME" sumindo na cena depois da porta clarear.
+* O aviso "o navegador bloqueou a câmera", em Validar entrega, era translúcido
+  sobre a caixa preta da câmera: no tema claro, texto escuro no preto. Já
+  existia antes, mas só aparecia para quem estava no claro — e agora a cantina
+  nasce clara. Ganhou fundo opaco.
+
+**Não visto:** as janelas de PDF (a impressão não se automatiza no MCP), o PNG
+do gráfico de custos, as telas de Administrar cantinas e do dia/refeição na
+coordenação com o painel aberto, e — como sempre — a área do aluno, que só
+entra pelo SSO do Canvas.
+
 ---
 
 # FASE 3 — a janela de retirada

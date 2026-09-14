@@ -1987,6 +1987,125 @@ class RestricaoBody(BaseModel):
     restricao: str | None = None
 
 
+# ─── Exportações por tela (decisão de 14/09) ─────────────────────────────
+#
+# Cada tela de cantina tem o seu "Exportar", e as PLANILHAS saem daqui porque
+# XLSX não se faz no navegador sem uma biblioteca de ~1 MB. CSV de pedidos
+# também sai daqui, pelo mesmo montador de linhas do XLSX — dois montadores
+# divergiriam no primeiro caso de borda.
+#
+# ⚠️ Todas por `asyncio.to_thread`: montar planilha é CPU síncrona num processo
+# de um event loop só (docs/40 §12.1.1).
+
+#: Espelha `TETO_DE_DIAS` de `web/src/dominio/periodo.ts`. A tela já recusa
+#: antes; o servidor recusa de novo porque a tela não é a única que chama.
+_TETO_DE_DIAS_DA_EXPORTACAO = 93
+
+_TIPO_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_TIPO_CSV = "text/csv; charset=utf-8"
+
+
+def _periodo_valido(de: date, ate: date) -> None:
+    if ate < de:
+        raise HTTPException(status_code=422, detail="O fim do período vem antes do começo.")
+    if (ate - de).days + 1 > _TETO_DE_DIAS_DA_EXPORTACAO:
+        # A armadilha 2 do CLAUDE.md: sem paginação, um "desde sempre" montaria
+        # tudo em memória.
+        raise HTTPException(
+            status_code=422,
+            detail=f"O período vai até {_TETO_DE_DIAS_DA_EXPORTACAO} dias.",
+        )
+
+
+def _arquivo(conteudo: bytes, nome: str, tipo: str) -> Response:
+    return Response(
+        content=conteudo,
+        media_type=tipo,
+        headers={"Content-Disposition": f'attachment; filename="{nome}"; filename*=UTF-8\'\'{nome}'},
+    )
+
+
+@router_admin.get("/cantina/pedidos.xlsx")
+async def pedidos_xlsx_da_coordenacao(de: date, ate: date, cantina: str | None = None) -> Response:
+    """Pedidos do período. ⚠️ SEM o texto da restrição: a coordenação vê que
+    existe, não o quê (docs/38 §2.6)."""
+    _periodo_valido(de, ate)
+    conteudo = await asyncio.to_thread(
+        cantina_relatorio.planilha_de_pedidos, get_supabase(), de=de, ate=ate, cantina_id=cantina,
+    )
+    return _arquivo(conteudo, f"pedidos-{de}-a-{ate}.xlsx", _TIPO_XLSX)
+
+
+@router_admin.get("/cantina/pedidos.csv")
+async def pedidos_csv_da_coordenacao(de: date, ate: date, cantina: str | None = None) -> Response:
+    _periodo_valido(de, ate)
+    conteudo = await asyncio.to_thread(
+        cantina_relatorio.csv_de_pedidos, get_supabase(), de=de, ate=ate, cantina_id=cantina,
+    )
+    return _arquivo(conteudo, f"pedidos-{de}-a-{ate}.csv", _TIPO_CSV)
+
+
+@router_admin.get("/cantina/cardapio.xlsx")
+async def cardapio_xlsx_da_coordenacao(de: date, ate: date, cantina: str | None = None) -> Response:
+    _periodo_valido(de, ate)
+    conteudo = await asyncio.to_thread(
+        cantina_relatorio.planilha_do_cardapio, get_supabase(), de=de, ate=ate, cantina_id=cantina,
+    )
+    return _arquivo(conteudo, f"cardapio-{de}-a-{ate}.xlsx", _TIPO_XLSX)
+
+
+@router_admin.get("/cantina/direitos.xlsx")
+async def direitos_xlsx() -> Response:
+    """Sem data: direito é estado de hoje, não histórico."""
+    conteudo = await asyncio.to_thread(cantina_relatorio.planilha_de_direitos, get_supabase())
+    return _arquivo(conteudo, "alunos-com-direito.xlsx", _TIPO_XLSX)
+
+
+@router_admin.get("/cantina/acesso.xlsx", dependencies=[Depends(get_current_administrador)])
+async def acesso_xlsx() -> Response:
+    """Só do administrador, como a tela `/cantina/acesso` de onde ele sai."""
+    conteudo = await asyncio.to_thread(cantina_relatorio.planilha_de_acesso, get_supabase())
+    return _arquivo(conteudo, "cantinas-e-contas.xlsx", _TIPO_XLSX)
+
+
+@router.get("/pedidos.xlsx")
+async def pedidos_xlsx_da_cantina(
+    de: date, ate: date, usuario: dict = Depends(get_current_cantina)
+) -> Response:
+    """Pedidos da cantina DA SESSÃO, com o texto da restrição — é ela que monta
+    o prato. O `cantina_id` vem do token, nunca da URL."""
+    _periodo_valido(de, ate)
+    conteudo = await asyncio.to_thread(
+        cantina_relatorio.planilha_de_pedidos, get_supabase(),
+        de=de, ate=ate, cantina_id=usuario["cantina_id"], com_restricao=True,
+    )
+    return _arquivo(conteudo, f"pedidos-{de}-a-{ate}.xlsx", _TIPO_XLSX)
+
+
+@router.get("/pedidos.csv")
+async def pedidos_csv_da_cantina(
+    de: date, ate: date, usuario: dict = Depends(get_current_cantina)
+) -> Response:
+    _periodo_valido(de, ate)
+    conteudo = await asyncio.to_thread(
+        cantina_relatorio.csv_de_pedidos, get_supabase(),
+        de=de, ate=ate, cantina_id=usuario["cantina_id"], com_restricao=True,
+    )
+    return _arquivo(conteudo, f"pedidos-{de}-a-{ate}.csv", _TIPO_CSV)
+
+
+@router.get("/cardapio.xlsx")
+async def cardapio_xlsx_da_cantina(
+    de: date, ate: date, usuario: dict = Depends(get_current_cantina)
+) -> Response:
+    _periodo_valido(de, ate)
+    conteudo = await asyncio.to_thread(
+        cantina_relatorio.planilha_do_cardapio, get_supabase(),
+        de=de, ate=ate, cantina_id=usuario["cantina_id"],
+    )
+    return _arquivo(conteudo, f"cardapio-{de}-a-{ate}.xlsx", _TIPO_XLSX)
+
+
 @router_admin.get("/cantina/custos")
 async def custos_da_cantina(de: date, ate: date, cantina: str | None = None) -> dict:
     """Os números do relatório, para a TELA (docs/40 §12.11.4).
