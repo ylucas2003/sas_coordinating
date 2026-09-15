@@ -32,6 +32,10 @@
 > ⚠️ O que **não** está em produção é a fase 2 da cantina
 > ([40 §12](40-plano-retirada-presencial.md)), planejada em 09/09 e sem uma
 > linha de código.
+>
+> Em **15/09** começou a captação externa
+> ([41](41-plano-captacao-externa.md)) — schema e pipeline rodando só em dev,
+> tela e rotas ainda por escrever.
 
 ---
 
@@ -657,6 +661,22 @@ dia, o direito não sabe dizer de qual cantina ele come, e a trava de
 `foto_perfil.py` no docs/38 §1.1.
 
 **Total à frente: 7 sprints, 34 partes + as fases 2 a 4 da cantina**, mais o polimento avulso de 6 itens.
+
+### 🔨 Captação externa · achar potencial aluno cruzando resultado de prova pública *(15/09)*
+
+> **Schema e pipeline RODANDO LOCAL, nada em produção.** Migrations `0056` e
+> `0057` aplicadas só neste ambiente de dev. Tela em Administração e rotas de
+> API são desenho, sem uma linha escrita — ver
+> [41-plano-captacao-externa.md](41-plano-captacao-externa.md) §7.
+
+Não é sobre os ~900 alunos que já estão no `aluno` — é sobre gente de fora,
+pra achar quem convidar pro colégio. Três tabelas novas (`prova_externa`,
+`conquista_externa`, `candidato_externo`), um pipeline fora da API em
+`captacao-externa/` (raspa → JSON) e dois scripts em `api/scripts/` (importa →
+resolve identidade por nome+escola). Primeira fonte, OBMEP 2022-2025, já
+raspada e cruzada: **33.066 conquistas, 26.521 candidatos, 178 deles com
+medalha nos 4 anos seguidos**. O documento completo, com o fluxo que se repete
+a cada prova nova e as próximas fontes em ordem, está no [41](41-plano-captacao-externa.md).
 
 ---
 

@@ -1,0 +1,1036 @@
+<title>Dossiê de Provas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#f1efe8;
+    --surface:#fbfaf6;
+    --surface-alt:#e9e5da;
+    --ink:#211f1a;
+    --ink-soft:#5c584e;
+    --line:#d9d4c6;
+    --accent:#2c4a86;
+    --acc-olimpiadas:#2c4a86;
+    --acc-vestibulares:#4b6b3f;
+    --acc-militar:#9c4a2e;
+    --acc-concursos:#8c6b1f;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17181a;
+      --surface:#1e1f21;
+      --surface-alt:#252527;
+      --ink:#ece9e1;
+      --ink-soft:#a9a498;
+      --line:#38372f;
+      --accent:#7f9bd4;
+      --acc-olimpiadas:#7f9bd4;
+      --acc-vestibulares:#94b87e;
+      --acc-militar:#d38867;
+      --acc-concursos:#d3b25f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17181a;
+    --surface:#1e1f21;
+    --surface-alt:#252527;
+    --ink:#ece9e1;
+    --ink-soft:#a9a498;
+    --line:#38372f;
+    --accent:#7f9bd4;
+    --acc-olimpiadas:#7f9bd4;
+    --acc-vestibulares:#94b87e;
+    --acc-militar:#d38867;
+    --acc-concursos:#d3b25f;
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Public Sans", ui-sans-serif, system-ui, sans-serif;
+    font-size:16px;
+    line-height:1.55;
+    padding-inline:20px;
+  }
+  h1,h2,h3{
+    font-family:"Spectral", Georgia, "Times New Roman", serif;
+    text-wrap:balance;
+    margin:0;
+  }
+  a{color:var(--accent);}
+
+  .topo{
+    position:sticky;
+    top:0;
+    z-index:5;
+    background:var(--bg);
+    padding-block:14px 10px;
+    border-bottom:1px solid var(--line);
+    margin-inline:-20px;
+    padding-inline:20px;
+  }
+  .topo-linha{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:16px;
+    max-width:760px;
+    margin:0 auto;
+  }
+  .topo h1{font-size:1.15rem; font-weight:600; letter-spacing:.01em;}
+  .topo .data{
+    font-family:"IBM Plex Mono", ui-monospace, monospace;
+    font-size:.72rem;
+    color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .chips{
+    max-width:760px;
+    margin:10px auto 0;
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .chips::-webkit-scrollbar{display:none;}
+  .chips a{
+    flex:0 0 auto;
+    font-family:"IBM Plex Mono", ui-monospace, monospace;
+    font-size:.72rem;
+    text-decoration:none;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    border-radius:99px;
+    padding:5px 12px;
+    white-space:nowrap;
+  }
+  .chips a:hover{color:var(--ink); border-color:var(--ink-soft);}
+
+  main{max-width:760px; margin:0 auto; padding-block:28px 64px;}
+
+  .lede{
+    font-size:.98rem;
+    color:var(--ink-soft);
+    max-width:64ch;
+  }
+  .lede strong{color:var(--ink); font-weight:600;}
+  .metodo{
+    margin-top:14px;
+    padding-bottom:22px;
+    border-bottom:1px solid var(--line);
+    font-size:.82rem;
+    color:var(--ink-soft);
+    max-width:64ch;
+  }
+  .metodo strong{color:var(--ink);}
+
+  section.grupo{
+    padding-top:44px;
+    scroll-margin-top:96px;
+  }
+  .grupo-cabeca{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    border-bottom:2px solid var(--acc);
+    padding-bottom:10px;
+  }
+  .grupo-num{
+    font-family:"IBM Plex Mono", ui-monospace, monospace;
+    font-size:1.4rem;
+    color:var(--acc);
+    font-weight:500;
+  }
+  .grupo-cabeca h2{font-size:1.5rem; font-weight:600;}
+  .grupo-intro{
+    margin-top:12px;
+    color:var(--ink-soft);
+    max-width:62ch;
+    font-size:.94rem;
+  }
+
+  h3.sub{
+    font-size:1.02rem;
+    font-weight:600;
+    font-style:italic;
+    margin-top:30px;
+    margin-bottom:2px;
+    color:var(--ink);
+    scroll-margin-top:96px;
+  }
+  .sub-intro{
+    color:var(--ink-soft);
+    font-size:.86rem;
+    max-width:62ch;
+    margin-bottom:6px;
+  }
+
+  .fichas{margin-top:6px;}
+  .ficha{
+    padding:15px 0;
+    border-top:1px solid var(--line);
+  }
+  .fichas .ficha:first-child{border-top:none;}
+  .ficha-nome{
+    font-family:"Spectral", serif;
+    font-weight:600;
+    font-size:1.03rem;
+  }
+  .ficha-desc{
+    color:var(--ink-soft);
+    font-size:.85rem;
+    margin-top:1px;
+  }
+  .ficha-dl{
+    display:grid;
+    grid-template-columns:84px 1fr;
+    row-gap:5px;
+    column-gap:12px;
+    margin:10px 0 0;
+    font-size:.85rem;
+  }
+  .ficha-dl dt{
+    font-family:"IBM Plex Mono", ui-monospace, monospace;
+    font-size:.64rem;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    color:var(--ink-soft);
+    padding-top:2px;
+  }
+  .ficha-dl dd{margin:0;}
+  .ficha-dl a{color:var(--acc); word-break:break-word;}
+  .nf{color:var(--ink-soft); font-style:italic;}
+  .obs{color:var(--ink-soft);}
+
+  .callout{
+    margin:14px 0 0;
+    background:var(--surface);
+    border-left:3px solid var(--acc);
+    border-radius:0 6px 6px 0;
+    padding:14px 16px;
+  }
+  .callout p{margin:0; font-size:.86rem; color:var(--ink-soft);}
+  .callout p + p{margin-top:6px;}
+  .callout .rotulo{
+    font-family:"IBM Plex Mono", ui-monospace, monospace;
+    font-size:.64rem;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--acc);
+    display:block;
+    margin-bottom:6px;
+  }
+
+  .nota-final{
+    margin-top:28px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-size:.88rem;
+    color:var(--ink-soft);
+  }
+  .nota-final strong{color:var(--ink);}
+
+  footer{
+    max-width:760px;
+    margin:0 auto;
+    padding-bottom:40px;
+    font-size:.76rem;
+    color:var(--ink-soft);
+    border-top:1px solid var(--line);
+    padding-top:16px;
+  }
+  footer a{color:var(--ink-soft);}
+
+  @media (max-width:480px){
+    body{font-size:15px;}
+    .grupo-cabeca h2{font-size:1.3rem;}
+    .ficha-dl{grid-template-columns:74px 1fr;}
+  }
+</style>
+
+<div class="topo">
+  <div class="topo-linha">
+    <h1>Dossiê de Provas</h1>
+    <span class="data">atualizado 15/09/2026</span>
+  </div>
+  <nav class="chips">
+    <a href="#olimpiadas">1 · Olimpíadas</a>
+    <a href="#vestibulares">2 · Vestibulares</a>
+    <a href="#militares">3 · Colégios militares</a>
+    <a href="#concursos">4 · Concursos nível médio</a>
+  </nav>
+</div>
+
+<main>
+  <p class="lede">
+    Provas abertas a quem está no <strong>ensino fundamental</strong> ou no <strong>ensino médio</strong> —
+    olimpíadas do conhecimento, vestibulares, admissão em colégio militar e concursos públicos que só pedem o médio.
+    Pra cada uma: quando ocorre, em que região, e onde encontrar quem foi aprovado nos últimos anos.
+  </p>
+  <p class="metodo">
+    <strong>Sobre os links de resultado:</strong> boa parte das bancas brasileiras não mantém um índice único
+    cobrindo vários anos — cada edição sai como PDF avulso, atrás de login, ou num site que bloqueia acesso
+    automatizado (mas abre normal num navegador comum). Onde não achei uma fonte confiável, está marcado como
+    <span class="nf">não encontrado</span> em vez de um link chutado. Datas mudam a cada edital — confirme sempre
+    no site oficial.
+  </p>
+
+  <!-- 1. OLIMPÍADAS -->
+  <section class="grupo" id="olimpiadas" style="--acc:var(--acc-olimpiadas)">
+    <div class="grupo-cabeca">
+      <span class="grupo-num">1</span>
+      <h2>Olimpíadas</h2>
+    </div>
+    <p class="grupo-intro">
+      Provas de conhecimento, gratuitas, aplicadas dentro da própria escola. A maioria não elimina por nota baixa
+      — quem se inscreve, faz a 1ª fase.
+    </p>
+
+    <h3 class="sub">Nacionais</h3>
+    <div class="fichas">
+
+      <div class="ficha">
+        <div class="ficha-nome">OBMEP</div>
+        <div class="ficha-desc">Matemática; só escolas públicas, 6º-9º EF e todo o médio</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>1ª fase (objetiva) em junho; 2ª fase (discursiva, aplicada pelo IMPA) em outubro; resultado final em dezembro</dd>
+          <dt>região</dt><dd>Nacional — prova única, sem etapa estadual</dd>
+          <dt>resultados</dt><dd><a href="https://www.obmep.org.br/premiados.htm">obmep.org.br/premiados.htm</a> <span class="obs">— lista 2005-2025 por edição (falta 2020, provável fusão pela pandemia)</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OBM</div>
+        <div class="ficha-desc">Matemática; escolas cadastradas, públicas e privadas, do 6º ano ao universitário</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>até 2024 tinha 2-3 fases (jun/set-out/out-nov); desde 2025 é Fase Única em outubro (2026: 8-9/out)</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd><a href="https://www.obm.org.br/quem-somos/premiados-da-obm/">obm.org.br/premiados-da-obm</a> <span class="obs">— lista completa 1979-2025</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OBF</div>
+        <div class="ficha-desc">Física; 9º ano do fundamental e as 3 séries do médio</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>normalmente 3 fases — 1ª jun, 2ª ago, 3ª out; resultado final fev/mar do ano seguinte</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd><span class="nf">sem página central</span> — cada ano tem site próprio em <a href="https://www1.fisica.org.br/olimpiada/">fisica.org.br/olimpiada/{ano}</a> <span class="obs">(confirmado 2019, 2021-2025)</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OBQ</div>
+        <div class="ficha-desc">Química; 1ª fase corre dentro de 27 olimpíadas estaduais + DF, depois fase nacional</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>fases estaduais primeiro; Fase III nacional ~ago-nov; Fase IV de laboratório ~out-nov</dd>
+          <dt>região</dt><dd>Nacional, alimentada pelas estaduais</dd>
+          <dt>resultados</dt><dd><a href="https://obquimica.org/olimpiada/olimpiada-brasileira-de-quimica">obquimica.org</a> <span class="obs">— PDFs 2022-2025 confirmados; 2019-2021 exigem navegação extra</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OBQ Jr</div>
+        <div class="ficha-desc">Química; 6º ao 9º ano do fundamental</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>Fase I presencial ~ago; Fase II online ~out</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd><a href="https://obquimica.org/olimpiada/olimpiada-brasileira-de-quimica-junior">obquimica.org</a> <span class="obs">— PDFs 2021-2025 confirmados</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Olimpíada Brasileira de Biologia (OBB)</div>
+        <div class="ficha-desc">Instituto Butantan; ensino médio</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>inscrição jan-fev; Fase 1 em março; Fase 2 em março/abril</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd><a href="https://olimpiadasdebiologia.butantan.gov.br/provas-gabaritos-e-classificacoes">olimpiadasdebiologia.butantan.gov.br</a> <span class="obs">— cobre 2019 a 2026; domínio .gov.br bloqueia acesso automatizado, mas abre normal num navegador</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OBA</div>
+        <div class="ficha-desc">Astronomia e Astronáutica; prova única aplicada na própria escola, todo EF e EM</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>fase única (2025 saiu em julho); mês exato varia</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd><a href="https://novo.oba.org.br/medalhas">novo.oba.org.br/medalhas</a> <span class="obs">— consulta pública por ano/UF/nome; site em migração (3 domínios em uso)</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OBI</div>
+        <div class="ficha-desc">Informática; modalidades Programação e Iniciação</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>Fase 1 em junho; Fase 2 em agosto; Fase 3 presencial (finalistas) set-nov</dd>
+          <dt>região</dt><dd>Nacional, Fase 3 em sedes regionais</dd>
+          <dt>resultados</dt><dd><a href="https://olimpiada.ic.unicamp.br/passadas/">olimpiada.ic.unicamp.br/passadas</a> <span class="obs">— 1999-2025 completo, sem login</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">ONC</div>
+        <div class="ficha-desc">Multidisciplinar: Astronomia, Biologia, Física, História e Química numa prova só</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>Fase 1 em meados de agosto; Fase 2 em meados de setembro</dd>
+          <dt>região</dt><dd>Nacional, resultado por estado</dd>
+          <dt>resultados</dt><dd><a href="https://resultado.onciencias.org/">resultado.onciencias.org</a> <span class="obs">— 2020-2025 confirmados; organizada pela UFPI (execução MCTI, com SBF/ABQ/Butantan/SAB/Unicamp)</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">ONHB</div>
+        <div class="ficha-desc">Olimpíada Nacional em História do Brasil</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>Fase 1 e 2 em maio; final presencial em agosto, na Unicamp</dd>
+          <dt>região</dt><dd>Nacional, final concentrada em Campinas-SP</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado um link único</span> — só notícias avulsas por edição; organizada pela Unicamp (Depto. de História)</dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OBR</div>
+        <div class="ficha-desc">Olimpíada Brasileira de Robótica</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>modalidade teórica jul-out; etapa nacional prática, com RoboCup Brasil, em novembro</dd>
+          <dt>região</dt><dd>Nacional, com etapa estadual antes</dd>
+          <dt>resultados</dt><dd><a href="https://obr.robocup.org.br/participantes/">obr.robocup.org.br</a> <span class="obs">— só 2024 e 2025 públicos (site refeito); listas completas ficam no sistema "Olimpo", com login</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">ONEE</div>
+        <div class="ficha-desc">Eficiência Energética</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>inscrição até meados de setembro; resultado final out-dez</dd>
+          <dt>região</dt><dd>Nacional, apurado por estado</dd>
+          <dt>resultados</dt><dd><a href="https://onee.org.br/">onee.org.br</a> <span class="obs">— existe desde ~2021; site bloqueia acesso automatizado, checar manualmente</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OBMED</div>
+        <div class="ficha-desc">Olimpíada Brasileira de Medicina — fase única online</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>2026: provas 28/set a 9/out</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado</span> <span class="obs">— organizada pela Olimpikei (portal privado), existe só desde 2025 (no máx. 2 edições). Cuidado: há várias "olimpíadas de medicina" homônimas diferentes</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Olimpíada Brasileira de Geografia</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>3 fases — 1ª/2ª no 1º semestre (~mar-mai), final depois</dd>
+          <dt>região</dt><dd>Nacional, com fases estaduais online antes</dd>
+          <dt>resultados</dt><dd><a href="https://obgeografia.com.br/edicoes-anteriores/">obgeografia.com.br/edicoes-anteriores</a> <span class="obs">— confirmado 2021 e 2026; comissão UNIFAL-MG/Unicamp, desde 2015</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Olimpíada Brasileira de Filosofia</div>
+        <div class="ficha-desc">Nome oficial: Onfil — Olimpíada Nacional de Filosofia</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>fase regional em junho; final nacional presencial set/out, em Santa Maria-RS</dd>
+          <dt>região</dt><dd>Nacional, final presencial concentrada</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado</span> <span class="obs">— criada em 2024 pela UFSM; só 2 edições, longe dos 7 anos</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Escrevendo o Futuro</div>
+        <div class="ficha-desc">Olimpíada de Língua Portuguesa; escolas públicas</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>historicamente bienal, premiação ~dezembro</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd><a href="https://www.cenpec.org.br/pesquisa/textos-finalistas-olimpiada-de-lingua-portuguesa/">cenpec.org.br</a> <span class="obs">— só até 2019, nada de 2020 em diante</span></dd>
+        </dl>
+        <div class="callout">
+          <span class="rotulo">status incerto</span>
+          <p>O próprio site do CENPEC dá datas conflitantes sobre quando o programa encerrou (2021 numa página,
+          2024 noutra). Vale confirmar se ainda está ativa antes de contar com ela.</p>
+        </div>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Canguru de Matemática Brasil</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>aplicação única por escola; resultado sai por volta de junho</dd>
+          <dt>região</dt><dd>Nacional, sem fases estaduais</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado</span> <span class="obs">— por regulamento, resultado individual só é visível pela própria escola (login). Organizada pela UpMat Brasil, licenciada do Kangourou Sans Frontières</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Olitef</div>
+        <div class="ficha-desc">Educação financeira, com o Tesouro Direto</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>prova em setembro; premiação nov-fev seguinte</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd><a href="https://www.olitef.com.br/resultados">olitef.com.br/resultados</a> <span class="obs">— só 2024 e 2025 (a prova só existe desde 2024)</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">The Big Challenge</div>
+        <div class="ficha-desc">Inglês; do 4º ano do fundamental em diante</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>agosto-setembro (2026: 24/ago a 12/set)</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado</span> <span class="obs">— resultado só é visível via login de professor</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OBL</div>
+        <div class="ficha-desc">Linguística; seleciona a equipe brasileira pra IOL</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>F1 online + F2 presencial em polos; cada edição cobre 2 anos-calendário</dd>
+          <dt>região</dt><dd>Nacional, F2 em polos presenciais</dd>
+          <dt>resultados</dt><dd><a href="https://obling.org/anteriores">obling.org/anteriores</a> <span class="obs">— todas as edições desde 2011, cobre 2019-2026 sem login</span></dd>
+        </dl>
+      </div>
+
+    </div>
+
+    <h3 class="sub">Estaduais</h3>
+    <p class="sub-intro">
+      Além das nacionais, boa parte dos estados mantém a própria — às vezes como 1ª fase local de uma federal
+      (é o caso de OBQ), às vezes independente.
+    </p>
+    <div class="fichas">
+
+      <div class="ficha">
+        <div class="ficha-nome">OPM — Olimpíada Paulista de Matemática</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>fase única presencial em agosto (2025: 22-23/ago)</dd>
+          <dt>região</dt><dd>SP — escolas públicas e privadas</dd>
+          <dt>resultados</dt><dd><a href="https://www.opm.mat.br/premiados">opm.mat.br/premiados</a> <span class="obs">— canal oficial único por regulamento, mas fora do ar (erro de banco de dados) no momento desta pesquisa</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OMM — Olimpíada Mineira de Matemática</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>inscrição em junho; datas de prova variam</dd>
+          <dt>região</dt><dd>MG</dd>
+          <dt>resultados</dt><dd><a href="https://sites.google.com/view/omm-rmm/acervo">acervo da RMM</a> <span class="obs">— cobre 2004-2019 e 2024-2025, com lacuna em 2020-2023</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OPEMAT — Olimpíada Pernambucana de Matemática</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>2 fases, datas variam (2026: fase 1 em 13/out, fase 2 em 28/nov)</dd>
+          <dt>região</dt><dd>PE — UFRPE, desde 2015</dd>
+          <dt>resultados</dt><dd><a href="https://www.opemat.com.br/resultados">opemat.com.br/resultados</a> <span class="obs">— 2016-2025 quase completo (só falta 2020); a fonte mais confiável entre as estaduais</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OMEG — Olimpíada de Matemática do Estado de Goiás</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>geralmente 2º semestre</dd>
+          <dt>região</dt><dd>GO — aplicada em polos (UEG, IFG)</dd>
+          <dt>resultados</dt><dd><a href="https://omeg.ime.ufg.br/">omeg.ime.ufg.br</a> <span class="obs">— confirmado 2021, 2023, 2024, 2025; sem padrão fixo de URL</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Mais Olimp / OMASP</div>
+        <div class="ficha-desc">Guarda-chuva de ~12 olimpíadas da rede estadual paulista, mais a prova própria OMASP</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>OMASP em 3 fases a partir do 1º semestre</dd>
+          <dt>região</dt><dd>Rede estadual de SP</dd>
+          <dt>resultados</dt><dd><a href="https://olimpiadassp.educacao.sp.gov.br/omasp-historico/">olimpiadassp.educacao.sp.gov.br</a> <span class="obs">— só 2024 e 2025 disponíveis</span></dd>
+        </dl>
+      </div>
+
+      <div class="callout">
+        <span class="rotulo">perto de casa</span>
+        <p>No Ceará, a seleção pra Olimpíada Rioplatense (item 1.3) sai de uma <strong>Olimpíada Cearense de
+        Matemática</strong> própria — não achei página oficial de resultados dela nesta pesquisa; vale confirmar
+        direto com a coordenação de olimpíadas da rede local.</p>
+      </div>
+
+    </div>
+
+    <h3 class="sub">Internacionais</h3>
+    <p class="sub-intro">A equipe brasileira sai do topo da olimpíada nacional correspondente.</p>
+    <div class="fichas">
+
+      <div class="ficha">
+        <div class="ficha-nome">IMO — Matemática</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>julho, 1ª quinzena típica (sede rotativa)</dd>
+          <dt>região</dt><dd>Internacional — 100+ países</dd>
+          <dt>resultados</dt><dd><a href="https://www.imo-official.org/results/team/country/BRA/">imo-official.org/.../BRA</a> <span class="obs">— consolidado 2019-2026. Seleção: OBM</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">IPhO — Física</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>julho (típico)</dd>
+          <dt>região</dt><dd>Internacional</dd>
+          <dt>resultados</dt><dd><span class="nf">sem página central</span> — resultados por ano em <a href="https://www1.fisica.org.br/olimpiada/">fisica.org.br/olimpiada/{ano}</a> <span class="obs">. Seleção: OBF/TBF</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">IChO — Química</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>julho (típico)</dd>
+          <dt>região</dt><dd>Internacional</dd>
+          <dt>resultados</dt><dd><a href="https://obquimica.org/olimpiada/olimpiada-internacional-de-quimica">obquimica.org</a> <span class="obs">— PDFs só até 2021, "Galeria de Honra" vazia depois. Seleção: OBQ</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">IBO — Biologia</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>julho (2025: 20-27/jul, Filipinas)</dd>
+          <dt>região</dt><dd>Internacional</dd>
+          <dt>resultados</dt><dd><a href="https://olimpiadasdebiologia.butantan.gov.br/">olimpiadasdebiologia.butantan.gov.br</a> <span class="obs">— bloqueia robôs, abre em navegador comum. Seleção: OBB</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">IOI — Informática</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>fim de julho/agosto (2026: 9-16/ago)</dd>
+          <dt>região</dt><dd>Internacional — 80+ países</dd>
+          <dt>resultados</dt><dd><a href="https://olimpiada.ic.unicamp.br/competicoes/ioi/">olimpiada.ic.unicamp.br</a> <span class="obs">— 1998-2025 numa página só. Seleção: OBI</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">IOL — Linguística</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>julho (2026: 26/jul-2/ago)</dd>
+          <dt>região</dt><dd>Internacional — 46 países em 2026; Brasil sediou em 2024 (Brasília)</dd>
+          <dt>resultados</dt><dd><a href="https://ioling.org/results/BRA">ioling.org/results/BRA</a> <span class="obs">— 2019, 2022-2026 confirmados. Seleção: OBL</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">OIM — Ibero-americana de Matemática</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>setembro (sede rotativa; 2026: Buenos Aires)</dd>
+          <dt>região</dt><dd>Ibero-americana — ~22 países</dd>
+          <dt>resultados</dt><dd><a href="https://www.obm.org.br/resultados-do-brasil-olimpiada-ibero-americana-de-matematica/">obm.org.br</a> <span class="obs">— completo 1985-2026. Seleção: OBM</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Cone Sul — Matemática</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>agosto (sede rotativa)</dd>
+          <dt>região</dt><dd>Argentina, Bolívia, Brasil, Chile, Equador, Paraguai, Peru e Uruguai</dd>
+          <dt>resultados</dt><dd><a href="https://www.obm.org.br/resultados-olimpiada-de-matematica-do-cone-sul/">obm.org.br</a> <span class="obs">— completo 1988-2026 (equipe até 16 anos). Seleção: OBM</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Rioplatense — Matemática</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>início de dezembro, geralmente na Argentina</dd>
+          <dt>região</dt><dd>Bacia do Prata + convidados: Argentina, Brasil, Paraguai, Uruguai, Peru, Colômbia, México</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado</span> <span class="obs">— organizada pela OMA Argentina, site em JS não indexável. Seleção NÃO passa pela OBM: são os 3 melhores da Olimpíada Cearense + 3 da Olimpíada Paulista de Matemática</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Ibero-americana de Física (OIbF)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>setembro/outubro (sede rotativa)</dd>
+          <dt>região</dt><dd>Ibero-americana</dd>
+          <dt>resultados</dt><dd><a href="https://www1.fisica.org.br/~oibf/home/resultados/index.html">fisica.org.br/~oibf</a> <span class="obs">— hub 1991-2021, + posts anuais 2022-2025. Seleção: OBF/TBF</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Ibero-americana de Química (OIAQ)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>outubro (sede rotativa)</dd>
+          <dt>região</dt><dd>Ibero-americana</dd>
+          <dt>resultados</dt><dd><a href="https://obquimica.org/olimpiada/olimpiada-ibero-americana-de-quimica">obquimica.org</a> <span class="obs">— "Galeria de Honra" vazia; fonte prática é notícia avulsa por edição (ex. cfq.org.br). Seleção: mesmos 4 da OBQ/IChO</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Ibero-americana de Biologia (OIAB)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>agosto/setembro (2026 sediada no Brasil, no Butantan)</dd>
+          <dt>região</dt><dd>Ibero-americana</dd>
+          <dt>resultados</dt><dd><span class="nf">bloqueado (Cloudflare)</span> — fonte alternativa: <a href="https://cfbio.gov.br/">cfbio.gov.br</a> <span class="obs">por edição. Seleção: 5º-8º colocados da OBB</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Ibero-americana de Informática (OII, ex-CIIC)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>junho/julho</dd>
+          <dt>região</dt><dd>Ibero-americana — ~14 países</dd>
+          <dt>resultados</dt><dd><a href="https://olimpiada.ic.unicamp.br/competicoes/oii_ciic/">olimpiada.ic.unicamp.br</a> <span class="obs">— CIIC 2019-2022 + OII 2023-2025 confirmados. Seleção: OBI</span></dd>
+        </dl>
+      </div>
+
+      <div class="callout">
+        <span class="rotulo">não existe</span>
+        <p>"Olimpíada de Matemática da América Latina" não é uma prova ativa e distinta — nem a OBM nem o hub de
+        olimpíadas científicas a listam. Provavelmente confusão com a OIM (acima) ou com a Olimpíada de Maio
+        (obm.org.br/olimpiada-de-maio), de iniciação, para alunos até 15 anos.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 2. VESTIBULARES -->
+  <section class="grupo" id="vestibulares" style="--acc:var(--acc-vestibulares)">
+    <div class="grupo-cabeca">
+      <span class="grupo-num">2</span>
+      <h2>Vestibulares</h2>
+    </div>
+    <p class="grupo-intro">Provas de acesso ao ensino superior.</p>
+
+    <h3 class="sub">Nacionais</h3>
+    <div class="fichas">
+
+      <div class="ficha">
+        <div class="ficha-nome">ENEM</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>2 domingos de novembro; nota individual sai em janeiro seguinte</dd>
+          <dt>região</dt><dd>Nacional</dd>
+          <dt>resultados</dt><dd>nota em <a href="https://enem.inep.gov.br/participante/">enem.inep.gov.br/participante</a> (login gov.br); classificação de fato é via <a href="https://acessounico.mec.gov.br/sisu">SISU</a> <span class="obs">— o ENEM em si não gera "lista de aprovados", só a nota</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">ITA</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>1ª fase out.; 2ª fase nov/dez; convocados dez/jan</dd>
+          <dt>região</dt><dd>Nacional — sede São José dos Campos-SP</dd>
+          <dt>resultados</dt><dd><a href="https://vestibular.ita.br/">vestibular.ita.br</a> <span class="obs">— padrão {ano}_convocados_3f.htm, confirmado 2025-2026</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">IME</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>1ª fase set.; 2ª fase out.; resultado final dez.</dd>
+          <dt>região</dt><dd>Nacional — sede Rio de Janeiro</dd>
+          <dt>resultados</dt><dd><a href="https://ime.eb.mil.br/">ime.eb.mil.br</a> <span class="obs">— seção Vestibular e Concursos; sem padrão de URL único confirmado, checar manualmente</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">FUVEST (USP)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>1ª fase nov.; 2ª fase dez/jan; 1ª chamada jan.</dd>
+          <dt>região</dt><dd>Nacional — sede São Paulo</dd>
+          <dt>resultados</dt><dd><a href="https://acervo.fuvest.br/">acervo.fuvest.br</a> <span class="obs">— arquivo por ano existe, mas deu erro de certificado ao abrir automatizado; checar manualmente</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Comvest (Unicamp)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>1ª fase nov.; 2ª fase dez.; 1ª chamada jan.</dd>
+          <dt>região</dt><dd>Nacional — sede Campinas-SP</dd>
+          <dt>resultados</dt><dd><a href="https://www.comvest.unicamp.br/vestibulares-anteriores/">comvest.unicamp.br/vestibulares-anteriores</a> <span class="obs">— "Ingresso {ano}" de 2014-2026 confirmado</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Vunesp (Unesp)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>provas nov/dez; resultado jan/fev (+ edição extra "meio do ano" em julho)</dd>
+          <dt>região</dt><dd>Nacional — SP</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado um link único</span> <span class="obs">— cada edição tem código próprio (ex. VNSP2504) sem padrão previsível</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">UFRGS</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>provas nov/dez; "listão" final em dezembro</dd>
+          <dt>região</dt><dd>Nacional — sede Porto Alegre-RS</dd>
+          <dt>resultados</dt><dd><a href="https://vestibular.ufrgs.br/">vestibular.ufrgs.br/cv{ano}</a> <span class="obs">— redireciona pro arquivo da COPERSE, confirmado por redirect real</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Processo Seletivo UFPR</div>
+        <div class="ficha-desc">Nome oficial (não "PSI"); organizado pelo Núcleo de Concursos</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>inscrição até junho; prova 2º semestre; resultado janeiro</dd>
+          <dt>região</dt><dd>Nacional — sede Curitiba-PR</dd>
+          <dt>resultados</dt><dd><a href="https://servicos.nc.ufpr.br/PortalNC/VestibularesAnteriores">servicos.nc.ufpr.br</a> <span class="obs">— confirmado 2002/03 a 2025/26, cobre toda a janela pedida</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Mackenzie, FGV, Insper</div>
+        <div class="ficha-desc">Vestibulares próprios de privadas de alta concorrência</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>múltiplas datas por curso/campus/semestre, sem data única</dd>
+          <dt>região</dt><dd>Nacional — sedes em SP/RJ</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado arquivo histórico</span> <span class="obs">— cada resultado é post de notícia avulso ou fica atrás de login; nenhum dos três mantém índice público multi-ano</span></dd>
+        </dl>
+      </div>
+
+    </div>
+
+    <h3 class="sub">Estaduais</h3>
+    <p class="sub-intro">Cada estado tem a sua — algumas com vestibular tradicional, outras seriadas ao longo do médio.</p>
+    <div class="fichas">
+
+      <div class="ficha">
+        <div class="ficha-nome">UERJ</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>2 Exames de Qualificação + Exame Discursivo (não seriado); resultado ~jan seguinte</dd>
+          <dt>região</dt><dd>RJ</dd>
+          <dt>resultados</dt><dd><a href="https://www.vestibular.uerj.br/">vestibular.uerj.br</a> <span class="obs">— resultado publicado por edição, sem índice único confirmado</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">UECE</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>vestibular tradicional 2x/ano (rotulado X.1 e X.2)</dd>
+          <dt>região</dt><dd>CE</dd>
+          <dt>resultados</dt><dd><a href="https://www.cev.uece.br/category/vestibular/">cev.uece.br/category/vestibular</a> <span class="obs">— arquivo cronológico paginado</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">UEA</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>vestibular tradicional 1x/ano + SIS, seriado</dd>
+          <dt>região</dt><dd>AM</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado um link único</span> <span class="obs">— cada edição é um microsite VUNESP com código que muda todo ano</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">UPE</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>SSA — Sistema Seriado de Avaliação, 3 etapas + SISU</dd>
+          <dt>região</dt><dd>PE</dd>
+          <dt>resultados</dt><dd><a href="https://processodeingresso.upe.pe.gov.br/anos-anteriores.html">processodeingresso.upe.pe.gov.br</a> <span class="obs">— seção "anos anteriores"</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">UEM (PR)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>Vestibular de Verão/Inverno + PAS seriado (uma prova por série do médio)</dd>
+          <dt>região</dt><dd>PR</dd>
+          <dt>resultados</dt><dd><a href="https://www.cvu.uem.br/">cvu.uem.br</a> <span class="obs">— resultados por evento desde ~2016</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">UEL (PR)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>vestibular 2 fases + PSS seriado</dd>
+          <dt>região</dt><dd>PR</dd>
+          <dt>resultados</dt><dd><a href="https://www.cops.uel.br/v2/">cops.uel.br/v2</a> <span class="obs">— índice 2003-2025, cobre toda a janela pedida</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">UEPG (PR)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>vestibular + CEPAS/PSS seriado</dd>
+          <dt>região</dt><dd>PR</dd>
+          <dt>resultados</dt><dd><a href="https://www2.uepg.br/cps/">uepg.br/cps</a> <span class="obs">— alcance não confirmado; site migrou de domínio</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">UEPB, UESC, UESB, UNEB</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>vestibulares tradicionais próprios, resultado ~dez</dd>
+          <dt>região</dt><dd>PB e BA</dd>
+          <dt>resultados</dt><dd><span class="nf">sem índice consolidado</span> <span class="obs">— UEPB: cpcon.uepb.edu.br; UESC: uesc.br/vestibular; UESB: uesb.br/resultado-vestibular; UNEB: subdomínio por ano (vestibular{ano}.uneb.br)</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">UEG, UEMS</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>vestibular próprio 2x/ano; UEG tem SAS seriado, UEMS tem ProUEMS via ENEM em paralelo</dd>
+          <dt>região</dt><dd>GO e MS</dd>
+          <dt>resultados</dt><dd><span class="nf">sem índice histórico</span> <span class="obs">— as duas mantêm vestibular próprio mesmo hoje; ENEM só complementa (não substitui)</span></dd>
+        </dl>
+      </div>
+
+      <div class="callout">
+        <span class="rotulo">perto de casa</span>
+        <p>A UECE mantém vestibular próprio de duas fases: 85 questões de conhecimentos gerais na 1ª, redação e
+        provas específicas na 2ª. No 2026.2, inscrição foi de 9 a 20/mar, prova em 26/abr, com 2.228 vagas —
+        1.214 delas em Fortaleza.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 3. COLÉGIOS MILITARES -->
+  <section class="grupo" id="militares" style="--acc:var(--acc-militar)">
+    <div class="grupo-cabeca">
+      <span class="grupo-num">3</span>
+      <h2>Colégios militares</h2>
+    </div>
+    <p class="grupo-intro">
+      Vaga de 6º ano do fundamental ou 1º ano do médio, com concurso de admissão próprio — o aluno continua na
+      educação básica, só que dentro de uma escola militar.
+    </p>
+    <div class="fichas">
+
+      <div class="ficha">
+        <div class="ficha-nome">Colégio Militar (Exército)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>edital ~jul; inscrição ago-set; prova out; resultado dez a mar seguinte</dd>
+          <dt>região</dt><dd>Nacional — 15 unidades (Belém, BH, Brasília, Campo Grande, Curitiba, Fortaleza, Juiz de Fora, Manaus, Porto Alegre, Recife, Rio de Janeiro, Salvador, Santa Maria, São Paulo e Vila Militar-RJ)</dd>
+          <dt>resultados</dt><dd><span class="nf">sem índice único</span> — ponto de partida real: <a href="https://www.depa.eb.mil.br/">depa.eb.mil.br</a> <span class="obs">(lista as 15 unidades); cada site guarda no máx. o edital do ciclo atual/anterior</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Colégio Naval</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>inscrição mar-mai; prova ago; resultado dez</dd>
+          <dt>região</dt><dd>Angra dos Reis-RJ, provas em polos nacionais</dd>
+          <dt>resultados</dt><dd>PDFs avulsos em <a href="https://www.inscricao.marinha.mil.br/marinha/">inscricao.marinha.mil.br/marinha</a> <span class="obs">(ex. ResFinal-CPACN2024.pdf); sem índice único; domínio bloqueia acesso automatizado</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">EPCAR</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>edital jan-mar; inscrição a partir de março</dd>
+          <dt>região</dt><dd>Barbacena-MG, provas nacionais</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado</span> — página do ciclo vigente: <a href="https://www.fab.mil.br/ingresso/cpcar/">fab.mil.br/ingresso/cpcar</a> <span class="obs">; domínio bloqueia acesso automatizado, sem arquivo histórico localizado</span></dd>
+        </dl>
+      </div>
+
+    </div>
+    <div class="callout">
+      <span class="rotulo">não confundir</span>
+      <p><strong>Escola cívico-militar (ECIM/PECIM)</strong> é outra coisa: rede pública regular com gestão
+      compartilhada com militares. Não tem prova de admissão — a matrícula segue a fila normal da secretaria de
+      educação, sem seleção de aluno.</p>
+    </div>
+  </section>
+
+  <!-- 4. CONCURSOS NÍVEL MÉDIO -->
+  <section class="grupo" id="concursos" style="--acc:var(--acc-concursos)">
+    <div class="grupo-cabeca">
+      <span class="grupo-num">4</span>
+      <h2>Concursos de nível médio</h2>
+    </div>
+    <p class="grupo-intro">Pedem o médio completo — abrem carreira, militar ou civil, direto, sem faculdade prévia.</p>
+
+    <h3 class="sub">Formação de oficiais</h3>
+    <p class="sub-intro">Curso de nível superior, mas o concurso de entrada pede só o médio completo.</p>
+    <div class="fichas">
+
+      <div class="ficha">
+        <div class="ficha-nome">EsPCEx</div>
+        <div class="ficha-desc">Escola Preparatória de Cadetes do Exército</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>edital fev-mar; inscrição abr-mai; prova set; resultado dez</dd>
+          <dt>região</dt><dd>Nacional — escola em Campinas-SP</dd>
+          <dt>resultados</dt><dd>PDFs avulsos em <a href="https://espcex.eb.mil.br/">espcex.eb.mil.br</a> <span class="obs">(ex. LISTA_APROVADOS_2024.pdf, resultado 2021); a página "provas anteriores" só tem provas, não aprovados — sem índice único</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">AFA</div>
+        <div class="ficha-desc">Academia da Força Aérea</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>edital fev; inscrição mar-abr</dd>
+          <dt>região</dt><dd>Nacional — Pirassununga-SP</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado</span> <span class="obs">— afa.aer.mil.br recusou conexão automatizada nesta pesquisa; checar manualmente</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Escola Naval</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>inscrição mar-mai; prova ago; resultado dez</dd>
+          <dt>região</dt><dd>Nacional — Rio de Janeiro (Urca)</dd>
+          <dt>resultados</dt><dd>PDFs avulsos em <a href="https://www.inscricao.marinha.mil.br/marinha/">inscricao.marinha.mil.br/marinha</a> <span class="obs">(ex. ResFinal-CPAEN2025.pdf); sem índice único</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">EFOMM</div>
+        <div class="ficha-desc">Escola de Formação de Oficiais da Marinha Mercante</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>inscrição mai-jun; prova jul; 1ª classificação set</dd>
+          <dt>região</dt><dd>Nacional — CIAGA (Rio de Janeiro) + CIABA (Belém-PA)</dd>
+          <dt>resultados</dt><dd><a href="https://www.marinha.mil.br/ciaga/efommadmissao">marinha.mil.br/ciaga/efommadmissao</a> <span class="obs">— só página do ciclo vigente, sem lista histórica encontrada</span></dd>
+        </dl>
+      </div>
+
+    </div>
+
+    <h3 class="sub">Sargentos e praças</h3>
+    <div class="fichas">
+
+      <div class="ficha">
+        <div class="ficha-nome">ESA</div>
+        <div class="ficha-desc">Escola de Sargentos das Armas; 17-24 anos (26 em saúde/música)</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>edital abr; inscrição mai-jun; prova ago; resultado dez</dd>
+          <dt>região</dt><dd>Nacional — Três Corações-MG</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado</span> <span class="obs">— Portal do Candidato é um app em JS não inspecionável; site institucional só lista "provas anteriores"</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">EEAR</div>
+        <div class="ficha-desc">Escola de Especialistas de Aeronáutica; costuma ter 2 concursos por ano</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>janelas de inscrição variam por edição</dd>
+          <dt>região</dt><dd>Nacional — Guaratinguetá-SP</dd>
+          <dt>resultados</dt><dd><span class="nf">não encontrado</span> <span class="obs">— nenhuma URL oficial confiável localizada nesta pesquisa</span></dd>
+        </dl>
+      </div>
+
+      <div class="ficha">
+        <div class="ficha-nome">Fuzileiro Naval</div>
+        <div class="ficha-desc">18-22 anos, altura entre 1,54m e 2,00m</div>
+        <dl class="ficha-dl">
+          <dt>quando</dt><dd>roda em turmas (I e II) por ano</dd>
+          <dt>região</dt><dd>Nacional — CIAMPA (Rio de Janeiro) + CIAB (Brasília)</dd>
+          <dt>resultados</dt><dd><a href="https://www.inscricao.marinha.mil.br/marinhafn/">inscricao.marinha.mil.br/marinhafn</a> <span class="obs">— páginas por edição (2022-2027), sem lista de aprovados consolidada</span></dd>
+        </dl>
+      </div>
+
+    </div>
+
+    <p class="nota-final">
+      <strong>Fora das Forças Armadas</strong> existe um universo grande de concursos públicos de nível médio
+      civis — Correios, bancos públicos (BB, Caixa), tribunais (técnico judiciário), Receita Federal, INSS,
+      Polícia Rodoviária Federal, polícias militares e corpos de bombeiros estaduais — cada um com edital,
+      calendário e requisito próprios, demais pra caber numa lista fixa. Vale acompanhar o Diário Oficial do
+      órgão ou estado de interesse quando chegar a hora.
+    </p>
+  </section>
+</main>
+
+<footer>
+  <p>Estrutura, datas e links conforme editais, sites oficiais e coberturas de imprensa verificados até
+  15/09/2026 — vários domínios oficiais bloqueiam acesso automatizado mesmo abrindo normal num navegador comum;
+  confirme sempre no site oficial da banca antes de contar com um prazo ou link.</p>
+</footer>
