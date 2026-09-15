@@ -1,0 +1,30 @@
+# Olimpíadas internacionais — Matemática
+
+IMO, OIM, Cone Sul, Rioplatense e "Olimpíada de Matemática da América Latina". Páginas oficiais (OBM,
+IMO oficial, OMA Argentina, OMAPA, olimpiadascientificas.org) abertas via WebFetch para confirmar cada
+dado antes de reportar.
+
+**Resumo executivo**: **IMO, OIM e Cone Sul são coordenadas pela OBM** e têm páginas de resultados
+robustas (2019-2026 confirmado); **Rioplatense não é coordenada pela OBM** (seleção é via olimpíadas
+estaduais do Ceará e de São Paulo) e não há link oficial brasileiro com equipe/medalhas por ano; e
+**"Olimpíada de Matemática da América Latina"/OMAL não existe como prova distinta e ativa** — nem a OBM
+nem o hub olimpiadascientificas.org a listam.
+
+## Tabela
+
+| Nome | Quando ocorre | Região | Link de resultados/aprovados (últimos anos) | Observação |
+|---|---|---|---|---|
+| **IMO — Olimpíada Internacional de Matemática** | Julho (ex.: 8-9/jul/2023 em Chiba, Japão). Sede rotativa entre países-membros, por isso o mês pode variar um pouco (normalmente 1ª quinzena de julho) | Internacional (~100+ países) | [imo-official.org/results/team/country/BRA](https://www.imo-official.org/results/team/country/BRA/) — página consolidada 2019-2026, cada ano com subpágina própria (`/results/team/year/{ANO}/country/BRA/`) com nomes e medalhas. A página informativa da OBM ([obm.org.br/olimpiada-internacional-de-matematica](https://www.obm.org.br/olimpiada-internacional-de-matematica/)) não mantém tabela própria completa — ela mesma linka para o imo-official.org como fonte histórica | Equipe de até 6 alunos secundaristas (não podem ter entrado na universidade); seleção nacional é a própria OBM + treinamentos. Melhor resultado histórico do Brasil: 2 ouros na mesma edição em 2022 (Oslo) — inédito |
+| **OIM — Olimpíada Ibero-americana de Matemática** | Setembro (ex.: 12/set/2023, 25/set/2024). Sede rotativa entre países ibero-americanos (41ª edição será em Buenos Aires, 2026) | Ibero-americana: países da América Latina + Espanha + Portugal (~22 países) | [obm.org.br/resultados-do-brasil-olimpiada-ibero-americana-de-matematica](https://www.obm.org.br/resultados-do-brasil-olimpiada-ibero-americana-de-matematica/) — **confirmado**: página única cobrindo 1ª a 41ª edição (1985-2026), com contagem de ouro/prata/bronze por ano; 2019-2026 todos presentes | Equipe de até 4 alunos, que não completaram 18 anos até 31/dez do ano anterior e não podem ter disputado 2 OIMs antes. A própria OBM é a 1ª fase seletiva, seguida de mais 5 provas |
+| **Olimpíada de Matemática do Cone Sul** | Agosto (ex.: 5-10/ago/2023, Buenos Aires). Sede rotativa | "Porção meridional da América do Sul" — fontes terciárias (não a OBM) listam ~8 países: Argentina, Bolívia, Brasil, Chile, Equador, Paraguai, Peru e Uruguai | [obm.org.br/resultados-olimpiada-de-matematica-do-cone-sul](https://www.obm.org.br/resultados-olimpiada-de-matematica-do-cone-sul/) — **confirmado**: página única cobrindo 1988-2026 (com hiato em 1990), detalhando ouro/prata/bronze/certificado por ano; 2019-2026 todos presentes | Equipe de 4 alunos que não completaram 16 anos até 31/dez do ano anterior — nível único, é o "primeiro contato" de estudantes mais jovens com competições internacionais. Seleção: medalhistas Nível 2-3 e menção honrosa Nível 3 da OBM do ano anterior |
+| **Olimpíada Rioplatense de Matemática (OMR)** | Início de dezembro, geralmente sediada na Argentina | Bacia do Rio da Prata + convidados: Argentina, Brasil (único país com 2 equipes), Paraguai, Uruguai, Peru, Colômbia e México (fonte: NOIC/OMAPA) | **Não encontrado** link oficial brasileiro. A Rioplatense **não** está na lista de "competições internacionais" coordenadas pela OBM ([obm.org.br/competicoes/internacionais](https://www.obm.org.br/competicoes/internacionais/)) nem no hub olimpiadascientificas.org (que também avisa estar desatualizado desde 2015). O organizador oficial é a OMA (Argentina) — [oma.org.ar/contents/paginas/rio.html](https://oma.org.ar/contents/paginas/rio.html) e páginas por edição (ex.: [.../32_rio_resultados.html](https://oma.org.ar/contents/paginas/32_rio_resultados.html)) — mas essas páginas são renderizadas via JS e o WebFetch não conseguiu extrair conteúdo (nomes/medalhas) delas | **Achado importante**: diferente das 3 acima, a equipe brasileira NÃO sai da seleção nacional da OBM — são os 3 melhores da Olimpíada Cearense de Matemática (equipe "Fortaleza") + os 3 melhores de uma seletiva na Olimpíada Paulista de Matemática (equipe "São Paulo"). É por isso que não existe página de resultados no site da OBM |
+| **"Olimpíada de Matemática da América Latina" (OMAL ou similar)** | — | — | **Não encontrada.** Não é listada pela OBM, nem pelo hub olimpiadascientificas.org, nem em buscas diretas por "OMAL"/"Olimpiada Latinoamericana de Matemática" | Não existe como prova distinta e ativa com equipe brasileira formal. As duas candidatas mais prováveis para o que estava em mente: **(a) a própria OIM**, que já cobre toda a América Latina (+ Espanha/Portugal); ou **(b) a Olimpíada de Maio** (Olimpiada de Mayo), disputada por países da América Latina + Espanha/Portugal desde 1995 ([obm.org.br/olimpiada-de-maio](https://www.obm.org.br/olimpiada-de-maio/), resultados em [obm.org.br/resultados-olimpiada-de-maio](https://www.obm.org.br/resultados-olimpiada-de-maio/)), mas para alunos bem mais novos (Nível 1 até 13 anos, Nível 2 até 15 anos) — perfil de iniciação, não de seleção ITA/IME |
+
+## Notas gerais
+
+- Todas as páginas de resultados da OBM (IMO informativa, OIM, Cone Sul) foram abertas de fato com
+  WebFetch, não só inferidas do snippet do Google — as tabelas de OIM e Cone Sul foram lidas ano a ano.
+- `obm.org.br` é o domínio certo (não confundir com `obmep.org.br`, que é a Olimpíada Brasileira de
+  Matemática das Escolas Públicas, outra competição).
+- Para IMO, foi preferido o site oficial internacional (imo-official.org) sobre a página da OBM porque a
+  própria OBM não mantém uma tabela histórica completa — ela delega essa função ao site oficial da IMO.
