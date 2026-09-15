@@ -48,6 +48,13 @@ banco-questoes/manifesto_correcao.json
 banco-questoes/pipeline/manifesto_correcao.json
 banco-questoes/pipeline/_pendencias_correcao_imagem.json
 
+# Mesmo raciocínio do banco-questoes/ acima: quem guarda a captação externa é
+# o Postgres (conquista_externa/candidato_externo, docs/41), não o JSON cru —
+# esses arquivos são saída de scraper, regeneráveis a qualquer hora.
+captacao-externa/dados/
+captacao-externa/.venv/
+captacao-externa/**/__pycache__/
+
 # Fonte adicional de PDFs do acervo histórico (docs/23 §21.5) — provas
 # resolvidas de cursinho ("CURSO OBJETIVO", "ELITE"), material de terceiros,
 # 577 MB. Mesma regra dos PDFs de banco-questoes/pdfs_originais/ acima: fica
