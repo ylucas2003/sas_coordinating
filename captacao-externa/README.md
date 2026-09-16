@@ -31,9 +31,10 @@ captacao-externa/
 ├── requirements.txt         requests, beautifulsoup4, lxml
 ├── pipeline/
 │   ├── obmep.py              1º scraper — Ouro/Prata/Bronze, 2016-2025 exceto 2020 (não existe)
-│   └── obm.py                2º scraper — Ouro/Prata/Bronze/Menção Honrosa, 2016-2025 completo
+│   ├── obm.py                2º scraper — Ouro/Prata/Bronze/Menção Honrosa, 2016-2025 completo
+│   └── ita.py                3º scraper — convocados 3ª fase do ITA, 2024-2025 (validação, não descoberta — docs/41 §6.1)
 └── dados/                    JSON cru por ano — NÃO VERSIONADO
-    └── obmep_2025.json, obm_2025.json...
+    └── obmep_2025.json, obm_2025.json, ita_2025.json...
 ```
 
 ## Setup
@@ -88,6 +89,23 @@ candidato PRÓPRIO no passo 3, nunca se funde com o que a OBMEP já resolveu
 pra mesma pessoa. Não é bug do resolver: é a régua de match do §4.1 (nome +
 escola, sem fallback pra nome+cidade) fazendo o que foi desenhada pra fazer.
 
+E pra ITA (docs/41 §6.1) — é **validação, não captação**: quem está nessa
+lista já passou no vestibular-alvo, não é lead pra convidar. O valor é
+cruzar por nome com OBMEP/OBM depois de resolver:
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/ita.py --anos 2024 2025
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/ita_*.json \
+    --prova-categoria vestibular --prova-abrangencia nacional \
+    --prova-fonte "https://vestibular.ita.br/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
 `POSTGREST_URL=http://localhost:3000` é porque `api/.env` local não define
 essa variável — sem ela, `criar_cliente_supabase()` cairia no branch de
 Supabase hospedado (ver [api/app/supabase_client.py](../api/app/supabase_client.py)).
@@ -116,6 +134,7 @@ a página. Sem escola, a fonte só serve pra fila de enriquecimento (§8, item
 
 ## Estado atual
 
-OBMEP (2016-2025, exceto 2020, que não existe) e OBM (2016-2025 completo) —
-56.232 `candidato_externo` resolvidos. Números da última rodada e o resto da
-fila de fontes: docs/41 §5 e §6.
+OBMEP (2016-2025, exceto 2020, que não existe), OBM (2016-2025 completo) e
+ITA (2024-2025, convocados 3ª fase — validação, não captação) — 56.562
+`candidato_externo` resolvidos. Números da última rodada e o resto da fila de
+fontes: docs/41 §5, §5.1 e §6.
