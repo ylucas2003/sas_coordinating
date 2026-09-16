@@ -82,6 +82,10 @@ def _ids_por_prova(cliente: Client, prova_id: str) -> list[str]:
     return list({linha["candidato_id"] for linha in linhas})
 
 
+class FusaoBody(BaseModel):
+    nome_normalizado: str
+
+
 class AtualizarCandidatoBody(BaseModel):
     """Só os dois campos do funil manual — os outros são derivados (0056 §3)."""
 
@@ -264,3 +268,225 @@ async def atualizar_candidato(
         )
 
     return atualizado[0]
+
+
+# ─── Fila de fusão de baixa confiança (docs/41 §8, item 1) ──────────────
+#
+# O resolver só funde por nome+escola EXATOS (§4.1) — de propósito, pra
+# nunca juntar duas pessoas diferentes por engano. Isso deixa cada conquista
+# de fonte sem escola (OBM, ITA, IME) como candidato PRÓPRIO, mesmo quando é
+# a mesma pessoa que a OBMEP/OBF já resolveram. Aqui é o segundo nível,
+# nome sozinho — mais barato de achar, mais arriscado de confiar — por isso
+# NUNCA funde sozinho: só sugere, e um humano confirma ou rejeita.
+
+
+def _serie_dominante(conquistas: list[dict]) -> dict:
+    """O retrato (nome/escola/cidade/uf/série) da conquista mais RECENTE
+    entre todas as do grupo fundido — mesma regra do resolver
+    (`resolver_candidatos_externos.py::dados_candidato`), aplicada aqui pro
+    candidato sobrevivente não ficar com um retrato de anos atrás só porque
+    foi o primeiro a ser criado."""
+    mais_recente = max(conquistas, key=lambda c: c["ano"])
+    return {
+        "nome": mais_recente["nome_informado"],
+        "escola": mais_recente.get("escola_informada"),
+        "cidade": mais_recente.get("cidade_informada"),
+        "uf": mais_recente.get("uf_informada"),
+        "serie_referencia_min": mais_recente.get("serie_referencia_min"),
+        "serie_referencia_max": mais_recente.get("serie_referencia_max"),
+        "ano_referencia_serie": mais_recente["ano"],
+    }
+
+
+@router.get("/fusoes")
+async def listar_fusoes(
+    uf_incerta: bool = Query(False, description="só grupos com mais de uma UF entre os candidatos — mais arriscado"),
+    pagina: int = Query(1, ge=1),
+    por_pagina: int = Query(POR_PAGINA_PADRAO, ge=1, le=POR_PAGINA_MAXIMO),
+) -> dict:
+    """A fila: nomes com mais de um `candidato_externo`, ainda não
+    decididos. Ordenada do mais confiável (uma UF só entre os candidatos)
+    pro menos, e dentro disso do grupo com mais candidatos pro com menos —
+    é o que faz o trabalho de revisão render mais rápido primeiro.
+    """
+    cliente = get_supabase()
+    consulta = cliente.table("v_fusao_candidata").select(
+        "nome_normalizado, candidatos, ufs_distintas", count="exact"
+    )
+    if uf_incerta:
+        consulta = consulta.gt("ufs_distintas", 1)
+
+    inicio = (pagina - 1) * por_pagina
+    resposta = (
+        consulta.order("ufs_distintas")
+        .order("candidatos", desc=True)
+        .order("nome_normalizado")
+        .range(inicio, inicio + por_pagina - 1)
+        .execute()
+    )
+    linhas = resposta.data or []
+    total = int(resposta.count) if resposta.count is not None else len(linhas)
+    return {"grupos": linhas, "total": total, "pagina": pagina, "por_pagina": por_pagina}
+
+
+@router.get("/fusoes/{nome_normalizado}")
+async def obter_fusao(nome_normalizado: str = Path(...)) -> dict:
+    """O grupo inteiro: todo `candidato_externo` com este nome, cada um com
+    as próprias conquistas — pra comparar escola/cidade/UF lado a lado
+    antes de decidir."""
+    cliente = get_supabase()
+    candidatos = (
+        cliente.table("v_candidato_externo")
+        .select(_COLUNAS_CANDIDATO)
+        .eq("nome_normalizado", nome_normalizado)
+        .order("criado_em")
+        .execute()
+        .data
+        or []
+    )
+    if len(candidatos) < 2:
+        raise HTTPException(status_code=404, detail="Nada pra fundir com este nome")
+
+    conquistas = (
+        cliente.table("conquista_externa")
+        .select(f"candidato_id, {_COLUNAS_CONQUISTA}")
+        .in_("candidato_id", [c["id"] for c in candidatos])
+        .order("ano", desc=True)
+        .execute()
+        .data
+        or []
+    )
+    ids_das_provas = list({c["prova_id"] for c in conquistas})
+    provas = (
+        cliente.table("prova_externa").select("id, nome").in_("id", ids_das_provas).execute().data
+        if ids_das_provas
+        else []
+    )
+    nome_da_prova = {p["id"]: p["nome"] for p in provas}
+    por_candidato: dict[str, list[dict]] = {c["id"]: [] for c in candidatos}
+    for c in conquistas:
+        c["prova_nome"] = nome_da_prova.get(c["prova_id"])
+        por_candidato.setdefault(c["candidato_id"], []).append(c)
+
+    for candidato in candidatos:
+        candidato["conquistas"] = por_candidato.get(candidato["id"], [])
+    return {"nome_normalizado": nome_normalizado, "candidatos": candidatos}
+
+
+@router.post("/fusoes/confirmar")
+async def confirmar_fusao(
+    body: FusaoBody,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> dict:
+    """São a mesma pessoa: combina todo `candidato_externo` deste nome num
+    só. O sobrevivente é o que já tem MAIS conquistas (empate: o mais
+    antigo) — os outros são apagados depois de repassar as conquistas
+    deles pro sobrevivente. Nunca desfeito automaticamente; a trilha de
+    auditoria guarda quem eram os candidatos fundidos, pra investigar se um
+    dia alguém discordar da decisão."""
+    cliente = get_supabase()
+    candidatos = (
+        cliente.table("candidato_externo")
+        .select("id, criado_em")
+        .eq("nome_normalizado", body.nome_normalizado)
+        .execute()
+        .data
+        or []
+    )
+    if len(candidatos) < 2:
+        raise HTTPException(status_code=404, detail="Nada pra fundir com este nome")
+
+    ids = [c["id"] for c in candidatos]
+    conquistas = (
+        cliente.table("conquista_externa")
+        .select(f"id, candidato_id, {_COLUNAS_CONQUISTA}")
+        .in_("candidato_id", ids)
+        .execute()
+        .data
+        or []
+    )
+
+    contagem: dict[str, int] = {i: 0 for i in ids}
+    for c in conquistas:
+        contagem[c["candidato_id"]] = contagem.get(c["candidato_id"], 0) + 1
+    criado_em_por_id = {c["id"]: c["criado_em"] for c in candidatos}
+    # Mais conquistas primeiro; empate resolvido pelo mais antigo — o
+    # sobrevivente natural é quem já tinha mais história, não um sorteio.
+    # `criado_em` é ISO 8601: comparar como string já ordena por data,
+    # sem precisar converter pra `datetime`.
+    maior_contagem = max(contagem.values())
+    top = [i for i in ids if contagem[i] == maior_contagem]
+    sobrevivente_id = min(top, key=lambda i: criado_em_por_id[i])
+
+    outros_ids = [i for i in ids if i != sobrevivente_id]
+    retrato = _serie_dominante(conquistas)
+
+    cliente.table("conquista_externa").update(
+        {"candidato_id": sobrevivente_id}
+    ).in_("candidato_id", outros_ids).execute()
+
+    cliente.table("candidato_externo").update(
+        {**retrato, "atualizado_em": _agora()}
+    ).eq("id", sobrevivente_id).execute()
+
+    for outro_id in outros_ids:
+        cliente.table("candidato_externo").delete().eq("id", outro_id).execute()
+
+    cliente.table("candidato_externo_fusao_decisao").upsert(
+        {
+            "nome_normalizado": body.nome_normalizado,
+            "status": "confirmada",
+            "decidido_por": coordenador.get("nome"),
+            "decidido_em": _agora(),
+        },
+        on_conflict="nome_normalizado",
+    ).execute()
+
+    auditar(
+        cliente,
+        "captacao_fusao_confirmada",
+        canal="captacao",
+        ator_tipo="coordenador",
+        ator_id=coordenador.get("sub"),
+        recurso=f"candidato_externo/{sobrevivente_id}",
+        ip=request.client.host if request.client else None,
+        detalhe={
+            "nome_normalizado": body.nome_normalizado,
+            "sobrevivente": sobrevivente_id,
+            "fundidos": outros_ids,
+        },
+    )
+    return {"sobrevivente_id": sobrevivente_id, "candidatos_fundidos": len(outros_ids)}
+
+
+@router.post("/fusoes/rejeitar")
+async def rejeitar_fusao(
+    body: FusaoBody,
+    request: Request,
+    coordenador: dict = Depends(get_current_coordenador),
+) -> dict:
+    """Não são a mesma pessoa: tira este nome da fila pra sempre (nenhum
+    candidato_externo é tocado — só a decisão fica registrada)."""
+    cliente = get_supabase()
+    cliente.table("candidato_externo_fusao_decisao").upsert(
+        {
+            "nome_normalizado": body.nome_normalizado,
+            "status": "rejeitada",
+            "decidido_por": coordenador.get("nome"),
+            "decidido_em": _agora(),
+        },
+        on_conflict="nome_normalizado",
+    ).execute()
+
+    auditar(
+        cliente,
+        "captacao_fusao_rejeitada",
+        canal="captacao",
+        ator_tipo="coordenador",
+        ator_id=coordenador.get("sub"),
+        recurso=f"candidato_externo_fusao/{body.nome_normalizado}",
+        ip=request.client.host if request.client else None,
+        detalhe={"nome_normalizado": body.nome_normalizado},
+    )
+    return {"ok": True}
