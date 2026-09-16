@@ -1,11 +1,12 @@
 """Raspa os premiados NACIONAIS da OBMEP (medalhas de ouro/prata/bronze,
-escolas públicas e privadas) e grava um JSON cru por edição em dados/.
+escolas públicas e privadas) e grava um JSON cru por ano em dados/.
 
 Uso:
-    ./.venv/bin/python pipeline/obmep.py --edicoes 17 18 19 20
+    ./.venv/bin/python pipeline/obmep.py --anos 2022 2023 2024 2025
+    ./.venv/bin/python pipeline/obmep.py --anos 2016 2017 2018 2019 2021
 
-Cada edição vira dados/obmep_{ano}.json — uma lista de registros no formato
-que api/scripts/importar_captacao_externa.py espera (chaves: prova_nome, ano,
+Cada ano vira dados/obmep_{ano}.json — uma lista de registros no formato que
+api/scripts/importar_captacao_externa.py espera (chaves: prova_nome, ano,
 nivel_texto, serie_referencia_min/max, resultado, nome_informado,
 escola_informada, cidade_informada, uf_informada, fonte_url).
 
@@ -15,11 +16,46 @@ edição) e é sinal mais fraco pra captação — fica pra quando a fase de med
 já tiver sido validada (ver "Dossiê de Provas", arquivo 05, nota sobre o
 volume da OBMEP).
 
-Cobertura real: as edições existem em premiacao.obmep.org.br/{N}obmep/ só a
-partir da 17ª (2022) — 14ª/15ª/16ª (2019/2020/2021) devolvem 404 nesse
-domínio. O "Dossiê de Provas" já registrou isso em parte (falta o ano 2020 na
-página-índice obmep.org.br/premiados.htm); os anos 2019/2021 podem estar
-hospedados noutro lugar — não investigado ainda, fica pra uma próxima rodada.
+## Por que é ANO, e não EDIÇÃO (docs/41 §8, item 5 — lacuna fechada)
+
+A primeira rodada (17ª-20ª = 2022-2025) parametrizava por número de edição e
+montava a URL como `{edição}obmep`. Isso quebra pra trás: o próprio
+`obmep.org.br/premiados.htm` — achado no "Dossiê de Provas", arquivo 01 —
+lista TRÊS convenções de URL diferentes conforme o ano, e a numeração de
+edição não é linear (2020 não existe: a pandemia suspendeu aquela edição
+inteira, sem numeração reaproveitada depois). Editar por ANO em vez de EDIÇÃO
+elimina essa aritmética frágil — o ano é a chave real (`conquista_externa.ano`),
+a edição é só como o site se chama por dentro.
+
+`SEGMENTO_POR_ANO` é o mapa dessas três convenções, uma entrada por ano
+verificado manualmente (não adivinhado por fórmula):
+
+  * 2022-2025 → `{N}obmep/mapa.htm` (a convenção corrente);
+  * 2021      → `16aobmep/mapa.htm` (a ÚNICA edição com o sufixo "a" —
+                acidente de nomenclatura do próprio site, achado ao seguir o
+                link real de `premiados.htm`, não documentado em lugar nenhum);
+  * 2016-2019 → `{ano}/mapa.htm` ou `{ano}/mapa_premiacao_content.htm`
+                (convenção anterior, indexada pelo ANO em vez da edição).
+
+2020 não está em `SEGMENTO_POR_ANO` de propósito: não existe OBMEP daquele
+ano em lugar nenhum do site (a "Dossiê de Provas" já registrou a ausência na
+página-índice) — pedir 2020 é erro de quem chamou, não 404 de rede.
+
+## A tabela de 2016 é de outro molde (docs/41 §8, item 5)
+
+2016 (e presumivelmente anos mais antigos, fora do escopo de 5-7 anos do
+docs/41 §2) não tem as âncoras `<a name="nivelN">` que 2017+ usa pra amarrar
+cada tabela ao nível, e a linha não tem a coluna de posição na frente — 6
+células por linha em vez de 7. `_tabelas_por_nivel` e o corte `celulas[-6:]`
+(em vez de `celulas[:7]`) resolvem os dois casos com o MESMO código, lendo o
+nível de dentro da própria tabela (o cabeçalho "Nível N" está lá nos dois
+formatos) em vez de depender da âncora.
+
+Também não existe lista de rede PRIVADA pra 2016 —
+`verRelatorioPremiadosOuro.privada.do.htm` 404 nesse ano; os três valores de
+"Tipo" que aparecem na lista pública (F/E/M = federal/estadual/municipal) são
+todos rede pública. Tratado como ausência esperada (aviso, não erro fatal) —
+ver `_paginas_do_ano`.
 """
 
 from __future__ import annotations
@@ -33,7 +69,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 BASE = "https://premiacao.obmep.org.br"
 DIR_DADOS = Path(__file__).resolve().parent.parent / "dados"
@@ -47,9 +83,20 @@ NIVEL_SERIE = {
     "Nível 3": (10, 12),
 }
 
-# Âncora conhecida: a 20ª OBMEP é 2025 (confirmado no próprio HTML). Editições
-# sem o ano escrito no cabeçalho (17ª e 18ª, nesta pesquisa) usam esta conta.
-EDICAO_ANCORA, ANO_ANCORA = 20, 2025
+# ano → (segmento da URL, nome do arquivo-mapa que estabelece o referer/sessão
+# antes dos relatórios). Ver o §"Por que é ANO" no docstring do módulo — cada
+# linha foi conferida abrindo o site, não calculada por fórmula.
+SEGMENTO_POR_ANO: dict[int, tuple[str, str]] = {
+    2016: ("2016", "mapa_premiacao_content.htm"),
+    2017: ("2017", "mapa_premiacao_content.htm"),
+    2018: ("2018", "mapa.htm"),
+    2019: ("2019", "mapa.htm"),
+    2021: ("16aobmep", "mapa.htm"),
+    2022: ("17obmep", "mapa.htm"),
+    2023: ("18obmep", "mapa.htm"),
+    2024: ("19obmep", "mapa.htm"),
+    2025: ("20obmep", "mapa.htm"),
+}
 
 MEDALHAS = ["Ouro", "Prata", "Bronze"]
 REDES = {"": "pública", ".privada": "privada"}
@@ -77,31 +124,60 @@ class Registro:
     fonte_url: str
 
 
-def ano_da_edicao(edicao: int, html_ouro_publica: str) -> int:
-    """Extrai o ano do cabeçalho da página; cai pra conta por âncora se a
-    fonte não escreveu o ano (aconteceu nas edições 17ª/18ª)."""
-    m = re.search(r"\d+ª OBMEP (\d{4})", html_ouro_publica)
-    if m:
-        return int(m.group(1))
-    return ANO_ANCORA - (EDICAO_ANCORA - edicao)
-
-
 def raspar_pagina(sessao: requests.Session, url: str, referer: str) -> str:
     resp = sessao.get(url, headers={**HEADERS, "Referer": referer}, timeout=30)
     resp.raise_for_status()
     return resp.text
 
 
+def _conferir_ano(html: str, ano_esperado: int) -> None:
+    """Sanidade barata: quando o título grava um ano de 4 dígitos, ele tem que
+    bater com o que `SEGMENTO_POR_ANO` prometeu. Pega erro de mapeamento
+    (segmento certo, ano errado no dicionário) sem depender do texto pra
+    DECIDIR o ano — só pra CONFERIR."""
+    m = re.search(r"OBMEP (\d{4})", html)
+    if m and int(m.group(1)) != ano_esperado:
+        raise ValueError(
+            f"segmento prometia {ano_esperado}, página diz {m.group(1)} — "
+            f"confira SEGMENTO_POR_ANO"
+        )
+
+
+def _tabelas_por_nivel(sopa: BeautifulSoup) -> list[tuple[str, Tag]]:
+    """[(nível, tabela), ...] pra uma página de relatório.
+
+    Prefere as âncoras `<a name="nivelN">` (2017+, inclusive 16aobmep): cada
+    uma aponta pra tabela seguinte, e é o jeito mais direto de amarrar as
+    duas. Sem âncora nenhuma (2016), cai pra tabela por tabela na ORDEM da
+    página — nível 1, 2, 3 sempre nessa sequência nos dois formatos —, lendo
+    o rótulo do próprio cabeçalho da tabela em vez de inventar um.
+    """
+    ancoras = sopa.find_all("a", attrs={"name": re.compile(r"^nivel\d$")})
+    if ancoras:
+        saida: list[tuple[str, Tag]] = []
+        for ancora in ancoras:
+            tabela = ancora.find_next("table", class_="list")
+            if tabela is None:
+                continue
+            rotulo_tag = tabela.find("font", size="+2")
+            rotulo = rotulo_tag.get_text(strip=True) if rotulo_tag else ancora["name"]
+            saida.append((rotulo, tabela))
+        return saida
+
+    saida = []
+    for tabela in sopa.find_all("table", class_="list"):
+        rotulo_tag = tabela.find("font", size="+2")
+        if rotulo_tag is None:
+            continue
+        saida.append((rotulo_tag.get_text(strip=True), tabela))
+    return saida
+
+
 def parsear_pagina_medalha(html: str, prova_nome: str, ano: int, medalha: str, rede: str, fonte_url: str) -> list[Registro]:
     sopa = BeautifulSoup(html, "lxml")
     registros: list[Registro] = []
 
-    for ancora in sopa.find_all("a", attrs={"name": re.compile(r"^nivel\d$")}):
-        tabela = ancora.find_next("table", class_="list")
-        if tabela is None:
-            continue
-        nivel_texto_tag = tabela.find("font", size="+2")
-        nivel_texto = nivel_texto_tag.get_text(strip=True) if nivel_texto_tag else ancora["name"]
+    for nivel_texto, tabela in _tabelas_por_nivel(sopa):
         serie_min, serie_max = NIVEL_SERIE.get(nivel_texto, (None, None))
 
         corpo = tabela.find("tbody")
@@ -109,10 +185,12 @@ def parsear_pagina_medalha(html: str, prova_nome: str, ano: int, medalha: str, r
             continue
         for linha in corpo.find_all("tr"):
             celulas = [c.get_text(strip=True) for c in linha.find_all("td")]
-            # [seq (às vezes vazio), nome, escola, tipo, município, uf, medalha]
-            if len(celulas) < 7:
+            # 7 células com posição na frente (2017+) ou 6 sem ela (2016) —
+            # os últimos 6 campos são sempre [nome, escola, tipo, município,
+            # uf, medalha], então pegamos pelo FIM, não pelo início.
+            if len(celulas) < 6:
                 continue
-            _seq, nome, escola, _tipo, municipio, uf, medalha_cel = celulas[:7]
+            nome, escola, _tipo, municipio, uf, medalha_cel = celulas[-6:]
             if not nome:
                 continue
             registros.append(
@@ -133,41 +211,58 @@ def parsear_pagina_medalha(html: str, prova_nome: str, ano: int, medalha: str, r
     return registros
 
 
-def raspar_edicao(edicao: int) -> tuple[int, list[Registro]]:
+def raspar_ano(ano: int) -> list[Registro]:
+    segmento, arquivo_mapa = SEGMENTO_POR_ANO[ano]
     sessao = requests.Session()
-    mapa_url = f"{BASE}/{edicao}obmep/mapa.htm"
+    mapa_url = f"{BASE}/{segmento}/{arquivo_mapa}"
     raspar_pagina(sessao, mapa_url, mapa_url)  # estabelece o referer real
     time.sleep(0.5)
 
     registros: list[Registro] = []
-    ano: int | None = None
-
     for medalha in MEDALHAS:
         for sufixo, rede in REDES.items():
-            url = f"{BASE}/{edicao}obmep/verRelatorioPremiados{medalha}{sufixo}.do.htm"
-            html = raspar_pagina(sessao, url, mapa_url)
-            if ano is None:
-                ano = ano_da_edicao(edicao, html)
+            url = f"{BASE}/{segmento}/verRelatorioPremiados{medalha}{sufixo}.do.htm"
+            try:
+                html = raspar_pagina(sessao, url, mapa_url)
+            except requests.HTTPError as e:
+                # Ausência ESPERADA, não erro: 2016 não publica lista de rede
+                # privada pro Ouro/Prata/Bronze (docstring do módulo). Uma
+                # falha de qualquer OUTRO tipo (DNS, timeout, 500) continua
+                # subindo — só o 404 de uma combinação (medalha, rede)
+                # conhecida por faltar é engolido.
+                print(f"    sem {medalha}/{rede} em {ano}: {e}", file=sys.stderr)
+                continue
+            _conferir_ano(html, ano)
             registros.extend(parsear_pagina_medalha(html, "OBMEP", ano, medalha, rede, url))
             time.sleep(0.5)
 
-    assert ano is not None
-    return ano, registros
+    return registros
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--edicoes", type=int, nargs="+", required=True, help="Números de edição da OBMEP (ex.: 17 18 19 20)")
+    parser.add_argument(
+        "--anos", type=int, nargs="+", required=True,
+        help=f"Anos a raspar, entre {sorted(SEGMENTO_POR_ANO)} (2020 não existe: pandemia)",
+    )
     args = parser.parse_args()
 
     DIR_DADOS.mkdir(exist_ok=True)
 
-    for edicao in args.edicoes:
-        print(f"OBMEP {edicao}ª — raspando...", file=sys.stderr)
+    for ano in args.anos:
+        if ano not in SEGMENTO_POR_ANO:
+            print(f"OBMEP {ano}: sem segmento de URL conhecido (ver SEGMENTO_POR_ANO) — pulando", file=sys.stderr)
+            continue
+
+        print(f"OBMEP {ano} — raspando...", file=sys.stderr)
         try:
-            ano, registros = raspar_edicao(edicao)
+            registros = raspar_ano(ano)
         except requests.HTTPError as e:
             print(f"  falhou: {e}", file=sys.stderr)
+            continue
+
+        if not registros:
+            print(f"  0 registros — algo mudou no site, confira antes de importar", file=sys.stderr)
             continue
 
         destino = DIR_DADOS / f"obmep_{ano}.json"
@@ -175,7 +270,7 @@ def main() -> None:
             json.dumps([r.__dict__ for r in registros], ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        print(f"  {edicao}ª OBMEP = {ano} → {len(registros)} registros → {destino}", file=sys.stderr)
+        print(f"  OBMEP {ano} → {len(registros)} registros → {destino}", file=sys.stderr)
 
 
 if __name__ == "__main__":

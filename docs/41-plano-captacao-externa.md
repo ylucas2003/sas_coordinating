@@ -1,11 +1,11 @@
 # 41 — Captação externa · achar potenciais alunos cruzando resultados de provas públicas
 
-> Parte **já rodou de verdade** (schema aplicado, um pipeline completo,
-> 33 mil linhas cruas e 26 mil pessoas resolvidas — §5). A tela em
-> Administração e as rotas de API que a alimentam **ainda não existem** — é
-> desenho, não código (§7). Este documento é o registro das duas coisas
-> juntas, pra quem entrar depois saber exatamente onde a linha entre "feito"
-> e "planejado" está.
+> **Feito de ponta a ponta pra OBMEP**: schema aplicado, pipeline completo,
+> quase 70 mil linhas cruas e 53 mil pessoas resolvidas (§5) — **e agora
+> também as rotas de API e a tela em Administração** (§7), que na primeira
+> versão deste documento ainda eram só desenho. Este documento é o registro
+> do que existe, pra quem entrar depois saber exatamente onde a linha entre
+> "feito" e "planejado" está.
 >
 > Nasceu de uma conversa (15/09/2026) que começou pedindo uma tela de
 > "conquistas dos alunos" e só na segunda volta ficou claro que não é sobre
@@ -57,6 +57,9 @@ antes de qualquer linha de código:
   `candidato_externo.serie_referencia_min/max` + `ano_referencia_serie`
   existem: pra calcular, na leitura, se a pessoa ainda deve estar
   cursando fundamental/médio, em vez de descartar o dado antigo de cara.
+  ⚠️ A OBMEP especificamente foi pedida com **10 anos** (2016-2025, §5) —
+  é mais janela do que o piso de 5-7 decidido aqui, não uma revisão da regra
+  geral. Prova nova em §6 volta ao piso de 5-7 salvo decisão em contrário.
 
 ## 3 · Modelo de dados — aplicado (migrations 0056 e 0057)
 
@@ -144,50 +147,54 @@ Honrosa de propósito (ela só existe por UF, 27 estados × 3 níveis ×
 pública/privada = 162 requisições por edição, e é sinal mais fraco pra
 captação; fica pra quando o resto já estiver validado).
 
-Edições raspadas: **17ª a 20ª = 2022 a 2025** (`captacao-externa/pipeline/obmep.py`).
-**2019, 2020 e 2021 não estão nesta rodada** — `premiacao.obmep.org.br`
-devolve 404 pra edições anteriores à 17ª; o Dossiê de Provas já havia notado
-que a página-índice também não lista 2020. Onde esses três anos moram (se é
-que estão publicados em algum lugar) não foi investigado ainda — é a próxima
-lacuna a fechar nesta fonte antes de considerá-la "completa" pra janela de
-5-7 anos decidida no §2.
+**Anos raspados: 2016 a 2025, exceto 2020 (que não existe — a pandemia
+suspendeu aquela edição, e não há edição nenhuma publicada com esse ano em
+lugar nenhum do site).** É a janela de 10 anos do §2, fechada. A versão
+anterior deste documento cobria só 2022-2025 e registrava 2019/2020/2021 como
+lacuna "não investigada" (§8, item 5, embaixo) — a lacuna real era de três
+tipos:
 
-Números depois de raspar, importar e resolver (ambiente local,
-15/09/2026):
+1. **A numeração de edição não é linear.** `premiacao.obmep.org.br/{N}obmep/`
+   só existe a partir da 17ª (2022); antes disso o site usa outras duas
+   convenções de URL, achadas seguindo os links reais de
+   [`obmep.org.br/premiados.htm`](https://www.obmep.org.br/premiados.htm) (o
+   Dossiê de Provas já apontava essa página, só não tinha aberto os links) —
+   `16aobmep/` pra 2021 (o "a" é peculiaridade do próprio site, não fórmula) e
+   `{ano}/` pra 2016-2019. Por isso `pipeline/obmep.py` trocou de parâmetro:
+   era `--edicoes` (número de edição, aritmética frágil), agora é `--anos`
+   (a chave real), com `SEGMENTO_POR_ANO` documentando as três convenções
+   ano a ano.
+2. **2016 usa um HTML mais antigo**, sem as âncoras `<a name="nivelN">` que
+   amarram cada tabela ao nível e sem a coluna de posição na linha (6 células
+   por linha, não 7). O parser passou a ler o nível de dentro do cabeçalho da
+   própria tabela e a cortar as células pelo FIM (`celulas[-6:]`), que
+   funciona nos dois formatos.
+3. **2016 não publica lista de rede privada** pro Ouro/Prata/Bronze
+   (`.privada.do.htm` 404 só nesse ano) — os únicos "Tipo" de escola que
+   aparecem na lista pública daquele ano são F/E/M (federal/estadual/
+   municipal, todas públicas). Tratado como ausência esperada, não erro.
+
+Números depois de raspar, importar e resolver (ambiente local, 15/09/2026):
 
 | Métrica | Valor |
 |---|---|
-| `conquista_externa` (linhas cruas) | 33.066 |
-| `candidato_externo` (pessoas resolvidas) | 26.521 |
-| candidatos com 2+ conquistas (repetiram medalha) | 5.096 |
-| — dos quais, com 3 | 1.093 |
-| — dos quais, com **4** (medalha nos 4 anos seguidos) | **178** |
-
-Dois exemplos reais de candidato com 4 conquistas — o tipo de perfil que essa
-funcionalidade existe pra achar:
-
-```
-JOAO PEDRO DE MELO RIOS — Colégio Militar de Fortaleza (CE)
-  2022  Nível 1  Prata
-  2023  Nível 2  Ouro
-  2024  Nível 2  Ouro
-  2025  Nível 3  Prata
-
-JOAO SANTOS PEREIRA — Colégio Militar de Belo Horizonte (MG)
-  2022  Nível 1  Ouro
-  2023  Nível 2  Ouro
-  2024  Nível 2  Ouro
-  2025  Nível 3  Prata
-```
+| `conquista_externa` (linhas cruas) | 69.653 |
+| `candidato_externo` (pessoas resolvidas) | 53.813 |
+| candidatos com 2+ conquistas (repetiram medalha) | 11.569 |
+| — dos quais, com 3 | 3.279 |
+| — dos quais, com 4 | 785 |
+| — dos quais, com 5 | 164 |
+| — dos quais, com **6** (o máximo achado nesta janela) | **43** |
 
 Reprodutível com:
 
 ```sh
-cd captacao-externa && ./.venv/bin/python pipeline/obmep.py --edicoes 17 18 19 20
+cd captacao-externa && ./.venv/bin/python pipeline/obmep.py \
+  --anos 2016 2017 2018 2019 2021 2022 2023 2024 2025
 
 cd ../api
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
-  ../captacao-externa/dados/obmep_202*.json \
+  ../captacao-externa/dados/obmep_*.json \
   --prova-categoria olimpiada --prova-abrangencia nacional \
   --prova-fonte https://www.obmep.org.br/premiados.htm
 
@@ -224,11 +231,9 @@ número de inscrição, sem escola/cidade — não dá pra criar um
 vestibular a um candidato que uma olimpíada já identificou, se o nome bater.
 Isso é uma variação do resolver que ainda não foi escrita.
 
-## 7 · O que falta: backend + tela em Administração
+## 7 · Backend + tela em Administração — implementado (15/09/2026)
 
-Desenho, não código — nada disto foi escrito ainda.
-
-### 7.1 · Rotas (novas, em `api/app/routes/captacao.py`)
+### 7.1 · Rotas, em [`api/app/routes/captacao.py`](../api/app/routes/captacao.py)
 
 Seguindo o padrão de autorização existente
 ([api/app/auth.py](../api/app/auth.py)): `get_current_coordenador` (aceita
@@ -245,41 +250,56 @@ PATCH /captacao/candidatos/{id}      só status_captacao e observacoes —
                                       só o resolver escreve neles
 ```
 
-**Vai precisar de paginação de verdade desde o primeiro dia** — 26 mil
-candidatos e crescendo a cada fonte nova. É diferente do resto do sistema
-(CLAUDE.md, armadilha nº 2: "não existe paginação em lugar nenhum, de
-propósito") porque aqui o volume não é dos ~900 alunos — é de gente de fora,
-sem teto natural. Vale a pena olhar como `banco/` pagina hoje (é a única rota
-que pagina no sistema inteiro,
-[api/app/schemas/banco.py](../api/app/schemas/banco.py) explica o porquê) antes
-de desenhar esta.
+**Pagina de verdade desde o primeiro dia** — 53 mil candidatos e crescendo a
+cada fonte nova. É diferente do resto do sistema (CLAUDE.md, armadilha nº 2:
+"não existe paginação em lugar nenhum, de propósito") porque aqui o volume não
+é dos ~900 alunos — é de gente de fora, sem teto natural. A paginação e o
+filtro por Nº MÍNIMO DE CONQUISTAS moram no banco, não em Python: a migration
+[`0058_v_candidato_externo.sql`](../api/migrations/0058_v_candidato_externo.sql)
+cria a view `v_candidato_externo` (candidato + `conquistas_total`,
+`provas_distintas`, `ano_mais_recente` agregados por `count`/`LEFT JOIN`,
+mesmo desenho de `v_pedidos_por_cardapio` da 0052), e a rota só faz
+`.gte("conquistas_total", N)` em cima dela — sem HAVING escondido em lugar
+nenhum, sem SQL na rota. Filtro por prova é uma pré-consulta em
+`conquista_externa` seguida de `.in_("id", ...)` na view, o mesmo desenho de
+`_ids_por_topico` em `banco/consultas.py` (a view não tem `prova_id`: um
+candidato cruza N provas).
 
 ### 7.2 · Frontend
 
-Card novo no [`HubAdministracao.tsx`](../web/src/telas/Administracao/HubAdministracao.tsx)
+Card no [`HubAdministracao.tsx`](../web/src/telas/Administracao/HubAdministracao.tsx)
 (mesmo padrão de `CartaoDeCampo` que `Contas` e `Cantina` já usam — resumo
-vivo tipo "26.521 candidatos · 178 com 4 conquistas"), abrindo:
+vivo "53.813 candidatos · 785 com 4+ conquistas", de duas chamadas
+`por_pagina: 1` que só leem o `count="exact"` do PostgREST, sem baixar
+candidato nenhum), abrindo:
 
 ```
 /administracao/captacao        lista de candidatos (filtro por UF, status, nº de conquistas)
 /administracao/captacao/:id    ficha — conquistas cruzadas + status_captacao + observações
 ```
 
-Rotas declaradas em [`AppCoordenacao.tsx`](../web/src/cascos/AppCoordenacao.tsx),
+em [`Captacao.tsx`](../web/src/telas/Administracao/Captacao.tsx) e
+[`CaptacaoFicha.tsx`](../web/src/telas/Administracao/CaptacaoFicha.tsx). Rotas
+declaradas em [`AppCoordenacao.tsx`](../web/src/cascos/AppCoordenacao.tsx),
 mesmo arquivo que já tem `/administracao` e `/administracao/contas`. O par
-lista→ficha tem precedente direto pra copiar de estrutura: `/alunos` →
+lista→ficha segue a forma de `/alunos` →
 [`Alunos.tsx`](../web/src/telas/Alunos/Alunos.tsx) e `/alunos/:id` →
-[`AlunoFicha.tsx`](../web/src/telas/AlunoFicha/AlunoFicha.tsx) — mesma forma
-(lista filtrável, ficha com seções), conteúdo completamente diferente (aqui
-não tem nota, tem conquista externa).
+[`AlunoFicha.tsx`](../web/src/telas/AlunoFicha/AlunoFicha.tsx) — lista
+filtrável, ficha com seções —, mas a PAGINAÇÃO da lista (`ListaQuestoes.tsx`
+do banco é o modelo, não `Alunos.tsx`, que rola os ~900 inteiros de propósito)
+e a "série estimada hoje" da ficha (`dominio/captacao.ts`, com teste ao lado —
+desloca a faixa de referência da conquista mais recente pelos anos
+decorridos, e avisa quando a pessoa já deve ter saído da educação básica, em
+vez de inventar uma "13ª série") são as duas coisas que este par NÃO copia de
+lá.
 
 ## 8 · Em aberto
 
 1. **Fila de revisão pra match de confiança média.** Hoje só existe o match de
    alta confiança (§4.1). Um segundo nível — nome + cidade/UF, sem escola
    batendo — encontraria mais cruzamentos, mas precisa de alguém confirmando
-   antes de mesclar; não faz sentido escrever isso antes de a tela do §7
-   existir pra alguém revisar.
+   antes de mesclar. A tela do §7 já existe agora pra alguém revisar; o que
+   falta é o nível de match em si.
 2. **PDF como fonte.** OBQ/OBQ Jr (§6, item 4) vai ser a primeira fonte que
    não é HTML estático — precisa decidir a biblioteca (o projeto já usa
    `pymupdf` em `banco-questoes/`, é candidato natural a reaproveitar).
@@ -290,9 +310,9 @@ não tem nota, tem conquista externa).
    fontes, faz sentido `infra/vps/crontab-sas` rodar isso periodicamente —
    mas só depois de validar cada fonte manualmente pelo menos uma vez (§4,
    passo 4).
-5. **As três edições que faltam da OBMEP (2019-2021)** — §5 já registra que
-   `premiacao.obmep.org.br` não tem essas edições no padrão de URL usado;
-   precisa achar onde (se é que) estão publicadas antes de considerar a fonte
-   completa pra janela de 5-7 anos.
+5. ~~As três edições que faltam da OBMEP (2019-2021)~~ — **fechado em
+   15/09/2026** (§5): eram três convenções de URL diferentes, não dado
+   ausente. A janela de 10 anos (2016-2025, exceto 2020, que não existe) está
+   raspada, importada e resolvida.
 6. **Vestibular como enriquecimento** (§6, último parágrafo) — variação do
    resolver que ainda não foi desenhada em detalhe, só apontada como direção.
