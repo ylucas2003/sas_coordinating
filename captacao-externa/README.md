@@ -30,9 +30,10 @@ PostgREST — nunca SQL direto, mesma regra do resto do backend.
 captacao-externa/
 ├── requirements.txt         requests, beautifulsoup4, lxml
 ├── pipeline/
-│   └── obmep.py              1º scraper — Ouro/Prata/Bronze nacional, 2022-2025
-└── dados/                    JSON cru por edição — NÃO VERSIONADO
-    └── obmep_2025.json
+│   ├── obmep.py              1º scraper — Ouro/Prata/Bronze, 2016-2025 exceto 2020 (não existe)
+│   └── obm.py                2º scraper — Ouro/Prata/Bronze/Menção Honrosa, 2016-2025 completo
+└── dados/                    JSON cru por ano — NÃO VERSIONADO
+    └── obmep_2025.json, obm_2025.json...
 ```
 
 ## Setup
@@ -46,17 +47,17 @@ python3 -m venv .venv
 ## O fluxo de "acrescentar uma prova" (4 passos, sempre nesta ordem)
 
 Detalhado em [docs/41 §4](../docs/41-plano-captacao-externa.md#4--o-fluxo-que-se-repete-a-cada-prova-nova).
-Pra OBMEP, hoje:
+Pra OBMEP:
 
 ```sh
 # 1. raspar — grava captacao-externa/dados/obmep_{ano}.json
 cd captacao-externa
-./.venv/bin/python pipeline/obmep.py --edicoes 17 18 19 20
+./.venv/bin/python pipeline/obmep.py --anos 2016 2017 2018 2019 2021 2022 2023 2024 2025
 
 # 2. importar — cria a linha de prova_externa na 1ª vez, upsert em conquista_externa
 cd ../api
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
-    ../captacao-externa/dados/obmep_202*.json \
+    ../captacao-externa/dados/obmep_*.json \
     --prova-categoria olimpiada --prova-abrangencia nacional \
     --prova-fonte https://www.obmep.org.br/premiados.htm
 
@@ -66,6 +67,26 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidat
 # 4. validar — antes de ir pra próxima fonte, conferir uma amostra
 curl -s "http://localhost:3000/conquista_externa?uf_informada=eq.CE&limit=5" | python3 -m json.tool
 ```
+
+E pra OBM (mesmos passos 2-4, só troca o scraper e o `--prova-fonte`):
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/obm.py --anos 2016 2017 2018 2019 2020 2021 2022 2023 2024 2025
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/obm_*.json \
+    --prova-categoria olimpiada --prova-abrangencia nacional \
+    --prova-fonte "https://www.obm.org.br/quem-somos/premiados-da-obm/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
+⚠️ **A OBM não publica escola** (docs/41 §5.1) — cada conquista dela vira
+candidato PRÓPRIO no passo 3, nunca se funde com o que a OBMEP já resolveu
+pra mesma pessoa. Não é bug do resolver: é a régua de match do §4.1 (nome +
+escola, sem fallback pra nome+cidade) fazendo o que foi desenhada pra fazer.
 
 `POSTGREST_URL=http://localhost:3000` é porque `api/.env` local não define
 essa variável — sem ela, `criar_cliente_supabase()` cairia no branch de
@@ -85,14 +106,16 @@ exato (`prova_nome`, `ano`, `nivel_texto`, `serie_referencia_min/max`,
 `resultado`, `nome_informado`, `escola_informada`, `cidade_informada`,
 `uf_informada`, `fonte_url`).
 
-**Critério de prioridade pra próxima fonte** (docs/41 §6): só vale a pena se
-a fonte publica escola + cidade/UF por premiado — é o que o resolver usa pra
-desambiguar nome, e é raro fora de lista de olimpíada científica. Vestibular
-(ITA, IME...) geralmente só tem nome + inscrição — não dá pra criar
-candidato novo com isso, só enriquecer um que uma olimpíada já achou.
+**Critério de prioridade pra próxima fonte** (docs/41 §6): só vale a pena
+pra DESCOBERTA de candidato novo se a fonte publica escola + cidade/UF por
+premiado — é o que o resolver usa pra desambiguar nome. **Confira abrindo o
+HTML de verdade, não só o que o Dossiê de Provas resume**: a OBM parecia
+servir e não publica escola nenhuma (docs/41 §5.1) — só se descobriu abrindo
+a página. Sem escola, a fonte só serve pra fila de enriquecimento (§8, item
+1), não pra criar candidato novo.
 
 ## Estado atual
 
-Só OBMEP, edições 17ª-20ª (2022-2025) — 2019/2020/2021 ainda não têm fonte
-localizada (docs/41 §5 e §8, item 5). Números da última rodada e o resto da
+OBMEP (2016-2025, exceto 2020, que não existe) e OBM (2016-2025 completo) —
+56.232 `candidato_externo` resolvidos. Números da última rodada e o resto da
 fila de fontes: docs/41 §5 e §6.

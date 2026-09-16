@@ -174,7 +174,8 @@ tipos:
    aparecem na lista pública daquele ano são F/E/M (federal/estadual/
    municipal, todas públicas). Tratado como ausência esperada, não erro.
 
-Números depois de raspar, importar e resolver (ambiente local, 15/09/2026):
+Números depois de raspar, importar e resolver (ambiente local, 15/09/2026),
+só OBMEP:
 
 | Métrica | Valor |
 |---|---|
@@ -206,23 +207,75 @@ sem ela, `criar_cliente_supabase()` cairia no branch de Supabase hospedado, ver
 [app/supabase_client.py](../api/app/supabase_client.py); dentro do container
 `api` do compose já vem setada.)
 
+### 5.1 · Segunda fonte: OBM
+
+[`pipeline/obm.py`](../captacao-externa/pipeline/obm.py), 2016-2025 completo
+(nem falta 2020, ao contrário da OBMEP — a OBM nunca parou). Uma requisição
+por ano (`obm.org.br/premiados-obm-{ano}/`), ~300 linhas cada.
+
+⚠️ **Achado real, não suposição do §1: a OBM não publica escola.** A tabela só
+tem Nome, Cidade–Estado, Pontos e Prêmio — o §1 deste documento assumia que
+"olimpíada científica quase sempre publica [escola]", e isso vale pra OBMEP,
+não pra OBM. Consequência, pelo próprio desenho do §4.1 (nome+escola, sem
+fallback pra nome+cidade): **toda conquista de OBM vira um `candidato_externo`
+PRÓPRIO**, nunca se funde com um candidato que a OBMEP já resolveu — mesmo
+quando é literalmente a mesma pessoa. Anexar por nome (+ cidade/UF de
+confiança extra) ao candidato certo é a "variação do resolver ainda não
+escrita" que o §6 original apontava pra vestibular; a OBM entra na mesma fila
+(§8, item 1).
+
+Por não ter escola, `escola_informada` sai `""` (nunca `null`) do scraper —
+o índice único da 0057 trata NULL como sempre-diferente-de-NULL, e duas
+raspagens do mesmo ano duplicariam a linha inteira em vez de fazer upsert;
+string vazia participa do índice normalmente. Testado: reimportar o mesmo
+lote duas vezes manteve `conquista_externa` no mesmo total.
+
+Diferença deliberada da régua da OBMEP: **Menção Honrosa ENTRA** aqui (ao
+contrário da OBMEP, onde ela foi excluída por custar 162 requisições por
+edição — docs/41 §5). Na OBM ela já vem de graça na mesma página por ano, sem
+requisição extra nenhuma — mais sinal, custo zero.
+
+Números depois de raspar/importar/resolver (15/09/2026): 2.419
+`conquista_externa` novas, todas viraram candidato novo (nenhuma tinha escola
+pra cruzar com as 53.813 já resolvidas) — total geral agora **56.232**
+`candidato_externo`.
+
+⚠️ **A OBM também expôs um bug real no resolver**, consertado em
+[`scripts/resolver_candidatos_externos.py`](../api/scripts/resolver_candidatos_externos.py)
+(16/09/2026): ao criar candidato novo em lote, o código casava cada
+conquista com a linha recém-inserida por `(nome, escola)` — um dicionário
+Python. Com escola sempre vazia (só acontece na OBM), DUAS PESSOAS
+DIFERENTES com o mesmo nome no mesmo lote de 200 colidiam na mesma chave, e
+ambas ficavam apontando pro MESMO `candidato_externo` — o falso POSITIVO que
+o §4.1 chama de erro caro, entrando pela porta dos fundos. A correção troca o
+dicionário por `zip` posicional (o Postgres preserva a ordem do `INSERT
+... VALUES (...), (...) RETURNING` de um único statement). 20 grupos da OBM
+foram afetados; corrigidos à mão neste ambiente (grupo dividido de volta em
+dois candidatos, um por ano) porque não havia rodada de produção ainda pra se
+preocupar em migrar.
+
 ## 6 · Próximas fontes, em ordem
 
 Critério de ordenação: fonte publica escola/cidade/UF por premiado (senão o
-match do §4.1 não tem o que comparar) **e** já tem arquivo público
-multi-ano confirmado no Dossiê de Provas. Nessa ordem:
+match do §4.1 não tem o que comparar, como se descobriu tarde demais com a
+OBM — §5.1) **e** já tem arquivo público multi-ano confirmado no Dossiê de
+Provas. Nessa ordem:
 
-1. **OBM** — [Dossiê 01](../Dossie%20de%20Provas/01-nacionais-matematica-e-quimica.md) confirma
-   `obm.org.br/quem-somos/premiados-da-obm/`, 1979-2025 numa página só.
-2. **OBA** — [Dossiê 02](../Dossie%20de%20Provas/02-nacionais-biologia-astronomia-informatica-ciencias-historia.md),
+1. **OBA** — [Dossiê 02](../Dossie%20de%20Provas/02-nacionais-biologia-astronomia-informatica-ciencias-historia.md),
    `novo.oba.org.br/medalhas` (SPA — precisa investigar se dá pra raspar sem
    navegador headless, diferente da OBMEP que é HTML estático).
-3. **OBI** — mesmo arquivo do Dossiê, `olimpiada.ic.unicamp.br/passadas/`,
+2. **OBI** — mesmo arquivo do Dossiê, `olimpiada.ic.unicamp.br/passadas/`,
    1999-2025 confirmado, HTML estático.
-4. **OBQ / OBQ Jr** — mesmo arquivo, `obquimica.org`, PDFs por ano (precisa de
+3. **OBQ / OBQ Jr** — mesmo arquivo, `obquimica.org`, PDFs por ano (precisa de
    extração de PDF, não só HTML — primeira fonte que vai exigir isso).
-5. **OPEMAT (PE) e OMEG (GO)** — [Dossiê 05](../Dossie%20de%20Provas/05-estaduais.md),
+4. **OPEMAT (PE) e OMEG (GO)** — [Dossiê 05](../Dossie%20de%20Provas/05-estaduais.md),
    as duas estaduais com melhor cobertura confirmada.
+
+   ⚠️ Antes de raspar qualquer uma: **confira se ela publica escola** (a OBM
+   não publicava, e só se descobriu abrindo o HTML de verdade — o Dossiê de
+   Provas registra o que cada prova PUBLICA em geral, não coluna por coluna).
+   Sem escola, a fonte só serve pra fila de enriquecimento do item 1 do §8,
+   não pra descoberta de candidato novo.
 
 **Vestibular fica pra depois, e como enriquecimento, não descoberta**: listas
 de aprovado de vestibular (ITA, IME, FUVEST...) normalmente só têm nome +
@@ -295,11 +348,13 @@ lá.
 
 ## 8 · Em aberto
 
-1. **Fila de revisão pra match de confiança média.** Hoje só existe o match de
-   alta confiança (§4.1). Um segundo nível — nome + cidade/UF, sem escola
-   batendo — encontraria mais cruzamentos, mas precisa de alguém confirmando
-   antes de mesclar. A tela do §7 já existe agora pra alguém revisar; o que
-   falta é o nível de match em si.
+1. **Enriquecimento por nome (+ cidade/UF) pra fonte sem escola.** Não é mais
+   hipotético — a OBM (§5.1) é o primeiro caso real: 2.419 conquistas sem
+   escola, cada uma virando candidato PRÓPRIO em vez de se juntar ao que a
+   OBMEP já resolveu pra mesma pessoa. Precisa de um segundo passo no
+   resolver — nome + cidade/UF, confiança mais baixa que o match de §4.1 —, e
+   de alguém confirmando antes de mesclar (a tela do §7 já existe agora pra
+   isso). Vestibular (§6, item revisado) vai precisar da MESMA coisa.
 2. **PDF como fonte.** OBQ/OBQ Jr (§6, item 4) vai ser a primeira fonte que
    não é HTML estático — precisa decidir a biblioteca (o projeto já usa
    `pymupdf` em `banco-questoes/`, é candidato natural a reaproveitar).
