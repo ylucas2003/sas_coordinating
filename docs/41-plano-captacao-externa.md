@@ -277,6 +277,61 @@ Provas. Nessa ordem:
    Sem escola, a fonte só serve pra fila de enriquecimento do item 1 do §8,
    não pra descoberta de candidato novo.
 
+### 6.1 · Terceira fonte, fora da ordem: ITA — validação, não descoberta
+
+[`pipeline/ita.py`](../captacao-externa/pipeline/ita.py), 2024-2025 (só esses
+dois anos: `{ano}_convocados_3f.htm` 404 pra 2023 pra trás — o Dossiê de
+Provas já registrava isso como não confirmado, e não investiguei mais fundo
+porque o valor desta fonte não é histórico longo).
+
+**Não é olimpíada, é o próprio vestibular-alvo** — e por isso não segue o
+critério de ordenação do §6: entrou fora da fila porque a pergunta que
+motivou não foi "quem descobrimos de novo", foi "o sinal que a gente já capta
+(medalha de olimpíada) realmente correlaciona com passar no ITA?". Quem está
+na lista de convocados pra 3ª fase **já passou** — não é lead pra convidar,
+é prova de que a tese funciona. Por isso `serie_referencia_min/max` sai
+sempre `None`: a lista não diz se é treineiro ou formando, e não tem escola
+(mesma ausência da OBM, mesmo motivo do `escola_informada` sair `""`).
+
+`cidade_informada`/`uf_informada` vêm da **cidade da PROVA** ("BANCA" no
+relatório), não da cidade do candidato — quem mora numa cidade pequena faz a
+prova na banca mais perto, não na própria cidade. Traduzido pela lista real
+de locais de exame do próprio site (`vestibular.ita.br/principal.htm`),
+conferida contra todo valor de banca visto nos dois anos.
+
+**O resultado, cruzando por nome com OBMEP e OBM** (15-16/09/2026, mesma
+ressalva de sempre: só nome, sem escola/cidade de confirmação):
+
+| Só apareceu em | Pessoas |
+|---|---|
+| OBMEP | 48.347 |
+| OBM + OBMEP | 1.132 |
+| OBM | 230 |
+| **ITA** | 221 |
+| **ITA + OBMEP** | 82 |
+| **ITA + OBM + OBMEP** | **25** |
+| ITA + OBM | 2 |
+
+Dos 330 convocados pra 3ª fase do ITA em 2024-2025, **109 (33%) já tinham
+aparecido em OBMEP ou OBM** — quase um terço de quem entra no ITA já tinha
+sido achado pelo sinal de captação, incluindo 25 pessoas com as três. Exemplo
+real de uma delas:
+
+```
+Ahmed Ehab Fahmy El Tabey
+  2017-2023  OBMEP, quase todo ano (Ouro/Prata/Bronze, pública e depois privada)
+  2018-2023  OBM, todo ano (Menção Honrosa)
+  2025       ITA — Ampla Concorrência
+```
+
+Idem: **achado real, não suposição.** A primeira importação ficou em dobro
+(660 em vez de 330 `conquista_externa`) porque `nivel_texto` saiu `None` do
+scraper — mesmo problema de NULL-no-índice-de-dedup que a OBM já tinha
+exposto pra `escola_informada` (0057), agora em outra coluna. Corrigido pra
+`""`; o frontend também trocou `??` por `||` na célula de Nível
+(`CaptacaoFicha.tsx`) pra tratar vazio e ausente como a mesma coisa, igual já
+fazia pra Escola informada.
+
 **Vestibular fica pra depois, e como enriquecimento, não descoberta**: listas
 de aprovado de vestibular (ITA, IME, FUVEST...) normalmente só têm nome +
 número de inscrição, sem escola/cidade — não dá pra criar um

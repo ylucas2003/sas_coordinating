@@ -164,7 +164,10 @@ export function CaptacaoFicha() {
                 <tr key={c.id}>
                   <td data-rotulo="Ano" data-titulo>{c.ano}</td>
                   <td data-rotulo="Prova">{c.prova_nome ?? '—'}</td>
-                  <td data-rotulo="Nível">{c.nivel_texto ?? '—'}</td>
+                  {/* `||`, não `??`: nível vazio ("", ITA — não tem tier por
+                      série como as olimpíadas) é ausência de dado tanto
+                      quanto `null`, mesma regra da Escola informada ao lado. */}
+                  <td data-rotulo="Nível">{c.nivel_texto || '—'}</td>
                   <td data-rotulo="Resultado">{c.resultado}</td>
                   <td data-rotulo="Escola informada" data-secundario>{c.escola_informada || '—'}</td>
                   <td data-rotulo="Fonte">
