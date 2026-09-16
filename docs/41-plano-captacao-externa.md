@@ -324,6 +324,47 @@ Ahmed Ehab Fahmy El Tabey
   2025       ITA — Ampla Concorrência
 ```
 
+#### 6.1.1 · Addendum (16/09/2026): 2ª fase entrou — "todos os alunos", não só os aprovados finais
+
+Pedido explícito: salvar o resultado de TODOS os alunos das provas de
+vestibular, não só dos aprovados. A 1ª fase (objetiva) não tem lista nomeada
+— ninguém foi filtrado ainda —, mas achei `{ano}_convocados_2f.htm`: quem
+passou a 1ª fase e foi chamado pra 2ª (discursiva). É MUITO maior que a 3ª
+fase (777/773 pessoas por ano contra 150/180) e continua sendo o teto real
+do que a ITA publica com nome — ela nunca lista quem não passou fase
+nenhuma.
+
+Formato diferente da 3ª fase: texto de LARGURA FIXA (não `|`-delimitado), e
+a largura de cada coluna muda de ano pra ano — a régua de traços do próprio
+relatório dá as posições exatas; um split por 2+ espaços quebrava quando o
+nome da banca ("SAO JOSE DOS CAMPOS", sem folga de sobra) grudava direto na
+coluna seguinte.
+
+Cada pessoa que chega à 3ª fase agora tem DUAS conquistas naquele ano — uma
+de cada fase —, porque são dois eventos de classificação distintos, não a
+mesma informação duas vezes.
+
+**Números depois da expansão**: 330 → **1.205 pessoas distintas da ITA**;
+cruzando as quatro fontes de novo:
+
+| Cruzamento (subconjunto) | Pessoas |
+|---|---|
+| ITA sozinho | 702 |
+| ITA + OBMEP | 230 |
+| IME + ITA (sem olimpíada) | 152 |
+| ITA + OBM + OBMEP | 53 |
+| IME + ITA + OBMEP | 41 |
+| **IME + ITA + OBM + OBMEP** | **24** (era 1 antes da expansão) |
+| IME + OBM + OBMEP | 16 |
+
+Cerca de 29% dos 1.205 (351 pessoas) já tinham medalhado em OBMEP ou OBM —
+perto do 33% que a amostra menor (só 3ª fase) já mostrava, o que sugere que
+o número não era um acaso de amostra pequena. E o grupo "nas quatro fontes"
+saltou de 1 pessoa pra 24, porque agora capturamos gente que passou da 1ª
+fase da ITA sem necessariamente chegar à 3ª — mais gente real, mais
+cruzamento real.
+```
+
 Idem: **achado real, não suposição.** A primeira importação ficou em dobro
 (660 em vez de 330 `conquista_externa`) porque `nivel_texto` saiu `None` do
 scraper — mesmo problema de NULL-no-índice-de-dedup que a OBM já tinha
@@ -405,6 +446,21 @@ Passou nos dois vestibulares mais concorridos do país no mesmo ano, depois
 de anos de medalha de olimpíada — é o retrato mais completo do que a
 captação por olimpíada tenta prever, e a prova está nas quatro fontes agora
 cruzadas, não numa suposição.
+
+#### 6.2.1 · Addendum (16/09/2026): o IME já é "todos os alunos" — não tem como ampliar
+
+O mesmo pedido que ampliou a ITA (§6.1.1, "todos os alunos, não só os
+aprovados") foi conferido pro IME, e a resposta é diferente: **não tem
+o que ampliar**. O CACFG só tem UMA fase escrita (a "Inspeção de Saúde" que
+vem depois não reclassifica ninguém por nota), e o próprio PDF de resultado
+já publica as duas relações — Aprovados (nome, a que já raspamos) e **Não
+Aprovados**. A segunda existe, mas não tem NOME nenhum, só número de
+inscrição — proteção de quem não passou. Sem nome não dá pra criar
+`conquista_externa` (a coluna é `NOT NULL`), e mesmo que desse, não haveria
+com quem cruzar. `escola_informada`/`nivel_texto` seguem sendo o único
+motivo de a ITA e a OBM terem esse mesmo problema, mas aqui é o próprio nome
+que falta — categoria de ausência diferente, sem solução por raspagem
+nenhuma.
 
 **Vestibular fica pra depois, e como enriquecimento, não descoberta**: listas
 de aprovado de vestibular (ITA, IME, FUVEST...) normalmente só têm nome +

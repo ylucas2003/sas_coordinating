@@ -1,8 +1,26 @@
-"""Raspa os CONVOCADOS PRA 3ª FASE do vestibular do ITA (inspeção de saúde —
-o último crivo antes da matrícula) e grava um JSON cru por ano em dados/.
+"""Raspa os convocados do vestibular do ITA — 2ª fase (quem passou na 1ª,
+objetiva) E 3ª fase (inspeção de saúde, o último crivo antes da matrícula) —
+e grava um JSON cru por ano em dados/.
 
 Uso:
     ./.venv/bin/python pipeline/ita.py --anos 2024 2025
+
+## Duas fases, não só a 3ª — "todos os alunos", não só os aprovados finais
+
+Até 16/09/2026 este scraper só trazia a 3ª fase (~180-330 pessoas por ano).
+Pedido explícito: "salvar o resultado de TODOS os alunos, não só dos
+aprovados" — e a 1ª fase (objetiva) não tem lista nomeada nenhuma
+(`{ano}_convocados_1f.htm` nunca existiu; é natural, ninguém foi filtrado
+ainda), mas a **2ª fase tem**, e é MUITO maior: 773-777 pessoas por ano contra
+~180-330 na 3ª. Continua sendo "quem passou uma etapa", nunca a base de
+TODOS os inscritos — a ITA não publica nome de quem não avançou nenhuma fase,
+em lugar nenhum. "Convocado pra 2ª fase" é o teto real do que dá pra
+capturar com nome.
+
+Cada pessoa costuma render DUAS linhas de `conquista_externa` no ano em que
+chega à 3ª fase — uma da 2ª fase, uma da 3ª — porque são dois EVENTOS
+distintos de classificação, não a mesma informação duas vezes; é o mesmo
+raciocínio de OBMEP guardar Ouro E o nível como campos separados.
 
 ## Isto é validação, não descoberta — ao contrário de OBMEP/OBM
 
@@ -187,11 +205,87 @@ def parsear_pagina_do_ano(html: str, ano: int, fonte_url: str) -> list[Registro]
     return registros
 
 
+def _linha_e_separador(linha: str) -> bool:
+    """`------ -------- ---- ----` — a régua de traços que delimita as
+    colunas da 2ª fase, sem NOME nenhum atrás. Sobra uma no fim do relatório
+    inteiro, sem dado depois — por isso não basta olhar só a PRIMEIRA."""
+    sem_espaco = linha.replace(" ", "")
+    return bool(sem_espaco) and set(sem_espaco) <= {"-"}
+
+
+def parsear_convocados_2f(texto: str, ano: int, fonte_url: str) -> list[Registro]:
+    """"Convocados pra 2ª fase" é texto de LARGURA FIXA, não `|`-delimitado
+    como a 3ª fase — sem cabeçalho repetido por seção, um `<pre>` só de
+    cabeçalho e outro só de dado. A largura de cada coluna muda de ano pra
+    ano (a do relatório de 2025 é mais larga que a de 2024, porque
+    "SAO JOSE DO RIO PRETO" — 21 caracteres — só apareceu em 2025): por isso
+    as posições vêm da régua de traços do PRÓPRIO ano, nunca de um número
+    cravado aqui. Duas colunas (NOME cabe em 1 espaço de sobra, não 2+) já
+    bastam pra split-por-espaço dar linha errada — largura fixa não erra.
+    """
+    blocos = re.findall(r"<pre>(.*?)</pre>", texto, re.DOTALL)
+    if len(blocos) < 2:
+        return []
+    cabecalho, corpo = blocos[0], blocos[1]
+
+    linha_regua = next(
+        (l.rstrip("\r") for l in cabecalho.split("\n") if _linha_e_separador(l.rstrip("\r"))),
+        None,
+    )
+    if linha_regua is None:
+        print("  aviso: 2ª fase sem régua de colunas reconhecida — pulando", file=sys.stderr)
+        return []
+    colunas = [(m.start(), m.end()) for m in re.finditer(r"-+", linha_regua)]
+    if len(colunas) != 4:
+        print(f"  aviso: 2ª fase com {len(colunas)} colunas, esperava 4 — pulando", file=sys.stderr)
+        return []
+    col_nome, col_banca = colunas[1], colunas[2]
+
+    registros: list[Registro] = []
+    for linha in corpo.split("\n"):
+        linha = linha.rstrip("\r")
+        if not linha.strip() or _linha_e_separador(linha):
+            continue
+        nome = linha[col_nome[0] : col_nome[1]].strip()
+        banca = linha[col_banca[0] : col_banca[1]].strip().upper()
+        if not nome:
+            continue
+        cidade, uf = _CIDADE_DA_BANCA.get(banca, (banca.title(), ""))
+        if banca not in _CIDADE_DA_BANCA:
+            print(f"  aviso: banca desconhecida {banca!r} — sem UF", file=sys.stderr)
+
+        registros.append(
+            Registro(
+                prova_nome="ITA",
+                ano=ano,
+                nivel_texto="",
+                serie_referencia_min=None,
+                serie_referencia_max=None,
+                resultado="Convocado — 2ª fase",
+                nome_informado=nome,
+                escola_informada="",
+                cidade_informada=cidade,
+                uf_informada=uf,
+                fonte_url=fonte_url,
+            )
+        )
+    return registros
+
+
 def raspar_ano(ano: int) -> list[Registro]:
-    url = f"{BASE}/{ano}_convocados_3f.htm"
-    resp = requests.get(url, headers=HEADERS, timeout=30)
+    registros: list[Registro] = []
+
+    url_2f = f"{BASE}/{ano}_convocados_2f.htm"
+    resp = requests.get(url_2f, headers=HEADERS, timeout=30)
     resp.raise_for_status()
-    return parsear_pagina_do_ano(resp.text, ano, url)
+    registros.extend(parsear_convocados_2f(resp.text, ano, url_2f))
+
+    url_3f = f"{BASE}/{ano}_convocados_3f.htm"
+    resp = requests.get(url_3f, headers=HEADERS, timeout=30)
+    resp.raise_for_status()
+    registros.extend(parsear_pagina_do_ano(resp.text, ano, url_3f))
+
+    return registros
 
 
 def main() -> None:

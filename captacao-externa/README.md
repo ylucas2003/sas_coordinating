@@ -32,7 +32,7 @@ captacao-externa/
 ├── pipeline/
 │   ├── obmep.py              1º scraper — Ouro/Prata/Bronze, 2016-2025 exceto 2020 (não existe)
 │   ├── obm.py                2º scraper — Ouro/Prata/Bronze/Menção Honrosa, 2016-2025 completo
-│   ├── ita.py                3º scraper — convocados 3ª fase do ITA, 2024-2025 (validação, não descoberta — docs/41 §6.1)
+│   ├── ita.py                3º scraper — convocados 2ª e 3ª fase do ITA, 2024-2025 (validação, não descoberta — docs/41 §6.1)
 │   └── ime.py                4º scraper — aprovados do CACFG/IME, só o ciclo corrente (validação — docs/41 §6.2)
 └── dados/                    JSON cru por ano — NÃO VERSIONADO
     └── obmep_2025.json, obm_2025.json, ita_2025.json, ime_2025.json...
@@ -153,7 +153,7 @@ a página. Sem escola, a fonte só serve pra fila de enriquecimento (§8, item
 ## Estado atual
 
 OBMEP (2016-2025, exceto 2020, que não existe), OBM (2016-2025 completo),
-ITA (2024-2025, convocados 3ª fase) e IME (2025, aprovados CACFG) — as duas
+ITA (2024-2025, convocados 2ª e 3ª fase) e IME (2025, aprovados CACFG) — as duas
 últimas são validação, não captação — 57.103 `candidato_externo` resolvidos.
 Números da última rodada e o resto da fila de fontes: docs/41 §5, §5.1, §6.1
 e §6.2.
