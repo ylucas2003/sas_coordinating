@@ -254,6 +254,46 @@ foram afetados; corrigidos à mão neste ambiente (grupo dividido de volta em
 dois candidatos, um por ano) porque não havia rodada de produção ainda pra se
 preocupar em migrar.
 
+### 5.2 · Terceira olimpíada: OBF — a primeira que cruza de verdade com a OBMEP
+
+[`pipeline/obf.py`](../captacao-externa/pipeline/obf.py) — Olimpíada
+Brasileira de Física (SBF; não confundir com a OBFEP, prova irmã só de
+escola pública). 2023-2025 confirmado; 2019/2021/2022 existem segundo o
+Dossiê de Provas, mas a busca interna do site não os indexa (achado
+rodando: 403/404 nas tentativas automatizadas) — lacuna registrada, não
+perseguida, mesmo padrão da OBMEP antes de virar `SEGMENTO_POR_ANO`.
+
+**Publica ESCOLA** — ao contrário da OBM/ITA/IME, e é a primeira fonte
+depois da OBMEP com essa qualidade de dado. Efeito prático, visto rodando de
+verdade: **conquistas de OBF já se fundem automaticamente com candidatos que
+a OBMEP resolveu antes**, pela régua de match do §4.1 (nome+escola exatos) —
+sem precisar da fila de enriquecimento do §8 item 1, que só existe pra
+fontes SEM escola. "Arthur Reiser de Paula" (Alpha Lumen Instituto) chegou a
+8 conquistas cruzando as duas fontes.
+
+Mesma régua de escopo da OBM: Menção Honrosa entra (as 4 categorias — Ouro/
+Prata/Bronze/Menção — vêm juntas na MESMA página por série, sem custo de
+requisição extra, mesmo raciocínio que já valia pra OBM). Sem cidade — só
+UF, direto da coluna do relatório, sem tradução por dicionário nenhum
+(ao contrário da ITA/IME, aqui não tem "banca", o dado já vem certo).
+
+**Achado real: o ID de página do Joomla muda a cada publicação**, e não tem
+padrão de URL fixo (o Dossiê de Provas já registrava isso). A saída foi usar
+a BUSCA interna do próprio site (`component/search/?searchword=premiados`)
+pra descobrir os 7 links (6º ao 9º ano, 1ª à 3ª série) de cada ano — e o
+termo de busca tem que ser a palavra solta "premiados", não o slug inteiro
+"premiados-obf-2025": o buscador do Joomla indexa palavra, não string
+composta, e buscar pelo slug direto sempre voltava zero resultado até eu
+perceber isso rodando de verdade. O resultado de um ano pode estar
+hospedado no site do ano SEGUINTE (a OBF publica resultado final em fev/mar
+do ano seguinte) — a busca tenta os dois sites e junta o que achar.
+
+Números depois de raspar/importar/resolver (16/09/2026): 4.767
+`conquista_externa` novas (2023: 1.898 · 2024: 1.373 · 2025: 1.496), das
+quais 827 se fundiram em candidato já existente (a maior parte, olimpíadas
+anteriores da própria OBF entre si; algumas com a OBMEP) — **3.940**
+candidatos novos, total geral agora **62.593**.
+
 ## 6 · Próximas fontes, em ordem
 
 Critério de ordenação: fonte publica escola/cidade/UF por premiado (senão o
