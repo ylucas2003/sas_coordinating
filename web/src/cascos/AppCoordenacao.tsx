@@ -24,6 +24,8 @@ import { Auditoria } from '../telas/Auditoria/Auditoria';
 import { Calibracao } from '../telas/Calibracao/Calibracao';
 import { HubAdministracao } from '../telas/Administracao/HubAdministracao';
 import { Contas } from '../telas/Administracao/Contas';
+import { Captacao } from '../telas/Administracao/Captacao';
+import { CaptacaoFicha } from '../telas/Administracao/CaptacaoFicha';
 import { Integracoes } from '../telas/Integracoes/Integracoes';
 import { SincronizacaoAulas } from '../telas/Integracoes/SincronizacaoAulas';
 import {
@@ -103,6 +105,8 @@ export default function AppCoordenacao() {
             cai no hub, a um clique de distância, e não num 404. */}
         <Route path="/administracao" element={<HubAdministracao />} />
         <Route path="/administracao/contas" element={<Contas />} />
+        <Route path="/administracao/captacao" element={<Captacao />} />
+        <Route path="/administracao/captacao/:id" element={<CaptacaoFicha />} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/integracoes/aulas" element={<SincronizacaoAulas />} />
         {/* CANTINA — o hub e as quatro portas (docs/39 fase 5).
