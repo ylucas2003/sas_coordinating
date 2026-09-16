@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 
 import { CartaoDeCampo, EloQuieto } from '../../componentes/ui/Campo';
 import { useAlunos, useAuditoria, useCoordenadores, usePainelGravacoes } from '../../hooks/consultas';
+import { useCandidatos } from '../../hooks/captacao';
 import { useCalendarioNaCoordenacao } from '../../hooks/cantina';
 import { isoDoDia } from '../../dominio/cantina';
 import { useParametroDeImportancia } from '../../hooks/banco';
@@ -185,12 +186,39 @@ function useResumoDeCalibracao() {
   return { texto: isError ? null : texto, carregando: isLoading };
 }
 
+/**
+ * "26.521 candidatos · 178 com 4+ conquistas"
+ *
+ * Duas chamadas de `por_pagina: 1`: o número vem do `count="exact"` do
+ * PostgREST, um HEAD barato — nenhuma delas baixa candidato nenhum
+ * (`routes/captacao.py::listar_candidatos`). O segundo número só aparece
+ * quando existe: "0 com 4+ conquistas" ainda não fez sentido no primeiro dia
+ * de uma fonte nova.
+ */
+function useResumoDeCaptacao() {
+  const { data: todos, isLoading: carregandoTodos, isError: erroTodos } =
+    useCandidatos({ por_pagina: 1 });
+  const { data: fortes, isLoading: carregandoFortes, isError: erroFortes } =
+    useCandidatos({ conquistas_min: 4, por_pagina: 1 });
+  const texto = useMemo(() => {
+    if (!todos) return null;
+    const partes = [`${todos.total.toLocaleString('pt-BR')} candidatos`];
+    if (fortes && fortes.total > 0) partes.push(`${fortes.total} com 4+ conquistas`);
+    return partes.join(' · ');
+  }, [todos, fortes]);
+  return {
+    texto: erroTodos || erroFortes ? null : texto,
+    carregando: carregandoTodos || carregandoFortes,
+  };
+}
+
 export function HubAdministracao() {
   const cantina = useResumoDaCantina();
   const contas = useResumoDeContas();
   const auditoria = useResumoDeAuditoria();
   const integracoes = useResumoDeIntegracoes();
   const calibracao = useResumoDeCalibracao();
+  const captacao = useResumoDeCaptacao();
 
   return (
     <div className="tela">
@@ -283,6 +311,24 @@ export function HubAdministracao() {
               <path d="M12 50h46" />
               <path d="M20 50V32M32 50V20M44 50V38M56 50V26" />
               <circle cx="32" cy="20" r="3.5" />
+            </>
+          }
+        />
+
+        {/* CAPTAÇÃO — gente de FORA do colégio, achada cruzando resultado
+            público de olimpíada/vestibular (docs/41). Não é `/alunos`: quem
+            aparece aqui nunca colocou os pés na escola. */}
+        <CartaoDeCampo
+          olho="Captação"
+          titulo="Quem merece um convite?"
+          para="/administracao/captacao"
+          carregando={captacao.carregando}
+          subtitulo={captacao.texto}
+          vazio="Nenhum candidato externo cruzado ainda."
+          glifo={
+            <>
+              <circle cx="35" cy="27" r="14" />
+              <path d="M28 39l-6 19 13-7 13 7-6-19" />
             </>
           }
         />

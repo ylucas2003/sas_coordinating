@@ -33,6 +33,7 @@ from .routes import (
     auth_canvas,
     banco,
     cantina,
+    captacao,
     ciclos,
     criterios,
     dimensoes,
@@ -161,6 +162,7 @@ def create_app() -> FastAPI:
     app.include_router(cantina.router)
     app.include_router(cantina.router_aluno)
     app.include_router(cantina.router_admin)
+    app.include_router(captacao.router)
     app.include_router(dimensoes.router)
     app.include_router(uploads.router)
     if settings.storage_dir:
