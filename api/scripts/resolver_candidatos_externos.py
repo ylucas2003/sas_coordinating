@@ -108,6 +108,17 @@ def main() -> int:
                     a_vincular[l["id"]] = candidato_id_existente
 
     # ── Cria candidato_externo novo pra cada grupo sem match anterior ──
+    #
+    # ⚠️ O par item↔linha-criada é por POSIÇÃO (`zip`), nunca por (nome, escola)
+    # de volta. Foi um dicionário chaveado por (nome, escola) até a OBM expor o
+    # bug: SEM escola (toda conquista da OBM), duas pessoas DIFERENTES com o
+    # mesmo nome no mesmo lote de 200 colidiam na mesma chave, e as duas
+    # ficavam apontando pro MESMO candidato — exatamente o falso POSITIVO que
+    # o §4.1 do docs/41 diz ser o erro caro desta feature. `INSERT ... VALUES
+    # (...), (...) RETURNING` do Postgres preserva a ordem da lista de valores
+    # (sem `ORDER BY`, sem paralelismo dentro do mesmo statement) — é a mesma
+    # garantia que bibliotecas de ORM usam pra mapear objeto→linha inserida, e
+    # aqui substitui a chave ambígua sem custo nenhum.
     criados = 0
     for lote in _em_lotes(a_criar):
         payload = [
@@ -118,11 +129,9 @@ def main() -> int:
             .insert(payload, returning="representation")
             .execute()
         )
-        por_chave = {(r["nome"], r["escola"] or ""): r["id"] for r in resultado.data}
-        for item in lote:
-            cid = por_chave[(item["nome"], item["escola"] or "")]
+        for item, linha_criada in zip(lote, resultado.data, strict=True):
             for linha in item["_linhas"]:
-                a_vincular[linha["id"]] = cid
+                a_vincular[linha["id"]] = linha_criada["id"]
         criados += len(lote)
         print(f"  candidatos criados: {criados}/{len(a_criar)}", file=sys.stderr)
 

@@ -240,6 +240,20 @@ Números depois de raspar/importar/resolver (15/09/2026): 2.419
 pra cruzar com as 53.813 já resolvidas) — total geral agora **56.232**
 `candidato_externo`.
 
+⚠️ **A OBM também expôs um bug real no resolver**, consertado em
+[`scripts/resolver_candidatos_externos.py`](../api/scripts/resolver_candidatos_externos.py)
+(16/09/2026): ao criar candidato novo em lote, o código casava cada
+conquista com a linha recém-inserida por `(nome, escola)` — um dicionário
+Python. Com escola sempre vazia (só acontece na OBM), DUAS PESSOAS
+DIFERENTES com o mesmo nome no mesmo lote de 200 colidiam na mesma chave, e
+ambas ficavam apontando pro MESMO `candidato_externo` — o falso POSITIVO que
+o §4.1 chama de erro caro, entrando pela porta dos fundos. A correção troca o
+dicionário por `zip` posicional (o Postgres preserva a ordem do `INSERT
+... VALUES (...), (...) RETURNING` de um único statement). 20 grupos da OBM
+foram afetados; corrigidos à mão neste ambiente (grupo dividido de volta em
+dois candidatos, um por ano) porque não havia rodada de produção ainda pra se
+preocupar em migrar.
+
 ## 6 · Próximas fontes, em ordem
 
 Critério de ordenação: fonte publica escola/cidade/UF por premiado (senão o
