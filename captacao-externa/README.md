@@ -28,13 +28,14 @@ PostgREST — nunca SQL direto, mesma regra do resto do backend.
 
 ```
 captacao-externa/
-├── requirements.txt         requests, beautifulsoup4, lxml
+├── requirements.txt         requests, beautifulsoup4, lxml, pymupdf (só pro IME, é PDF)
 ├── pipeline/
 │   ├── obmep.py              1º scraper — Ouro/Prata/Bronze, 2016-2025 exceto 2020 (não existe)
 │   ├── obm.py                2º scraper — Ouro/Prata/Bronze/Menção Honrosa, 2016-2025 completo
-│   └── ita.py                3º scraper — convocados 3ª fase do ITA, 2024-2025 (validação, não descoberta — docs/41 §6.1)
+│   ├── ita.py                3º scraper — convocados 3ª fase do ITA, 2024-2025 (validação, não descoberta — docs/41 §6.1)
+│   └── ime.py                4º scraper — aprovados do CACFG/IME, só o ciclo corrente (validação — docs/41 §6.2)
 └── dados/                    JSON cru por ano — NÃO VERSIONADO
-    └── obmep_2025.json, obm_2025.json, ita_2025.json...
+    └── obmep_2025.json, obm_2025.json, ita_2025.json, ime_2025.json...
 ```
 
 ## Setup
@@ -106,6 +107,23 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 ```
 
+E pra IME (docs/41 §6.2) — mesma categoria da ITA, **sem `--anos`**: a URL
+não tem ano nenhum, é sempre o ciclo corrente (o ano do registro vem de
+dentro do PDF). Rodar de novo daqui a um ano traz outro concurso:
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/ime.py
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/ime_*.json \
+    --prova-categoria vestibular --prova-abrangencia nacional \
+    --prova-fonte "https://inscricoes.ime.eb.br/cfg/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
 `POSTGREST_URL=http://localhost:3000` é porque `api/.env` local não define
 essa variável — sem ela, `criar_cliente_supabase()` cairia no branch de
 Supabase hospedado (ver [api/app/supabase_client.py](../api/app/supabase_client.py)).
@@ -134,7 +152,8 @@ a página. Sem escola, a fonte só serve pra fila de enriquecimento (§8, item
 
 ## Estado atual
 
-OBMEP (2016-2025, exceto 2020, que não existe), OBM (2016-2025 completo) e
-ITA (2024-2025, convocados 3ª fase — validação, não captação) — 56.562
-`candidato_externo` resolvidos. Números da última rodada e o resto da fila de
-fontes: docs/41 §5, §5.1 e §6.
+OBMEP (2016-2025, exceto 2020, que não existe), OBM (2016-2025 completo),
+ITA (2024-2025, convocados 3ª fase) e IME (2025, aprovados CACFG) — as duas
+últimas são validação, não captação — 57.103 `candidato_externo` resolvidos.
+Números da última rodada e o resto da fila de fontes: docs/41 §5, §5.1, §6.1
+e §6.2.
