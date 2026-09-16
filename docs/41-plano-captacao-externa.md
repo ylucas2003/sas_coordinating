@@ -332,6 +332,80 @@ exposto pra `escola_informada` (0057), agora em outra coluna. Corrigido pra
 (`CaptacaoFicha.tsx`) pra tratar vazio e ausente como a mesma coisa, igual já
 fazia pra Escola informada.
 
+### 6.2 · Quarta fonte, mesma categoria da ITA: IME — a outra ponta do alvo
+
+[`pipeline/ime.py`](../captacao-externa/pipeline/ime.py) raspa o "Resultado
+Preliminar do Exame de Escolaridade" do concurso de admissão do IME — CACFG
+(Curso de Formação e Graduação, o vestibular civil; não confundir com o
+"CP/IME" de pós-graduação pra oficiais já formados, achado por engano na
+primeira tentativa e descartado). Mesma categoria da ITA (§6.1): validação,
+não descoberta — quem está aprovado já passou no vestibular-alvo.
+
+**Só um ciclo, e sem jeito de escolher outro.** Ao contrário das outras três
+fontes, `inscricoes.ime.eb.br/documentos/ATIVA.pdf` e `.../RESERVA.pdf` NÃO
+têm ano na URL — são os nomes fixos do ciclo CORRENTE, sobrescritos a cada
+concurso novo. Não existe arquivo por ano pra voltar atrás (o Dossiê de
+Provas já registrava "não há padrão de URL único e estável confirmado" pro
+IME, depois de duas tentativas travarem em erro de certificado). Por isso
+`pipeline/ime.py` não tem `--anos`: o ano do registro vem de dentro do
+próprio PDF ("CACFG 2025/2026" no cabeçalho — usamos 2025, o ano da prova
+escrita), e rodar o script de novo daqui a um ano traz OUTRO concurso, não
+este.
+
+Dois achados reais no caminho, os dois já esperados pela essa altura:
+
+1. **O certificado TLS do site é quebrado de verdade** (não é firewall nem
+   User-Agent) — falta a cadeia intermediária, e `requests` recusa por
+   padrão onde o `curl` que investigou a fonte tolerava. `verify=False` é a
+   única forma de falar com esse servidor específico; documentado no
+   scraper, não é escolha de segurança feita a esmo.
+2. **Mesma pegadinha do NULL-no-índice-de-dedup da OBM/ITA, evitada desta
+   vez ANTES de rodar**: `escola_informada` e `nivel_texto` já nasceram `""`
+   no primeiro commit, não precisou de uma importação em dobro pra
+   descobrir.
+
+**Duas relações por PDF** — Aprovados (com nome) e Não Aprovados (só número
+de inscrição, sem nome, pra não expor quem não passou); o parser só casa o
+formato da primeira, então a segunda nunca precisa ser filtrada à mão.
+ATIVA/RESERVA (a mesma distinção de carreira militar da OBM) e a situação —
+ampla concorrência, Lei 12.990 (cota racial) ou excedente (passou da nota de
+corte mas além do nº de vagas) — viram `resultado` sem tradução.
+
+**O resultado, cruzando as quatro fontes por nome** (16/09/2026):
+
+| Só apareceu em | Pessoas |
+|---|---|
+| OBMEP | 48.218 |
+| OBM + OBMEP | 1.093 |
+| **IME** | 370 |
+| OBM | 228 |
+| ITA | 221 |
+| **IME + OBMEP** | 129 |
+| ITA + OBMEP | 82 |
+| **IME + OBM + OBMEP** | 39 |
+| ITA + OBM + OBMEP | 24 |
+| ITA + OBM | 2 |
+| IME + OBM | 2 |
+| **IME + ITA + OBM + OBMEP** | **1** |
+
+Dos 541 aprovados do IME (ATIVA+RESERVA, 2025), **171 (32%) já tinham
+aparecido em OBMEP ou OBM** — quase o mesmo terço da ITA (33%), o que por si
+só é um sinal de que a validação é consistente entre os dois vestibulares, e
+não coincidência de uma fonte só. E existe **uma pessoa nas quatro fontes**:
+
+```
+Paulo Vinícius Rodrigues de Azevedo
+  2023  OBMEP Ouro — rede privada
+  2025  OBM Menção Honrosa
+  2025  ITA — Ampla Concorrência
+  2025  IME (ATIVA) — Ampla Concorrência
+```
+
+Passou nos dois vestibulares mais concorridos do país no mesmo ano, depois
+de anos de medalha de olimpíada — é o retrato mais completo do que a
+captação por olimpíada tenta prever, e a prova está nas quatro fontes agora
+cruzadas, não numa suposição.
+
 **Vestibular fica pra depois, e como enriquecimento, não descoberta**: listas
 de aprovado de vestibular (ITA, IME, FUVEST...) normalmente só têm nome +
 número de inscrição, sem escola/cidade — não dá pra criar um
