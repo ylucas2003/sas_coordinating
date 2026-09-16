@@ -72,3 +72,39 @@ export interface RemendoCandidato {
   status_captacao?: StatusCaptacao;
   observacoes?: string;
 }
+
+// ─── Fila de fusão de baixa confiança (docs/41 §8, item 1) ────────────────
+// O resolver só funde por nome+escola exatos (§4.1); isto aqui é o segundo
+// nível, nome sozinho — nunca funde automático, só sugere pra um humano
+// confirmar ou rejeitar.
+
+/** Uma linha da fila: um NOME com mais de um `candidato_externo`. */
+export interface GrupoFusao {
+  nome_normalizado: string;
+  /** Quantos `candidato_externo` distintos têm este nome. */
+  candidatos: number;
+  /** 1 = todos batem na mesma UF (alta confiança); mais que 1 = cuidado. */
+  ufs_distintas: number;
+}
+
+export interface PaginaFusoes {
+  grupos: GrupoFusao[];
+  total: number;
+  pagina: number;
+  por_pagina: number;
+}
+
+/** Um candidato do grupo, com as próprias conquistas — pra comparar lado a lado. */
+export interface MembroDaFusao extends CandidatoExterno {
+  conquistas: ConquistaExterna[];
+}
+
+export interface DetalheDaFusao {
+  nome_normalizado: string;
+  candidatos: MembroDaFusao[];
+}
+
+export interface ResultadoDaFusao {
+  sobrevivente_id: string;
+  candidatos_fundidos: number;
+}

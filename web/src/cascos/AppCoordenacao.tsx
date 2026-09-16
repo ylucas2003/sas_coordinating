@@ -26,6 +26,8 @@ import { HubAdministracao } from '../telas/Administracao/HubAdministracao';
 import { Contas } from '../telas/Administracao/Contas';
 import { Captacao } from '../telas/Administracao/Captacao';
 import { CaptacaoFicha } from '../telas/Administracao/CaptacaoFicha';
+import { CaptacaoFusoes } from '../telas/Administracao/CaptacaoFusoes';
+import { CaptacaoFusaoDetalhe } from '../telas/Administracao/CaptacaoFusaoDetalhe';
 import { Integracoes } from '../telas/Integracoes/Integracoes';
 import { SincronizacaoAulas } from '../telas/Integracoes/SincronizacaoAulas';
 import {
@@ -106,6 +108,12 @@ export default function AppCoordenacao() {
         <Route path="/administracao" element={<HubAdministracao />} />
         <Route path="/administracao/contas" element={<Contas />} />
         <Route path="/administracao/captacao" element={<Captacao />} />
+        {/* Estáticas ANTES da dinâmica — o Router 7 rankeia por
+            especificidade e acertaria de qualquer jeito, mas declarar
+            assim evita a pergunta "'fusoes' não ia cair no :id?" de quem
+            ler depois. */}
+        <Route path="/administracao/captacao/fusoes" element={<CaptacaoFusoes />} />
+        <Route path="/administracao/captacao/fusoes/:nome" element={<CaptacaoFusaoDetalhe />} />
         <Route path="/administracao/captacao/:id" element={<CaptacaoFicha />} />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/integracoes/aulas" element={<SincronizacaoAulas />} />

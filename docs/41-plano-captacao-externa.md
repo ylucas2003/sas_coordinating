@@ -573,13 +573,8 @@ lá.
 
 ## 8 · Em aberto
 
-1. **Enriquecimento por nome (+ cidade/UF) pra fonte sem escola.** Não é mais
-   hipotético — a OBM (§5.1) é o primeiro caso real: 2.419 conquistas sem
-   escola, cada uma virando candidato PRÓPRIO em vez de se juntar ao que a
-   OBMEP já resolveu pra mesma pessoa. Precisa de um segundo passo no
-   resolver — nome + cidade/UF, confiança mais baixa que o match de §4.1 —, e
-   de alguém confirmando antes de mesclar (a tela do §7 já existe agora pra
-   isso). Vestibular (§6, item revisado) vai precisar da MESMA coisa.
+1. ~~Enriquecimento por nome (+ cidade/UF) pra fonte sem escola~~ —
+   **fechado em 16/09/2026, ver §9.**
 2. **PDF como fonte.** OBQ/OBQ Jr (§6, item 4) vai ser a primeira fonte que
    não é HTML estático — precisa decidir a biblioteca (o projeto já usa
    `pymupdf` em `banco-questoes/`, é candidato natural a reaproveitar).
@@ -594,5 +589,57 @@ lá.
    15/09/2026** (§5): eram três convenções de URL diferentes, não dado
    ausente. A janela de 10 anos (2016-2025, exceto 2020, que não existe) está
    raspada, importada e resolvida.
-6. **Vestibular como enriquecimento** (§6, último parágrafo) — variação do
-   resolver que ainda não foi desenhada em detalhe, só apontada como direção.
+6. ~~Vestibular como enriquecimento~~ (§6, último parágrafo) — **fechado em
+   16/09/2026 pela MESMA fila do item 1** (§9): a fila de fusão não distingue
+   olimpíada de vestibular, agrupa por nome_normalizado não importa a fonte
+   — ITA e IME (§6.1, §6.2) já entram nela do mesmo jeito que a OBM.
+
+## 9 · Fila de fusão de baixa confiança — implementada (16/09/2026)
+
+Fecha os itens 1 e 6 do §8: um segundo nível de match, ABAIXO do §4.1
+(nome+escola exatos), pra sugerir — nunca fundir sozinho — candidatos que
+compartilham só o nome. Pedido explícito depois de uma pergunta direta:
+"já estamos cruzando no sentido de dizer que determinado aluno conquistou
+X OBMEP, Y OBF, Z ITA, W IME?" — a resposta até aqui era "só quando a
+escola bate por acaso (OBMEP↔OBF, §5.2); pra OBM/ITA/IME (sem escola) é só
+análise que eu rodei fora do produto, nunca uma tela." Esta seção é a tela.
+
+**Schema** (migration 0059): `candidato_externo_fusao_decisao` (nome_normalizado
+PK, status confirmada/rejeitada, quem decidiu, quando) — só guarda a
+DECISÃO humana, nunca a lista de candidatos do grupo (isso é recalculado na
+leitura, igual o resolver relê tudo a cada rodada em vez de guardar
+estado). A view `v_fusao_candidata` agrupa `candidato_externo` por
+`nome_normalizado`, com `NOT EXISTS` contra a tabela de decisão embutido na
+própria view — 6.560 grupos pendentes (15/09/2026) é gente demais pra
+excluir com uma lista de nomes já decididos numa query string.
+
+`ufs_distintas` é o sinal de confiança: 1 UF só entre todos os candidatos
+do grupo é forte indício de mesma pessoa; mais de uma é o alerta — o caso
+real que motivou a régua ser "sugestão", não "fusão automática", foi achado
+nesta mesma conversa (Antonio Eduardo Rossano: Fortaleza/CE numa conquista
+de 2019, Santa Fé do Sul/SP noutra de 2016 — pode ser mudança de cidade,
+pode ser gente diferente).
+
+**Rotas** (`routes/captacao.py`): `GET /captacao/fusoes` (fila paginada,
+filtro `uf_incerta`), `GET /captacao/fusoes/{nome}` (o grupo inteiro, cada
+candidato com as próprias conquistas), `POST /captacao/fusoes/confirmar` e
+`.../rejeitar`. Confirmar de verdade COMBINA os `candidato_externo`: o
+sobrevivente é quem já tem mais conquistas (empate → o mais antigo), as
+conquistas dos outros são repassadas pra ele, o retrato (nome/escola/
+cidade/UF/série) é recalculado pela conquista mais recente entre TODAS —
+mesma regra que o resolver já usa (`dados_candidato`) —, e os outros
+`candidato_externo` são apagados. Rejeitar só grava a decisão; nenhum dado
+de captação é tocado.
+
+**Testado com um caso real, não hipotético**: "Alan Mesquita Rios" tinha 11
+`candidato_externo` (4 variações de nome de escola da OBMEP, 4 da OBM, 3 da
+ITA, todos Fortaleza/CE — `ufs_distintas: 1`). Confirmando a fusão, virou UM
+candidato com 12 conquistas em 3 provas (OBMEP, OBM, ITA), 2017-2025 — é
+exatamente a pergunta "quais provas esse aluno já conquistou" respondida
+pela tela, não mais só por SQL direto.
+
+**Frontend**: `telas/Administracao/CaptacaoFusoes.tsx` (a fila, com o mesmo
+padrão de paginação/filtro do resto da captação) e
+`CaptacaoFusaoDetalhe.tsx` (o grupo lado a lado, com os dois botões — "São a
+mesma pessoa" e "Não são"). Um elo quieto na lista principal
+(`Captacao.tsx`) mostra quantos nomes estão esperando revisão.

@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { CabecaDeCampo } from '../../componentes/ui/Campo';
+import { CabecaDeCampo, EloQuieto } from '../../componentes/ui/Campo';
 import { BarraFiltros, Busca, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
 import { resumirTexto } from '../../dominio/filtros';
-import { useCandidatos } from '../../hooks/captacao';
+import { useCandidatos, useFusoes } from '../../hooks/captacao';
 import type { FiltrosCaptacao as Filtros, StatusCaptacao } from '../../tipos/captacao';
 
 // Captação externa (docs/41) — candidatos achados FORA do colégio, cruzando
@@ -60,6 +60,9 @@ export function Captacao() {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIAIS);
   const [ufDigitada, setUfDigitada] = useState('');
   const { data, isPending, isError, isPlaceholderData } = useCandidatos(filtros);
+  // `por_pagina: 1` só pra ler o `total` — o mesmo truque barato do resumo
+  // de captação no HubAdministracao.tsx (count="exact" é HEAD no PostgREST).
+  const { data: fusoes } = useFusoes({ porPagina: 1 });
 
   const candidatos = data?.candidatos ?? [];
   const total = data?.total ?? 0;
@@ -85,6 +88,14 @@ export function Captacao() {
           Gente que nunca estudou aqui, achada cruzando listas públicas de premiação de olimpíada e
           vestibular. Abra a ficha pra ver todas as conquistas cruzadas de cada pessoa.
         </p>
+      </div>
+
+      <div className="campo-elos">
+        <EloQuieto
+          para="/administracao/captacao/fusoes"
+          texto="Nomes repetidos pra revisar (fusão)"
+          contagem={fusoes?.total ?? null}
+        />
       </div>
 
       <BarraFiltros
