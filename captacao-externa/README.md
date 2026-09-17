@@ -35,9 +35,10 @@ captacao-externa/
 │   ├── ita.py                3º scraper — convocados 2ª e 3ª fase do ITA, 2024-2025 (validação, não descoberta — docs/41 §6.1)
 │   ├── ime.py                4º scraper — aprovados do CACFG/IME, só o ciclo corrente (validação — docs/41 §6.2)
 │   ├── obf.py                5º scraper — Ouro/Prata/Bronze/Menção Honrosa da OBF, 2023-2025 (publica escola — docs/41 §5.2)
-│   └── efomm.py              6º scraper — CIAGA/CIABA, 1ª fase + final, só o ciclo corrente (docs/41 §11.1)
+│   ├── efomm.py              6º scraper — CIAGA/CIABA, 1ª fase + final, só o ciclo corrente (docs/41 §11.1)
+│   └── escola_naval.py       7º scraper — CPAEN, 7 de 11 anos entre 2016-2025 (`id_file` curado à mão — docs/41 §11.2)
 └── dados/                    JSON cru por ano — NÃO VERSIONADO
-    └── obmep_2025.json, obm_2025.json, ita_2025.json, ime_2025.json, obf_2025.json, efomm_2026.json...
+    └── obmep_2025.json, obm_2025.json, ita_2025.json, ime_2025.json, obf_2025.json, efomm_2026.json, escola_naval_2025.json...
 ```
 
 ## Setup
@@ -160,6 +161,26 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 ```
 
+E pra Escola Naval/CPAEN (docs/41 §11.2) — ao contrário de EFOMM/IME, aqui
+**dá pra escolher o ano** (`--anos`, default = todo ano curado em
+`_DOCUMENTOS`), porque cada ano tem um `id_file` fixo e imutável. Sem
+escola nem cidade (OREL é unidade administrativa, não lugar — a primeira
+fonte deste pipeline sem sinal geográfico nenhum):
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/escola_naval.py
+# ou só alguns anos: ./.venv/bin/python pipeline/escola_naval.py --anos 2023 2024 2025
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/escola_naval_*.json \
+    --prova-categoria vestibular --prova-abrangencia nacional \
+    --prova-fonte "https://www.marinha.mil.br/sspm/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
 `POSTGREST_URL=http://localhost:3000` é porque `api/.env` local não define
 essa variável — sem ela, `criar_cliente_supabase()` cairia no branch de
 Supabase hospedado (ver [api/app/supabase_client.py](../api/app/supabase_client.py)).
@@ -190,10 +211,10 @@ a página. Sem escola, a fonte só serve pra fila de enriquecimento (§8, item
 
 OBMEP (2016-2025, exceto 2020, que não existe), OBM (2016-2025 completo),
 OBF (2023-2025), ITA (2024-2025, convocados 2ª e 3ª fase), IME (2025,
-aprovados CACFG) e EFOMM (2026, CIAGA/CIABA, 1ª fase + final) — as três
-últimas são validação, não captação — **59.058** `candidato_externo`
-resolvidos (depois do lote de fusão em massa do §10, que reduziu duplicata
-de baixa confiança). AFA pesquisada e deixada de fora (bloqueio de
-Cloudflare, docs/41 §11); Escola Naval pesquisada, scraper ainda não
-escrito (mesmo §11). Números da última rodada e o resto da fila de fontes:
-docs/41 §5, §5.1, §5.2, §6.1, §6.2, §10 e §11.
+aprovados CACFG), EFOMM (2026, CIAGA/CIABA, 1ª fase + final) e Escola Naval
+(7 de 11 anos entre 2016-2025, CPAEN) — as quatro últimas são validação, não
+captação — **59.977** `candidato_externo` resolvidos (depois do lote de
+fusão em massa do §10, que reduziu duplicata de baixa confiança). AFA
+pesquisada e deixada de fora (bloqueio de Cloudflare, docs/41 §11). Números
+da última rodada e o resto da fila de fontes: docs/41 §5, §5.1, §5.2, §6.1,
+§6.2, §10, §11, §11.1 e §11.2.

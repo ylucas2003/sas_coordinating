@@ -598,10 +598,10 @@ lá.
    deliberadamente. Única saída parcial achada: Diário Oficial (`in.gov.br`,
    sem bloqueio) publica só a lista final de habilitados — vale revisitar se
    um dia fizer sentido só essa fase.
-8. **Escola Naval.** Pesquisada (§11): PDFs abertos e com texto extraível
-   desde 2015, mas a página que lista os arquivos por ano está atrás de
-   Cloudflare — falta fechar o levantamento de `id_file` por ano/fase (via
-   busca, não navegação) antes de escrever `pipeline/escola_naval.py`.
+8. ~~Escola Naval~~ — **fechado em 17/09/2026, ver §11.2**: `pipeline/escola_naval.py`
+   construído com `id_file` curado à mão (7 de 11 anos, 2015/2017/2019
+   não achados, 2020 é só retificação de edital). Cobertura desigual entre
+   anos, mas real.
 
 ## 9 · Fila de fusão de baixa confiança — implementada (16/09/2026)
 
@@ -706,13 +706,12 @@ Oficial (`in.gov.br`, sem bloqueio) publica a lista final de habilitados à
 matrícula, mas não as fases intermediárias — fica registrado como pendência
 (§8), não perseguido agora.
 
-**Escola Naval — pesquisada, scraper ainda não escrito.** Os PDFs de
-resultado (`inscricao.marinha.mil.br/marinha/*.pdf?id_file=N`) são abertos e
-com texto extraível desde pelo menos 2015, mas a página que LISTA esses
-arquivos por ano está atrás de Cloudflare — descobrir o `id_file` certo por
-ano exige busca (indexação por motor de busca), não navegação direta.
-Levantamento de `id_file` por ano/fase em andamento; construção do scraper
-fica pra quando essa lista fechar.
+**Escola Naval — pesquisada e construída, ver §11.2.** Os PDFs de resultado
+(`inscricao.marinha.mil.br/marinha/*.pdf?id_file=N`) são abertos e com texto
+extraível desde pelo menos 2016, mas a página que LISTA esses arquivos por
+ano está atrás de Cloudflare — o `id_file` de cada ano foi descoberto por
+busca (indexação por motor de busca), não navegação direta, e curado à mão
+em `_DOCUMENTOS` do scraper.
 
 ### 11.1 · EFOMM — construída, mas é retrato do ciclo corrente, não histórico
 
@@ -821,6 +820,100 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao
     ../captacao-externa/dados/efomm_*.json \
     --prova-categoria vestibular --prova-abrangencia nacional \
     --prova-fonte "https://www.marinha.mil.br/ciaga/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
+### 11.2 · Sétima fonte: Escola Naval (CPAEN) — `id_file` curado à mão, não descoberto por padrão
+
+[`pipeline/escola_naval.py`](../captacao-externa/pipeline/escola_naval.py)
+raspa o CPAEN (Concurso Público de Admissão à Escola Naval). Diferente de
+EFOMM/IME, aqui **dá pra escolher o ano** (`--anos`), porque a fonte não é
+"o ciclo corrente sobrescrito" — é o oposto: cada ano tem um `id_file`
+diferente e imutável, só que **descobrir esse número não tem atalho
+nenhum**.
+
+Os PDFs ficam em `www.inscricao.marinha.mil.br/marinha/<nome-livre>.pdf?
+id_file=<N>` — o nome na URL é cosmético, só o `id_file` importa, e ele é um
+contador SEQUENCIAL GLOBAL compartilhado por TODO concurso da Marinha
+(CPAEN, CPACN/Colégio Naval, CPAEAM, QC...). A página que LISTA esses
+arquivos por ano está atrás de Cloudflare managed challenge — não dá pra
+navegar até o link certo. Pesquisado por busca dirigida (17/09/2026,
+confirmando cada candidato baixando e lendo o PDF de verdade, nunca só o
+nome do arquivo): **7 de 11 anos entre 2016 e 2025** — faltam 2015, 2017 e
+2019 (não achados); 2020 existe mas é só uma retificação de EDITAL, sem nome
+de candidato nenhum, por isso fora da lista. Dois "quase acertos" que a
+pesquisa descartou por engano de fonte: um PDF que parecia 2015 era
+CP-CEM/2014, e um que parecia 2017 era CP-PMS/2017 — outros concursos da
+mesma casa, achados só depois de baixar e ler o texto, não pelo nome do
+arquivo (que mentia os dois).
+
+Cobertura desigual de propósito: cada ano trouxe o documento de MAIOR
+classificação que a busca conseguiu confirmar — Resultado Final
+(titular+reserva) pra 2016/2018/2021/2023/2025, "não eliminados nas provas
+escritas" (única fase com nome publicado naqueles ciclos) pra 2022/2024. Não
+é "todas as fases, todo ano" como o resto do §2 pede — é o que a fonte
+permitiu confirmar sem inventar.
+
+**Achado real, não suposição, no parser**: o parágrafo de ABERTURA de todo
+PDF já diz "relação dos candidatos titulares e dos candidatos reservas" —
+um marcador de seção que não distinguisse isso de um cabeçalho de verdade
+vira a ÚLTIMA marca antes de QUALQUER linha de dado, e o documento inteiro
+sai "Reserva". Aconteceu na primeira versão: 2023 e 2025 saíram 100/100 e
+68/68 reserva. Corrigido restringindo a busca de marcador pra DEPOIS da
+primeira menção de "Aspirante Masculino/Feminino" (que nunca aparece na
+abertura) — e revelou um segundo problema no caminho: a seção feminina de
+2016 usa "candidatAS titulares" (concordância de gênero), não "candidatOS
+titulares", e o marcador antigo (que exigia a palavra "candidatos" antes)
+nunca teria casado esse cabeçalho de jeito nenhum — o número certo de
+titulares (24 masculino + 12 feminino = 36) só apareceu depois de tirar essa
+exigência e casar só a palavra "titulares"/"reservas" sozinha.
+
+**OREL não é cidade, e a maioria nem é lugar nenhum** — ao contrário de
+ITA/IME (`BANCA`) e EFOMM (`ODE`), que são sempre nome de cidade, o "OREL" da
+Marinha é uma unidade ADMINISTRATIVA: `SSPM`/`DEnsM` é o órgão central no
+Rio, não um lugar; `Com7ºDN` é um Distrito Naval inteiro, que cobre vários
+estados; só uma fração (`EAMCE`, `EAMPE`, `EAMSC`...) tem estado óbvio no
+próprio nome. Inventar UF pra `CFPA`/`CPMA`/`CN`/`SNNF` sem confirmação seria
+pior que não ter nenhuma — `cidade_informada`/`uf_informada` saem sempre
+vazias aqui, a primeira fonte deste pipeline sem NENHUM sinal geográfico.
+
+Números depois de raspar/importar/resolver (17/09/2026): **919**
+`conquista_externa` novas, **895** pessoas distintas — 392 (44%, a maior
+taxa de cruzamento de qualquer fonte sem escola até aqui) já apareciam em
+outra fonte. Exemplo real, nível subindo sem conflito ano a ano e cinco
+fontes diferentes desde 2019:
+
+```
+Henry Vieira Bidinotto
+  2019  OBMEP Prata — rede pública (Nível 1)
+  2021  OBMEP Prata — rede pública (Nível 2)
+  2022  OBMEP Bronze — rede pública (Nível 3)
+  2023  OBF Prata (2ª série)
+  2024  Escola Naval — não eliminado nas provas escritas
+  2024  OBF Prata (3ª série)
+  2024  OBMEP Bronze — rede privada
+  2025  IME ATIVA — ampla concorrência
+  2025  ITA Convocado — 2ª fase
+  2026  EFOMM (CIABA) — Classificado (1ª fase)
+```
+
+(Há uma pessoa nas SETE fontes — "João Paulo Pereira da Silva" — mas "da
+Silva" é sobrenome comum demais pra confiar sem revisar: pelo menos parte
+dessas sete conquistas provavelmente são pessoas diferentes com o mesmo
+nome, exatamente o risco que a fila de fusão do §9 existe pra pegar.)
+
+Reprodutível com:
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/escola_naval.py
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/escola_naval_*.json \
+    --prova-categoria vestibular --prova-abrangencia nacional \
+    --prova-fonte "https://www.marinha.mil.br/sspm/"
 
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 ```
