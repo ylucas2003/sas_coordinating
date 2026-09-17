@@ -254,8 +254,11 @@ _PADRAO_FINAL = re.compile(
 )
 
 # 2016: inscrição+sigilo na MESMA linha, 8 números entre o nome e o local
-# (média + mat/fis/qui/port/ing/ing-obj/ing-disc), sem situação.
-_PADRAO_FINAL_2016 = re.compile(r"(\d+)°\n(\d+) (\d+)\n(.+?)\n(?:[\d,]+\n){8}([^\n]+?)\n")
+# (média + mat/fis/qui/port/ing/ing-obj/ing-disc, os dois últimos sendo o
+# inglês quebrado em objetiva/discursiva), sem situação.
+_PADRAO_FINAL_2016 = re.compile(
+    r"(\d+)°\n(\d+) (\d+)\n(.+?)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([^\n]+?)\n"
+)
 
 # ord, inscrição, candidato, local, carreira — precisa de `sort=True` na
 # extração (docstring do módulo). NOME é sempre CAIXA ALTA neste layout e
@@ -271,6 +274,11 @@ _PADRAO_FASE2 = re.compile(
 
 def _sem_acento(texto: str) -> str:
     return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
+
+
+def _numero(texto: str) -> float:
+    """"8,30" (formato brasileiro, vírgula) -> 8.3."""
+    return float(texto.replace(",", "."))
 
 
 def _cidade_e_uf(local_bruto: str) -> tuple[str, str]:
@@ -294,6 +302,10 @@ class Registro:
     cidade_informada: str
     uf_informada: str
     fonte_url: str
+    # Só os dois formatos "final" publicam nota por matéria — a lista de
+    # habilitados pra 2ª fase (`_parsear_fase2`) não tem nota nenhuma, só
+    # nome/local/carreira, então fica `None` pra ela sempre (docs/41).
+    notas_por_materia: dict[str, float] | None = None
 
 
 def _parsear_final_padrao(conteudo: bytes, modalidade: str, fonte_url: str) -> tuple[int | None, list[Registro]]:
@@ -306,7 +318,7 @@ def _parsear_final_padrao(conteudo: bytes, modalidade: str, fonte_url: str) -> t
     ano = int(m_ano.group(1))
 
     registros: list[Registro] = []
-    for _classif, _insc, _sigilo, nome, _media, _mat, _fis, _qui, _port, _ing, local, situacao in _PADRAO_FINAL.findall(texto):
+    for _classif, _insc, _sigilo, nome, media, mat, fis, qui, port, ing, local, situacao in _PADRAO_FINAL.findall(texto):
         nome = nome.strip()
         if not nome:
             continue
@@ -324,6 +336,14 @@ def _parsear_final_padrao(conteudo: bytes, modalidade: str, fonte_url: str) -> t
                 cidade_informada=cidade,
                 uf_informada=uf,
                 fonte_url=fonte_url,
+                notas_por_materia={
+                    "mat": _numero(mat),
+                    "fis": _numero(fis),
+                    "qui": _numero(qui),
+                    "port": _numero(port),
+                    "ing": _numero(ing),
+                    "media": _numero(media),
+                },
             )
         )
     return ano, registros
@@ -339,7 +359,21 @@ def _parsear_final_2016(conteudo: bytes, modalidade: str, fonte_url: str) -> tup
     ano = int(m_ano.group(1))
 
     registros: list[Registro] = []
-    for _rank, _insc, _sigilo, nome, local in _PADRAO_FINAL_2016.findall(texto):
+    for (
+        _rank,
+        _insc,
+        _sigilo,
+        nome,
+        media,
+        mat,
+        fis,
+        qui,
+        port,
+        ing,
+        ing_obj,
+        ing_disc,
+        local,
+    ) in _PADRAO_FINAL_2016.findall(texto):
         nome = nome.strip()
         if not nome:
             continue
@@ -359,6 +393,16 @@ def _parsear_final_2016(conteudo: bytes, modalidade: str, fonte_url: str) -> tup
                 cidade_informada=cidade,
                 uf_informada=uf,
                 fonte_url=fonte_url,
+                notas_por_materia={
+                    "mat": _numero(mat),
+                    "fis": _numero(fis),
+                    "qui": _numero(qui),
+                    "port": _numero(port),
+                    "ing": _numero(ing),
+                    "ing_obj": _numero(ing_obj),
+                    "ing_disc": _numero(ing_disc),
+                    "media": _numero(media),
+                },
             )
         )
     return ano, registros

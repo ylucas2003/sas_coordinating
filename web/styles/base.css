@@ -86,6 +86,19 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Botão que parece link — pra ação que abre detalhe/modal em vez de navegar
+   (Captação: clicar no Resultado da conquista abre a nota por matéria). O
+   reset de `button` abaixo já cuida de borda/fundo/padding; isto só adapta a
+   cor e o sublinhado ao hover, igual `a`. */
+.link-botao {
+  color: var(--sas-acao);
+  text-align: left;
+}
+
+.link-botao:hover {
+  text-decoration: underline;
+}
+
 button {
   font: inherit;
   cursor: pointer;
