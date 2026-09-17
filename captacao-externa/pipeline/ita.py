@@ -145,6 +145,9 @@ class Registro:
     cidade_informada: str
     uf_informada: str
     fonte_url: str
+    # Só a 3ª fase publica nota — a 2ª fase é só convocação (nome/banca/sala,
+    # sem prova ainda feita) e sai sempre `None` (docstring da 2ª fase).
+    notas_por_materia: dict[str, float] | None = None
 
 
 def _titulo_da_secao(texto: str, fim_do_bloco: int) -> str:
@@ -156,6 +159,26 @@ def _titulo_da_secao(texto: str, fim_do_bloco: int) -> str:
         return "Convocado — 3ª fase"
     rotulo = html.unescape(re.sub(r"\s+", " ", m[-1].group(1)).strip())
     return rotulo or "Convocado — 3ª fase"
+
+
+def _numero(texto: str) -> float:
+    return float(texto.replace(",", "."))
+
+
+def _rotulos_das_materias(linhas: list[str]) -> list[str] | None:
+    """Lê a linha de CABEÇALHO do bloco (a única com "NOME") pra saber quais
+    matérias a 2ª fase cobrou NAQUELE ciclo — acha real, não suposição: 2024
+    testou Redação no lugar de Português onde 2025 testou Português, mesma
+    posição da tabela (docstring do módulo, "o meio varia de largura"). Sem
+    ler o cabeçalho de cada bloco, "REDACAO" de um ano viraria "port" errado
+    no outro."""
+    cabecalho = next((l for l in linhas if l.startswith("|") and "NOME" in l), None)
+    if cabecalho is None:
+        return None
+    campos = [c.strip() for c in cabecalho.strip("|").split("|")]
+    if len(campos) != 5:
+        return None
+    return [r.rstrip(".").lower() for r in campos[2].split()]
 
 
 def parsear_pagina_do_ano(html: str, ano: int, fonte_url: str) -> list[Registro]:
@@ -172,6 +195,7 @@ def parsear_pagina_do_ano(html: str, ano: int, fonte_url: str) -> list[Registro]
             continue
 
         resultado = _titulo_da_secao(html, fim_do_bloco)
+        rotulos_materias = _rotulos_das_materias(linhas)
 
         for linha in dados:
             campos = [c.strip() for c in linha.strip("|").split("|")]
@@ -187,6 +211,20 @@ def parsear_pagina_do_ano(html: str, ano: int, fonte_url: str) -> list[Registro]
             if banca not in _CIDADE_DA_BANCA:
                 print(f"  aviso: banca desconhecida {banca!r} — sem UF", file=sys.stderr)
 
+            # 5 campos (nome, média 1ª fase, bloco de matérias, classificação,
+            # banca) é o formato confirmado em 2024/2025 — fora disso, melhor
+            # não ter granularidade do que casar número com matéria errada.
+            notas: dict[str, float] | None = None
+            if len(campos) == 5:
+                valores_materias = campos[2].split()
+                if rotulos_materias and len(rotulos_materias) == len(valores_materias):
+                    notas = {
+                        (f"{r}_2fase" if r == "media" else r): _numero(v)
+                        for r, v in zip(rotulos_materias, valores_materias, strict=True)
+                    }
+                    notas["media_1fase"] = _numero(campos[1])
+                    notas["classificacao"] = _numero(campos[3])
+
             registros.append(
                 Registro(
                     prova_nome="ITA",
@@ -199,6 +237,7 @@ def parsear_pagina_do_ano(html: str, ano: int, fonte_url: str) -> list[Registro]
                     escola_informada="",
                     cidade_informada=cidade,
                     uf_informada=uf,
+                    notas_por_materia=notas,
                     fonte_url=fonte_url,
                 )
             )
