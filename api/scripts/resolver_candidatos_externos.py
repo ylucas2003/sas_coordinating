@@ -81,31 +81,59 @@ def main() -> int:
     por_id = {linha["id"]: linha for linha in todas}
 
     a_criar: list[dict] = []  # grupos sem candidato_id nenhum ainda
-    a_atualizar_candidato: list[dict] = []  # candidato_externo existente que pode ter ficado desatualizado
+    # candidato_id -> todas as linhas de TODOS os grupos (nome, escola) que
+    # apontam pra ele — nunca uma lista de patches, direto (ver o comentário
+    # antes do upsert, embaixo, pro motivo).
+    linhas_por_candidato_existente: dict[str, list[dict]] = defaultdict(list)
     a_vincular: dict[str, str] = {}  # conquista_id -> candidato_id, só pra quem precisa mudar
 
     for chave, linhas in grupos.items():
-        mais_recente = max(linhas, key=lambda l: l["ano"])
         candidato_id_existente = next((l["candidato_id"] for l in linhas if l["candidato_id"]), None)
 
-        dados_candidato = {
-            "nome": mais_recente["nome_informado"],
-            "nome_normalizado": chave[0],
-            "escola": mais_recente.get("escola_informada"),
-            "cidade": mais_recente.get("cidade_informada"),
-            "uf": mais_recente.get("uf_informada"),
-            "serie_referencia_min": mais_recente.get("serie_referencia_min"),
-            "serie_referencia_max": mais_recente.get("serie_referencia_max"),
-            "ano_referencia_serie": mais_recente["ano"],
-        }
-
         if candidato_id_existente is None:
+            mais_recente = max(linhas, key=lambda l: l["ano"])
+            dados_candidato = {
+                "nome": mais_recente["nome_informado"],
+                "nome_normalizado": chave[0],
+                "escola": mais_recente.get("escola_informada"),
+                "cidade": mais_recente.get("cidade_informada"),
+                "uf": mais_recente.get("uf_informada"),
+                "serie_referencia_min": mais_recente.get("serie_referencia_min"),
+                "serie_referencia_max": mais_recente.get("serie_referencia_max"),
+                "ano_referencia_serie": mais_recente["ano"],
+            }
             a_criar.append({"_chave": chave, "_linhas": linhas, **dados_candidato})
         else:
-            a_atualizar_candidato.append({"id": candidato_id_existente, **dados_candidato})
+            linhas_por_candidato_existente[candidato_id_existente].extend(linhas)
             for l in linhas:
                 if l["candidato_id"] != candidato_id_existente:
                     a_vincular[l["id"]] = candidato_id_existente
+
+    # Um retrato só por candidato_id, nunca um por (nome, escola) — uma fusão
+    # manual (routes/captacao.py::confirmar_fusao) já pode ter juntado
+    # conquista de ESCOLAS diferentes debaixo do mesmo candidato_id, e cada
+    # escola ainda vira grupo (nome, escola) PRÓPRIO aqui. Sem esta junção,
+    # dois grupos emitiam patch pro MESMO id no mesmo lote de upsert, e o
+    # Postgres recusa com "ON CONFLICT DO UPDATE cannot affect row a second
+    # time" — achado rodando de verdade em 17/09/2026, depois do primeiro
+    # lote de fusão em massa (5.479 candidatos com escola divergente entre
+    # as próprias conquistas).
+    a_atualizar_candidato: list[dict] = []
+    for candidato_id, linhas in linhas_por_candidato_existente.items():
+        mais_recente = max(linhas, key=lambda l: l["ano"])
+        a_atualizar_candidato.append(
+            {
+                "id": candidato_id,
+                "nome": mais_recente["nome_informado"],
+                "nome_normalizado": normalizar_nome(mais_recente["nome_informado"]),
+                "escola": mais_recente.get("escola_informada"),
+                "cidade": mais_recente.get("cidade_informada"),
+                "uf": mais_recente.get("uf_informada"),
+                "serie_referencia_min": mais_recente.get("serie_referencia_min"),
+                "serie_referencia_max": mais_recente.get("serie_referencia_max"),
+                "ano_referencia_serie": mais_recente["ano"],
+            }
+        )
 
     # ── Cria candidato_externo novo pra cada grupo sem match anterior ──
     #

@@ -593,6 +593,15 @@ lá.
    16/09/2026 pela MESMA fila do item 1** (§9): a fila de fusão não distingue
    olimpíada de vestibular, agrupa por nome_normalizado não importa a fonte
    — ITA e IME (§6.1, §6.2) já entram nela do mesmo jeito que a OBM.
+7. **AFA.** Bloqueada por Cloudflare Managed Challenge em `fab.mil.br`
+   inteiro, PDF incluso (§11). Não vamos contornar bloqueio de bot
+   deliberadamente. Única saída parcial achada: Diário Oficial (`in.gov.br`,
+   sem bloqueio) publica só a lista final de habilitados — vale revisitar se
+   um dia fizer sentido só essa fase.
+8. ~~Escola Naval~~ — **fechado em 17/09/2026, ver §11.2**: `pipeline/escola_naval.py`
+   construído com `id_file` curado à mão (7 de 11 anos, 2015/2017/2019
+   não achados, 2020 é só retificação de edital). Cobertura desigual entre
+   anos, mas real.
 
 ## 9 · Fila de fusão de baixa confiança — implementada (16/09/2026)
 
@@ -643,3 +652,268 @@ padrão de paginação/filtro do resto da captação) e
 `CaptacaoFusaoDetalhe.tsx` (o grupo lado a lado, com os dois botões — "São a
 mesma pessoa" e "Não são"). Um elo quieto na lista principal
 (`Captacao.tsx`) mostra quantos nomes estão esperando revisão.
+
+## 10 · Fila de alta confiança confirmada em lote, e um alerta novo (17/09/2026)
+
+Dos 6.560 grupos abertos pela §9, **5.864 tinham UF única** (o sinal de alta
+confiança) — revisar um por um não escala, e a régua já tinha sido validada
+contra um caso real (Aline Lima de Oliveira, OBMEP 2018: duas alunas
+diferentes, UFs diferentes — corretamente do lado de FORA deste lote, porque
+cai no grupo de UF divergente). `api/scripts/confirmar_fusoes_alta_confianca.py`
+roda a MESMA lógica de `POST /captacao/fusoes/confirmar` (sobrevivente = mais
+conquistas, empate pelo mais antigo) em lote, só pra `ufs_distintas <= 1`.
+Rodado em produção: **5.864 grupos fundidos**, fila caiu pra **696** — só o
+que precisa de olho humano.
+
+⚠️ **Rodar o resolver DEPOIS de uma fusão em massa expõe um bug que só
+aparece em escala**: uma fusão junta conquista de ESCOLAS diferentes debaixo
+de um `candidato_id` só (ela funde por nome, ignora escola de propósito), mas
+`resolver_candidatos_externos.py` ainda agrupava por `(nome, escola)` — dois
+grupos de escola diferente emitindo patch pro MESMO `candidato_id` já
+fundido, e o upsert em lote falhava com `ON CONFLICT DO UPDATE cannot affect
+row a second time`. Afetava **5.479 candidatos** (achado rodando de novo o
+resolver, 17/09/2026, depois do lote de fusão acima). Corrigido: o resolver
+agora agrupa os patches por `candidato_id` DE VERDADE antes do upsert, não
+por `(nome, escola)` — um retrato só por candidato, da conquista mais
+recente entre TODAS as escolas que apontam pra ele.
+
+**Sinalização de conflito de nível** (`api/scripts/sinalizar_fusoes_conflito_de_nivel.py`):
+o mesmo teste que desqualificou a Aline — nível de ensino DIFERENTE no mesmo
+ano entre candidatos do mesmo nome, fisicamente impossível — rodado contra a
+fila inteira. Achou **17 grupos** (quase todos com sobrenome comum: da
+Silva, dos Santos, de Oliveira), incluindo um caso com TRÊS níveis
+diferentes no mesmo ano (Pedro Henrique dos Santos — provavelmente 3+
+pessoas coladas, não 2). Cuidado necessário: a OBF relata série/ano (6º
+ano...3ª série) enquanto OBMEP/OBM relatam "Nível N" — é a MESMA faixa em
+vocabulário diferente, e comparar os dois sem traduzir gerava 34 falsos
+positivos antes do ajuste. Não funde nem rejeita nada — só grava um aviso em
+`observacoes`, exibido na ficha de fusão (`CaptacaoFusaoDetalhe.tsx`) antes
+de alguém confirmar por engano.
+
+## 11 · Sexta fonte: EFOMM — e por que AFA ficou de fora por enquanto (17/09/2026)
+
+Pedido: AFA, EFOMM e Escola Naval, as três de uma vez. Pesquisadas em
+paralelo antes de escrever qualquer scraper (mesma régua do §6: confira
+abrindo a fonte de verdade, não confie no que parece óbvio).
+
+**AFA — bloqueada, ficou de fora.** `fab.mil.br` inteiro devolve 403 por
+Cloudflare Managed Challenge, inclusive pedindo o PDF direto (não é
+certificado quebrado como o IME, é bloqueio de bot deliberado na borda).
+Decisão: não contornar — driblar fingerprint de navegador automatizado pra
+passar por desafio anti-bot não é caminho que este projeto vai tomar, mesmo
+o dado sendo público por lei. Única saída parcial encontrada: o Diário
+Oficial (`in.gov.br`, sem bloqueio) publica a lista final de habilitados à
+matrícula, mas não as fases intermediárias — fica registrado como pendência
+(§8), não perseguido agora.
+
+**Escola Naval — pesquisada e construída, ver §11.2.** Os PDFs de resultado
+(`inscricao.marinha.mil.br/marinha/*.pdf?id_file=N`) são abertos e com texto
+extraível desde pelo menos 2016, mas a página que LISTA esses arquivos por
+ano está atrás de Cloudflare — o `id_file` de cada ano foi descoberto por
+busca (indexação por motor de busca), não navegação direta, e curado à mão
+em `_DOCUMENTOS` do scraper.
+
+### 11.1 · EFOMM — construída, mas é retrato do ciclo corrente, não histórico
+
+[`pipeline/efomm.py`](../captacao-externa/pipeline/efomm.py) raspa a
+Classificação Inicial (1ª fase, classificados + pós-classificados) e a
+Classificação Final (titulares + reservas) do processo seletivo da EFOMM —
+CIAGA (Rio de Janeiro) e CIABA (Belém), os dois centros que o mesmo concurso
+alimenta.
+
+**Sem `--anos`, e por um motivo pior que o do IME**: os PDFs
+(`assets.marinha.mil.br/ciaga/.../files/...`) não têm ano no NOME do
+arquivo — o mesmo caminho é sobrescrito a cada ciclo, e não há snapshot
+nenhum no Wayback Machine pra esse caminho (conferido, array vazio). Ao
+contrário do IME (que pelo menos tem o ano gravado DENTRO do PDF há vários
+ciclos, só a URL que não muda), aqui a cobertura histórica 2016-2025
+simplesmente não é recuperável com confiança — este scraper é retrato do
+ciclo CORRENTE (2026) e cresce ano a ano dali em diante.
+
+Achados novos no caminho:
+
+1. **Dois hosts, comportamento oposto**: `www.marinha.mil.br/ciaga/*`
+   (páginas institucionais) está atrás de Cloudflare; os PDFs de resultado,
+   hospedados no espelho estático `assets.marinha.mil.br/ciaga/...`, não
+   estão — mesmo domínio-mãe, zona diferente. O scraper usa sempre
+   `assets.`, nunca `www.`.
+2. **Mesmo certificado incompleto do IME**: `assets.marinha.mil.br` também
+   não manda a cadeia intermediária — `curl` tolera, `requests` não sem
+   `verify=False`.
+3. **Ordem de Nome/Inscrição muda entre fase 1 e fase 4** — mesma categoria
+   de armadilha da OBM (colunas fora de ordem), mas trocando a posição de
+   duas colunas inteiras, não só a ordem de exibição. O parser acha a
+   inscrição por regex (`\d{5,6}-\d`, formato que nunca aparece em nome) e
+   trata o resto como nome, não importa a ordem.
+4. **Nome comprido demais quebra a extração do PyMuPDF de um jeito que o
+   IME nunca expôs**: com `sort=True`, um nome de 6+ palavras não cabe na
+   coluna e o extrator devolve o INÍCIO do nome ANTES do número da
+   classificação e o SOBRENOME FINAL DEPOIS da data de nascimento, na MESMA
+   linha (`"MIGUEL CLAUDIO FERRO DE SÁ FERREIRA 90    102823-2 ... 30/10/2006
+   VASCONCELOS"`). Sem tratar isso, 8 de 2.364 registros perdiam o nome
+   inteiro, em silêncio. `_PADRAO_LINHA` ganhou grupos `prefixo`/`sufixo`
+   opcionais nas duas pontas da linha — sem eles casarem, o comportamento
+   pra linha normal não muda em nada.
+5. **Reservas: CIAGA tem lista única e estável, CIABA não.** CIABA convoca
+   reserva por boletim numerado incremental ("10 CONVOCAÇÃO DOS
+   RESERVAS-CIABA.pdf", que vira "11...", "12..." a cada substituição) —
+   sem nome de arquivo fixo pra apontar. Reserva do CIABA fica de fora por
+   isso (mesma régua de "não dá pra confiar em URL sem padrão" do IME/AFA);
+   CIAGA entra porque publica um documento único e estável, igual titular.
+6. **Marcador de "pós-classificado" precisa ser específico**: a palavra
+   solta "PÓS-CLASSIFICADOS" aparece primeiro no parágrafo de ABERTURA do
+   PDF, antes de qualquer linha de dado — usar só ela marcava os 800/800
+   candidatos da 1ª fase como pós-classificados (deviam ser 59
+   classificados + 741 pós). Corrigido ancorando no título de verdade da
+   seção ("Relação dos candidatos PÓS-CLASSIFICADOS").
+7. **Sem escola** — mesma categoria de ITA/IME/OBM: cidade vem do "ODE"
+   (onde fez a prova, não onde mora), 19 cidades-sede vistas e traduzidas
+   pra UF à mão contra o dado real (inclui Corumbá/MS, Paranaguá/PR,
+   Parnaíba/PI e Santarém/PA, que não são capital).
+
+Números depois de raspar/importar/resolver (17/09/2026): **2.364**
+`conquista_externa` novas (800 CIAGA 1ª fase + 1.000 CIABA 1ª fase + 222
+CIAGA titular + 165 CIABA titular + 177 CIAGA reserva), **1.810** pessoas
+distintas — todas viraram candidato próprio (sem escola, nada funde
+automático). Cruzando as SEIS fontes por nome:
+
+| Cruzamento (subconjunto) | Pessoas |
+|---|---|
+| OBMEP sozinho | 46.962 |
+| OBF sozinho | 2.147 |
+| **EFOMM sozinho** | 1.357 |
+| OBM + OBMEP | 839 |
+| ITA sozinho | 615 |
+| **EFOMM + IME** | 75 |
+| **EFOMM + OBMEP** | 73 |
+| **EFOMM + IME + ITA** | 48 |
+| **EFOMM + OBF** | 53 |
+| **32 pessoas em 5 fontes ou mais** | 32 |
+| **6 pessoas nas SEIS fontes** | 6 |
+
+453 dos 1.810 candidatos da EFOMM (25%) já tinham aparecido em pelo menos
+outra fonte — e pela primeira vez desde que este pipeline começou, tem gente
+nas seis fontes ao mesmo tempo:
+
+```
+José Luiz Ferrareze Jaks
+  2024  OBMEP Ouro — rede pública
+  2024  OBM Menção Honrosa
+  2025  IME RESERVA — excedente
+  2025  ITA Convocado — 2ª fase
+  2025  OBF Ouro
+  2026  EFOMM (CIAGA) — Classificado (1ª fase)
+```
+
+Ainda está no meio do processo seletivo da EFOMM (só "classificado" na 1ª
+fase, o resultado final sai em dezembro) — é o retrato mais completo de
+trajetória que este pipeline já mostrou, e ainda em aberto.
+
+Reprodutível com:
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/efomm.py
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/efomm_*.json \
+    --prova-categoria vestibular --prova-abrangencia nacional \
+    --prova-fonte "https://www.marinha.mil.br/ciaga/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
+### 11.2 · Sétima fonte: Escola Naval (CPAEN) — `id_file` curado à mão, não descoberto por padrão
+
+[`pipeline/escola_naval.py`](../captacao-externa/pipeline/escola_naval.py)
+raspa o CPAEN (Concurso Público de Admissão à Escola Naval). Diferente de
+EFOMM/IME, aqui **dá pra escolher o ano** (`--anos`), porque a fonte não é
+"o ciclo corrente sobrescrito" — é o oposto: cada ano tem um `id_file`
+diferente e imutável, só que **descobrir esse número não tem atalho
+nenhum**.
+
+Os PDFs ficam em `www.inscricao.marinha.mil.br/marinha/<nome-livre>.pdf?
+id_file=<N>` — o nome na URL é cosmético, só o `id_file` importa, e ele é um
+contador SEQUENCIAL GLOBAL compartilhado por TODO concurso da Marinha
+(CPAEN, CPACN/Colégio Naval, CPAEAM, QC...). A página que LISTA esses
+arquivos por ano está atrás de Cloudflare managed challenge — não dá pra
+navegar até o link certo. Pesquisado por busca dirigida (17/09/2026,
+confirmando cada candidato baixando e lendo o PDF de verdade, nunca só o
+nome do arquivo): **7 de 11 anos entre 2016 e 2025** — faltam 2015, 2017 e
+2019 (não achados); 2020 existe mas é só uma retificação de EDITAL, sem nome
+de candidato nenhum, por isso fora da lista. Dois "quase acertos" que a
+pesquisa descartou por engano de fonte: um PDF que parecia 2015 era
+CP-CEM/2014, e um que parecia 2017 era CP-PMS/2017 — outros concursos da
+mesma casa, achados só depois de baixar e ler o texto, não pelo nome do
+arquivo (que mentia os dois).
+
+Cobertura desigual de propósito: cada ano trouxe o documento de MAIOR
+classificação que a busca conseguiu confirmar — Resultado Final
+(titular+reserva) pra 2016/2018/2021/2023/2025, "não eliminados nas provas
+escritas" (única fase com nome publicado naqueles ciclos) pra 2022/2024. Não
+é "todas as fases, todo ano" como o resto do §2 pede — é o que a fonte
+permitiu confirmar sem inventar.
+
+**Achado real, não suposição, no parser**: o parágrafo de ABERTURA de todo
+PDF já diz "relação dos candidatos titulares e dos candidatos reservas" —
+um marcador de seção que não distinguisse isso de um cabeçalho de verdade
+vira a ÚLTIMA marca antes de QUALQUER linha de dado, e o documento inteiro
+sai "Reserva". Aconteceu na primeira versão: 2023 e 2025 saíram 100/100 e
+68/68 reserva. Corrigido restringindo a busca de marcador pra DEPOIS da
+primeira menção de "Aspirante Masculino/Feminino" (que nunca aparece na
+abertura) — e revelou um segundo problema no caminho: a seção feminina de
+2016 usa "candidatAS titulares" (concordância de gênero), não "candidatOS
+titulares", e o marcador antigo (que exigia a palavra "candidatos" antes)
+nunca teria casado esse cabeçalho de jeito nenhum — o número certo de
+titulares (24 masculino + 12 feminino = 36) só apareceu depois de tirar essa
+exigência e casar só a palavra "titulares"/"reservas" sozinha.
+
+**OREL não é cidade, e a maioria nem é lugar nenhum** — ao contrário de
+ITA/IME (`BANCA`) e EFOMM (`ODE`), que são sempre nome de cidade, o "OREL" da
+Marinha é uma unidade ADMINISTRATIVA: `SSPM`/`DEnsM` é o órgão central no
+Rio, não um lugar; `Com7ºDN` é um Distrito Naval inteiro, que cobre vários
+estados; só uma fração (`EAMCE`, `EAMPE`, `EAMSC`...) tem estado óbvio no
+próprio nome. Inventar UF pra `CFPA`/`CPMA`/`CN`/`SNNF` sem confirmação seria
+pior que não ter nenhuma — `cidade_informada`/`uf_informada` saem sempre
+vazias aqui, a primeira fonte deste pipeline sem NENHUM sinal geográfico.
+
+Números depois de raspar/importar/resolver (17/09/2026): **919**
+`conquista_externa` novas, **895** pessoas distintas — 392 (44%, a maior
+taxa de cruzamento de qualquer fonte sem escola até aqui) já apareciam em
+outra fonte. Exemplo real, nível subindo sem conflito ano a ano e cinco
+fontes diferentes desde 2019:
+
+```
+Henry Vieira Bidinotto
+  2019  OBMEP Prata — rede pública (Nível 1)
+  2021  OBMEP Prata — rede pública (Nível 2)
+  2022  OBMEP Bronze — rede pública (Nível 3)
+  2023  OBF Prata (2ª série)
+  2024  Escola Naval — não eliminado nas provas escritas
+  2024  OBF Prata (3ª série)
+  2024  OBMEP Bronze — rede privada
+  2025  IME ATIVA — ampla concorrência
+  2025  ITA Convocado — 2ª fase
+  2026  EFOMM (CIABA) — Classificado (1ª fase)
+```
+
+(Há uma pessoa nas SETE fontes — "João Paulo Pereira da Silva" — mas "da
+Silva" é sobrenome comum demais pra confiar sem revisar: pelo menos parte
+dessas sete conquistas provavelmente são pessoas diferentes com o mesmo
+nome, exatamente o risco que a fila de fusão do §9 existe pra pegar.)
+
+Reprodutível com:
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/escola_naval.py
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/escola_naval_*.json \
+    --prova-categoria vestibular --prova-abrangencia nacional \
+    --prova-fonte "https://www.marinha.mil.br/sspm/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
