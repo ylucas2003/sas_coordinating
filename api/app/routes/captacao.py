@@ -53,7 +53,7 @@ _COLUNAS_CANDIDATO = (
 _COLUNAS_CONQUISTA = (
     "id, prova_id, ano, nivel_texto, serie_referencia_min, serie_referencia_max, "
     "resultado, nome_informado, escola_informada, cidade_informada, uf_informada, "
-    "fonte_url, raspado_em"
+    "fonte_url, raspado_em, notas_por_materia"
 )
 
 

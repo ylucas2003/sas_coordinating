@@ -297,13 +297,20 @@ _UF_DA_CIDADE: dict[str, str] = {
 _PADRAO_LINHA = re.compile(
     r"^\s*(?P<prefixo>[A-ZÀÁÂÃÉÊÍÓÔÕÚÜÇ][A-ZÀÁÂÃÉÊÍÓÔÕÚÜÇ '\-]*?)?"
     r"\s*(?P<rank>\d+)\s*(?P<meio>.+?)\s+"
-    r"(?:\d{1,3}\s+){3,6}\d{1,3}\s+"
+    r"(?P<notas>(?:\d{1,3}\s+){3,6}\d{1,3})\s+"
     r"(?P<cidade>[A-ZÀÁÂÃÉÊÍÓÔÕÚÜÇ][A-ZÀÁÂÃÉÊÍÓÔÕÚÜÇ '\-]*?)\s+"
     r"(?P<data>\d{2}/\d{2}/\d{4})"
     r"\s*(?P<sufixo>[A-ZÀÁÂÃÉÊÍÓÔÕÚÜÇ][A-ZÀÁÂÃÉÊÍÓÔÕÚÜÇ'\-]*)?\s*$",
     re.MULTILINE,
 )
 _INSCRICAO = re.compile(r"\d{5,6}-\d")
+# Ordem de coluna real do relatório (docs/41 §11.1) — "total" é a GI/GF que a
+# EFOMM soma na própria tabela. Só um dos dois bate o nº de valores achados
+# em `notas`; o outro fica de fora, nunca inventado por posição errada.
+_MATERIAS_POR_QTD = {
+    5: ("ing", "por", "mat", "fis", "total"),  # 1ª fase (Classificação Inicial)
+    6: ("ing", "por", "red", "mat", "fis", "total"),  # final (titular/reserva)
+}
 _PADRAO_ANO = re.compile(r"EFOMM (\d{4})")
 # Âncora ESPECÍFICA do título da seção "b)", não da palavra solta —
 # "PÓS-CLASSIFICADOS" sozinha aparece primeiro no parágrafo de abertura do
@@ -330,6 +337,18 @@ class Registro:
     cidade_informada: str
     uf_informada: str
     fonte_url: str
+    notas_por_materia: dict[str, float] | None = None
+
+
+def _notas_por_materia(bloco: str) -> dict[str, float] | None:
+    valores = [int(v) for v in bloco.split()]
+    materias = _MATERIAS_POR_QTD.get(len(valores))
+    if materias is None:
+        # Quantidade fora do esperado (5 ou 6) — não arrisca casar número com
+        # matéria errada só por posição; melhor não ter a granularidade do
+        # que ter errada.
+        return None
+    return dict(zip(materias, valores, strict=True))
 
 
 def parsear_pdf(conteudo: bytes, casco: str, fase: str, fonte_url: str) -> tuple[int | None, list[Registro]]:
@@ -387,6 +406,7 @@ def parsear_pdf(conteudo: bytes, casco: str, fase: str, fonte_url: str) -> tuple
                 cidade_informada=cidade.title(),
                 uf_informada=uf,
                 fonte_url=fonte_url,
+                notas_por_materia=_notas_por_materia(m.group("notas")),
             )
         )
     return ano, registros
