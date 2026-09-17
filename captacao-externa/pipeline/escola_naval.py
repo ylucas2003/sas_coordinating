@@ -90,25 +90,32 @@ HEADERS = {
     )
 }
 
-# ano -> (id_file, descrição da fase, tem_secao_titular_reserva) — pesquisa
-# dirigida de 17/09/2026 (docstring do módulo). `tem_secao_titular_reserva`
-# distingue os dois formatos: Resultado Final separa titular/reserva em
-# seções; "não eliminados" é uma lista só, sem essa distinção.
-_DOCUMENTOS: dict[int, tuple[int, str, bool]] = {
-    2016: (3354, "Resultado Final", True),
-    2018: (4296, "Resultado da Seleção Inicial", True),
-    2021: (6360, "Resultado Final da Seleção", True),
-    2022: (7000, "Não eliminado nas provas escritas (seleção inicial)", False),
-    2023: (7883, "Resultado Final", True),
-    2024: (8335, "Não eliminado nas provas escritas (seleção inicial)", False),
-    2025: (9220, "Resultado Final da Seleção", True),
+# ano -> (id_file, descrição da fase, tem_secao_titular_reserva, rótulos das
+# colunas de nota NA ORDEM em que aparecem, ou None quando o documento não
+# publica nota nenhuma) — pesquisa dirigida de 17/09/2026 (docstring do
+# módulo), rótulos conferidos abrindo o PDF de cada ano (nunca supostos por
+# analogia): 2016/2018 usam ME+Clas.; 2022 usa MO+RED; 2024 usa MAT/ING/FIS/
+# POR/MO; os três "Resultado Final" simples (2021/2023/2025) não têm nota
+# nenhuma, só inscrição+nome+OREL. `tem_secao_titular_reserva` distingue os
+# dois formatos: Resultado Final separa titular/reserva em seções; "não
+# eliminados" é uma lista só, sem essa distinção.
+_DOCUMENTOS: dict[int, tuple[int, str, bool, tuple[str, ...] | None]] = {
+    2016: (3354, "Resultado Final", True, ("media", "classificacao")),
+    2018: (4296, "Resultado da Seleção Inicial", True, ("media", "classificacao")),
+    2021: (6360, "Resultado Final da Seleção", True, None),
+    2022: (7000, "Não eliminado nas provas escritas (seleção inicial)", False, ("mo", "red")),
+    2023: (7883, "Resultado Final", True, None),
+    2024: (8335, "Não eliminado nas provas escritas (seleção inicial)", False, ("mat", "ing", "fis", "por", "mo")),
+    2025: (9220, "Resultado Final da Seleção", True, None),
 }
 
-# Inscrição sempre no início (âncora inequívoca — nunca aparece em nome), zero
-# ou mais colunas de nota (dígito e vírgula, formato brasileiro "84,58"), e o
-# código de OREL como ÚLTIMO token da linha (docstring do módulo).
+# Inscrição sempre no início (âncora inequívoca — nunca aparece em nome), o
+# bloco de notas capturado inteiro num grupo só (`notas`, dígito e vírgula,
+# formato brasileiro "84,58" — o rótulo de cada valor vem de `_DOCUMENTOS`,
+# não de posição fixa aqui), e o código de OREL como ÚLTIMO token da linha
+# (docstring do módulo).
 _PADRAO_LINHA = re.compile(
-    r"^\s*(?P<insc>\d{5,6}-\d)\s+(?P<nome>.+?)\s+(?:[\d,]+\s+)*(?P<orel>\S+)\s*$",
+    r"^\s*(?P<insc>\d{5,6}-\d)\s+(?P<nome>.+?)\s+(?P<notas>(?:[\d,]+\s+)*)(?P<orel>\S+)\s*$",
     re.MULTILINE,
 )
 # ⚠️ Achado rodando de verdade: o parágrafo de ABERTURA de todo PDF já diz
@@ -135,6 +142,11 @@ class Registro:
     cidade_informada: str
     uf_informada: str
     fonte_url: str
+    notas_por_materia: dict[str, float] | None = None
+
+
+def _numero(texto: str) -> float:
+    return float(texto.replace(",", "."))
 
 
 def _resultado_da_posicao(texto: str, inicio_real: int, posicao: int, fase: str, tem_secoes: bool) -> str:
@@ -152,7 +164,14 @@ def _resultado_da_posicao(texto: str, inicio_real: int, posicao: int, fase: str,
     return f"{fase} — {'Titular' if ultima == 'titulares' else 'Reserva'}"
 
 
-def parsear_pdf(conteudo: bytes, ano: int, fase: str, tem_secoes: bool, fonte_url: str) -> list[Registro]:
+def parsear_pdf(
+    conteudo: bytes,
+    ano: int,
+    fase: str,
+    tem_secoes: bool,
+    rotulos_notas: tuple[str, ...] | None,
+    fonte_url: str,
+) -> list[Registro]:
     doc = pymupdf.open(stream=conteudo, filetype="pdf")
     texto = "\n".join(pagina.get_text("text", sort=True) for pagina in doc)
 
@@ -165,6 +184,11 @@ def parsear_pdf(conteudo: bytes, ano: int, fase: str, tem_secoes: bool, fonte_ur
         if not nome or len(nome.split()) < 2:
             print(f"  aviso: linha sem nome reconhecível, pulando: {m.group(0)!r}", file=sys.stderr)
             continue
+
+        notas: dict[str, float] | None = None
+        valores = m.group("notas").split()
+        if rotulos_notas and len(valores) == len(rotulos_notas):
+            notas = {r: _numero(v) for r, v in zip(rotulos_notas, valores, strict=True)}
 
         registros.append(
             Registro(
@@ -181,17 +205,18 @@ def parsear_pdf(conteudo: bytes, ano: int, fase: str, tem_secoes: bool, fonte_ur
                 cidade_informada="",
                 uf_informada="",
                 fonte_url=fonte_url,
+                notas_por_materia=notas,
             )
         )
     return registros
 
 
 def raspar_ano(ano: int) -> list[Registro]:
-    id_file, fase, tem_secoes = _DOCUMENTOS[ano]
+    id_file, fase, tem_secoes, rotulos_notas = _DOCUMENTOS[ano]
     url = f"{BASE}/x.pdf?id_file={id_file}"
     resp = requests.get(url, headers=HEADERS, timeout=30, verify=False)
     resp.raise_for_status()
-    return parsear_pdf(resp.content, ano, fase, tem_secoes, url)
+    return parsear_pdf(resp.content, ano, fase, tem_secoes, rotulos_notas, url)
 
 
 def main() -> None:
