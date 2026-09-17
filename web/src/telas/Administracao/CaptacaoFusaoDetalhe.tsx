@@ -90,6 +90,13 @@ export function CaptacaoFusaoDetalhe() {
               {[c.cidade, c.uf].filter(Boolean).join(' · ') || 'Sem cidade/UF'} · {c.conquistas_total}{' '}
               {c.conquistas_total === 1 ? 'conquista' : 'conquistas'} · status {c.status_captacao}
             </p>
+            {/* Aviso automático (docs/41 §9): nível de ensino conflitante no
+                mesmo ano com outro candidato deste nome — o mesmo sinal que
+                desqualificou "Aline Lima de Oliveira" como fusão. Vem de
+                `observacoes`, escrito por
+                scripts/sinalizar_fusoes_conflito_de_nivel.py; nunca some
+                sozinho, só quando alguém decidir o grupo. */}
+            {c.observacoes && <p className="agendar__erro">{c.observacoes}</p>}
             <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
               {c.conquistas.map((q) => (
                 <li key={q.id} className="section__subtitle">
