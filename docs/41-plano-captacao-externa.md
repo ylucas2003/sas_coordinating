@@ -489,6 +489,12 @@ cruzadas, não numa suposição.
 
 #### 6.2.1 · Addendum (16/09/2026): o IME já é "todos os alunos" — não tem como ampliar
 
+⚠️ **SUPERSEDIDO em 17/09/2026 — ver §11.3.** A conclusão abaixo estava
+errada: existe sim uma fase intermediária nomeada ("Relação dos habilitados
+para a 2ª fase"), só que a busca desta seção não a tinha encontrado. Fica
+registrado por transparência — é o tipo de erro que vale mostrar, não
+esconder.
+
 O mesmo pedido que ampliou a ITA (§6.1.1, "todos os alunos, não só os
 aprovados") foi conferido pro IME, e a resposta é diferente: **não tem
 o que ampliar**. O CACFG só tem UMA fase escrita (a "Inspeção de Saúde" que
@@ -713,7 +719,7 @@ ano está atrás de Cloudflare — o `id_file` de cada ano foi descoberto por
 busca (indexação por motor de busca), não navegação direta, e curado à mão
 em `_DOCUMENTOS` do scraper.
 
-### 11.1 · EFOMM — construída, mas é retrato do ciclo corrente, não histórico
+### 11.1 · EFOMM — de "só o ciclo corrente" a 6 anos, com a mesma técnica que salvou o IME
 
 [`pipeline/efomm.py`](../captacao-externa/pipeline/efomm.py) raspa a
 Classificação Inicial (1ª fase, classificados + pós-classificados) e a
@@ -721,14 +727,19 @@ Classificação Final (titulares + reservas) do processo seletivo da EFOMM —
 CIAGA (Rio de Janeiro) e CIABA (Belém), os dois centros que o mesmo concurso
 alimenta.
 
-**Sem `--anos`, e por um motivo pior que o do IME**: os PDFs
-(`assets.marinha.mil.br/ciaga/.../files/...`) não têm ano no NOME do
-arquivo — o mesmo caminho é sobrescrito a cada ciclo, e não há snapshot
-nenhum no Wayback Machine pra esse caminho (conferido, array vazio). Ao
-contrário do IME (que pelo menos tem o ano gravado DENTRO do PDF há vários
-ciclos, só a URL que não muda), aqui a cobertura histórica 2016-2025
-simplesmente não é recuperável com confiança — este scraper é retrato do
-ciclo CORRENTE (2026) e cresce ano a ano dali em diante.
+⚠️ **Esta seção descrevia até 17/09/2026 uma limitação que não é mais real.**
+A primeira versão dizia "os PDFs não têm ano no nome, a cobertura histórica
+não é recuperável" — verdade só pra fonte OFICIAL. A mesma pesquisa dirigida
+que expandiu o IME (§11.3) achou que sites de cursinho militar (Estratégia
+Militares/Vestibulares) e até o jornal dos próprios alunos da EFOMM (Jornal
+Pelicano, Belém) espelham os PDFs oficiais com o ano no CAMINHO do arquivo
+— o que a fonte oficial nunca teve. `_DOCUMENTOS` virou um dicionário
+curado por ano (mesmo desenho do IME/Escola Naval): **6 anos** (2017,
+2022-2026), cada um confirmado baixando e lendo o PDF de verdade. Faltam
+2018, 2019 e 2020 — não achados em nenhum domínio pesquisado. Dois achados
+do Scribd (2016, 2021) foram DESCARTADOS por não terem sido baixados de
+verdade (só preview renderizado, atrás de paywall) — a régua deste pipeline
+é nunca confiar em conteúdo que não foi lido de verdade.
 
 Achados novos no caminho:
 
@@ -767,53 +778,27 @@ Achados novos no caminho:
    classificados + 741 pós). Corrigido ancorando no título de verdade da
    seção ("Relação dos candidatos PÓS-CLASSIFICADOS").
 7. **Sem escola** — mesma categoria de ITA/IME/OBM: cidade vem do "ODE"
-   (onde fez a prova, não onde mora), 19 cidades-sede vistas e traduzidas
-   pra UF à mão contra o dado real (inclui Corumbá/MS, Paranaguá/PR,
-   Parnaíba/PI e Santarém/PA, que não são capital).
+   (onde fez a prova, não onde mora), cidades-sede traduzidas pra UF à mão
+   contra o dado real (inclui Corumbá/MS, Paranaguá/PR, Parnaíba/PI e
+   Santarém/PA, que não são capital).
+8. **2017 tem uma fase a mais**: depois da Classificação Inicial, uma
+   SEGUNDA leva de pós-classificados saiu em documento separado ("2ª
+   Convocação") — mesma categoria (ainda fase 1, ainda pós-classificado),
+   só publicada à parte naquele ano específico.
 
-Números depois de raspar/importar/resolver (17/09/2026): **2.364**
-`conquista_externa` novas (800 CIAGA 1ª fase + 1.000 CIABA 1ª fase + 222
-CIAGA titular + 165 CIABA titular + 177 CIAGA reserva), **1.810** pessoas
-distintas — todas viraram candidato próprio (sem escola, nada funde
-automático). Cruzando as SEIS fontes por nome:
-
-| Cruzamento (subconjunto) | Pessoas |
-|---|---|
-| OBMEP sozinho | 46.962 |
-| OBF sozinho | 2.147 |
-| **EFOMM sozinho** | 1.357 |
-| OBM + OBMEP | 839 |
-| ITA sozinho | 615 |
-| **EFOMM + IME** | 75 |
-| **EFOMM + OBMEP** | 73 |
-| **EFOMM + IME + ITA** | 48 |
-| **EFOMM + OBF** | 53 |
-| **32 pessoas em 5 fontes ou mais** | 32 |
-| **6 pessoas nas SEIS fontes** | 6 |
-
-453 dos 1.810 candidatos da EFOMM (25%) já tinham aparecido em pelo menos
-outra fonte — e pela primeira vez desde que este pipeline começou, tem gente
-nas seis fontes ao mesmo tempo:
-
-```
-José Luiz Ferrareze Jaks
-  2024  OBMEP Ouro — rede pública
-  2024  OBM Menção Honrosa
-  2025  IME RESERVA — excedente
-  2025  ITA Convocado — 2ª fase
-  2025  OBF Ouro
-  2026  EFOMM (CIAGA) — Classificado (1ª fase)
-```
-
-Ainda está no meio do processo seletivo da EFOMM (só "classificado" na 1ª
-fase, o resultado final sai em dezembro) — é o retrato mais completo de
-trajetória que este pipeline já mostrou, e ainda em aberto.
+Números depois de raspar/importar/resolver (17/09/2026, com os 6 anos):
+**8.833** `conquista_externa` (541 → 2.364 só do ciclo 2026 → 8.833 com
+2017+2022-2025 somados), **5.888** pessoas distintas — todas viraram
+candidato próprio (sem escola, nada funde automático). **1.692 (29%)** já
+tinham aparecido em pelo menos outra fonte — quase o dobro da taxa (25%) de
+quando só existia o ciclo 2026.
 
 Reprodutível com:
 
 ```sh
 cd captacao-externa
 ./.venv/bin/python pipeline/efomm.py
+# ou só alguns anos: ./.venv/bin/python pipeline/efomm.py --anos 2023 2024 2025
 
 cd ../api
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
@@ -914,6 +899,126 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao
     ../captacao-externa/dados/escola_naval_*.json \
     --prova-categoria vestibular --prova-abrangencia nacional \
     --prova-fonte "https://www.marinha.mil.br/sspm/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
+### 11.3 · IME revisitado: o §6.2.1 estava errado — tem sim uma 2ª fase (17/09/2026)
+
+Um usuário mandou um link de mirror de cursinho pro IME
+(`cdn.blog.estrategiavestibulares.com.br/.../Resultado_Final-IME.pdf`,
+CACFG 2023/2024) como prova de conceito de que dava pra recuperar ano
+antigo por fora da fonte oficial. A partir disso, pesquisa dirigida (em
+duas rodadas) achou muito mais do que só "mais um ano de resultado final":
+
+**Achado que invalida o §6.2.1**: o §6.2.1 (16/09/2026) dizia "o IME só tem
+UMA fase escrita, não tem o que ampliar". Errado — a fonte tem sim uma fase
+intermediária nomeada, **"Relação dos habilitados para a 2ª fase"**: quem
+passou na prova escrita, ANTES da inspeção de saúde/documental que gera o
+Resultado Final. A conclusão anterior só era verdade pro que a busca de
+16/09 tinha encontrado, não pro que existe de fato — mesmo tipo de erro que
+"a EFOMM não tem histórico" (§11.1) acabou de cometer.
+
+**Três domínios/técnicas novas pra recuperar ano sobrescrito**, generalizáveis
+pra qualquer fonte `.mil.br`/`.eb.br` futura:
+
+1. **Domínio IRMÃO que não é sobrescrito.** `www.ime.eb.mil.br` (site
+   institucional) mantém arquivo de resultado de anos passados
+   (`/arquivos/Admissao/.../Resultados/2016-2017/...`,
+   `/images/arquivos/admissao/cfg/...2020...`) que `inscricoes.ime.eb.br`
+   (o site de inscrição, esse sim sobrescrito a cada ciclo) já não tem.
+2. **Wayback Machine sobre o próprio caminho sobrescrito.** Como
+   `inscricoes.ime.eb.br/documentos/{ATIVA,RESERVA,Resultado}.pdf` é
+   reescrito a cada concurso, cada snapshot ANTIGO do Wayback congela um
+   ciclo diferente por baixo da MESMA URL — a API CDX
+   (`web.archive.org/cdx/search/cdx?url=...&matchType=prefix`) lista todo
+   nome de arquivo já visto naquele domínio, inclusive os já sobrescritos.
+   Foi assim que 2018, 2019 e 2024 apareceram.
+3. **Mirror de cursinho militar publica a 2ª fase por conta própria.**
+   Estratégia Militares e o mirror de vestibular da UOL (Brasil Escola/Mundo
+   Educação) republicam a "Relação dos habilitados" todo outubro, com o ano
+   no CAMINHO — o que a fonte oficial nunca teve.
+
+**Também descartei coisa rodando de verdade, não só achei**: um "Resultado
+Final" de 2019 (`vestibulandoweb.com.br/.../resultado-final-ime-2020.pdf`)
+foi baixado e a tabela **não tinha coluna de nome nenhuma** — alguém cortou
+a coluna ao reformatar pro blog. Sem nome não tem lead; esse ano só entra
+pela peça de 2ª fase. Um "Resultado Final" de 2021 (via print do Diário
+Oficial da União) tinha layout de tabela bem mais frágil e sem coluna de
+cidade — fora desta rodada por custo/benefício, documentado no código, não
+é lacuna escondida.
+
+**Três formatos de tabela pro Resultado Final, não um só** — o layout do
+PDF mudou pelo menos duas vezes na década (`pipeline/ime.py`):
+`_parsear_final_padrao` (2020, 2022-2025, o formato original deste
+scraper), `_parsear_final_2016` (inscrição+sigilo na MESMA linha, duas
+colunas a mais de inglês quebrado, sem coluna de situação) e
+`_parsear_fase2` (ord, inscrição, candidato, local, carreira — precisa de
+`sort=True` do PyMuPDF, mesmo achado do EFOMM). Cada parser confere o ANO
+extraído de DENTRO do PDF contra o ano esperado do dicionário, e descarta
+com aviso se não bater — proteção contra a mesma fonte um dia trocar de
+conteúdo por baixo do pé (já aconteceu nesta sessão: `inscricoes.ime.eb.br`
+mudou de "Resultado.pdf" pra outro conteúdo entre duas pesquisas).
+
+**Estado final, 9 de 11 anos entre 2016 e 2025**:
+
+| Ano | Fases |
+|---|---|
+| 2016 | Resultado Final ATIVA+RESERVA |
+| 2017 | ❌ nada achado |
+| 2018 | Habilitados 2ª fase |
+| 2019 | Habilitados 2ª fase (Final descartado — sem nome) |
+| 2020 | Resultado Final ATIVA+RESERVA |
+| 2021 | Habilitados 2ª fase (Final descartado — formato frágil) |
+| 2022 | **as duas peças** |
+| 2023 | **as duas peças** |
+| 2024 | **as duas peças** |
+| 2025 | **as duas peças** + RESERVA (oficial, ciclo corrente) |
+
+**O cruzamento que só as duas peças juntas permitem** — quem passou na
+prova escrita (2ª fase) mas não apareceu no Resultado Final, só possível
+nos 4 anos com as duas peças:
+
+| Ano | Habilitados 2ª fase | Também no Final | Sumiu do Final |
+|---|---|---|---|
+| 2022 | 1.044 | 532 | 512 (49%) |
+| 2023 | 897 | 540 | 357 (40%) |
+| 2024 | 749 | 545 | 204 (27%) |
+| 2025 | 1.101 | 537 | 564 (51%) |
+
+Entre 27% e 51% de quem passa na prova escrita do IME não aparece no
+resultado final, TODO ano com as duas peças — não é ruído de amostra
+pequena, é estrutural (reprova depois na inspeção de saúde/documental, ou
+fica de fora do corte de vaga).
+
+Números depois de raspar/importar/resolver (17/09/2026): **9.173**
+`conquista_externa` (541 → 9.173, alta de 17x), candidato geral do pipeline
+inteiro agora em **75.078** `candidato_externo` / **97.644**
+`conquista_externa`. Exemplo real — passou pela 2ª fase do IME duas vezes
+antes de aprovar, e está em SEIS das sete fontes:
+
+```
+Arthur Rampazio Siqueira
+  2017-2023  OBMEP quase todo ano (Bronze→Ouro→Prata→Ouro→Prata→Ouro, Nível 1→2→3)
+  2020,2023  OBM (Bronze, Menção Honrosa)
+  2023       OBF Prata · IME Habilitado 2ª fase (não aprovou este ano)
+  2024       EFOMM Classificado · Escola Naval não eliminado
+  2024       IME Habilitado 2ª fase DE NOVO → ATIVA — ampla concorrência (aprovou!)
+  2024-2025  ITA Convocado 2ª fase, depois Ampla Concorrência
+```
+
+Reprodutível com:
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/ime.py
+# ou só alguns anos: ./.venv/bin/python pipeline/ime.py --anos 2023 2024 2025
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/ime_*.json \
+    --prova-categoria vestibular --prova-abrangencia nacional \
+    --prova-fonte "https://inscricoes.ime.eb.br/cfg/"
 
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 ```
