@@ -43,6 +43,8 @@ export interface ConquistaExterna {
   raspado_em: string;
   prova_nome: string | null;
   prova_categoria: string | null;
+  /** Nota por matéria, quando a fonte publica (só IME e EFOMM têm — 0056/0060). Chave livre: cada prova usa o próprio vocabulário ("mat", "fis", "media"...). */
+  notas_por_materia: Record<string, number> | null;
 }
 
 /** A ficha: o candidato e TODAS as conquistas cruzadas dele, ano decrescente. */

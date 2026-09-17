@@ -6,7 +6,8 @@ import { Kpi } from '../../componentes/ui/Kpi';
 import { useTituloDaTela } from '../../componentes/layout/migalhas';
 import { rotuloDaSerie, serieEstimadaHoje } from '../../dominio/captacao';
 import { useAtualizarCandidato, useCandidato } from '../../hooks/captacao';
-import type { StatusCaptacao } from '../../tipos/captacao';
+import { CaptacaoModalConquista } from './CaptacaoModalConquista';
+import type { ConquistaExterna, StatusCaptacao } from '../../tipos/captacao';
 
 // A ficha do candidato (docs/41 §0, §7.2): o cruzamento que a captação existe
 // pra mostrar — todas as conquistas de uma pessoa, de fontes/anos diferentes,
@@ -36,6 +37,7 @@ export function CaptacaoFicha() {
   const [status, setStatus] = useState<StatusCaptacao>('novo');
   const [observacoes, setObservacoes] = useState('');
   const [erro, setErro] = useState('');
+  const [conquistaAberta, setConquistaAberta] = useState<ConquistaExterna | null>(null);
 
   // Migalha da topbar — mesmo contrato de AlunoFicha.tsx, chamado ANTES de
   // qualquer `return` de carregamento/erro (é hook).
@@ -156,7 +158,7 @@ export function CaptacaoFicha() {
           <table className="data-table data-table--cartoes">
             <thead>
               <tr>
-                <th>Ano</th><th>Prova</th><th>Nível</th><th>Resultado</th><th>Escola informada</th><th>Fonte</th>
+                <th>Ano</th><th>Prova</th><th>Nível</th><th>Resultado</th><th>Escola informada</th>
               </tr>
             </thead>
             <tbody>
@@ -168,17 +170,27 @@ export function CaptacaoFicha() {
                       série como as olimpíadas) é ausência de dado tanto
                       quanto `null`, mesma regra da Escola informada ao lado. */}
                   <td data-rotulo="Nível">{c.nivel_texto || '—'}</td>
-                  <td data-rotulo="Resultado">{c.resultado}</td>
-                  <td data-rotulo="Escola informada" data-secundario>{c.escola_informada || '—'}</td>
-                  <td data-rotulo="Fonte">
-                    <a href={c.fonte_url} target="_blank" rel="noreferrer">ver fonte</a>
+                  <td data-rotulo="Resultado">
+                    {/* Clicar expande nota por matéria (quando a fonte
+                        publica) + o link pra fonte, num modal só — antes
+                        eram duas colunas fixas (a nota nunca existiu; a
+                        fonte sempre ficava exposta, mesmo sem ninguém
+                        precisar dela na varredura). */}
+                    <button type="button" className="link-botao" onClick={() => setConquistaAberta(c)}>
+                      {c.resultado}
+                    </button>
                   </td>
+                  <td data-rotulo="Escola informada" data-secundario>{c.escola_informada || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </section>
+
+      {conquistaAberta && (
+        <CaptacaoModalConquista conquista={conquistaAberta} onFechar={() => setConquistaAberta(null)} />
+      )}
     </div>
   );
 }

@@ -20,7 +20,7 @@ cruzar as conquistas em candidatos.
 Formato esperado de cada item do JSON (ver captacao-externa/pipeline/obmep.py):
     prova_nome, ano, nivel_texto, serie_referencia_min, serie_referencia_max,
     resultado, nome_informado, escola_informada, cidade_informada,
-    uf_informada, fonte_url
+    uf_informada, fonte_url, notas_por_materia (opcional — só IME/EFOMM têm)
 """
 
 from __future__ import annotations
@@ -109,6 +109,7 @@ def main() -> int:
                     "cidade_informada": r.get("cidade_informada"),
                     "uf_informada": r.get("uf_informada"),
                     "fonte_url": r["fonte_url"],
+                    "notas_por_materia": r.get("notas_por_materia"),
                 }
             )
 

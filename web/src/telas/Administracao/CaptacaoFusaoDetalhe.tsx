@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { useDecidirFusao, useFusao } from '../../hooks/captacao';
+import { CaptacaoModalConquista } from './CaptacaoModalConquista';
+import type { ConquistaExterna } from '../../tipos/captacao';
 
 // A ficha de UM grupo da fila de fusão (CaptacaoFusoes.tsx) — todo
 // candidato_externo com este nome, lado a lado, pra decidir se é a mesma
@@ -17,6 +19,7 @@ export function CaptacaoFusaoDetalhe() {
   const { data, isPending, isError } = useFusao(nomeNormalizado);
   const decidir = useDecidirFusao(nomeNormalizado);
   const [erro, setErro] = useState('');
+  const [conquistaAberta, setConquistaAberta] = useState<ConquistaExterna | null>(null);
 
   async function confirmar() {
     setErro('');
@@ -96,19 +99,28 @@ export function CaptacaoFusaoDetalhe() {
                 `observacoes`, escrito por
                 scripts/sinalizar_fusoes_conflito_de_nivel.py; nunca some
                 sozinho, só quando alguém decidir o grupo. */}
-            {c.observacoes && <p className="agendar__erro">{c.observacoes}</p>}
-            <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+            {c.observacoes && <p className="agendar__erro" style={{ marginTop: 8 }}>{c.observacoes}</p>}
+            <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '12px 0 0', padding: 0, listStyle: 'none' }}>
               {c.conquistas.map((q) => (
-                <li key={q.id} className="section__subtitle">
-                  {q.ano} · {q.prova_nome} · {q.resultado}
-                  {' · '}
-                  <a href={q.fonte_url} target="_blank" rel="noreferrer">ver fonte</a>
+                <li key={q.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 6 }}>
+                  <span className="section__subtitle" style={{ fontVariantNumeric: 'tabular-nums' }}>{q.ano}</span>
+                  <span className="section__subtitle" data-secundario>{q.prova_nome}</span>
+                  {/* Clicar expande nota por matéria (quando a fonte publica)
+                      + o link pra fonte, num modal só — mesmo padrão de
+                      CaptacaoFicha.tsx. */}
+                  <button type="button" className="link-botao" onClick={() => setConquistaAberta(q)}>
+                    {q.resultado}
+                  </button>
                 </li>
               ))}
             </ul>
           </section>
         ))}
       </div>
+
+      {conquistaAberta && (
+        <CaptacaoModalConquista conquista={conquistaAberta} onFechar={() => setConquistaAberta(null)} />
+      )}
 
       <section className="card">
         <h2 className="section__title">É a mesma pessoa?</h2>
