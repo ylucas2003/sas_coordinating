@@ -101,6 +101,8 @@ export function CaptacaoFusaoDetalhe() {
               {c.conquistas.map((q) => (
                 <li key={q.id} className="section__subtitle">
                   {q.ano} · {q.prova_nome} · {q.resultado}
+                  {' · '}
+                  <a href={q.fonte_url} target="_blank" rel="noreferrer">ver fonte</a>
                 </li>
               ))}
             </ul>
