@@ -71,7 +71,7 @@ separador decimal varia ano a ano: 2022 usa ponto ("3.3333"), 2023 usa
 vírgula ("7,5000") — `_numero` já tolera os dois (só troca vírgula por
 ponto, e ponto sem vírgula não muda).
 
-Três achados a mais, só vistos rodando de verdade contra os quatro anos
+Quatro achados a mais, só vistos rodando de verdade contra os quatro anos
 (22/09/2026), que custaram registro em silêncio antes de virarem código:
 
 - **O banner "VESTIBULAR AAAA" não existe em toda página** — 2020/2021 têm,
@@ -91,6 +91,18 @@ Três achados a mais, só vistos rodando de verdade contra os quatro anos
   candidatos) e nunca avisava que faltava o resto — silêncio idêntico ao
   do banner ausente. `parsear_2f_completo` agora itera `re.finditer` sobre
   todos os blocos.
+- **A 1ª fase PUBLICA nota por matéria — e saía sempre `None`.** O usuário
+  perguntou "não salvou as notas de 1ª fase?" depois de ver o resultado real
+  de um aluno; a resposta era não, por bug. Diferente da 2ª fase (onde as
+  matérias vêm juntas NUM campo, separadas por espaço), aqui CADA matéria já
+  é seu próprio campo entre `|` (`| MAT. | FIS. | QUIM. | PORT. | INGL. |
+  MEDIA |`, mesma contagem da linha de dados). Ler como se fosse o formato
+  da 2ª fase pegava só o primeiro rótulo ("mat"), a contagem nunca batia com
+  os 6 valores, e a função devolvia `None` pra fase inteira — quarta vez na
+  mesma dívida de "contagem não bate → resultado vazio, sem erro". E só na
+  1ª fase de 2022, a coluna de Inglês tem "10.0000" com espaço solto no meio
+  ("1 0.0000", 437 ocorrências) — `_numero` agora também remove espaço
+  interno antes de converter.
 
 ## Sem escola, e por quê `escola_informada` sai `""` e não `None`
 
@@ -222,7 +234,11 @@ def _titulo_da_secao(texto: str, fim_do_bloco: int) -> str:
 
 
 def _numero(texto: str) -> float:
-    return float(texto.replace(",", "."))
+    # 1ª fase de 2022 tem um espaço solto bem no meio de "10.0000" na coluna
+    # de Inglês (437 ocorrências, só nesse arquivo — nenhum outro ano/coluna
+    # faz isso): remover espaço interno é seguro porque cada campo aqui
+    # sempre teve exatamente UM número, nunca dois.
+    return float(texto.replace(",", ".").replace(" ", ""))
 
 
 def _rotulos_das_materias(linhas: list[str]) -> list[str] | None:
@@ -284,8 +300,19 @@ def parsear_1f_completo(texto: str, ano_esperado: int, fonte_url: str) -> list[R
         print(f"  aviso: sem <pre> em {fonte_url} — layout mudou?", file=sys.stderr)
         return []
 
+    # Achado real: diferente da 2ª fase (onde as matérias vêm todas dentro de
+    # UM campo, separadas por espaço), aqui CADA matéria já é seu próprio
+    # campo entre `|` — igual à linha de dados (`| MAT. | FIS. | QUIM. |
+    # PORT. | INGL. | MEDIA |`, mesma contagem em todo ano 2020-2023). Tratar
+    # como o formato da 2ª fase pegava só o primeiro rótulo ("mat") e nunca
+    # batia com a contagem de valores — `notas_por_materia` saía sempre
+    # `None` pra 1ª fase inteira, silenciosamente.
     cabecalho = next((l for l in linhas if l.strip().startswith("|") and "NOME" in l.upper()), None)
-    rotulos = [r.rstrip(".").lower() for r in cabecalho.strip().strip("|").split("|")[2].split()] if cabecalho else None
+    rotulos = (
+        [c.strip().rstrip(".").lower() for c in cabecalho.strip().strip("|").split("|")[2:-1]]
+        if cabecalho
+        else None
+    )
 
     registros: list[Registro] = []
     for linha in linhas:

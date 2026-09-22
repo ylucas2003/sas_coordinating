@@ -428,7 +428,7 @@ Curou-se 2020-2023 (os quatro anos que o usuário pediu); 2019/2024/2025/2026
 também existem nesse formato no Wayback, não trazidos ainda por não terem
 sido pedidos.
 
-Três achados de HTML, todos avessos a "assumir que o formato é igual todo
+Quatro achados de HTML, todos avessos a "assumir que o formato é igual todo
 ano" — nenhum foi visível sem baixar o arquivo de verdade e ler:
 
 1. **O banner "VESTIBULAR AAAA" não existe em toda página** — 2020/2021 têm,
@@ -445,21 +445,37 @@ ano" — nenhum foi visível sem baixar o arquivo de verdade e ler:
    próprio cabeçalho. Pegar só o primeiro bloco (era o comportamento
    original, `re.search`) descartava 544 dos 729 candidatos sem aviso nenhum
    — mesma classe de erro do item 1, silêncio em vez de exceção.
+4. **A 1ª fase PUBLICA nota por matéria, e o parser jogava tudo fora**
+   (achado revisando um resultado real com o usuário, 22/09/2026 à tarde —
+   ele perguntou "não salvou as notas de 1ª fase?"). O cabeçalho da 1ª fase
+   dá cada matéria em SEU PRÓPRIO campo entre `|` (`| MAT. | FIS. | QUIM. |
+   PORT. | INGL. | MEDIA |`), diferente da 2ª fase, que junta as matérias
+   NUM campo só separado por espaço. O código lia os dois formatos do mesmo
+   jeito — pegava só o primeiro rótulo ("mat"), a contagem nunca batia com
+   os 6 valores da linha, e `notas_por_materia` saía `None` pra TODA a 1ª
+   fase, sem aviso nenhum (mesma classe de silêncio dos itens 1 e 3: contagem
+   não bate, função devolve vazio/None em vez de erro). E, só na 1ª fase de
+   2022, a coluna de Inglês tem "10.0000" com um espaço solto no meio
+   (`"1 0.0000"`, 437 ocorrências) — `_numero` agora também remove espaço
+   interno antes de converter.
 
-Números depois de corrigir os três (`captacao-externa/pipeline/ita.py`,
+Números depois de corrigir os quatro (`captacao-externa/pipeline/ita.py`,
 `_confere_ano_historico`, `_linhas_do_pre_sem_fechar`, `parsear_2f_completo`
-com `re.finditer` sobre todos os blocos):
+com `re.finditer` sobre todos os blocos, `parsear_1f_completo` com rótulo por
+campo em vez de rótulo por palavra):
 
 | Ano | 1ª fase | 2ª fase | Total | Com nota por matéria |
 |---|---|---|---|---|
-| 2020 | 7.355 | 665 | 8.020 | 665 |
-| 2021 | 7.201 | 749 | 7.950 | 749 |
-| 2022 | 7.988 | 750 | 8.738 | 750 |
-| 2023 | 9.364 | 727 | 10.091 | 727 |
+| 2020 | 7.355 | 665 | 8.020 | 8.020 (100%) |
+| 2021 | 7.201 | 749 | 7.950 | 7.950 (100%) |
+| 2022 | 7.988 | 750 | 8.738 | 8.738 (100%) |
+| 2023 | 9.364 | 727 | 10.091 | 10.091 (100%) |
 
-A 1ª fase nunca publica nota por matéria — só o boletim "AUSENTE" ou não; a
-2ª fase publica mat/fís/quím/redação + médias das duas fases (e classificação
-pra quem passou), igual ao que a ITA já publicava para 2024/2025.
+A 1ª fase publica mat/fís/quím/port/inglês + média (inclusive pra quem
+constou AUSENTE, com zero em tudo — mesmo raciocínio de "zero é dado, não
+ausência de dado" que já valia pra `nota.computavel`); a 2ª fase publica
+mat/fís/quím/redação + médias das duas fases (e classificação pra quem
+passou), igual ao que a ITA já publicava para 2024/2025.
 
 ### 6.2 · Quarta fonte, mesma categoria da ITA: IME — a outra ponta do alvo
 
