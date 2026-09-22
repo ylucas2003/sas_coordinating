@@ -308,14 +308,18 @@ Provas. Nessa ordem:
    1999-2025 confirmado, HTML estático.
 3. **OBQ / OBQ Jr** — mesmo arquivo, `obquimica.org`, PDFs por ano (precisa de
    extração de PDF, não só HTML — primeira fonte que vai exigir isso).
-4. **OPEMAT (PE) e OMEG (GO)** — [Dossiê 05](../Dossie%20de%20Provas/05-estaduais.md),
-   as duas estaduais com melhor cobertura confirmada.
 
    ⚠️ Antes de raspar qualquer uma: **confira se ela publica escola** (a OBM
    não publicava, e só se descobriu abrindo o HTML de verdade — o Dossiê de
    Provas registra o que cada prova PUBLICA em geral, não coluna por coluna).
    Sem escola, a fonte só serve pra fila de enriquecimento do item 1 do §8,
    não pra descoberta de candidato novo.
+
+**Não priorizadas por ora**: OPEMAT (PE) e OMEG (GO) — [Dossiê
+05](../Dossie%20de%20Provas/05-estaduais.md), as duas estaduais com melhor
+cobertura confirmada, tinham entrado nesta lista (22/09/2026) mas foram
+retiradas da fila imediata a pedido do usuário — ficam pra depois das três
+acima, sem data.
 
 ### 6.1 · Terceira fonte, fora da ordem: ITA — validação, não descoberta
 
