@@ -1070,3 +1070,53 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao
 
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 ```
+
+#### 11.3.1 · Addendum (22/09/2026): nota da 2ª fase pra quem NÃO passou — cruzando duas tabelas sem nome/nota em comum
+
+Pedido do usuário depois de revisar o resultado de dois alunos reais: "não
+temos as notas separadas de primeira fase. somente a lista de quem foi pra
+segunda fase e no outro link as respectivas notas dos que foram aprovados e
+dos que não foram." — ele tinha achado, abrindo o PDF de verdade, que o
+"Resultado Final" (o mesmo PDF que já vira `_parsear_final_padrao`) tem uma
+SEGUNDA tabela abaixo da de aprovados: **"Relação Final dos Não Aprovados —
+Por inscrição"**, com nota de quem fez a 2ª fase (discursiva) e não passou.
+
+O obstáculo: essa tabela **não tem coluna de nome**, só Ordem/Inscrição/
+Sigilo/notas/"Eliminado em"/Local — só quem PASSA ganha nome no relatório.
+Sem nome não vira `Registro` (mesma regra de sempre). A saída foi cruzar
+por **número de inscrição** contra a "Relação de Habilitados pra 2ª fase"
+(`_parsear_fase2`, que tem nome mas não tem nota) — mesma técnica de
+join-por-inscrição que o §11.3 já tinha usado pra achar quem "sumiu do
+Final" a partir de fora, só que agora o `pipeline/ime.py` faz o cruzamento
+sozinho, dentro de `raspar_ano`, e emite um `Registro` de verdade:
+`"Não aprovado — 2ª fase"` com `notas_por_materia` (mat/fis/qui/port/ing).
+
+Conferido rodando de verdade, antes de confiar no cruzamento: 468/468 (2022),
+327/328 (2023, uma inscrição não achou par — provavelmente inscrição
+cancelada ou fora da lista de habilitados por algum motivo administrativo,
+logada como aviso e pulada), 179/179 (2024) e 412/412 (2025) casaram com
+nome. Dois achados de formato no caminho, ambos silenciosos até virarem
+código:
+
+1. **"Eliminado em" pode ser "Redação"**, um motivo À PARTE dos outros
+   (reprovar o crivo eliminatório apto/inapto da redação, não uma nota
+   mínima por matéria) — sem tratar como caso especial, "Redação" caía no
+   campo de LOCAL DE EXAME e disparava "local desconhecido" pra toda
+   ocorrência.
+2. **Só em 2022**, o motivo "Redação" vem com uma linha extra
+   ("Inapto em redação") entre o motivo e a cidade — 2024/2025 têm o mesmo
+   motivo sem essa linha a mais. A mesma regex trata os dois formatos.
+
+**Achado extra, fora do que foi pedido — reportado, não corrigido nesta
+rodada**: o PDF combinado de 2022-2024 (`Resultado_Final-IME-2023.pdf`,
+`Resultado_Final-IME.pdf`, `Resultado.pdf`) na verdade tem DUAS seções de
+aprovados dentro do MESMO arquivo — uma com banner "CACFG AAAA/AAAA -
+**ATIVA**" e outra com banner "... - **RESERVA**" mais adiante — mas
+`_DOCUMENTOS` desses três anos passa `modalidade="ATIVA"` fixo pro
+documento inteiro, e `_parsear_final_padrao` não olha o banner por seção:
+todo mundo aprovado nesses três anos (532+540+545 = 1.617 pessoas) está
+rotulado `"ATIVA — <situação>"` no banco, mesmo quem na verdade saiu
+classificado como RESERVA no PDF de origem. 2016/2020/2025 não têm esse
+problema (cada modalidade é um arquivo à parte, já rotulado certo por
+fora). Não fiz esse conserto agora porque é um escopo diferente do que foi
+pedido — fica pra quando o usuário decidir se quer corrigir.
