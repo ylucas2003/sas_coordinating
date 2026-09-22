@@ -227,10 +227,11 @@ OBF (2023-2025), ITA (2024-2025 ao vivo — convocados 2ª e 3ª fase — mais
 2020-2023 via Wayback Machine — lista completa de 1ª e 2ª fase, §6.1.2),
 IME (9 de 11 anos entre 2016-2025, 2 fases por ano), EFOMM (6 anos: 2017, 2022-2026,
 CIAGA/CIABA) e Escola Naval (7 de 11 anos entre 2016-2025, CPAEN) — as
-quatro últimas são validação, não captação — **75.078** `candidato_externo`
-/ **97.644** `conquista_externa` resolvidos (depois do lote de fusão em
-massa do §10, que reduziu duplicata de baixa confiança, e da expansão de
-IME/EFOMM do §11.1/§11.3 via mirror de cursinho e Wayback Machine). AFA
-pesquisada e deixada de fora (bloqueio de Cloudflare, docs/41 §11). Números
-da última rodada e o resto da fila de fontes: docs/41 §5, §5.1, §5.2, §6.1,
+quatro últimas são validação, não captação — **102.169** `candidato_externo`
+/ **132.443** `conquista_externa` resolvidos em produção (depois do lote de
+fusão em massa do §10, que reduziu duplicata de baixa confiança; da expansão
+de IME/EFOMM do §11.1/§11.3 via mirror de cursinho e Wayback Machine; e do
+ITA 2020-2023 do §6.1.2, também via Wayback Machine). AFA pesquisada e
+deixada de fora (bloqueio de Cloudflare, docs/41 §11). Números da última
+rodada e o resto da fila de fontes: docs/41 §5, §5.1, §5.2, §6.1, §6.1.2,
 §6.2, §6.2.1, §10, §11, §11.1, §11.2 e §11.3.
