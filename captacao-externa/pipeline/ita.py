@@ -4,6 +4,7 @@ e grava um JSON cru por ano em dados/.
 
 Uso:
     ./.venv/bin/python pipeline/ita.py --anos 2024 2025
+    ./.venv/bin/python pipeline/ita.py --anos 2020 2021 2022 2023   # via Wayback Machine
 
 ## Duas fases, não só a 3ª — "todos os alunos", não só os aprovados finais
 
@@ -48,14 +49,48 @@ pra Cidade/UF, usando a lista real de locais de prova do próprio site
 (`vestibular.ita.br/principal.htm`) — não é chute, é a lista de cidades que o
 ITA de fato usa, contra a qual todo valor de `BANCA` visto em 2024/2025 bateu.
 
-## Só 2024 e 2025 confirmados
+## Ao vivo, só 2024 e 2025 — 2020-2023 voltaram pelo Wayback Machine
 
-`{ano}_convocados_3f.htm` funciona pra esses dois; 2023 pra trás devolve 404
-nesse padrão de nome (o "Dossiê de Provas", arquivo 09, já registrava isso
-como não confirmado). Não investigado se existe outro nome de arquivo pros
-anos anteriores — mesmo tipo de lacuna que a OBMEP tinha antes de virar
-`SEGMENTO_POR_ANO` (pipeline/obmep.py); fica pra quando fizer sentido gastar
-o tempo de achar.
+`{ano}_convocados_2f.htm`/`_3f.htm` funciona pra 2024/2025; 2023 pra trás
+devolve 404 nesse padrão de nome (o "Dossiê de Provas", arquivo 09, já
+registrava isso como não confirmado).
+
+O que existia era outro padrão de URL — `notas/{ano}_notas_1f_completo.htm`
+e `_2f_completo.htm` —, que o site já não serve mais ao vivo, mas o Wayback
+Machine tem congelado pra 2019-2026. É uma fonte MELHOR que a "convocados"
+atual, não só mais velha: **lista TODO MUNDO que fez a prova**, aprovado ou
+não (inclusive "AUSENTE"), com nota aberta — a "convocados" só mostra quem
+passou de fase. `_DOCUMENTOS_HISTORICOS` curou 2020-2023 (pesquisa dirigida
+de 22/09/2026); 2019/2024/2025/2026 também existem no Wayback pra quando
+fizer sentido gastar o tempo de trazer.
+
+⚠️ O `<pre>` do "1f_completo" não FECHA no HTML original (a página nunca foi
+bem-formada, nem antes do Wayback capturar) — `parsear_1f_completo` lê tudo
+depois da abertura até o fim do documento, em vez de procurar `</pre>`. E o
+separador decimal varia ano a ano: 2022 usa ponto ("3.3333"), 2023 usa
+vírgula ("7,5000") — `_numero` já tolera os dois (só troca vírgula por
+ponto, e ponto sem vírgula não muda).
+
+Três achados a mais, só vistos rodando de verdade contra os quatro anos
+(22/09/2026), que custaram registro em silêncio antes de virarem código:
+
+- **O banner "VESTIBULAR AAAA" não existe em toda página** — 2020/2021 têm,
+  2022/2023 pulam direto pro título da tabela. `_confere_ano_historico` só
+  recusa o ano quando o banner EXISTE e diz outra coisa; ausência não é
+  motivo pra descartar (era o bug original: tratava as duas situações igual e
+  jogava fora 2022 inteiro e todo o 2023).
+- **2021 usa `<br>` como separador de linha DENTRO do `<pre>` da 1ª fase**
+  (7223 ocorrências, contra 8-11 incidentais nos outros anos) — sem
+  normalizar pra `\n` antes de repartir, `.split("\n")` via quase tudo como
+  uma linha só. `_linhas_do_pre_sem_fechar` cuida disso pra 1ª fase;
+  `parsear_2f_completo` normaliza pelo mesmo motivo, de graça, mesmo não
+  tendo achado o problema lá ainda.
+- **2023 (só a 2ª fase) vem em DOIS `<pre>`** — "Candidatos Optantes pela
+  Carreira Militar" e "Não Optantes", cada um com seu próprio cabeçalho.
+  `re.search` (um match só) pegava só o primeiro bloco (185 de 729
+  candidatos) e nunca avisava que faltava o resto — silêncio idêntico ao
+  do banner ausente. `parsear_2f_completo` agora itera `re.finditer` sobre
+  todos os blocos.
 
 ## Sem escola, e por quê `escola_informada` sai `""` e não `None`
 
@@ -120,12 +155,37 @@ _CIDADE_DA_BANCA: dict[str, tuple[str, str]] = {
     "RIO DE JANEIRO": ("Rio de Janeiro", "RJ"),
     "SALVADOR": ("Salvador", "BA"),
     "SAO JOSE DO RIO PRETO": ("São José do Rio Preto", "SP"),
+    "SAO JOSE RIO PRETO": ("São José do Rio Preto", "SP"),
+    "SAO JOSE DO RIO PRET": ("São José do Rio Preto", "SP"),
     "SAO JOSE DOS CAMPOS": ("São José dos Campos", "SP"),
     "SAO LUIS": ("São Luís", "MA"),
     "SAO PAULO": ("São Paulo", "SP"),
     "TERESINA": ("Teresina", "PI"),
     "VITORIA": ("Vitória", "ES"),
 }
+
+# ano -> (url 1ª fase completa, url 2ª fase completa), via Wayback Machine —
+# pesquisa dirigida de 22/09/2026 (docstring do módulo). Timestamp escolhido
+# é o snapshot mais completo achado na API CDX pra cada URL.
+_DOCUMENTOS_HISTORICOS: dict[int, tuple[str, str]] = {
+    2020: (
+        "http://web.archive.org/web/20210116182131/http://www.vestibular.ita.br/notas/2020_notas_1f_completo.htm",
+        "http://web.archive.org/web/20210116171959/http://www.vestibular.ita.br/notas/2020_notas_2f_completo.htm",
+    ),
+    2021: (
+        "http://web.archive.org/web/20210116175631/http://www.vestibular.ita.br/notas/2021_notas_1f_completo.htm",
+        "http://web.archive.org/web/20210116170147/http://www.vestibular.ita.br/notas/2021_notas_2f_completo.htm",
+    ),
+    2022: (
+        "http://web.archive.org/web/20211125170650/http://www.vestibular.ita.br/notas/2022_notas_1f_completo.htm",
+        "http://web.archive.org/web/20220120161253/http://www.vestibular.ita.br/notas/2022_notas_2f_completo.htm",
+    ),
+    2023: (
+        "http://web.archive.org/web/20221104162847/https://www.vestibular.ita.br/notas/2023_notas_1f_completo.htm",
+        "http://web.archive.org/web/20221214142824/https://www.vestibular.ita.br/notas/2023_notas_2f_completo.htm",
+    ),
+}
+_PADRAO_ANO_HISTORICO = re.compile(r"VESTIBULAR (\d{4})")
 
 
 @dataclass
@@ -179,6 +239,163 @@ def _rotulos_das_materias(linhas: list[str]) -> list[str] | None:
     if len(campos) != 5:
         return None
     return [r.rstrip(".").lower() for r in campos[2].split()]
+
+
+def _confere_ano_historico(texto: str, ano_esperado: int, fonte_url: str) -> bool:
+    """O banner "VESTIBULAR AAAA" só existe em ALGUNS anos (achado rodando de
+    verdade: 2020/2021 têm, 2022/2023 não — a página pula direto pro título
+    da tabela). Sem banner, confia no ano do próprio `_DOCUMENTOS_HISTORICOS`
+    (a URL já tem o ano no nome do arquivo); só recusa se o banner EXISTIR e
+    disser um ano DIFERENTE — aí sim é sinal real de conteúdo trocado."""
+    m_ano = _PADRAO_ANO_HISTORICO.search(texto)
+    if m_ano and int(m_ano.group(1)) != ano_esperado:
+        print(
+            f"  aviso: banner diz {m_ano.group(1)}, esperava {ano_esperado} — pulando ({fonte_url})",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
+def _linhas_do_pre_sem_fechar(texto: str) -> list[str] | None:
+    """Lê tudo depois de `<pre>` até o fim do documento — achado real: o
+    `<pre>` desta página nunca fecha no HTML original (nem antes do Wayback
+    capturar), então procurar `</pre>` devolveria vazio. Também troca `<br>`
+    por quebra de linha de verdade: 2021 usa `<br>` como separador de linha
+    dentro do PRÓPRIO `<pre>` (nenhum outro ano faz isso, achado comparando
+    os quatro)."""
+    idx = texto.find("<pre>")
+    if idx < 0:
+        return None
+    bruto = texto[idx + len("<pre>") :]
+    bruto = re.sub(r"<br\s*/?>", "\n", bruto, flags=re.IGNORECASE)
+    return bruto.split("\n")
+
+
+def parsear_1f_completo(texto: str, ano_esperado: int, fonte_url: str) -> list[Registro]:
+    """"Notas da 1ª Fase" completa — TODO CANDIDATO que fez a prova, aprovado
+    ou não (inclusive AUSENTE), formato `| final do CPF | NOME | <matérias> |
+    OBS |`."""
+    if not _confere_ano_historico(texto, ano_esperado, fonte_url):
+        return []
+
+    linhas = _linhas_do_pre_sem_fechar(texto)
+    if linhas is None:
+        print(f"  aviso: sem <pre> em {fonte_url} — layout mudou?", file=sys.stderr)
+        return []
+
+    cabecalho = next((l for l in linhas if l.strip().startswith("|") and "NOME" in l.upper()), None)
+    rotulos = [r.rstrip(".").lower() for r in cabecalho.strip().strip("|").split("|")[2].split()] if cabecalho else None
+
+    registros: list[Registro] = []
+    for linha in linhas:
+        campos = [c.strip() for c in linha.rstrip("\r").strip().strip("|").split("|")]
+        # Âncora inequívoca: "final do CPF" no formato NNN-NN — nunca aparece
+        # na linha de cabeçalho nem nos separadores `+---+`.
+        if len(campos) < 4 or not re.match(r"^\d{3}-\d{2}$", campos[0]):
+            continue
+        nome = campos[1]
+        if not nome:
+            continue
+        obs = campos[-1].strip().upper()
+        valores = campos[2:-1]
+        notas: dict[str, float] | None = None
+        if rotulos and len(rotulos) == len(valores):
+            notas = {r: _numero(v) for r, v in zip(rotulos, valores, strict=True)}
+
+        registros.append(
+            Registro(
+                prova_nome="ITA",
+                ano=ano_esperado,
+                nivel_texto="",
+                serie_referencia_min=None,
+                serie_referencia_max=None,
+                resultado="Ausente — 1ª fase" if obs == "AUSENTE" else "Realizou a 1ª fase",
+                nome_informado=nome,
+                escola_informada="",
+                # Sem BANCA nesta página — só a prova objetiva, sem local.
+                cidade_informada="",
+                uf_informada="",
+                fonte_url=fonte_url,
+                notas_por_materia=notas,
+            )
+        )
+    return registros
+
+
+def parsear_2f_completo(texto: str, ano_esperado: int, fonte_url: str) -> list[Registro]:
+    """"Notas da 2ª Fase" completa — TODO CANDIDATO que fez a prova
+    discursiva, classificado pra 3ª fase ou não (CLASS. sai "----" pra quem
+    não classificou). Mesmo formato de `parsear_pagina_do_ano`
+    (NOME | média 1ª fase | matérias da 2ª fase | classificação | banca).
+
+    Achado real em 2023: a página vem em DOIS `<pre>`, um pra "Candidatos
+    Optantes pela Carreira Militar" e outro pra "Não Optantes" — não é
+    "Convocados" por cota (isso só existe na 3ª fase), mas ainda assim quebra
+    ao vivo em duas tabelas. `re.search` (um só match) pegava só a primeira e
+    descartava 544 dos 729 candidatos em silêncio; por isso agora é
+    `re.finditer` sobre TODOS os blocos, cada um com seu próprio cabeçalho
+    (2020-2022 têm só um bloco, e continuam funcionando do mesmo jeito)."""
+    if not _confere_ano_historico(texto, ano_esperado, fonte_url):
+        return []
+
+    blocos = list(re.finditer(r"<pre>(.*?)</pre>", texto, re.DOTALL))
+    if not blocos:
+        print(f"  aviso: sem <pre>...</pre> em {fonte_url} — layout mudou?", file=sys.stderr)
+        return []
+
+    registros: list[Registro] = []
+    for bloco in blocos:
+        # `<br>` no lugar de `\n` só apareceu na 1ª fase de 2021 (achado real,
+        # ver `_linhas_do_pre_sem_fechar`), mas normalizar aqui também é de
+        # graça e blinda contra o mesmo problema aparecer nesta página nalgum
+        # ano futuro.
+        linhas = re.sub(r"<br\s*/?>", "\n", bloco.group(1), flags=re.IGNORECASE).split("\n")
+
+        cabecalho = next((l for l in linhas if l.strip().startswith("|") and "NOME" in l.upper()), None)
+        rotulos = [r.rstrip(".").lower() for r in cabecalho.strip().strip("|").split("|")[2].split()] if cabecalho else None
+
+        for linha in linhas:
+            campos = [c.strip() for c in linha.rstrip("\r").strip().strip("|").split("|")]
+            if len(campos) != 5 or campos[0].upper() == "NOME" or not campos[0]:
+                continue
+            nome = campos[0]
+            banca = campos[-1].strip().upper()
+            classe = campos[-2].strip()
+            cidade, uf = _CIDADE_DA_BANCA.get(banca, (banca.title(), ""))
+            if banca not in _CIDADE_DA_BANCA:
+                print(f"  aviso: banca desconhecida {banca!r} — sem UF", file=sys.stderr)
+
+            notas: dict[str, float] | None = None
+            valores_materias = campos[2].split()
+            if rotulos and len(rotulos) == len(valores_materias):
+                notas = {
+                    (f"{r}_2fase" if r == "media" else r): _numero(v)
+                    for r, v in zip(rotulos, valores_materias, strict=True)
+                }
+                notas["media_1fase"] = _numero(campos[1])
+                if classe not in ("", "----"):
+                    notas["classificacao"] = _numero(classe)
+
+            resultado = f"Classificado — 2ª fase (nº {int(classe)})" if classe not in ("", "----") else "Não classificado — 2ª fase"
+
+            registros.append(
+                Registro(
+                    prova_nome="ITA",
+                    ano=ano_esperado,
+                    nivel_texto="",
+                    serie_referencia_min=None,
+                    serie_referencia_max=None,
+                    resultado=resultado,
+                    nome_informado=nome,
+                    escola_informada="",
+                    cidade_informada=cidade,
+                    uf_informada=uf,
+                    fonte_url=fonte_url,
+                    notas_por_materia=notas,
+                )
+            )
+    return registros
 
 
 def parsear_pagina_do_ano(html: str, ano: int, fonte_url: str) -> list[Registro]:
@@ -311,7 +528,27 @@ def parsear_convocados_2f(texto: str, ano: int, fonte_url: str) -> list[Registro
     return registros
 
 
+def _raspar_ano_historico(ano: int) -> list[Registro]:
+    """2020-2023: página ao vivo não existe mais — vem do Wayback Machine,
+    formato "completo" (todo candidato, não só convocado — docstring)."""
+    url_1f, url_2f = _DOCUMENTOS_HISTORICOS[ano]
+    registros: list[Registro] = []
+
+    resp = requests.get(url_1f, headers=HEADERS, timeout=60)
+    resp.raise_for_status()
+    registros.extend(parsear_1f_completo(resp.text, ano, url_1f))
+
+    resp = requests.get(url_2f, headers=HEADERS, timeout=60)
+    resp.raise_for_status()
+    registros.extend(parsear_2f_completo(resp.text, ano, url_2f))
+
+    return registros
+
+
 def raspar_ano(ano: int) -> list[Registro]:
+    if ano in _DOCUMENTOS_HISTORICOS:
+        return _raspar_ano_historico(ano)
+
     registros: list[Registro] = []
 
     url_2f = f"{BASE}/{ano}_convocados_2f.htm"
@@ -329,7 +566,13 @@ def raspar_ano(ano: int) -> list[Registro]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--anos", type=int, nargs="+", required=True, help="Anos a raspar — só 2024 e 2025 confirmados (ver docstring)")
+    parser.add_argument(
+        "--anos",
+        type=int,
+        nargs="+",
+        required=True,
+        help=f"Anos a raspar — 2024/2025 ao vivo, ou {sorted(_DOCUMENTOS_HISTORICOS)} via Wayback Machine (ver docstring)",
+    )
     args = parser.parse_args()
 
     DIR_DADOS.mkdir(exist_ok=True)
