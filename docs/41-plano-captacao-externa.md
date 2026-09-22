@@ -413,6 +413,54 @@ exposto pra `escola_informada` (0057), agora em outra coluna. Corrigido pra
 (`CaptacaoFicha.tsx`) pra tratar vazio e ausente como a mesma coisa, igual já
 fazia pra Escola informada.
 
+#### 6.1.2 · Addendum (22/09/2026): 2020-2023 via Wayback Machine — lista COMPLETA, não só quem passou de fase
+
+O §6.1.1 trouxe "convocados 2ª fase", mas isso ainda é "quem passou uma
+etapa" — o usuário pesquisou por conta própria e achou um padrão de URL
+melhor: `vestibular.ita.br/notas/{ano}_notas_1f_completo.htm` e
+`_2f_completo.htm`. O site já não serve isso ao vivo (só `convocados_2f`/`_3f`
+funcionam, pra 2024/2025), mas o Wayback Machine tem os dois arquivos
+congelados pra 2019-2026. É uma fonte estritamente melhor onde existe: lista
+**TODO CANDIDATO que fez a prova**, aprovado ou não (inclusive "AUSENTE"),
+com a nota de cada matéria aberta — não só quem avançou de fase.
+
+Curou-se 2020-2023 (os quatro anos que o usuário pediu); 2019/2024/2025/2026
+também existem nesse formato no Wayback, não trazidos ainda por não terem
+sido pedidos.
+
+Três achados de HTML, todos avessos a "assumir que o formato é igual todo
+ano" — nenhum foi visível sem baixar o arquivo de verdade e ler:
+
+1. **O banner "VESTIBULAR AAAA" não existe em toda página** — 2020/2021 têm,
+   2022/2023 pulam direto pro título da tabela. A validação original tratava
+   "banner ausente" igual a "banner contradiz o ano esperado" e descartava os
+   dois casos — silenciosamente jogou fora 2022 (1ª fase) e o ano de 2023
+   inteiro (as duas fases) antes de virar erro visível.
+2. **2021 usa `<br>` como separador de linha DENTRO do `<pre>` da 1ª fase**
+   (7223 ocorrências, contra 8-11 incidentais em cada um dos outros três
+   anos) — sem trocar por `\n` antes de repartir, a 1ª fase de 2021 virava 1
+   registro em vez de ~7200.
+3. **A 2ª fase de 2023 vem em DOIS `<pre>`** — "Candidatos Optantes pela
+   Carreira Militar" (185 pessoas) e "Não Optantes" (544), cada um com seu
+   próprio cabeçalho. Pegar só o primeiro bloco (era o comportamento
+   original, `re.search`) descartava 544 dos 729 candidatos sem aviso nenhum
+   — mesma classe de erro do item 1, silêncio em vez de exceção.
+
+Números depois de corrigir os três (`captacao-externa/pipeline/ita.py`,
+`_confere_ano_historico`, `_linhas_do_pre_sem_fechar`, `parsear_2f_completo`
+com `re.finditer` sobre todos os blocos):
+
+| Ano | 1ª fase | 2ª fase | Total | Com nota por matéria |
+|---|---|---|---|---|
+| 2020 | 7.355 | 665 | 8.020 | 665 |
+| 2021 | 7.201 | 749 | 7.950 | 749 |
+| 2022 | 7.988 | 750 | 8.738 | 750 |
+| 2023 | 9.364 | 727 | 10.091 | 727 |
+
+A 1ª fase nunca publica nota por matéria — só o boletim "AUSENTE" ou não; a
+2ª fase publica mat/fís/quím/redação + médias das duas fases (e classificação
+pra quem passou), igual ao que a ITA já publicava para 2024/2025.
+
 ### 6.2 · Quarta fonte, mesma categoria da ITA: IME — a outra ponta do alvo
 
 [`pipeline/ime.py`](../captacao-externa/pipeline/ime.py) raspa o "Resultado
