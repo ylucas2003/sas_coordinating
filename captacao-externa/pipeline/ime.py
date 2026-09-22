@@ -253,6 +253,18 @@ _PADRAO_FINAL = re.compile(
     r"(\d+)°\n(\d+)\n(\d+)\n(.+?)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([^\n]+)\n\((\d)\)"
 )
 
+# "CACFG AAAA/AAAA - ATIVA"/"- RESERVA" — o banner que abre cada página da
+# seção de aprovados. Achado rodando de verdade (22/09/2026): em 2022-2024 o
+# PDF de resultado final COMBINA as duas modalidades num arquivo só — a
+# seção ATIVA inteira primeiro, depois a RESERVA — mas `_DOCUMENTOS` passava
+# `modalidade="ATIVA"` fixo pro documento inteiro, então quem saía RESERVA
+# ficava rotulado ATIVA no banco. `_parsear_final_padrao` agora lê o banner
+# mais próximo ANTES de cada linha pra saber a modalidade de verdade daquela
+# linha, em vez de confiar cegamente no parâmetro externo (que vira só o
+# valor de partida, pra quando o PDF é de uma modalidade só — 2016/2020/2025
+# continuam corretos, cada um é um arquivo à parte com um banner só).
+_PADRAO_BANNER_MODALIDADE = re.compile(r"CACFG \d{4}/\d{4} - (ATIVA|RESERVA)")
+
 # 2016: inscrição+sigilo na MESMA linha, 8 números entre o nome e o local
 # (média + mat/fis/qui/port/ing/ing-obj/ing-disc, os dois últimos sendo o
 # inglês quebrado em objetiva/discursiva), sem situação.
@@ -352,8 +364,19 @@ def _parsear_final_padrao(
         return None, [], {}, {}
     ano = int(m_ano.group(1))
 
+    banners = [(m.start(), m.group(1)) for m in _PADRAO_BANNER_MODALIDADE.finditer(texto)]
+
+    def _modalidade_em(posicao: int) -> str:
+        atual = modalidade
+        for banner_pos, banner_modalidade in banners:
+            if banner_pos > posicao:
+                break
+            atual = banner_modalidade
+        return atual
+
     registros: list[Registro] = []
-    for _classif, _insc, _sigilo, nome, media, mat, fis, qui, port, ing, local, situacao in _PADRAO_FINAL.findall(texto):
+    for match in _PADRAO_FINAL.finditer(texto):
+        _classif, _insc, _sigilo, nome, media, mat, fis, qui, port, ing, local, situacao = match.groups()
         nome = nome.strip()
         if not nome:
             continue
@@ -365,7 +388,7 @@ def _parsear_final_padrao(
                 nivel_texto="",
                 serie_referencia_min=None,
                 serie_referencia_max=None,
-                resultado=f"{modalidade} — {_SITUACAO.get(situacao, f'situação {situacao}')}",
+                resultado=f"{_modalidade_em(match.start())} — {_SITUACAO.get(situacao, f'situação {situacao}')}",
                 nome_informado=nome,
                 escola_informada="",
                 cidade_informada=cidade,

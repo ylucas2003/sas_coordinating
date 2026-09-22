@@ -1107,16 +1107,35 @@ código:
    ("Inapto em redação") entre o motivo e a cidade — 2024/2025 têm o mesmo
    motivo sem essa linha a mais. A mesma regex trata os dois formatos.
 
-**Achado extra, fora do que foi pedido — reportado, não corrigido nesta
-rodada**: o PDF combinado de 2022-2024 (`Resultado_Final-IME-2023.pdf`,
-`Resultado_Final-IME.pdf`, `Resultado.pdf`) na verdade tem DUAS seções de
-aprovados dentro do MESMO arquivo — uma com banner "CACFG AAAA/AAAA -
-**ATIVA**" e outra com banner "... - **RESERVA**" mais adiante — mas
-`_DOCUMENTOS` desses três anos passa `modalidade="ATIVA"` fixo pro
-documento inteiro, e `_parsear_final_padrao` não olha o banner por seção:
-todo mundo aprovado nesses três anos (532+540+545 = 1.617 pessoas) está
-rotulado `"ATIVA — <situação>"` no banco, mesmo quem na verdade saiu
-classificado como RESERVA no PDF de origem. 2016/2020/2025 não têm esse
-problema (cada modalidade é um arquivo à parte, já rotulado certo por
-fora). Não fiz esse conserto agora porque é um escopo diferente do que foi
-pedido — fica pra quando o usuário decidir se quer corrigir.
+**Achado extra, fora do que foi pedido — reportado e depois corrigido, a
+pedido do usuário, na mesma PR**: o PDF combinado de 2022-2024
+(`Resultado_Final-IME-2023.pdf`, `Resultado_Final-IME.pdf`, `Resultado.pdf`)
+na verdade tem DUAS seções de aprovados dentro do MESMO arquivo — uma com
+banner "CACFG AAAA/AAAA - **ATIVA**" e outra com banner "... - **RESERVA**"
+mais adiante — mas `_DOCUMENTOS` desses três anos passava `modalidade=
+"ATIVA"` fixo pro documento inteiro, e `_parsear_final_padrao` não olhava o
+banner por seção: todo mundo aprovado nesses três anos (532+540+545 = 1.617
+pessoas) estava rotulado `"ATIVA — <situação>"` no banco, mesmo quem na
+verdade saiu classificado como RESERVA no PDF de origem. 2016/2020/2025 não
+tinham esse problema (cada modalidade é um arquivo à parte, já rotulado
+certo por fora).
+
+Correção: `_parsear_final_padrao` agora lê `_PADRAO_BANNER_MODALIDADE`
+(`"CACFG AAAA/AAAA - (ATIVA|RESERVA)"`) com `finditer`, guarda a posição de
+cada banner, e pra cada linha de aprovado usa o banner mais próximo ANTES
+dela — o parâmetro `modalidade` externo vira só o valor de partida, pro caso
+(que também existe, 2016/2020/2025) de o PDF já ser de uma modalidade só.
+Depois de corrigir: 2022 393 ATIVA / 139 RESERVA (era 532/0), 2023 391/149
+(era 540/0), 2024 362/183 (era 545/0) — total por ano não muda, só o rótulo.
+
+⚠️ **A correção troca o TEXTO de `resultado`, que é parte da chave de dedup**
+(`prova_id, ano, nivel_texto, nome_informado, escola_informada, resultado`)
+— então rodar o importador de novo não sobrescreve a linha antiga errada,
+ele insere uma linha NOVA do lado (upsert não acha conflito nenhum, porque a
+chave mudou). Corrigir isso em qualquer banco já populado exige **apagar as
+linhas antigas antes de reimportar**: `DELETE FROM conquista_externa` pelas
+provas/anos afetados com `resultado LIKE 'ATIVA%' OR resultado LIKE
+'RESERVA%'`, reimportar, rodar o resolver, e só então apagar
+`candidato_externo` que ficou sem nenhuma conquista (o `DELETE` acima orfanou
+quem só tinha ESSA conquista) — mesma sequência de 4 passos que corrigiu o
+dev local desta sessão.
