@@ -253,6 +253,18 @@ _PADRAO_FINAL = re.compile(
     r"(\d+)°\n(\d+)\n(\d+)\n(.+?)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([^\n]+)\n\((\d)\)"
 )
 
+# "CACFG AAAA/AAAA - ATIVA"/"- RESERVA" — o banner que abre cada página da
+# seção de aprovados. Achado rodando de verdade (22/09/2026): em 2022-2024 o
+# PDF de resultado final COMBINA as duas modalidades num arquivo só — a
+# seção ATIVA inteira primeiro, depois a RESERVA — mas `_DOCUMENTOS` passava
+# `modalidade="ATIVA"` fixo pro documento inteiro, então quem saía RESERVA
+# ficava rotulado ATIVA no banco. `_parsear_final_padrao` agora lê o banner
+# mais próximo ANTES de cada linha pra saber a modalidade de verdade daquela
+# linha, em vez de confiar cegamente no parâmetro externo (que vira só o
+# valor de partida, pra quando o PDF é de uma modalidade só — 2016/2020/2025
+# continuam corretos, cada um é um arquivo à parte com um banner só).
+_PADRAO_BANNER_MODALIDADE = re.compile(r"CACFG \d{4}/\d{4} - (ATIVA|RESERVA)")
+
 # 2016: inscrição+sigilo na MESMA linha, 8 números entre o nome e o local
 # (média + mat/fis/qui/port/ing/ing-obj/ing-disc, os dois últimos sendo o
 # inglês quebrado em objetiva/discursiva), sem situação.
@@ -269,6 +281,23 @@ _PADRAO_FINAL_2016 = re.compile(
 _PADRAO_FASE2 = re.compile(
     r"^\s*\d+\s+(\d{6})\s+([A-ZÀ-Ü][A-ZÀ-Ü'\- ]*[A-ZÀ-Ü])\s+(.+?)\s+(ATIVA|RESERVA)\s*$",
     re.MULTILINE,
+)
+
+# Ordem, Inscrição, Sigilo, Mat, Fis, Qui, Port, Ing, [Eliminado em], Local —
+# a tabela "Relação Final dos Não Aprovados" que mora no MESMO PDF do
+# `final_padrao`, achado a pedido do usuário (22/09/2026): tem nota de quem
+# foi habilitado pra 2ª fase e NÃO passou no final, mas não tem NOME nenhum
+# (só quem passa ganha a coluna de nome — daí a exigência de cruzar com
+# `_PADRAO_FASE2` por inscrição, ver `raspar_ano`). "Eliminado em" é opcional
+# — em branco quando ninguém subiu abaixo do mínimo por matéria (a ordem
+# global some pela nota baixa, não por reprovar limite de matéria isolada).
+# "Redação" é um motivo à parte (reprovar o crivo eliminatório da redação,
+# não uma nota baixa) e só em 2022 vem com uma linha extra descritiva
+# ("Inapto em redação") entre o motivo e a cidade — 2024/2025 não têm essa
+# linha a mais pro mesmo motivo (achado real comparando os anos).
+_PADRAO_NAO_APROVADOS = re.compile(
+    r"(\d+)\n(\d{6})\n(\d+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n([\d,]+)\n"
+    r"(?:(MAT|FIS|QUI|PORT|ING|Redação)\n(?:Inapto em redação\n)?)?([^\n]+)\n"
 )
 
 
@@ -302,23 +331,52 @@ class Registro:
     cidade_informada: str
     uf_informada: str
     fonte_url: str
-    # Só os dois formatos "final" publicam nota por matéria — a lista de
-    # habilitados pra 2ª fase (`_parsear_fase2`) não tem nota nenhuma, só
-    # nome/local/carreira, então fica `None` pra ela sempre (docs/41).
+    # O Registro "Habilitado — 2ª fase" (`_parsear_fase2`) nunca tem nota —
+    # essa lista só tem nome/local/carreira. Quem FEZ a 2ª fase ganha nota
+    # através de um SEGUNDO Registro naquele ano: "ATIVA/RESERVA — situação"
+    # pra quem passou (a tabela de aprovados já tem nome e nota juntos), ou
+    # "Não aprovado — 2ª fase" pra quem não passou (cruzando por inscrição a
+    # tabela de não aprovados, que tem nota mas não nome, contra a de
+    # habilitados, que tem nome mas não nota — `raspar_ano`).
     notas_por_materia: dict[str, float] | None = None
 
 
-def _parsear_final_padrao(conteudo: bytes, modalidade: str, fonte_url: str) -> tuple[int | None, list[Registro]]:
+@dataclass
+class _NaoAprovado:
+    """Uma linha da "Relação Final dos Não Aprovados" — tem nota, mas não
+    tem nome (só quem PASSA ganha a coluna de nome nesse PDF). `raspar_ano`
+    cruza `inscricao` com `_PADRAO_FASE2` (que tem nome) pra virar `Registro`."""
+
+    notas: dict[str, float]
+    eliminado_em: str
+    cidade: str
+    uf: str
+
+
+def _parsear_final_padrao(
+    conteudo: bytes, modalidade: str, fonte_url: str
+) -> tuple[int | None, list[Registro], dict[str, str], dict[str, _NaoAprovado]]:
     doc = pymupdf.open(stream=conteudo, filetype="pdf")
     texto = "".join(pagina.get_text() for pagina in doc)
 
     m_ano = re.search(r"CACFG (\d{4})/\d{4}", texto)
     if not m_ano:
-        return None, []
+        return None, [], {}, {}
     ano = int(m_ano.group(1))
 
+    banners = [(m.start(), m.group(1)) for m in _PADRAO_BANNER_MODALIDADE.finditer(texto)]
+
+    def _modalidade_em(posicao: int) -> str:
+        atual = modalidade
+        for banner_pos, banner_modalidade in banners:
+            if banner_pos > posicao:
+                break
+            atual = banner_modalidade
+        return atual
+
     registros: list[Registro] = []
-    for _classif, _insc, _sigilo, nome, media, mat, fis, qui, port, ing, local, situacao in _PADRAO_FINAL.findall(texto):
+    for match in _PADRAO_FINAL.finditer(texto):
+        _classif, _insc, _sigilo, nome, media, mat, fis, qui, port, ing, local, situacao = match.groups()
         nome = nome.strip()
         if not nome:
             continue
@@ -330,7 +388,7 @@ def _parsear_final_padrao(conteudo: bytes, modalidade: str, fonte_url: str) -> t
                 nivel_texto="",
                 serie_referencia_min=None,
                 serie_referencia_max=None,
-                resultado=f"{modalidade} — {_SITUACAO.get(situacao, f'situação {situacao}')}",
+                resultado=f"{_modalidade_em(match.start())} — {_SITUACAO.get(situacao, f'situação {situacao}')}",
                 nome_informado=nome,
                 escola_informada="",
                 cidade_informada=cidade,
@@ -346,16 +404,44 @@ def _parsear_final_padrao(conteudo: bytes, modalidade: str, fonte_url: str) -> t
                 },
             )
         )
-    return ano, registros
+
+    # A mesma tabela reaparece por página (o cabeçalho se repete a cada
+    # quebra), então o índice da PRIMEIRA ocorrência até o fim do documento
+    # cobre todas — inclusive a segunda leva de "Não Aprovados" que pertence
+    # à seção RESERVA quando o PDF combina ATIVA+RESERVA num arquivo só
+    # (achado real: 2022-2024 fazem isso, cada leva reinicia a Ordem em 1,
+    # sem sobrepor inscrição — conferido rodando de verdade).
+    nao_aprovados: dict[str, _NaoAprovado] = {}
+    idx = texto.find("Não Aprovados")
+    if idx >= 0:
+        for _ordem, insc, _sigilo, mat, fis, qui, port, ing, eliminado_em, local in _PADRAO_NAO_APROVADOS.findall(
+            texto[idx:]
+        ):
+            cidade, uf = _cidade_e_uf(local)
+            nao_aprovados[insc] = _NaoAprovado(
+                notas={
+                    "mat": _numero(mat),
+                    "fis": _numero(fis),
+                    "qui": _numero(qui),
+                    "port": _numero(port),
+                    "ing": _numero(ing),
+                },
+                eliminado_em=eliminado_em,
+                cidade=cidade,
+                uf=uf,
+            )
+    return ano, registros, {}, nao_aprovados
 
 
-def _parsear_final_2016(conteudo: bytes, modalidade: str, fonte_url: str) -> tuple[int | None, list[Registro]]:
+def _parsear_final_2016(
+    conteudo: bytes, modalidade: str, fonte_url: str
+) -> tuple[int | None, list[Registro], dict[str, str], dict[str, _NaoAprovado]]:
     doc = pymupdf.open(stream=conteudo, filetype="pdf")
     texto = "".join(pagina.get_text() for pagina in doc)
 
     m_ano = re.search(r"Exame de Escolaridade (\d{4})/\d{4}", texto)
     if not m_ano:
-        return None, []
+        return None, [], {}, {}
     ano = int(m_ano.group(1))
 
     registros: list[Registro] = []
@@ -405,23 +491,31 @@ def _parsear_final_2016(conteudo: bytes, modalidade: str, fonte_url: str) -> tup
                 },
             )
         )
-    return ano, registros
+    # 2016 também tem "Não Aprovados" (layout com Ing Obj/Ing Disc, sem
+    # "Eliminado em"), mas não existe `_DOCUMENTOS[2016]` de fase2 pra cruzar
+    # inscrição→nome — sem nome não vira `Registro`, então não vale a pena
+    # nem extrair (ficaria morto, nunca cruzado).
+    return ano, registros, {}, {}
 
 
-def _parsear_fase2(conteudo: bytes, fonte_url: str) -> tuple[int | None, list[Registro]]:
+def _parsear_fase2(
+    conteudo: bytes, fonte_url: str
+) -> tuple[int | None, list[Registro], dict[str, str], dict[str, _NaoAprovado]]:
     doc = pymupdf.open(stream=conteudo, filetype="pdf")
     texto = "\n".join(pagina.get_text("text", sort=True) for pagina in doc)
 
     m_ano = re.search(r"CA/CFG (\d{4})/\d{4}", texto)
     if not m_ano:
-        return None, []
+        return None, [], {}, {}
     ano = int(m_ano.group(1))
 
     registros: list[Registro] = []
-    for _insc, nome, local, carreira in _PADRAO_FASE2.findall(texto):
+    habilitados_por_insc: dict[str, str] = {}
+    for insc, nome, local, carreira in _PADRAO_FASE2.findall(texto):
         nome = re.sub(r"\s+", " ", nome).strip()
         if not nome:
             continue
+        habilitados_por_insc[insc] = nome
         cidade, uf = _cidade_e_uf(local)
         registros.append(
             Registro(
@@ -438,7 +532,7 @@ def _parsear_fase2(conteudo: bytes, fonte_url: str) -> tuple[int | None, list[Re
                 fonte_url=fonte_url,
             )
         )
-    return ano, registros
+    return ano, registros, habilitados_por_insc, {}
 
 
 _PARSERS = {
@@ -457,9 +551,13 @@ def _get(url: str) -> requests.Response:
 
 def raspar_ano(ano: int) -> list[Registro]:
     registros: list[Registro] = []
+    habilitados_por_insc: dict[str, str] = {}
+    nao_aprovados_por_insc: dict[str, _NaoAprovado] = {}
+    fonte_por_insc: dict[str, str] = {}
+
     for url, formato, modalidade in _DOCUMENTOS[ano]:
         resp = _get(url)
-        ano_no_pdf, novos = _PARSERS[formato](resp.content, modalidade, url)
+        ano_no_pdf, novos, habilitados_novo, nao_aprovados_novo = _PARSERS[formato](resp.content, modalidade, url)
         if ano_no_pdf is None:
             print(f"  aviso: não achei o ano dentro do PDF ({url}) — layout mudou?", file=sys.stderr)
             continue
@@ -470,7 +568,53 @@ def raspar_ano(ano: int) -> list[Registro]:
             )
             continue
         registros.extend(novos)
+        habilitados_por_insc.update(habilitados_novo)
+        for insc in nao_aprovados_novo:
+            fonte_por_insc[insc] = url
+        nao_aprovados_por_insc.update(nao_aprovados_novo)
         print(f"  {formato} {modalidade or ''}: {len(novos)} registros", file=sys.stderr)
+
+    # Cruzamento pedido pelo usuário (22/09/2026): a "Relação Final dos Não
+    # Aprovados" tem nota mas não tem nome; a "Relação de Habilitados pra 2ª
+    # fase" tem nome mas não tem nota. Junta as duas por número de inscrição
+    # pra dar nota a QUEM FEZ a 2ª fase e não passou — sem isso, essas
+    # pessoas só apareciam como "Habilitado — 2ª fase", sem nota nenhuma.
+    sem_nome = 0
+    for insc, dados in nao_aprovados_por_insc.items():
+        nome = habilitados_por_insc.get(insc)
+        if nome is None:
+            sem_nome += 1
+            continue
+        if dados.eliminado_em == "Redação":
+            # Crivo eliminatório (apto/inapto), não nota mínima — motivo à
+            # parte do resto (docstring de `_PADRAO_NAO_APROVADOS`).
+            resultado = "Não aprovado — 2ª fase (inapto em redação)"
+        elif dados.eliminado_em:
+            resultado = f"Não aprovado — 2ª fase (nota mínima: {dados.eliminado_em})"
+        else:
+            resultado = "Não aprovado — 2ª fase"
+        registros.append(
+            Registro(
+                prova_nome="IME",
+                ano=ano,
+                nivel_texto="",
+                serie_referencia_min=None,
+                serie_referencia_max=None,
+                resultado=resultado,
+                nome_informado=nome,
+                escola_informada="",
+                cidade_informada=dados.cidade,
+                uf_informada=dados.uf,
+                fonte_url=fonte_por_insc[insc],
+                notas_por_materia=dados.notas,
+            )
+        )
+    if sem_nome:
+        print(
+            f"  aviso: {sem_nome} não aprovados sem nome cruzado (fora da lista de habilitados desse ano?)",
+            file=sys.stderr,
+        )
+
     return registros
 
 
