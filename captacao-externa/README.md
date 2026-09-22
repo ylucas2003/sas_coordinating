@@ -112,17 +112,20 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidat
 E pra ITA (docs/41 §6.1) — é **validação, não captação**: quem está nessa
 lista já passou no vestibular-alvo, não é lead pra convidar. O valor é
 cruzar por nome com OBMEP/OBM depois de resolver. Ao vivo só existem 2024 e
-2025 (`convocados_2f`/`_3f`, só quem passou de fase); 2020-2023 voltam pelo
+2025 (`convocados_2f`/`_3f`, só quem passou de fase); 2021-2023 voltam pelo
 Wayback Machine via outro padrão de URL (`notas_Xf_completo`, achado em
 22/09/2026) — esse é **melhor** que o ao vivo, não só mais velho: lista TODO
-MUNDO que fez a prova, aprovado ou não (docstring do módulo tem os três
-quirks de HTML que essa recuperação exigiu). 2019/2024/2025/2026 também
-existem nesse formato no Wayback pra quando fizer sentido trazer:
+MUNDO que fez a prova, aprovado ou não (docstring do módulo tem os quirks de
+HTML que essa recuperação exigiu). 2019/2020/2024/2025/2026 também existem
+nesse formato no Wayback; 2020 foi trazido e depois apagado a pedido do
+usuário (só quer ITA a partir de 2021 no banco — `_DOCUMENTOS_HISTORICOS`
+continua com 2020 pra quem passar `--anos 2020` explicitamente, só não é o
+padrão de ninguém rodar sem querer):
 
 ```sh
 cd captacao-externa
 ./.venv/bin/python pipeline/ita.py --anos 2024 2025
-./.venv/bin/python pipeline/ita.py --anos 2020 2021 2022 2023
+./.venv/bin/python pipeline/ita.py --anos 2021 2022 2023
 
 cd ../api
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
@@ -224,14 +227,16 @@ a página. Sem escola, a fonte só serve pra fila de enriquecimento (§8, item
 
 OBMEP (2016-2025, exceto 2020, que não existe), OBM (2016-2025 completo),
 OBF (2023-2025), ITA (2024-2025 ao vivo — convocados 2ª e 3ª fase — mais
-2020-2023 via Wayback Machine — lista completa de 1ª e 2ª fase, §6.1.2),
-IME (9 de 11 anos entre 2016-2025, 2 fases por ano), EFOMM (6 anos: 2017, 2022-2026,
+2021-2023 via Wayback Machine — lista completa de 1ª e 2ª fase, §6.1.2),
+IME (9 de 11 anos entre 2016-2025, 2 fases por ano — inclusive nota de quem
+NÃO passou na 2ª fase de 2022-2025, §11.3.1) e EFOMM (6 anos: 2017, 2022-2026,
 CIAGA/CIABA) e Escola Naval (7 de 11 anos entre 2016-2025, CPAEN) — as
-quatro últimas são validação, não captação — **102.169** `candidato_externo`
-/ **132.443** `conquista_externa` resolvidos em produção (depois do lote de
+quatro últimas são validação, não captação — **95.997** `candidato_externo`
+/ **125.809** `conquista_externa` resolvidos em produção (depois do lote de
 fusão em massa do §10, que reduziu duplicata de baixa confiança; da expansão
-de IME/EFOMM do §11.1/§11.3 via mirror de cursinho e Wayback Machine; e do
-ITA 2020-2023 do §6.1.2, também via Wayback Machine). AFA pesquisada e
-deixada de fora (bloqueio de Cloudflare, docs/41 §11). Números da última
+de IME/EFOMM do §11.1/§11.3 via mirror de cursinho e Wayback Machine; do ITA
+2021-2023 do §6.1.2; e da nota de não aprovados do IME, §11.3.1). AFA
+pesquisada e deixada de fora (bloqueio de Cloudflare, docs/41 §11). Números
+da última
 rodada e o resto da fila de fontes: docs/41 §5, §5.1, §5.2, §6.1, §6.1.2,
 §6.2, §6.2.1, §10, §11, §11.1, §11.2 e §11.3.
