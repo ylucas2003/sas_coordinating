@@ -39,7 +39,7 @@ captacao-externa/
 │   ├── escola_naval.py       7º scraper — CPAEN, 7 de 11 anos entre 2016-2025 (`id_file` curado à mão — docs/41 §11.2)
 │   ├── obi.py                8º scraper — Quadro de Medalhas da OBI, 2005-2025 exceto 2018 (publica escola — docs/41 §12)
 │   └── obq.py                9º e 10º scraper (OBQ + OBQ Jr, duas prova_externa) — primeira fonte em PDF do
-│                             projeto, dois formatos de PDF por ano (docs/41 §13)
+│                             projeto, QUATRO formatos de PDF curados por ano (docs/41 §13, §13.1)
 └── dados/                    JSON cru por ano — NÃO VERSIONADO
     └── obmep_2025.json, obm_2025.json, ita_2025.json, ime_2025.json, obf_2025.json, efomm_2026.json,
         escola_naval_2025.json, obi_2025.json, obq_2025.json, obqjr_2023.json...
@@ -226,14 +226,15 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 ```
 
-E pra OBQ/OBQ Jr (docs/41 §13) — duas `prova_externa`, o mesmo script,
-primeira fonte do projeto em PDF. `--fonte` escolhe qual das duas raspar
-(`obq`, `obqjr` ou `ambas`, default):
+E pra OBQ/OBQ Jr (docs/41 §13, §13.1) — duas `prova_externa`, o mesmo script,
+primeira fonte do projeto em PDF, com QUATRO formatos de PDF curados por ano
+(`_DOCUMENTOS_OBQ`/`_DOCUMENTOS_OBQ_JR`). `--fonte` escolhe qual das duas
+raspar (`obq`, `obqjr` ou `ambas`, default):
 
 ```sh
 cd captacao-externa
-./.venv/bin/python pipeline/obq.py --anos 2022 2024 2025 --fonte obq
-./.venv/bin/python pipeline/obq.py --anos 2021 2022 2023 --fonte obqjr
+./.venv/bin/python pipeline/obq.py --anos 2018 2019 2020 2021 2022 2024 2025 --fonte obq
+./.venv/bin/python pipeline/obq.py --anos 2018 2019 2020 2021 2022 2023 --fonte obqjr
 
 cd ../api
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
@@ -284,15 +285,16 @@ IME (9 de 11 anos entre 2016-2025, 2 fases por ano — inclusive nota de quem
 NÃO passou na 2ª fase de 2022-2025, §11.3.1), EFOMM (6 anos: 2017, 2022-2026,
 CIAGA/CIABA), Escola Naval (7 de 11 anos entre 2016-2025, CPAEN), OBI (2005,
 2008, 2010, 2015-2025 exceto 2018, que não existe — §12) e OBQ/OBQ Jr
-(OBQ: 2022, 2024, 2025; OBQ Jr: 2021, 2022, 2023 — primeira fonte em PDF,
-§13) — quatro delas (ITA/IME/EFOMM/Escola Naval) são validação, não
-captação — **121.553** `candidato_externo` / **148.348** `conquista_externa`
-resolvidos neste ambiente (números de 22/09/2026, depois do lote de fusão em
-massa do §10, da expansão de IME/EFOMM via mirror de cursinho e Wayback
-Machine, do ITA 2021-2023, da nota de não aprovados do IME e das duas fontes
-novas desta rodada — OBI e OBQ/OBQ Jr). AFA pesquisada e deixada de fora
-(bloqueio de Cloudflare, docs/41 §11); OBA pesquisada e deixada de fora
-(ferramenta pública é verificador individual, não quadro de medalhas,
+(OBQ: 2018-2022, 2024, 2025 — só falta 2023; OBQ Jr: 2018-2023 — primeira
+fonte em PDF, §13/§13.1, com um bug de subcontagem real corrigido depois de
+já ter ido pra produção) — quatro delas (ITA/IME/EFOMM/Escola Naval) são
+validação, não captação — **137.861** `candidato_externo` / **166.034**
+`conquista_externa` resolvidos neste ambiente (números de 23/09/2026, depois
+do lote de fusão em massa do §10, da expansão de IME/EFOMM via mirror de
+cursinho e Wayback Machine, do ITA 2021-2023, da nota de não aprovados do
+IME, da OBI e da expansão+correção de OBQ/OBQ Jr). AFA pesquisada e deixada
+de fora (bloqueio de Cloudflare, docs/41 §11); OBA pesquisada e deixada de
+fora (ferramenta pública é verificador individual, não quadro de medalhas,
 docs/41 §14). Números da última rodada e o resto da fila de fontes: docs/41
 §5, §5.1, §5.2, §6.1, §6.1.2, §6.2, §6.2.1, §10, §11, §11.1, §11.2, §11.3,
-§12, §13 e §14.
+§12, §13, §13.1 e §14.

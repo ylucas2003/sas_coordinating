@@ -1246,21 +1246,28 @@ programa (PNOQ, UFC+UFPI), produzidas pelo mesmo script porque a fonte
 (`obquimica.org`) é a mesma e os formatos de PDF se repetem entre as duas.
 
 **Primeira fonte em PDF do projeto que não é IME/EFOMM/Escola Naval** — e o
-gerador do PDF mudou pelo menos duas vezes na década, então o script tem
-DOIS caminhos de parsing curados por ano em `_DOCUMENTOS_OBQ`/
+gerador do PDF mudou pelo menos QUATRO vezes na década (ver §13.1), então o
+script tem vários caminhos de parsing curados por ano em `_DOCUMENTOS_OBQ`/
 `_DOCUMENTOS_OBQ_JR`: **"tabela"** (PDF de planilha, `pagina.find_tables()`
-do PyMuPDF lê direto — OBQ 2024/2025, OBQ Jr 2022/2023) e **"texto"** (PDF
-mais antigo sem tabela detectável — OBQ 2022, OBQ Jr 2021).
+do PyMuPDF lê direto — OBQ 2024/2025, OBQ Jr 2022/2023), **"tabela_marcador"**
+(mesma extração por tabela, mas a medalha vem de uma linha-marcador de seção
+em vez de inline por linha — OBQ 2021/2020¹, OBQ Jr 2018/2020), **"texto"**
+(PDF sem tabela detectável — OBQ 2020¹/2022, OBQ Jr 2019/2021) e **"texto2"**
+(mesma ideia do "texto", ordem de coluna diferente — OBQ 2018/2019). ¹2020 é
+"texto" de verdade: `find_tables()` até devolve "1 tabela", mas o conteúdo
+sai em blocos de texto colados numa única célula — inútil; o texto puro
+(`get_text`) é que vem limpo, achado só depois de tentar a tabela primeiro.
 
-**Anos confirmados**: OBQ 2022, 2024, 2025 — **2023 ficou de fora**: a seção
-de resultados desse ano só publica o PDF da Fase IV (laboratório, já
-filtrado pros medalhistas de Ouro da Modalidade A), sem coluna de medalha
-nenhuma; o PDF de Fase III (que teria Ouro/Prata/Bronze/Menção) não está
-publicado nessa seção — confirmado abrindo a página, não suposição. OBQ Jr
-2021, 2022, 2023 — **2024 e 2025 ficaram de fora**: 2024 só publica código do
-aluno + nome + classificação, sem escola nem UF; 2025 publica seis PDFs
-fragmentados por série que são listas de CLASSIFICADOS (sem medalha) mais
-dois PDFs de medalha só pra escola PÚBLICA — não achei o PDF de medalha geral
+**Anos confirmados** (rodada de 23/09/2026, expandindo a de 22/09): OBQ
+2018-2022, 2024, 2025 — **só 2023 ficou de fora**: a seção de resultados
+desse ano só publica o PDF da Fase IV (laboratório, já filtrado pros
+medalhistas de Ouro da Modalidade A), sem coluna de medalha nenhuma; o PDF
+de Fase III (que teria Ouro/Prata/Bronze/Menção) não está publicado nessa
+seção — confirmado abrindo a página, não suposição. OBQ Jr 2018-2023 —
+**2024 e 2025 ficaram de fora**: 2024 só publica código do aluno + nome +
+classificação, sem escola nem UF; 2025 publica seis PDFs fragmentados por
+série que são listas de CLASSIFICADOS (sem medalha) mais dois PDFs de
+medalha só pra escola PÚBLICA — não achei o PDF de medalha geral
 (pública+privada) da OBQ Jr 2025 nesta rodada.
 
 **Três bugs reais, achados rodando contra dado de verdade, não em teste**:
@@ -1296,18 +1303,18 @@ no PDF de origem — texto duplicado na PRÓPRIA fonte, não um artefato do
 parser; o scraper deduplica pela chave do índice único da 0057 antes de
 gravar o JSON.
 
-Números depois de raspar/importar/resolver (22/09/2026): **1.566**
-`conquista_externa` da OBQ + **5.750** da OBQ Jr, **343** candidatos
-cruzaram com pelo menos outra prova (OBMEP/OBM/OBF/OBI/ITA) — total geral do
-pipeline agora **121.553** `candidato_externo` / **148.348**
-`conquista_externa`.
+Números da primeira rodada (22/09/2026, só 2022/2024/2025 + 2021/2022/2023):
+1.566 `conquista_externa` da OBQ + 5.750 da OBQ Jr. **Superados pela rodada
+de 23/09/2026 — números finais no fim do §13.1**, depois de um bug sério
+achado no meio do caminho.
 
-Reprodutível com:
+Reprodutível com (lista de anos completa após §13.1; abaixo, a forma da
+chamada):
 
 ```sh
 cd captacao-externa
-./.venv/bin/python pipeline/obq.py --anos 2022 2024 2025 --fonte obq
-./.venv/bin/python pipeline/obq.py --anos 2021 2022 2023 --fonte obqjr
+./.venv/bin/python pipeline/obq.py --anos 2018 2019 2020 2021 2022 2024 2025 --fonte obq
+./.venv/bin/python pipeline/obq.py --anos 2018 2019 2020 2021 2022 2023 --fonte obqjr
 
 cd ../api
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
@@ -1322,6 +1329,100 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao
 
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 ```
+
+### 13.1 · Addendum (23/09/2026): bug real de subcontagem em produção, achado expandindo pra 2018-2021 — e por que a OBI não tem o mesmo problema
+
+Pedido do usuário depois da rodada do §13: mais anos, "desde 2018". Abrindo
+os PDFs de 2018-2021 de verdade (mesma régua de sempre) apareceram formatos
+novos — e um deles expôs um bug que já estava rodando em PRODUÇÃO desde
+22/09/2026, nos dados de OBQ 2024 e 2025 que a primeira rodada importou.
+
+**O bug**: `_parsear_obq_tabela` reiniciava `medalha_atual` (a faixa —
+Ouro/Prata/Bronze/Menção/Demais — vigente) e `modalidade` no topo de CADA
+PÁGINA do PDF. Isso é seguro SE o marcador de seção ("OURO", "MODALIDADE A")
+se repete em toda página — e foi exatamente essa suposição, nunca verificada
+linha a linha, que a OBQ 2024/2025 quebra: contando de verdade, o PDF de
+2024 tem 34 páginas e só 2 delas têm uma linha-marcador de medalha; as
+outras 32 tinham TODAS as linhas de dado descartadas em silêncio
+(`if medalha_atual is None: continue`), porque o estado resetava antes de
+qualquer linha ser lida. A faixa mais numerosa ("Demais Classificados",
+naturalmente a que mais se estende por páginas sem repetir marcador) foi a
+mais afetada: 2024 saía com 195 `conquista_externa`; a versão corrigida saiu
+com **1.343** — quase 7×.
+
+Uma segunda camada do MESMO bug, achada ao corrigir a primeira: mesmo
+persistindo o estado ENTRE páginas, o código resetava `medalha_atual`
+sempre que o regex de `"MODALIDADE\s*([AB])"` casava de novo — e
+"MODALIDADE A"/"MODALIDADE B" é cabeçalho CORRIDO, repete em TODA página do
+PDF (confirmado: as 34 páginas de 2024 têm a modalidade certa no topo,
+sempre). Resetar em toda RE-ocorrência em vez de só numa mudança de valor
+reproduzia o mesmo apagão por outro caminho. A correção final só reinicia a
+medalha quando a modalidade detectada é DIFERENTE da anterior.
+
+**Por que a OBI não tem esse bug (perguntado direto pelo usuário, conferido
+no código, não de memória)**: a OBI não tem conceito de "linha-marcador que
+vale pras seguintes até trocar" — cada linha da tabela HTML já carrega a
+própria medalha na primeira célula (`_medalha(celulas[0])`, imagem
+`medalhinha_ouro.gif` ou texto "HM"), avaliada linha por linha, sem estado
+nenhum que precise sobreviver entre requisições. E como cada modalidade/nível
+da OBI é UMA página HTML só (uma requisição, uma árvore DOM completa), não
+existe "virar de página" no meio de uma tabela pra esse estado resetar.
+
+**Achados de formato adicionais, expandindo pra 2018-2021** (nenhum
+previsível sem abrir os PDFs):
+
+1. **Marcador com uma letra por célula** — "O U R O", "P R A T A",
+   "B R O N Z E" — na OBQ 2018/2020 e na OBQ Jr 2018/2020, provavelmente
+   efeito de uma fonte de cabeçalho com tracking largo no PDF de origem.
+   `_medalha_secao`/`_normalizar_medalha` tiravam só espaço DUPLICADO antes;
+   agora tiram TODO espaço, o que resolve o caso sem criar ambiguidade nova
+   (nenhuma medalha vira outra ao perder os espaços).
+2. **A OBQ sozinha já publicou pelo menos três ORDENS de coluna
+   diferentes** em formato tabela — `Estado, Nome, Série, Escola, Nota,
+   Escore` (2024/2025), `Nome, Escola, Estado, Escore` (2021 puxado como
+   texto, ver item 4), `Nome, Escola, Estado, Pontuação, Escore` (2020,
+   idem). Fatiar por posição fixa (`celulas[:6]`, a forma original do
+   parser) supõe uma ordem só. Trocado por `_mapa_colunas`: lê o CABEÇALHO
+   de verdade da tabela e acha nome/escola/estado pelo texto de cada
+   coluna (`\bESTADO\b`, `\bESCOLA\b`, `\bNOME\b`, `\bCIDADE\b`, com
+   fronteira de palavra de propósito — "Colégio ESTADUAL" contém "ESTADO"
+   como substring solto, e pegaria a coluna errada sem a fronteira).
+3. **OBQ 2018/2019 trocam a ORDEM ao redor da âncora**: em vez de
+   nome/escola ANTES do Estado (padrão de 2022), aqui é nome, CIDADE, UF,
+   e só depois ESCOLA — a sigla vem antes da escola, não depois. Virou o
+   formato "texto2" (`_parsear_obq_texto2`), mesma técnica de âncora do
+   "texto", ordem espelhada.
+4. **"Tabela" só de aparência**: a OBQ 2020 e a 2021 fazem `find_tables()`
+   devolver alguma coisa, mas pra 2020 o conteúdo sai em blocos de texto
+   colados numa única célula (inútil) e pra 2021 `find_tables()` só pega a
+   linha de CABEÇALHO, nenhuma linha de dado (a tabela real não tem grade
+   detectável pelo PyMuPDF nesses dois documentos especificamente). As duas
+   viraram "texto" — o texto puro (`get_text`), ao contrário da tabela
+   detectada, sai limpo e na ordem certa nos dois casos.
+5. **OBQ Jr 2020 tem uma coluna fantasma entre nome e escola** — o
+   cabeçalho da tabela chega como `['Nome Do Aluno', 'do', 'Escola do
+   Aluno', 'UF', ...]` (a palavra "do" de "Escola do Aluno" vira cabeçalho
+   de uma coluna PRÓPRIA por um jeito de renderizar o PDF original), e toda
+   linha de dado tem um "A"/"a" solto nessa posição — não é modalidade (só
+   um valor aparece no documento inteiro), parece resíduo administrativo
+   sem significado pro pipeline. `_mapa_colunas`, por procurar
+   nome/escola/estado pelo TEXTO do cabeçalho (não por posição), ignora essa
+   coluna sozinho, sem precisar entender o que ela significa.
+6. **OBQ Jr também tem as duas formas de medalha em tabela**: inline por
+   linha (2022/2023, já documentado) e por linha-marcador de seção (2018,
+   2020, mesmo padrão da OBQ) — `_parsear_obqjr_tabela_marcador` reaproveita
+   o mesmo gerador (`_linhas_tabela_com_marcador`) que a OBQ usa, só troca a
+   forma como monta o `Registro` (sem modalidade, faixa 6º-9º fixa).
+
+**Números finais depois de expandir e corrigir (23/09/2026)**: OBQ passou de
+1.566 para **6.933** `conquista_externa` (2018-2022, 2024, 2025 — 7 anos); OBQ
+Jr passou de 5.750 para **18.069** (2018-2023 — 6 anos). **644** candidatos
+cruzam com pelo menos outra prova (OBMEP/OBM/OBF/OBI/ITA/IME) — mais que o
+dobro dos 343 da rodada anterior, natural com o triplo de conquistas. Total
+geral do pipeline agora **137.861** `candidato_externo` / **166.034**
+`conquista_externa` (local e produção, refeito dos dois lados depois da
+correção — os dados errados da rodada de 22/09/2026 já tinham ido pro banco
+de produção antes do bug aparecer).
 
 ## 14 · OBA pesquisada e descartada — participante ≠ medalhista (22/09/2026)
 
