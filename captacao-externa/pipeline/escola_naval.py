@@ -63,6 +63,39 @@ nome (docs/41 §9), como OBM/ITA/IME/EFOMM.
 `curl` completa com o que já tem por perto, o verificador do Python não
 (`unable to get local issuer certificate`). `verify=False` de propósito,
 mesma justificativa de `pipeline/ime.py` e `pipeline/efomm.py`.
+
+## Nota de 2021/2023/2025 por CRUZAMENTO com um segundo documento
+
+Pedido do usuário depois de olhar que só 2016/2018/2022/2024 tinham nota
+(22/09/2026): pesquisa dirigida achou que a própria fonte oficial também
+publica, à parte do Resultado Final (que só tem inscrição+nome+OREL, sem
+nota), o resultado da fase de PROVAS OBJETIVAS — que TEM nota — pra esses
+três anos. Mesma técnica do IME (docs/41 §11.3.1): junta as duas listas por
+Nº DE INSCRIÇÃO, nunca por nome (grafia pode variar entre os dois PDFs).
+Confirmado rodando de verdade: as inscrições do Resultado Final aparecem
+100% na lista de Provas Objetivas nos três anos.
+
+O formato da linha da Prova Objetiva é o MESMO já coberto por
+`_PADRAO_LINHA`/`_DOCUMENTOS` — é só mais um documento com `rotulos_notas`
+próprio, então vira só uma entrada de enriquecimento em `_DOCUMENTOS`
+(campo `enriquecimento`), sem parser novo.
+
+⚠️ **2021 só tem nota em PARES somados, não as 4 matérias abertas**: o
+próprio PDF define "MI" = soma de Matemática+Inglês e "FP" = soma de
+Física+Português — não dá pra separar Matemática de Inglês dentro do MI
+(nem Física de Português dentro do FP) a partir desse documento. Os rótulos
+`mi`/`fp` (em vez de `mat`/`ing`/`fis`/`por`) marcam essa diferença de
+propósito, pra não passar a impressão de granularidade que a fonte não deu
+— 2023 e 2025 têm as 4 matérias abertas de verdade (MAT/ING/FIS/POR), igual
+2024.
+
+Cobertura do cruzamento: 100% em 2023 e 2025 (100/100 e 68/68 inscrições do
+Resultado Final acharam par na Prova Objetiva); 2021 ficou em 36/37 — a
+única que faltou ("Esther Victoria Valério M. do Nascimento") tem o nome
+quebrado em duas linhas físicas na Prova Objetiva de um jeito que gruda a
+nota na linha ANTES da inscrição aparecer (`sort=True` do PyMuPDF reordena
+assim, mesma categoria de achado já visto no EFOMM/IME/OBQ) — descartado
+como aviso, não vale a pena um regex só pra 1 caso em 423.
 """
 
 from __future__ import annotations
@@ -91,22 +124,26 @@ HEADERS = {
 }
 
 # ano -> (id_file, descrição da fase, tem_secao_titular_reserva, rótulos das
-# colunas de nota NA ORDEM em que aparecem, ou None quando o documento não
-# publica nota nenhuma) — pesquisa dirigida de 17/09/2026 (docstring do
-# módulo), rótulos conferidos abrindo o PDF de cada ano (nunca supostos por
-# analogia): 2016/2018 usam ME+Clas.; 2022 usa MO+RED; 2024 usa MAT/ING/FIS/
-# POR/MO; os três "Resultado Final" simples (2021/2023/2025) não têm nota
-# nenhuma, só inscrição+nome+OREL. `tem_secao_titular_reserva` distingue os
-# dois formatos: Resultado Final separa titular/reserva em seções; "não
+# colunas de nota NA ORDEM em que aparecem (ou None quando o documento
+# principal não publica nota nenhuma), enriquecimento) — pesquisa dirigida de
+# 17/09/2026 (docstring do módulo), rótulos conferidos abrindo o PDF de cada
+# ano (nunca supostos por analogia): 2016/2018 usam ME+Clas.; 2022 usa
+# MO+RED; 2024 usa MAT/ING/FIS/POR/MO. `tem_secao_titular_reserva` distingue
+# os dois formatos: Resultado Final separa titular/reserva em seções; "não
 # eliminados" é uma lista só, sem essa distinção.
-_DOCUMENTOS: dict[int, tuple[int, str, bool, tuple[str, ...] | None]] = {
-    2016: (3354, "Resultado Final", True, ("media", "classificacao")),
-    2018: (4296, "Resultado da Seleção Inicial", True, ("media", "classificacao")),
-    2021: (6360, "Resultado Final da Seleção", True, None),
-    2022: (7000, "Não eliminado nas provas escritas (seleção inicial)", False, ("mo", "red")),
-    2023: (7883, "Resultado Final", True, None),
-    2024: (8335, "Não eliminado nas provas escritas (seleção inicial)", False, ("mat", "ing", "fis", "por", "mo")),
-    2025: (9220, "Resultado Final da Seleção", True, None),
+#
+# `enriquecimento` = (id_file de um SEGUNDO documento, rótulos dele) — pra
+# 2021/2023/2025, cujo Resultado Final não abre nota nenhuma; a nota vem de
+# cruzar por Nº DE INSCRIÇÃO com o resultado da fase de Provas Objetivas
+# daquele mesmo ano (achado de 23/09/2026, docstring do módulo).
+_DOCUMENTOS: dict[int, tuple[int, str, bool, tuple[str, ...] | None, tuple[int, tuple[str, ...]] | None]] = {
+    2016: (3354, "Resultado Final", True, ("media", "classificacao"), None),
+    2018: (4296, "Resultado da Seleção Inicial", True, ("media", "classificacao"), None),
+    2021: (6360, "Resultado Final da Seleção", True, None, (6093, ("mi", "fp", "mo", "re", "me"))),
+    2022: (7000, "Não eliminado nas provas escritas (seleção inicial)", False, ("mo", "red"), None),
+    2023: (7883, "Resultado Final", True, None, (7650, ("mat", "ing", "fis", "por", "mo"))),
+    2024: (8335, "Não eliminado nas provas escritas (seleção inicial)", False, ("mat", "ing", "fis", "por", "mo"), None),
+    2025: (9220, "Resultado Final da Seleção", True, None, (9050, ("mat", "ing", "fis", "por", "mo"))),
 }
 
 # Inscrição sempre no início (âncora inequívoca — nunca aparece em nome), o
@@ -164,6 +201,35 @@ def _resultado_da_posicao(texto: str, inicio_real: int, posicao: int, fase: str,
     return f"{fase} — {'Titular' if ultima == 'titulares' else 'Reserva'}"
 
 
+def _linhas_brutas(texto: str) -> list[tuple[str, str, list[float], int]]:
+    """(inscrição, nome, notas ainda sem rótulo, posição da linha no texto) —
+    bloco comum reaproveitado tanto por `parsear_pdf` (documento principal)
+    quanto por `_notas_por_inscricao` (documento de enriquecimento, docstring
+    do módulo). Descarta aqui, uma vez só, a linha sem nome reconhecível."""
+    saida: list[tuple[str, str, list[float], int]] = []
+    for m in _PADRAO_LINHA.finditer(texto):
+        nome = re.sub(r"\s+", " ", m.group("nome")).strip()
+        if not nome or len(nome.split()) < 2:
+            print(f"  aviso: linha sem nome reconhecível, pulando: {m.group(0)!r}", file=sys.stderr)
+            continue
+        valores = [_numero(v) for v in m.group("notas").split()]
+        saida.append((m.group("insc"), nome, valores, m.start()))
+    return saida
+
+
+def _notas_por_inscricao(texto: str, rotulos_notas: tuple[str, ...]) -> dict[str, dict[str, float]]:
+    """Nota por matéria indexada por Nº DE INSCRIÇÃO, extraída de um SEGUNDO
+    documento (Provas Objetivas) — usado só pra enriquecer um ano cujo
+    documento principal (`_DOCUMENTOS[ano]`) não abre nota nenhuma (docstring
+    do módulo, "Nota de 2021/2023/2025 por CRUZAMENTO"). Por inscrição, não
+    por nome: nome pode variar grafia entre os dois PDFs."""
+    return {
+        insc: dict(zip(rotulos_notas, valores, strict=True))
+        for insc, _nome, valores, _pos in _linhas_brutas(texto)
+        if len(valores) == len(rotulos_notas)
+    }
+
+
 def parsear_pdf(
     conteudo: bytes,
     ano: int,
@@ -171,6 +237,7 @@ def parsear_pdf(
     tem_secoes: bool,
     rotulos_notas: tuple[str, ...] | None,
     fonte_url: str,
+    notas_por_inscricao: dict[str, dict[str, float]] | None = None,
 ) -> list[Registro]:
     doc = pymupdf.open(stream=conteudo, filetype="pdf")
     texto = "\n".join(pagina.get_text("text", sort=True) for pagina in doc)
@@ -179,16 +246,12 @@ def parsear_pdf(
     inicio_real = m_inicio.start() if m_inicio else 0
 
     registros: list[Registro] = []
-    for m in _PADRAO_LINHA.finditer(texto):
-        nome = re.sub(r"\s+", " ", m.group("nome")).strip()
-        if not nome or len(nome.split()) < 2:
-            print(f"  aviso: linha sem nome reconhecível, pulando: {m.group(0)!r}", file=sys.stderr)
-            continue
-
+    for insc, nome, valores, pos in _linhas_brutas(texto):
         notas: dict[str, float] | None = None
-        valores = m.group("notas").split()
         if rotulos_notas and len(valores) == len(rotulos_notas):
-            notas = {r: _numero(v) for r, v in zip(rotulos_notas, valores, strict=True)}
+            notas = dict(zip(rotulos_notas, valores, strict=True))
+        elif notas_por_inscricao is not None:
+            notas = notas_por_inscricao.get(insc)
 
         registros.append(
             Registro(
@@ -197,7 +260,7 @@ def parsear_pdf(
                 nivel_texto="",
                 serie_referencia_min=None,
                 serie_referencia_max=None,
-                resultado=_resultado_da_posicao(texto, inicio_real, m.start(), fase, tem_secoes),
+                resultado=_resultado_da_posicao(texto, inicio_real, pos, fase, tem_secoes),
                 nome_informado=nome,
                 escola_informada="",
                 # Nunca uma cidade: OREL é unidade administrativa, não local
@@ -211,12 +274,27 @@ def parsear_pdf(
     return registros
 
 
-def raspar_ano(ano: int) -> list[Registro]:
-    id_file, fase, tem_secoes, rotulos_notas = _DOCUMENTOS[ano]
+def _baixar(id_file: int) -> bytes:
     url = f"{BASE}/x.pdf?id_file={id_file}"
     resp = requests.get(url, headers=HEADERS, timeout=30, verify=False)
     resp.raise_for_status()
-    return parsear_pdf(resp.content, ano, fase, tem_secoes, rotulos_notas, url)
+    return resp.content
+
+
+def raspar_ano(ano: int) -> list[Registro]:
+    id_file, fase, tem_secoes, rotulos_notas, enriquecimento = _DOCUMENTOS[ano]
+    url = f"{BASE}/x.pdf?id_file={id_file}"
+    conteudo = _baixar(id_file)
+
+    notas_extra = None
+    if enriquecimento:
+        id_file_po, rotulos_po = enriquecimento
+        doc_po = pymupdf.open(stream=_baixar(id_file_po), filetype="pdf")
+        texto_po = "\n".join(pagina.get_text("text", sort=True) for pagina in doc_po)
+        notas_extra = _notas_por_inscricao(texto_po, rotulos_po)
+        print(f"    enriquecimento: {len(notas_extra)} inscrições com nota (id_file={id_file_po})", file=sys.stderr)
+
+    return parsear_pdf(conteudo, ano, fase, tem_secoes, rotulos_notas, url, notas_por_inscricao=notas_extra)
 
 
 def main() -> None:
