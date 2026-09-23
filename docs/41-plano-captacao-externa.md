@@ -975,6 +975,49 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 ```
 
+#### 11.2.1 · Addendum (23/09/2026): nota de 2021/2023/2025 por cruzamento com um segundo documento
+
+Pedido do usuário depois de perguntar quais anos do CPAEN não tinham nota —
+2016/2018/2022/2024 tinham, 2021/2023/2025 não (só "Resultado Final",
+inscrição+nome+OREL). Pesquisa dirigida (por Workflow, três agentes em
+paralelo, um por ano) achou que a PRÓPRIA fonte oficial também publica, à
+parte, o resultado da fase de **Provas Objetivas** desses três anos — que
+TEM nota — em documentos com `id_file` próprio nunca usados antes por este
+scraper (6093, 7650, 9050). Mesma técnica do IME (§11.3.1): cruzar as duas
+listas por **Nº DE INSCRIÇÃO**, nunca por nome (grafia pode variar entre os
+dois PDFs de gerações diferentes do mesmo sistema).
+
+**Confirmado rodando de verdade, não por suposição de nome de arquivo**: os
+três candidatos-PDF foram baixados e o texto extraído foi lido letra por
+letra antes de qualquer coisa entrar no scraper — inclusive um quase-engano
+descartado no caminho (`id_file=6583`, que a busca rotulava como "Resultado
+Final" 2021 mas cujo conteúdo real, lido de verdade, é do CPACN — Colégio
+Naval, outro concurso da mesma casa).
+
+**Cobertura**: 2023 e 2025 fecharam 100% (100/100 e 68/68 inscrições do
+Resultado Final acharam par na Prova Objetiva, com as 4 matérias abertas —
+MAT/ING/FIS/POR/MO, igual 2024). 2021 fechou 36/37 — a única sem par tem o
+nome quebrado em duas linhas físicas na Prova Objetiva de um jeito que gruda
+a nota na linha ANTES da inscrição aparecer (mesma categoria de achado do
+EFOMM/IME/OBQ com nome comprido), descartada como aviso de 1 caso isolado.
+
+⚠️ **2021 só abre nota em PARES somados, não as 4 matérias separadas**: o
+próprio PDF de 2021 define "MI" = soma de Matemática+Inglês e "FP" = soma
+de Física+Português — granularidade pior que 2023/2025/2024 (que têm
+MAT/ING/FIS/POR abertos), mas ainda assim melhor que nenhuma nota. Os
+rótulos do JSON usam `mi`/`fp` em vez de `mat`/`ing`/`fis`/`por` pra não
+fingir uma precisão que a fonte de 2021 não dá.
+
+`pipeline/escola_naval.py` ganhou um quinto campo em `_DOCUMENTOS`
+(`enriquecimento`: `id_file` do segundo documento + seus rótulos de nota) —
+sem parser novo, o formato de linha da Prova Objetiva é o MESMO que
+`_PADRAO_LINHA` já cobria pros outros anos.
+
+Números depois de reimportar (local e produção, sem precisar rodar o
+resolver de novo — a nota não muda identidade nem cria conquista nova, só
+enriquece uma célula de conquistas já existentes): 204 das 205 conquistas de
+2021/2023/2025 (99,5%) passaram a ter `notas_por_materia`, contra 0 antes.
+
 ### 11.3 · IME revisitado: o §6.2.1 estava errado — tem sim uma 2ª fase (17/09/2026)
 
 Um usuário mandou um link de mirror de cursinho pro IME
