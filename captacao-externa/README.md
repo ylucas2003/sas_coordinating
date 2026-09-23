@@ -28,7 +28,7 @@ PostgREST — nunca SQL direto, mesma regra do resto do backend.
 
 ```
 captacao-externa/
-├── requirements.txt         requests, beautifulsoup4, lxml, pymupdf (PDF: IME e EFOMM)
+├── requirements.txt         requests, beautifulsoup4, lxml, pymupdf (PDF: IME, EFOMM, OBQ/OBQ Jr)
 ├── pipeline/
 │   ├── obmep.py              1º scraper — Ouro/Prata/Bronze, 2016-2025 exceto 2020 (não existe)
 │   ├── obm.py                2º scraper — Ouro/Prata/Bronze/Menção Honrosa, 2016-2025 completo
@@ -36,10 +36,21 @@ captacao-externa/
 │   ├── ime.py                4º scraper — CACFG/IME, 9 de 11 anos entre 2016-2025, 2 fases por ano (URL curada — docs/41 §6.2, §11.3)
 │   ├── obf.py                5º scraper — Ouro/Prata/Bronze/Menção Honrosa da OBF, 2023-2025 (publica escola — docs/41 §5.2)
 │   ├── efomm.py              6º scraper — CIAGA/CIABA, 6 anos (2017, 2022-2026), 1ª fase + final (URL curada — docs/41 §11.1)
-│   └── escola_naval.py       7º scraper — CPAEN, 7 de 11 anos entre 2016-2025 (`id_file` curado à mão — docs/41 §11.2)
+│   ├── escola_naval.py       7º scraper — CPAEN, 7 de 11 anos entre 2016-2025 (`id_file` curado à mão — docs/41 §11.2)
+│   ├── obi.py                8º scraper — Quadro de Medalhas da OBI, 2005-2025 exceto 2018 (publica escola — docs/41 §12)
+│   └── obq.py                9º e 10º scraper (OBQ + OBQ Jr, duas prova_externa) — primeira fonte em PDF do
+│                             projeto, dois formatos de PDF por ano (docs/41 §13)
 └── dados/                    JSON cru por ano — NÃO VERSIONADO
-    └── obmep_2025.json, obm_2025.json, ita_2025.json, ime_2025.json, obf_2025.json, efomm_2026.json, escola_naval_2025.json...
+    └── obmep_2025.json, obm_2025.json, ita_2025.json, ime_2025.json, obf_2025.json, efomm_2026.json,
+        escola_naval_2025.json, obi_2025.json, obq_2025.json, obqjr_2023.json...
 ```
+
+⚠️ **OBA foi pesquisada e NÃO virou scraper** — a ferramenta pública de
+consulta (nas duas telas que o site tem, a nova em Next.js e a antiga em
+PHP) é um verificador POR PESSOA, não um quadro de medalhas: devolve o
+cadastro inteiro de participantes que batem UF+ano (238 mil só no Ceará em
+2024) e só diz se cada um ganhou medalha abrindo o detalhe individual —
+inviável em escala. Decisão e investigação completa em docs/41 §14.
 
 ## Setup
 
@@ -197,6 +208,47 @@ POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 ```
 
+E pra OBI (docs/41 §12) — publica escola, funde de verdade com OBMEP/OBF
+como a OBI mesma. A descoberta de modalidade é dinâmica (lida da própria
+página-índice do ano), então **não tem lista fixa de níveis** — só o ano:
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/obi.py --anos 2005 2008 2010 2015 2016 2017 2019 2020 2021 2022 2023 2024 2025
+# 2018 não existe (404 real, confirmado abrindo a URL — não é bug do scraper)
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/obi_*.json \
+    --prova-categoria olimpiada --prova-abrangencia nacional \
+    --prova-fonte "https://olimpiada.ic.unicamp.br/passadas/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
+E pra OBQ/OBQ Jr (docs/41 §13) — duas `prova_externa`, o mesmo script,
+primeira fonte do projeto em PDF. `--fonte` escolhe qual das duas raspar
+(`obq`, `obqjr` ou `ambas`, default):
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/obq.py --anos 2022 2024 2025 --fonte obq
+./.venv/bin/python pipeline/obq.py --anos 2021 2022 2023 --fonte obqjr
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/obq_*.json \
+    --prova-categoria olimpiada --prova-abrangencia nacional \
+    --prova-fonte "https://obquimica.org/olimpiada/olimpiada-brasileira-de-quimica"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/obqjr_*.json \
+    --prova-categoria olimpiada --prova-abrangencia nacional \
+    --prova-fonte "https://obquimica.org/olimpiada/olimpiada-brasileira-de-quimica-junior"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
 `POSTGREST_URL=http://localhost:3000` é porque `api/.env` local não define
 essa variável — sem ela, `criar_cliente_supabase()` cairia no branch de
 Supabase hospedado (ver [api/app/supabase_client.py](../api/app/supabase_client.py)).
@@ -229,14 +281,18 @@ OBMEP (2016-2025, exceto 2020, que não existe), OBM (2016-2025 completo),
 OBF (2023-2025), ITA (2024-2025 ao vivo — convocados 2ª e 3ª fase — mais
 2021-2023 via Wayback Machine — lista completa de 1ª e 2ª fase, §6.1.2),
 IME (9 de 11 anos entre 2016-2025, 2 fases por ano — inclusive nota de quem
-NÃO passou na 2ª fase de 2022-2025, §11.3.1) e EFOMM (6 anos: 2017, 2022-2026,
-CIAGA/CIABA) e Escola Naval (7 de 11 anos entre 2016-2025, CPAEN) — as
-quatro últimas são validação, não captação — **95.997** `candidato_externo`
-/ **125.809** `conquista_externa` resolvidos em produção (depois do lote de
-fusão em massa do §10, que reduziu duplicata de baixa confiança; da expansão
-de IME/EFOMM do §11.1/§11.3 via mirror de cursinho e Wayback Machine; do ITA
-2021-2023 do §6.1.2; e da nota de não aprovados do IME, §11.3.1). AFA
-pesquisada e deixada de fora (bloqueio de Cloudflare, docs/41 §11). Números
-da última
-rodada e o resto da fila de fontes: docs/41 §5, §5.1, §5.2, §6.1, §6.1.2,
-§6.2, §6.2.1, §10, §11, §11.1, §11.2 e §11.3.
+NÃO passou na 2ª fase de 2022-2025, §11.3.1), EFOMM (6 anos: 2017, 2022-2026,
+CIAGA/CIABA), Escola Naval (7 de 11 anos entre 2016-2025, CPAEN), OBI (2005,
+2008, 2010, 2015-2025 exceto 2018, que não existe — §12) e OBQ/OBQ Jr
+(OBQ: 2022, 2024, 2025; OBQ Jr: 2021, 2022, 2023 — primeira fonte em PDF,
+§13) — quatro delas (ITA/IME/EFOMM/Escola Naval) são validação, não
+captação — **121.553** `candidato_externo` / **148.348** `conquista_externa`
+resolvidos neste ambiente (números de 22/09/2026, depois do lote de fusão em
+massa do §10, da expansão de IME/EFOMM via mirror de cursinho e Wayback
+Machine, do ITA 2021-2023, da nota de não aprovados do IME e das duas fontes
+novas desta rodada — OBI e OBQ/OBQ Jr). AFA pesquisada e deixada de fora
+(bloqueio de Cloudflare, docs/41 §11); OBA pesquisada e deixada de fora
+(ferramenta pública é verificador individual, não quadro de medalhas,
+docs/41 §14). Números da última rodada e o resto da fila de fontes: docs/41
+§5, §5.1, §5.2, §6.1, §6.1.2, §6.2, §6.2.1, §10, §11, §11.1, §11.2, §11.3,
+§12, §13 e §14.
