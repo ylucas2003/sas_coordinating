@@ -301,13 +301,16 @@ match do §4.1 não tem o que comparar, como se descobriu tarde demais com a
 OBM — §5.1) **e** já tem arquivo público multi-ano confirmado no Dossiê de
 Provas. Nessa ordem:
 
-1. **OBA** — [Dossiê 02](../Dossie%20de%20Provas/02-nacionais-biologia-astronomia-informatica-ciencias-historia.md),
-   `novo.oba.org.br/medalhas` (SPA — precisa investigar se dá pra raspar sem
-   navegador headless, diferente da OBMEP que é HTML estático).
-2. **OBI** — mesmo arquivo do Dossiê, `olimpiada.ic.unicamp.br/passadas/`,
-   1999-2025 confirmado, HTML estático.
-3. **OBQ / OBQ Jr** — mesmo arquivo, `obquimica.org`, PDFs por ano (precisa de
-   extração de PDF, não só HTML — primeira fonte que vai exigir isso).
+1. ~~**OBA**~~ — **pesquisada e descartada, ver §14.** Não é SPA-mas-raspável:
+   o achado real (não suposição) é que a ferramenta pública é um verificador
+   POR PESSOA, não um quadro de medalhas — devolve o cadastro inteiro de
+   participantes (238 mil só no Ceará em 2024) e exige uma requisição por
+   aluno pra saber se ele ganhou medalha ou não.
+2. ~~**OBI**~~ — **feito, ver §12.** `olimpiada.ic.unicamp.br/passadas/`,
+   HTML estático, 2005-2025 (exceto 2018, que não existe).
+3. ~~**OBQ / OBQ Jr**~~ — **feito, ver §13.** `obquimica.org`, PDFs por ano —
+   primeira fonte do projeto em PDF, com o parser tendo que lidar com DOIS
+   formatos de PDF diferentes conforme o ano.
 
    ⚠️ Antes de raspar qualquer uma: **confira se ela publica escola** (a OBM
    não publicava, e só se descobriu abrindo o HTML de verdade — o Dossiê de
@@ -649,12 +652,13 @@ lá.
 
 1. ~~Enriquecimento por nome (+ cidade/UF) pra fonte sem escola~~ —
    **fechado em 16/09/2026, ver §9.**
-2. **PDF como fonte.** OBQ/OBQ Jr (§6, item 4) vai ser a primeira fonte que
-   não é HTML estático — precisa decidir a biblioteca (o projeto já usa
-   `pymupdf` em `banco-questoes/`, é candidato natural a reaproveitar).
-3. **Página em JavaScript (SPA) como fonte.** A OBA (§6, item 2) parece ser
-   SPA — `requests` sozinho não deve dar conta; pode precisar do Chrome MCP
-   ou de achar um endpoint de API por trás da tela.
+2. ~~PDF como fonte~~ — **fechado em 22/09/2026, ver §13.** OBQ/OBQ Jr usam
+   `pymupdf` (mesma biblioteca do `banco-questoes/`), com dois formatos de
+   parsing conforme o gerador do PDF mudou de ano pra ano.
+3. ~~Página em JavaScript (SPA) como fonte~~ — **investigada em 22/09/2026,
+   ver §14: não virou scraper.** A OBA tem duas telas (uma SPA quebrada em
+   migração, uma clássica funcionando) mas nenhuma das duas publica quadro de
+   medalhas de verdade — a busca pública é só verificação individual.
 4. **Agendamento do scraper.** Hoje é rodado à mão. Quando tiver mais de 2-3
    fontes, faz sentido `infra/vps/crontab-sas` rodar isso periodicamente —
    mas só depois de validar cada fonte manualmente pelo menos uma vez (§4,
@@ -1159,3 +1163,207 @@ provas/anos afetados com `resultado LIKE 'ATIVA%' OR resultado LIKE
 `candidato_externo` que ficou sem nenhuma conquista (o `DELETE` acima orfanou
 quem só tinha ESSA conquista) — mesma sequência de 4 passos que corrigiu o
 dev local desta sessão.
+
+## 12 · Oitava fonte: OBI — a segunda que cruza de verdade com a OBMEP (22/09/2026)
+
+[`pipeline/obi.py`](../captacao-externa/pipeline/obi.py) raspa o Quadro de
+Medalhas da OBI (Olimpíada Brasileira de Informática, SBC/Instituto de
+Computação da Unicamp). **Publica ESCOLA** — segunda fonte depois da OBF a
+cruzar automaticamente com quem a OBMEP já resolveu, pela régua de match do
+§4.1 (nome+escola exatos), sem precisar da fila de baixa confiança do §9.
+
+**Descoberta de modalidade é dinâmica, não uma lista fixa.** O código da URL
+de cada modalidade/nível muda de sentido entre edições — `pu` foi "Modalidade
+Universitária" em 2015 e virou "Modalidade Programação Nível Sênior" em
+2020+; "Iniciação Júnior" só passou a existir por volta de 2020. O scraper lê
+os links de fato presentes na página-índice de cada ano
+(`/passadas/OBI{ano}/qmerito/{código}/`) em vez de hardcodar modalidades.
+
+**Dois achados de formato, nenhum óbvio sem abrir o HTML de verdade:**
+
+1. A largura da tabela varia (6 ou 7 células, conforme o ano tem ou não uma
+   coluna de "Pontos") — sem problema, porque nome/escola/cidade/estado
+   sempre são as ÚLTIMAS quatro células, e a medalha é sempre a PRIMEIRA,
+   custe o que custar no meio (mesmo truque do `celulas[-6:]` da OBMEP,
+   agora aplicado dos dois lados).
+2. **2008 e 2009 têm uma tabela-fantasma antes da de verdade** — um
+   `<table>` de uma linha só, artefato de espaçamento da legenda de medalhas,
+   com todas as células vazias. Pegar a PRIMEIRA tabela da página (o que
+   pareceria óbvio) devolve zero registro em silêncio; a correção foi pegar a
+   tabela com MAIS linhas.
+
+**Achado que muda o escopo de captura**: até 2024 a Menção Honrosa vinha DE
+GRAÇA na mesma tabela do Quadro de Medalhas (texto "HM" na mesma célula da
+imagem de Ouro/Prata/Bronze) — zero custo extra, mesmo raciocínio que já
+valia pra Menção Honrosa da OBM/OBF. **A partir de 2025 isso mudou**: saiu da
+tabela principal e foi pra uma página separada por UF ("Honra ao Mérito
+Estadual", ~24 requisições por edição) — o MESMO custo que fez a OBMEP
+excluir Menção Honrosa de propósito (docs/41 §5). Esta versão do scraper não
+segue esse link, mesma decisão de custo/sinal.
+
+Achado à parte: desde 2023 a página também lista Quadro de Medalhas da
+"Competição Feminina da OBI" (CF-OBI) — o próprio regulamento a descreve como
+prova com "resultado independente do resultado da OBI", então fica de fora
+como fonte própria, não como extensão.
+
+**Anos raspados**: 2005, 2008, 2010, 2015-2025, exceto **2018 — confirmado
+que não existe** (o índice de anos anteriores lista um link pra `OBI2018/`,
+mas a URL devolve 404 de verdade, `curl` direto confirma; mesma categoria do
+buraco de 2020 da OBMEP, ausência real do lado do site). 1999-2004 usam um
+formato mais antigo sem quebra por nível (`/iniciacao/`, `/programacao/`
+inteiros) — fora de escopo, valor baixo pra captação (resultado de 20+ anos).
+
+Números depois de raspar/importar/resolver (22/09/2026): **7.203**
+`conquista_externa` novas, **5.864** viraram candidato novo, **252**
+fundiram-se com candidato que outra prova já tinha resolvido — total geral do
+pipeline agora **114.763** `candidato_externo` / **141.032**
+`conquista_externa`. Exemplo real de cruzamento, achado validando a amostra:
+um aluno do Colégio Ari de Sá Cavalcante (a própria escola-cliente do SAS)
+apareceu com Ouro de Programação Júnior na OBI 2021, o mesmo nome+escola já
+resolvido via OBMEP/OBF em anos anteriores.
+
+Reprodutível com:
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/obi.py --anos 2005 2008 2010 2015 2016 2017 2019 2020 2021 2022 2023 2024 2025
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/obi_*.json \
+    --prova-categoria olimpiada --prova-abrangencia nacional \
+    --prova-fonte "https://olimpiada.ic.unicamp.br/passadas/"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
+## 13 · Nona e décima fontes, mesmo script: OBQ e OBQ Jr — primeira fonte do projeto em PDF (22/09/2026)
+
+[`pipeline/obq.py`](../captacao-externa/pipeline/obq.py) raspa a OBQ
+(Olimpíada Brasileira de Química, público de Ensino Médio) e a OBQ Jr
+(6º-9º ano do Fundamental) — duas `prova_externa` distintas, do mesmo
+programa (PNOQ, UFC+UFPI), produzidas pelo mesmo script porque a fonte
+(`obquimica.org`) é a mesma e os formatos de PDF se repetem entre as duas.
+
+**Primeira fonte em PDF do projeto que não é IME/EFOMM/Escola Naval** — e o
+gerador do PDF mudou pelo menos duas vezes na década, então o script tem
+DOIS caminhos de parsing curados por ano em `_DOCUMENTOS_OBQ`/
+`_DOCUMENTOS_OBQ_JR`: **"tabela"** (PDF de planilha, `pagina.find_tables()`
+do PyMuPDF lê direto — OBQ 2024/2025, OBQ Jr 2022/2023) e **"texto"** (PDF
+mais antigo sem tabela detectável — OBQ 2022, OBQ Jr 2021).
+
+**Anos confirmados**: OBQ 2022, 2024, 2025 — **2023 ficou de fora**: a seção
+de resultados desse ano só publica o PDF da Fase IV (laboratório, já
+filtrado pros medalhistas de Ouro da Modalidade A), sem coluna de medalha
+nenhuma; o PDF de Fase III (que teria Ouro/Prata/Bronze/Menção) não está
+publicado nessa seção — confirmado abrindo a página, não suposição. OBQ Jr
+2021, 2022, 2023 — **2024 e 2025 ficaram de fora**: 2024 só publica código do
+aluno + nome + classificação, sem escola nem UF; 2025 publica seis PDFs
+fragmentados por série que são listas de CLASSIFICADOS (sem medalha) mais
+dois PDFs de medalha só pra escola PÚBLICA — não achei o PDF de medalha geral
+(pública+privada) da OBQ Jr 2025 nesta rodada.
+
+**Três bugs reais, achados rodando contra dado de verdade, não em teste**:
+
+1. **"Prata" e "Ouro" são sobrenome real de aluno, e "Lagoa da Prata"/"Ouro
+   Fino" são cidade real (MG)** — a primeira versão do parser de texto
+   reconhecia a medalha da seção atual por SUBSTRING (útil pra célula de
+   tabela isolada, onde só pode ter o rótulo da medalha), aplicada linha a
+   linha no texto inteiro. Um aluno com esse sobrenome ou uma dessas cidades
+   reiniciava a "medalha atual" pro resto do documento — inflou "Prata" de
+   ~400 pra quase 4.000 registros na OBQ Jr 2021, silenciosamente rotulando
+   errado tudo que vinha depois. Corrigido com `_medalha_secao`, que só
+   reconhece a linha INTEIRA e SÓ o nome da faixa, nunca por substring.
+2. **NUL byte no lugar de "é"/"É"** — a fonte embutida do PDF da OBQ Jr 2021
+   não mapeia esse glifo, e o PyMuPDF devolve `\x00` em nomes como "Moisés"
+   e "Érica". Postgres/PostgREST recusam qualquer texto com NUL embutido
+   ("unsupported Unicode escape sequence") — a importação inteira falhava
+   por causa de um nome. `_texto_pagina` troca `\x00` por "é" (aproximação
+   documentada, não certeza absoluta de maiúscula/minúscula).
+3. **Escola com nome comprido quebra em duas linhas físicas no PDF** — mesma
+   categoria do "nome comprido" já visto no EFOMM/IME, só que aqui quem
+   quebra é a ESCOLA, e a âncora (que lê nome/escola pelas linhas
+   imediatamente antes do Estado/UF) desliza uma posição, fazendo a segunda
+   metade do nome da escola virar "nome_informado". `_parece_nome_de_pessoa`
+   descarta esses registros (não tenta reconstruir) — melhor perder a linha
+   do que gravar identidade errada.
+
+**Achado à parte, sem bug nenhum**: a OBQ (adulto) não publica cidade, só
+Estado — mesma categoria de "a OBM não publica escola" (§5.1); a OBQ Jr
+publica cidade nos três anos raspados. E a OBQ 2022 repete "Gustavo Zanete
+Alencar / Colegio Harmonia" inteiro, com o mesmo resultado, 21 linhas adiante
+no PDF de origem — texto duplicado na PRÓPRIA fonte, não um artefato do
+parser; o scraper deduplica pela chave do índice único da 0057 antes de
+gravar o JSON.
+
+Números depois de raspar/importar/resolver (22/09/2026): **1.566**
+`conquista_externa` da OBQ + **5.750** da OBQ Jr, **343** candidatos
+cruzaram com pelo menos outra prova (OBMEP/OBM/OBF/OBI/ITA) — total geral do
+pipeline agora **121.553** `candidato_externo` / **148.348**
+`conquista_externa`.
+
+Reprodutível com:
+
+```sh
+cd captacao-externa
+./.venv/bin/python pipeline/obq.py --anos 2022 2024 2025 --fonte obq
+./.venv/bin/python pipeline/obq.py --anos 2021 2022 2023 --fonte obqjr
+
+cd ../api
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/obq_*.json \
+    --prova-categoria olimpiada --prova-abrangencia nacional \
+    --prova-fonte "https://obquimica.org/olimpiada/olimpiada-brasileira-de-quimica"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
+    ../captacao-externa/dados/obqjr_*.json \
+    --prova-categoria olimpiada --prova-abrangencia nacional \
+    --prova-fonte "https://obquimica.org/olimpiada/olimpiada-brasileira-de-quimica-junior"
+
+POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
+```
+
+## 14 · OBA pesquisada e descartada — participante ≠ medalhista (22/09/2026)
+
+Pesquisada como a mais difícil das três fontes desta rodada (§6, item 1), por
+ser SPA. O achado real inverteu a razão de ela ser difícil: não é o
+JavaScript que barra a raspagem, é que **a ferramenta pública não é um
+quadro de medalhas — é um verificador individual**, e isso só apareceu
+abrindo a fonte de verdade, exatamente a régua que este documento pede antes
+de escrever qualquer parser.
+
+**Dois domínios vivos, sistemas diferentes.** `novo.oba.org.br/medalhas` (e
+`oba.org.br`, que serve o mesmo app) é a SPA em Next.js citada no Dossiê de
+Provas — confirmado com Chrome MCP que o `<select name="uf">` do formulário
+de busca está com **zero `<option>`** (dropdown vazio, quebrado) e que
+submeter a busca só troca a URL (`?year=2024&name=&city=`) sem nunca desenhar
+resultado nenhum na tela — nenhuma requisição `fetch`/`xhr` nova acontece,
+então não existe endpoint de API pra descobrir por trás dela: o recurso está
+com bug de verdade nesta fase da migração do site.
+
+`sistema.oba.org.br/site/` é o sistema ANTIGO (PHP/GridWeb), ainda no ar, com
+sua própria página "Medalhas OBA e OBAFOG" — funcional, formulário real com
+anos 2007-2025 e as 27 UFs. Lendo o JavaScript da página (não adivinhando) a
+busca de verdade vai pra
+`index.php?p=conteudo&idcat=22&pag=conteudo&acao=pesquisa&nome=&cidade=&uf={UF}&olimp=oba&ed={ano}`
+— e essa URL FUNCIONA direto com `requests`, sem precisar de navegador.
+
+**O motivo de não virar scraper**: essa busca devolve o **cadastro inteiro de
+participantes** que batem o filtro (uf/ano), não uma lista de medalhistas —
+a própria página avisa "clique no nome para verificar se recebeu medalha".
+Testado de verdade: `uf=CE&ed=2024` sozinho devolveu **238.189 registros**
+(confirmado pelo contador "registro(s) encontrado(s)" da própria página), e
+abrir o detalhe de um desses alunos (`acao=mostra&idaluno={id}`) mostrou
+"MEDALHA OBA: (Sem medalha)" — ele é só um inscrito, não um premiado. Saber
+quem de fato ganhou medalha (e qual) exigiria uma requisição PRA CADA um dos
+milhões de inscritos nacionais, ano a ano — ordem de grandeza incompatível
+com qualquer coisa que este projeto já raspou, e o tipo de carga que
+sobrecarregaria o servidor de terceiro sem necessidade real (mesma prudência
+que já vale pro bloqueio de bot da AFA, §11: não vale contornar limite nem
+forçar escala que a fonte não foi feita pra aguentar).
+
+Nenhum PDF de resultado consolidado (do tipo que a OBI/OBQ publicam) foi
+achado em nenhum dos dois domínios. **Decisão: OBA fica de fora — não por
+falta de tentativa, mas porque a fonte pública não publica o dado que este
+pipeline precisa**, mesma categoria de exclusão documentada da AFA (§11),
+não uma lacuna a perseguir depois.
