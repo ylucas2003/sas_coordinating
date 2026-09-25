@@ -3,7 +3,16 @@ import { Link } from 'react-router-dom';
 
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { BarraFiltros, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
+import { TarjaProcedencia } from '../../componentes/ui/TarjaProcedencia';
 import { useFusoes } from '../../hooks/captacao';
+
+/**
+ * As duas confianças do backend (`uf_incerta`, `so_conflito_nivel`) viram UMA
+ * escolha de rádio na tela — nunca fez sentido revisar "só UF divergente E
+ * só conflito de nível" ao mesmo tempo; são duas lentes sobre a MESMA fila,
+ * não filtros combináveis.
+ */
+type FiltroConfianca = 'todos' | 'incertos' | 'conflito';
 
 // A fila de fusão de baixa confiança (docs/41 §8, item 1). O resolver só
 // funde candidato_externo por nome+escola EXATOS (§4.1) — de propósito,
@@ -20,9 +29,10 @@ const POR_PAGINA = 20;
 
 export function CaptacaoFusoes() {
   const [pagina, setPagina] = useState(1);
-  const [ufIncerta, setUfIncerta] = useState<boolean | null>(null);
+  const [filtroConfianca, setFiltroConfianca] = useState<FiltroConfianca>('todos');
   const { data, isPending, isError, isPlaceholderData } = useFusoes({
-    ufIncerta: ufIncerta ?? undefined,
+    ufIncerta: filtroConfianca === 'incertos' ? true : undefined,
+    soConflitoNivel: filtroConfianca === 'conflito' ? true : undefined,
     pagina,
     porPagina: POR_PAGINA,
   });
@@ -45,21 +55,25 @@ export function CaptacaoFusoes() {
 
       <BarraFiltros
         tela="captacao-fusoes"
-        algumAtivo={ufIncerta === true}
-        onLimpar={() => { setUfIncerta(null); setPagina(1); }}
+        algumAtivo={filtroConfianca !== 'todos'}
+        onLimpar={() => { setFiltroConfianca('todos'); setPagina(1); }}
         grupos={[
           {
             chave: 'confianca',
             rotulo: 'Confiança',
-            resumo: ufIncerta ? 'só incertos' : null,
+            resumo:
+              filtroConfianca === 'incertos' ? 'só incertos'
+              : filtroConfianca === 'conflito' ? 'prováveis pessoas diferentes'
+              : null,
             corpo: (
               <PillsUnica
                 opcoes={[
                   { valor: 'todos', label: 'Todos' },
                   { valor: 'incertos', label: 'Só incertos (UF divergente)' },
+                  { valor: 'conflito', label: 'Prováveis pessoas diferentes' },
                 ]}
-                selecionado={ufIncerta ? 'incertos' : 'todos'}
-                onSelecionar={(v) => { setUfIncerta(v === 'incertos'); setPagina(1); }}
+                selecionado={filtroConfianca}
+                onSelecionar={(v) => { setFiltroConfianca(v as FiltroConfianca); setPagina(1); }}
               />
             ),
           },
@@ -82,7 +96,9 @@ export function CaptacaoFusoes() {
           <div className="empty-state">
             Fila vazia.
             <div className="empty-state__hint">
-              {ufIncerta ? 'Nenhum grupo incerto sobrando — tire o filtro pra ver o resto.' : 'Nada pra revisar agora.'}
+              {filtroConfianca !== 'todos'
+                ? 'Nenhum grupo nesse filtro sobrando — tire ele pra ver o resto.'
+                : 'Nada pra revisar agora.'}
             </div>
           </div>
         ) : (
@@ -104,7 +120,16 @@ export function CaptacaoFusoes() {
                   </td>
                   <td data-rotulo="Candidatos">{g.candidatos}</td>
                   <td data-rotulo="Confiança">
-                    {g.ufs_distintas <= 1 ? 'Mesma UF' : `${g.ufs_distintas} UFs diferentes`}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {g.ufs_distintas <= 1 ? 'Mesma UF' : `${g.ufs_distintas} UFs diferentes`}
+                      {/* Sinal FORTE, antes só visível depois de abrir o grupo
+                          (docs/41, 24/09/2026) — agora aparece já na fila,
+                          pra priorizar a revisão sem precisar clicar em cada
+                          linha. */}
+                      {g.tem_conflito_nivel && (
+                        <TarjaProcedencia estado="falhou" fonte="nível de ensino conflitante" />
+                      )}
+                    </span>
                   </td>
                 </tr>
               ))}

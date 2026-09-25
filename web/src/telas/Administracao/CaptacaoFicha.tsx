@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { Kpi } from '../../componentes/ui/Kpi';
+import { TarjaProcedencia } from '../../componentes/ui/TarjaProcedencia';
 import { useTituloDaTela } from '../../componentes/layout/migalhas';
 import { rotuloDaSerie, serieEstimadaHoje } from '../../dominio/captacao';
 import { useAtualizarCandidato, useCandidato } from '../../hooks/captacao';
@@ -87,6 +88,28 @@ export function CaptacaoFicha() {
   return (
     <div className="tela">
       <CabecaDeCampo titulo={candidato.nome} para="/administracao/captacao" destino="Captação externa" />
+
+      {/* Alerta de duplicata pendente (docs/41, 24/09/2026): a coordenação
+          descobre a partir do PERFIL da pessoa, não só varrendo a fila de
+          fusão separada. `falhou` (sinal forte — nível de ensino conflitante,
+          quase certeza de homônimo) e `pendente` (revisão de rotina) são os
+          dois estados de TarjaProcedencia que já existiam; nenhum glifo novo. */}
+      {candidato.duplicatas_pendentes > 0 && (
+        <Link
+          className="procedencia-elo"
+          to={`/administracao/captacao/fusoes/${encodeURIComponent(candidato.nome_normalizado)}`}
+        >
+          <TarjaProcedencia
+            estado={candidato.tem_conflito_nivel ? 'falhou' : 'pendente'}
+            fonte={
+              candidato.tem_conflito_nivel
+                ? 'nível de ensino conflitante — provavelmente pessoas diferentes'
+                : `${candidato.duplicatas_pendentes} outro${candidato.duplicatas_pendentes > 1 ? 's' : ''} perfil${candidato.duplicatas_pendentes > 1 ? 'is' : ''} com esse nome`
+            }
+            dica="Revisar quem é quem na fila de fusão"
+          />
+        </Link>
+      )}
 
       <section className="card">
         <h2 className="section__title">Dados cruzados</h2>

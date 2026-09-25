@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { CabecaDeCampo, EloQuieto } from '../../componentes/ui/Campo';
 import { BarraFiltros, Busca, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
+import { TarjaProcedencia } from '../../componentes/ui/TarjaProcedencia';
 import { resumirTexto } from '../../dominio/filtros';
 import { useCandidatos, useFusoes } from '../../hooks/captacao';
 import type { FiltrosCaptacao as Filtros, StatusCaptacao } from '../../tipos/captacao';
@@ -199,7 +200,26 @@ export function Captacao() {
               {candidatos.map((c) => (
                 <tr key={c.id}>
                   <td data-rotulo="Nome" data-titulo>
-                    <Link to={`/administracao/captacao/${c.id}`}>{c.nome}</Link>
+                    {/* Cada linha já é o grupo inteiro — a view agrupada
+                        (0062) colapsa nome pendente na fila de fusão num
+                        representante só, pra não repetir a mesma pessoa 3×
+                        numa busca. O elo de "N perfis" fica visível sem
+                        precisar abrir a ficha primeiro (docs/41, 24/09/2026). */}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <Link to={`/administracao/captacao/${c.id}`}>{c.nome}</Link>
+                      {c.perfis_no_grupo > 1 && (
+                        <Link
+                          to={`/administracao/captacao/fusoes/${encodeURIComponent(c.nome_normalizado)}`}
+                          className="link-botao"
+                          style={{ fontSize: 12 }}
+                        >
+                          {c.perfis_no_grupo} perfis
+                        </Link>
+                      )}
+                      {c.tem_conflito_nivel && (
+                        <TarjaProcedencia estado="falhou" fonte="nível conflitante" />
+                      )}
+                    </span>
                   </td>
                   <td data-rotulo="Escola">{c.escola || '—'}</td>
                   <td data-rotulo="Cidade/UF">
