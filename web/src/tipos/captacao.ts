@@ -10,6 +10,8 @@ export type StatusCaptacao = 'novo' | 'contatado' | 'interessado' | 'matriculado
 export interface CandidatoExterno {
   id: string;
   nome: string;
+  /** Chave de agrupamento (maiúsculas, sem acento) — é o que liga esta pessoa à fila de fusão (0059/0061) e ao grupo dela na view agrupada (0062). */
+  nome_normalizado: string;
   escola: string | null;
   cidade: string | null;
   uf: string | null;
@@ -50,10 +52,21 @@ export interface ConquistaExterna {
 /** A ficha: o candidato e TODAS as conquistas cruzadas dele, ano decrescente. */
 export interface CandidatoFicha extends CandidatoExterno {
   conquistas: ConquistaExterna[];
+  /** Quantos OUTROS `candidato_externo` têm este mesmo nome, ainda pendentes na fila de fusão (0 = nome sozinho, sem duplicata). Base do alerta na ficha. */
+  duplicatas_pendentes: number;
+  /** Sinal FORTE de que as duplicatas são pessoas diferentes (nível de ensino conflitante no mesmo ano) — não só "cuidado" como ufs_distintas. */
+  tem_conflito_nivel: boolean;
+}
+
+/** Uma linha da lista geral — vem de `v_candidato_externo_agrupado` (0062): nome ainda pendente na fila de fusão já chega colapsado num representante só. */
+export interface CandidatoExternoAgrupado extends CandidatoExterno {
+  /** Quantos `candidato_externo` este representante resume — 1 = nome sem ambiguidade (nada foi colapsado). */
+  perfis_no_grupo: number;
+  tem_conflito_nivel: boolean;
 }
 
 export interface PaginaCandidatos {
-  candidatos: CandidatoExterno[];
+  candidatos: CandidatoExternoAgrupado[];
   total: number;
   pagina: number;
   por_pagina: number;
@@ -87,6 +100,8 @@ export interface GrupoFusao {
   candidatos: number;
   /** 1 = todos batem na mesma UF (alta confiança); mais que 1 = cuidado. */
   ufs_distintas: number;
+  /** Nível de ensino conflitante no mesmo ano entre candidatos do grupo — sinal FORTE de gente diferente, não só "cuidado" (scripts/sinalizar_fusoes_conflito_de_nivel.py). */
+  tem_conflito_nivel: boolean;
 }
 
 export interface PaginaFusoes {
@@ -109,4 +124,13 @@ export interface DetalheDaFusao {
 export interface ResultadoDaFusao {
   sobrevivente_id: string;
   candidatos_fundidos: number;
+}
+
+// ─── Modo avançado: dividir um grupo à mão (docs/41, 24/09/2026) ──────────
+// O binário acima decide o grupo INTEIRO de uma vez; estas ações operam num
+// perfil ou numa conquista por vez, pra separar quem o resolver misturou.
+
+export interface ResultadoDaConclusao {
+  status: 'confirmada' | 'rejeitada';
+  perfis_finais: number;
 }

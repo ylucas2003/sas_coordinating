@@ -1,0 +1,173 @@
+/* ─── Captação — divisão manual de perfis (docs/41, 24/09/2026) ───────────
+   A lane horizontal de CaptacaoFusaoDetalhe.tsx: sem precedente no projeto
+   (nenhuma outra tela tem cartão-lado-a-lado com scroll lateral), então o
+   padrão nasce aqui. Só tokens que já existem — raio de superfície (18px)
+   pro cartão, raio pequeno (12px) pro bloco, nenhuma cor nova: o destaque de
+   alvo-de-arraste usa `--sas-dado` (o papel de "selecionado/em edição"), e
+   `--sas-alerta` continua reservado pra etiqueta/falha (a tarja de conflito
+   de nível já cuida disso sozinha, via TarjaProcedencia).
+
+   Importado só pela tela que usa (mesmo padrão de `alunos.css` em
+   `Alunos.tsx`), não em main.tsx — Administração não tem folha própria hoje,
+   e não vale puxar isto pro bundle de entrada inteiro.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.fusao-dica {
+  margin-top: 4px;
+  color: var(--sas-texto-2);
+}
+
+.fusao-pista {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 4px 20px;
+  margin: 0 -4px;
+}
+
+.fusao-cartao {
+  flex: 0 0 300px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  /* `overflow` fica AUSENTE de propósito: um bloco arrastado precisa
+     escapar visualmente da caixa do próprio cartão enquanto voa pro
+     vizinho — `overflow: hidden` aqui cortaria o gesto no meio. */
+}
+
+/* Cartão-alvo válido durante o arraste — mesmo tratamento nos dois lugares
+   que podem receber o solto: um cartão de verdade ou o fantasma. */
+.fusao-cartao--alvo {
+  border: var(--sas-borda-l) dashed var(--sas-dado);
+  background: var(--sas-superficie-2);
+}
+
+.fusao-cartao__cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fusao-cartao__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.fusao-bloco {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-fio);
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  /* `touch-action` some daqui de propósito: o `drag` do framer-motion já
+     define isso sozinho no elemento, e sobrescrever aqui destravaria o
+     gesto de toque que foi o motivo de escolher a lib (ver o comentário de
+     topo do .tsx). */
+}
+
+.fusao-bloco:active {
+  cursor: grabbing;
+}
+
+.fusao-bloco__grip {
+  flex-shrink: 0;
+  color: var(--sas-texto-2);
+}
+
+.fusao-bloco__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.fusao-bloco__linha1 {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.fusao-bloco__prova {
+  font-weight: 400;
+  color: var(--sas-texto-2);
+}
+
+.fusao-vazio {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 12px;
+  text-align: center;
+  border: 1px dashed var(--sas-fio-forte);
+  border-radius: var(--radius-sm);
+  color: var(--sas-texto-2);
+  font-size: 13px;
+}
+
+.fusao-fantasma {
+  flex: 0 0 220px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px;
+  background: none;
+  border: var(--sas-borda-l) dashed var(--sas-fio-forte);
+  border-radius: var(--radius-lg);
+  color: var(--sas-texto-2);
+  cursor: pointer;
+}
+
+.fusao-fantasma:hover:not(:disabled) {
+  border-color: var(--sas-dado);
+  color: var(--sas-texto);
+}
+
+.fusao-fantasma:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.fusao-fantasma__titulo {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fusao-fantasma__dica {
+  font-size: 12px;
+  max-width: 150px;
+  line-height: 1.4;
+}
+
+/* No celular a lane vira rolagem por toque só — o mesmo scroll-x, sem
+   nenhuma regra nova: `drag` do framer-motion já entende touch nativamente
+   (é o motivo de não ser HTML5 DnD). Só encolhe o cartão pra caber mais
+   perto da borda numa tela estreita. */
+@media screen and (max-width: 480px) {
+  .fusao-cartao {
+    flex-basis: 260px;
+  }
+  .fusao-fantasma {
+    flex-basis: 180px;
+  }
+}

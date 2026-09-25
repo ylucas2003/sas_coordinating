@@ -12,7 +12,7 @@ export const chavesCaptacao = {
   pagina: (filtros: FiltrosCaptacao) => ['captacao', 'candidatos', filtros] as const,
   candidato: (id: string) => ['captacao', 'candidatos', id] as const,
   fusoes: ['captacao', 'fusoes'] as const,
-  paginaDeFusoes: (opcoes: { ufIncerta?: boolean; pagina?: number }) =>
+  paginaDeFusoes: (opcoes: { ufIncerta?: boolean; soConflitoNivel?: boolean; pagina?: number }) =>
     ['captacao', 'fusoes', opcoes] as const,
   fusao: (nomeNormalizado: string) => ['captacao', 'fusoes', nomeNormalizado] as const,
 };
@@ -54,9 +54,15 @@ export function useAtualizarCandidato(id: string) {
 
 // ─── Fila de fusão de baixa confiança (docs/41 §8, item 1) ────────────────
 
-export function useFusoes(opcoes: { ufIncerta?: boolean; pagina?: number; porPagina?: number } = {}) {
+export function useFusoes(
+  opcoes: { ufIncerta?: boolean; soConflitoNivel?: boolean; pagina?: number; porPagina?: number } = {},
+) {
   return useQuery({
-    queryKey: chavesCaptacao.paginaDeFusoes({ ufIncerta: opcoes.ufIncerta, pagina: opcoes.pagina }),
+    queryKey: chavesCaptacao.paginaDeFusoes({
+      ufIncerta: opcoes.ufIncerta,
+      soConflitoNivel: opcoes.soConflitoNivel,
+      pagina: opcoes.pagina,
+    }),
     queryFn: () => captacao.listarFusoes(opcoes),
     placeholderData: keepPreviousData,
   });
@@ -89,6 +95,66 @@ export function useDecidirFusao(nomeNormalizado: string) {
       // O grupo decidido não existe mais na fila (fundido ou marcado) — a
       // lista de candidatos também pode ter mudado (um id sumiu, outro
       // ganhou conquista) —, então invalida os dois.
+      queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusoes });
+      queryClient.invalidateQueries({ queryKey: chavesCaptacao.candidatos });
+    },
+  });
+}
+
+// ─── Modo avançado: dividir um grupo à mão (docs/41, 24/09/2026) ──────────
+//
+// Estas quatro mutações operam DENTRO de um grupo aberto — cada uma só
+// invalida `fusao(nomeNormalizado)`, não a fila nem a lista geral, porque
+// mover/criar/remover não fecha a revisão (o grupo continua pendente até
+// `useConcluirRevisao`). A lista geral lê a view materializada (0062), que o
+// backend já atualiza sozinho em segundo plano a cada escrita — invalidar
+// aqui também seria redundante e só forçaria uma requisição a mais.
+
+/** Perfil novo, vazio, com o mesmo nome — alvo pra arrastar um homônimo pra fora do candidato errado. */
+export function useCriarPerfilNoGrupo(nomeNormalizado: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => captacao.criarPerfilNoGrupo(nomeNormalizado),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusao(nomeNormalizado) });
+    },
+  });
+}
+
+/** Move UMA conquista pra outro perfil do mesmo nome — o coração do arraste. */
+export function useMoverConquista(nomeNormalizado: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ conquistaId, candidatoId }: { conquistaId: string; candidatoId: string }) =>
+      captacao.moverConquista(conquistaId, candidatoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusao(nomeNormalizado) });
+    },
+  });
+}
+
+/** Remove um perfil que ficou (ou nasceu, e nunca recebeu nada) sem conquista nenhuma. */
+export function useRemoverCandidatoVazio(nomeNormalizado: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (candidatoId: string) => captacao.removerCandidatoVazio(candidatoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusao(nomeNormalizado) });
+    },
+  });
+}
+
+/**
+ * Fecha a revisão manual de um nome — generaliza confirmar/rejeitar pro caso
+ * em que o coordenador mexeu à mão (moveu/criou/removeu) em vez de decidir o
+ * grupo inteiro de um clique só. Mesmo `onSuccess` de `useDecidirFusao`: o
+ * nome sai da fila, a lista geral pode ter mudado.
+ */
+export function useConcluirRevisao(nomeNormalizado: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => captacao.concluirRevisao(nomeNormalizado),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusoes });
       queryClient.invalidateQueries({ queryKey: chavesCaptacao.candidatos });
     },
