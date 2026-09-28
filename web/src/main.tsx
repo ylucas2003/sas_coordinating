@@ -20,6 +20,13 @@ import { App } from './App';
 // lugar a olhar.
 import './servicos/tema';
 
+// Chunk perdido depois de deploy (import() dinâmico dos cascos em `App.tsx`
+// pegando 404 numa aba com index.html velho) derrubava a árvore inteira sem
+// ErrorBoundary nenhum pra pegar — tela branca até um F5 manual. Ver
+// `servicos/recuperacaoDeChunk.ts`.
+import { recarregarUmaVezSeChunkSumiu } from './servicos/recuperacaoDeChunk';
+recarregarUmaVezSeChunkSumiu();
+
 // CSS global, na mesma ordem em que o `index.html` os carregava. Os arquivos
 // por tela vão virando CSS Modules conforme cada tela migra; o que fica aqui
 // para sempre são tokens, base e fontes.
