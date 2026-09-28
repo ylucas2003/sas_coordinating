@@ -12,11 +12,6 @@
    e não vale puxar isto pro bundle de entrada inteiro.
    ─────────────────────────────────────────────────────────────────────── */
 
-.fusao-dica {
-  margin-top: 4px;
-  color: var(--sas-texto-2);
-}
-
 .fusao-pista {
   display: flex;
   align-items: flex-start;
@@ -55,11 +50,72 @@
   gap: 4px;
 }
 
+.fusao-cartao__serie {
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
 .fusao-cartao__lista {
   display: flex;
   flex-direction: column;
   gap: 8px;
   flex: 1;
+}
+
+/* O funil manual (status + observações) por cartão — substitui a ficha
+   antiga (docs/41, 25/09/2026): cada perfil pode ter o próprio andamento até
+   alguém confirmar que dois são a mesma pessoa. */
+.fusao-funil {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fusao-funil__status {
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--sas-fio);
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
+}
+
+.fusao-funil__toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--sas-texto-2);
+  cursor: pointer;
+}
+
+.fusao-funil__toggle:hover {
+  color: var(--sas-texto);
+}
+
+.fusao-funil__obs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fusao-funil__obs textarea {
+  width: 100%;
+  min-height: 64px;
+  font-size: 12px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--sas-fio);
+  background: var(--sas-superficie);
+  color: var(--sas-texto);
+  resize: vertical;
+}
+
+.fusao-funil__estado {
+  font-size: 11px;
+  color: var(--sas-texto-2);
+  min-height: 14px;
 }
 
 .fusao-bloco {
@@ -157,6 +213,50 @@
   font-size: 12px;
   max-width: 150px;
   line-height: 1.4;
+}
+
+/* Rodapé "quais fontes alimentam esta lista" (Captacao.tsx) — pedido de
+   25/09/2026. Cartão bem menor que os de fusão e sem nenhum comportamento de
+   arraste (é só leitura); o "símbolo" de cada prova é tipográfico — o nome
+   já É o rótulo (ITA, IME, OBMEP...) —, nunca um logo de terceiro (LGPD,
+   CLAUDE.md armadilha 6) nem cor decorativa nova (papeis.css: cor é papel). */
+.provas-pista {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 4px 8px;
+  margin: 8px -4px 0;
+}
+
+.provas-cartao {
+  flex: 0 0 128px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 10px;
+  text-align: center;
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+.provas-cartao__nome {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--sas-texto);
+}
+
+.provas-cartao__anos {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sas-texto-2);
+}
+
+.provas-cartao__categoria {
+  font-size: 11px;
+  color: var(--sas-texto-2);
+  text-transform: capitalize;
 }
 
 /* No celular a lane vira rolagem por toque só — o mesmo scroll-x, sem

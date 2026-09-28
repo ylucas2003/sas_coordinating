@@ -683,6 +683,14 @@ lá.
 
 ## 9 · Fila de fusão de baixa confiança — implementada (16/09/2026)
 
+> ⚠️ **Superada em 25/09/2026 — ver §15.** A "decisão permanente" que esta
+> seção descreve (`candidato_externo_fusao_decisao`) causou um bug sério: um
+> nome "decidido" ficava excluído da fila PRA SEMPRE, mesmo ganhando
+> conquista nova depois — 4.395 nomes silenciosamente escondidos. §15
+> substitui a fila inteira por agrupamento sempre manual, sem decisão
+> permanente nenhuma. O relato abaixo fica como histórico de por que a fila
+> existiu e como funcionava — não descreve o sistema atual.
+
 Fecha os itens 1 e 6 do §8: um segundo nível de match, ABAIXO do §4.1
 (nome+escola exatos), pra sugerir — nunca fundir sozinho — candidatos que
 compartilham só o nome. Pedido explícito depois de uma pergunta direta:
@@ -732,6 +740,14 @@ mesma pessoa" e "Não são"). Um elo quieto na lista principal
 (`Captacao.tsx`) mostra quantos nomes estão esperando revisão.
 
 ## 10 · Fila de alta confiança confirmada em lote, e um alerta novo (17/09/2026)
+
+> ⚠️ **Superada em 25/09/2026 — ver §15.** O script de confirmação em lote
+> desta seção (`confirmar_fusoes_alta_confianca.py`) é exatamente quem gerou
+> os 17.427 registros de `candidato_externo_fusao_decisao` que, somados à
+> falha descrita na nota do §9, causaram o bug achado em produção ("Yan Lucas
+> Freitas de Araújo": 12 perfis, nenhum visível em lugar nenhum). O script e
+> `sinalizar_fusoes_conflito_de_nivel.py` foram apagados; `separar_candidatos_
+> externos.py` desfez todo o agrupamento automático que eles tinham feito.
 
 Dos 6.560 grupos abertos pela §9, **5.864 tinham UF única** (o sinal de alta
 confiança) — revisar um por um não escala, e a régua já tinha sido validada
@@ -1511,3 +1527,93 @@ achado em nenhum dos dois domínios. **Decisão: OBA fica de fora — não por
 falta de tentativa, mas porque a fonte pública não publica o dado que este
 pipeline precisa**, mesma categoria de exclusão documentada da AFA (§11),
 não uma lacuna a perseguir depois.
+
+## 15 · Simplificação radical: sem fila, sem decisão permanente, sem alerta de confiança (25/09/2026)
+
+**O bug que motivou tudo**: testando a divisão manual de perfis (a tela do
+§9, já em produção), "Yan Lucas Freitas de Araújo" apareceu **12 vezes** na
+lista geral — a fusão automática nunca tinha rodado nele. Investigando: o
+nome estava em `candidato_externo_fusao_decisao` com `status='confirmada'`,
+decidido pelo script do §10 em 17/09/2026, quando só existiam algumas
+conquistas. As fontes seguintes (OBI, OBQ, Escola Naval — §12, §13, addendum
+do §11.2) trouxeram conquista nova pra esse nome, mas a view da fila
+(`v_fusao_candidata`) exclui `NOT EXISTS` contra a tabela de decisão **sem
+olhar se o dado mudou depois** — um nome "decidido" nunca mais é revisto,
+mesmo crescendo. Medido em produção: **4.395 dos 17.427 nomes confirmados em
+lote pelo §10 já tinham re-fragmentado** (candidato novo criado depois da
+decisão) e ficavam escondidos de QUALQUER tela — não só a fila, a lista
+geral inteira, porque a view agrupada (implementada entre o §9 e este
+parágrafo) herdava a mesma exclusão.
+
+**Por que a correção não foi consertar a regra de exclusão**: daria pra só
+trocar `NOT EXISTS (decisão)` por `NOT EXISTS (decisão = 'rejeitada')` — mas
+isso reabriria de uma vez ~4.395 nomes pra revisão, sem resolver o problema
+de fundo: qualquer sistema de "decisão automática permanente" tem essa
+mesma classe de bug latente (decidir com base no dado de hoje, confiar nisso
+pra sempre, o dado de amanhã ser diferente). A decisão foi tirar a
+inteligência automática inteira, não só o bug específico.
+
+**O modelo novo, em uma frase**: toda conquista nasce com o próprio
+`candidato_externo` (nunca mais agrupamento automático por nome+escola);
+agrupar é **sempre manual**, arrastando; a lista geral junta por
+`nome_normalizado` **sempre**, incondicional, sem "pendente" e sem
+"decidido"; não existe mais fila, nem confiança, nem alerta de conflito de
+nível.
+
+**Dado**: `api/scripts/separar_candidatos_externos.py` (novo, script de
+transição, uma vez só) desfez todo agrupamento automático já feito — cada
+`candidato_externo` com 2+ conquistas voltou a ser 1 candidato por
+conquista, mantendo o funil (`status_captacao`/`observacoes`) já preenchido
+na conquista de ANO mais recente. Rodado local antes de produção
+(`--simular` primeiro): **26.791 candidatos separados, 49.465 novos**,
+**zero** com funil preenchido (nenhum coordenador tinha usado o funil ainda
+— confirmado também em produção: os 17.427 registros de decisão eram
+100% de script, nenhum humano). `resolver_candidatos_externos.py` foi
+reescrito: não agrupa mais nada, só cria 1 `candidato_externo` por
+`conquista_externa` órfã (`candidato_id IS NULL`) — muito mais simples, e
+muito mais barato (processa só órfã, não relê a tabela inteira a cada
+rodada). `confirmar_fusoes_alta_confianca.py` e
+`sinalizar_fusoes_conflito_de_nivel.py` foram apagados.
+
+**Schema** (migration 0063): `candidato_externo_fusao_decisao` e
+`v_fusao_candidata` (§9) e `v_candidato_externo_agrupado` (implementada
+entre o §9 e este parágrafo) saem de cena. Nova MATERIALIZED VIEW
+`v_candidato_externo_por_nome`: uma linha por `nome_normalizado`, **sempre**
+— `escolas`/`cidades`/`ufs`/`status_captacao` são CONJUNTOS
+(`array_agg(DISTINCT ...)` sobre `conquista_externa.*_informada`, não sobre
+o "retrato" de `candidato_externo` — um nome pode ter perfis ainda não
+arrumados à mão), arrays independentes, nunca pareados por índice entre si.
+Filtro por UF/status usa `.contains()` (operador `@>`, índice GIN) — bate se
+QUALQUER conquista/perfil do nome casar. Materializada pelo mesmo motivo de
+custo da view anterior (a versão simples levava 1,3s por página contra
+0,03ms materializada, medido) — atualizada via RPC do PostgREST em
+`BackgroundTasks` a cada escrita.
+
+**Rotas** (`routes/captacao.py`): `GET /captacao/candidatos` lê a view nova;
+`GET /captacao/perfis/{nome}` (era `/captacao/fusoes/{nome}`) abre pra
+QUALQUER nome — o guard virou `not candidatos` (era `< 2`), porque com tudo
+nascendo 1:1 a maioria esmagadora dos nomes tem exatamente 1 perfil, e a
+tela precisa abrir pra ele do mesmo jeito. `POST /captacao/perfis/criar`,
+`POST /captacao/conquistas/mover`, `DELETE /captacao/candidatos/{id}`
+continuam iguais (já eram o "modo avançado" do §9). Removidas:
+`listar_fusoes`, `confirmar_fusao`, `rejeitar_fusao`, `concluir_fusao`,
+`obter_candidato` (ficha por id sozinha). Nova `GET /captacao/provas`: uma
+linha por prova (nome já é o rótulo — "ITA", "IME", "OBMEP"...) com o
+intervalo de anos carregado, pro rodapé da lista geral.
+
+**Frontend**: `CaptacaoFicha.tsx` e `CaptacaoFusoes.tsx` apagadas;
+`CaptacaoFusaoDetalhe.tsx` virou `CaptacaoPerfil.tsx` — a ficha de qualquer
+nome, rota única `/administracao/captacao/:nome`. Perdeu o rodapé
+binário/"concluir" (não existe mais decisão nenhuma: cada arraste já
+persiste sozinho) e os badges de alerta; ganhou o funil manual **dentro de
+cada cartão** (select de status com autosave imediato, observações atrás de
+um disclosure com autosave debounced ~800ms — CaptacaoFicha.tsx era o único
+lugar com esse funil, e sumiu). `Captacao.tsx` (a lista geral) perdeu o elo
+de "nomes pra revisar" e ganhou, no fim da página, a faixa de provas
+carregadas.
+
+**Testado em produção antes do rollout completo**: `--simular` do script de
+separação, revisão da lista de funil preservado, rodada real, migration
+0063, deploy do código — nessa ordem (ver o script pra detalhe de por que a
+ordem importa: ele só mexe em tabela crua, não em view, então é seguro
+rodar antes do schema mudar).

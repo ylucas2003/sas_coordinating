@@ -4,8 +4,8 @@ import type { ConquistaExterna } from '../../tipos/captacao';
 
 // O detalhe de UMA conquista — pedido explícito: clicar no Resultado abre a
 // nota por matéria (quando a fonte publica) junto com o link pra fonte, em
-// vez de espalhar isso em colunas extras na tabela (CaptacaoFicha.tsx e
-// CaptacaoFusaoDetalhe.tsx, as duas telas que listam conquista cruzada).
+// vez de espalhar isso em colunas/blocos extras onde conquista cruzada
+// aparece (CaptacaoPerfil.tsx).
 
 const ROTULO_MATERIA: Record<string, string> = {
   mat: 'Matemática',
