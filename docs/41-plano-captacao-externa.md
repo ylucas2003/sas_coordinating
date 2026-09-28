@@ -1774,3 +1774,44 @@ Castro", 27 conquistas): a ficha abre com todo o histórico legível, os
 filtros de Ano (2017–2024) e Prova (EFOMM/IME/ITA/OBF/OBI/OBM/OBMEP/OBQ/OBQ
 Jr) aparecem certos, clicar em "ITA" reduz a lista às 4 conquistas de ITA na
 hora, "Limpar filtros" restaura as 27.
+
+
+## 19 · Bug de verdade: `array_agg FILTER` sem linha vira NULL, não `[]` (28/09/2026)
+
+Reportado em produção como "tela branca ao buscar" — o mesmo sintoma do
+chunk perdido (§ anterior, PR #90), mas outra causa, achada reproduzindo de
+propósito em produção (conta de coordenador descartável, apagada depois) e
+depois em dev local com digitação de verdade (tecla por tecla — `fill()`
+direto no valor não reproduzia, porque o bug só aparecia numa busca
+INTERMEDIÁRIA de uma sequência de teclas, não no termo final digitado de
+uma vez). Stack trace real: `Cannot read properties of null (reading
+'length')` em `Captacao.tsx::fmtLista`.
+
+**Causa**: `array_agg(x) FILTER (WHERE cond)` do Postgres devolve `NULL` —
+não `{}` — quando NENHUMA linha do grupo passa no filtro.
+`v_candidato_externo_por_nome` (migration 0063) usa exatamente esse padrão
+pra escolas/cidades/ufs, um por `NULLIF(..., '') IS NOT NULL`. Todo nome
+cujas conquistas NUNCA tiveram um desses campos preenchido virava `null` em
+vez de lista vazia. Contagem real: **25.554 nomes com escolas NULL, 26.453
+com cidades NULL, 17.984 com ufs NULL** — quase um quarto da base inteira.
+`tipos/captacao.ts::CandidatoPorNome` declara os três como `string[]`
+(nunca `| null`), e `fmtLista` fazia `itens.length` sem guarda — qualquer
+busca que trouxesse um desses nomes pra dentro da página (20 por vez)
+derrubava a tela inteira, sem ErrorBoundary nenhum pra pegar.
+
+`status_captacao` NUNCA teve esse bug: `candidato_externo.status_captacao`
+é `NOT NULL DEFAULT 'novo'`, sem `FILTER`, então o grupo nunca fica sem
+linha pra agregar.
+
+**Correção** (migration 0065): `DROP` + `CREATE MATERIALIZED VIEW` de novo,
+cada `array_agg(...) FILTER (...)` envolto em
+`COALESCE(..., ARRAY[]::text[])`. Confirmado: 0 nomes com qualquer um dos
+três `NULL` depois de aplicar. **Defesa extra no frontend**: `fmtLista`
+passou a aceitar `string[] | null | undefined` (`itens?.length`) — não
+porque a view ainda possa mandar `null` (não pode mais), mas porque é a
+mesma classe de bug que já custou caro uma vez, e o custo de manter a
+guarda é uma linha.
+
+**Verificado**: reproduzido em produção (conta descartável) e em dev local
+com digitação real; depois da migration, "Gonçalves" (644 nomes, batia
+direto num nome com escolas NULL antes da correção) busca sem erro.
