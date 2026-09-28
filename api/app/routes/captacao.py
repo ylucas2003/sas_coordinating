@@ -136,10 +136,18 @@ class MoverConquistaBody(BaseModel):
 
 
 class AtualizarCandidatoBody(BaseModel):
-    """Só os dois campos do funil manual — os outros são derivados (0056 §3)."""
+    """status_captacao/observacoes são o funil manual (0056 §3). escola/
+    cidade/uf também são editáveis (docs/41 §17) — mas editar qualquer um
+    dos três TRAVA o retrato inteiro (`retrato_editado_a_mao`): a partir daí,
+    `mover_conquista` e o resolver param de recalcular esses campos pra este
+    perfil, mesmo ganhando conquista nova depois. serie_referencia_*/
+    ano_referencia_serie continuam só derivados — não têm campo aqui."""
 
     status_captacao: str | None = None
     observacoes: str | None = None
+    escola: str | None = None
+    cidade: str | None = None
+    uf: str | None = None
 
     @field_validator("status_captacao")
     @classmethod
@@ -284,12 +292,14 @@ async def atualizar_candidato(
     candidato_id: str = Path(...),
     coordenador: dict = Depends(get_current_coordenador),
 ) -> dict:
-    """Só `status_captacao` e `observacoes` — o funil manual da coordenação
-    (0056 §3), editado direto em cada cartão de `CaptacaoPerfil.tsx`. Os
-    outros campos são derivados: só
-    `api/scripts/resolver_candidatos_externos.py` e as rotas do modo
-    avançado escrevem neles."""
-    if body.status_captacao is None and body.observacoes is None:
+    """`status_captacao`/`observacoes` são o funil manual (0056 §3).
+    escola/cidade/uf também são editáveis (docs/41 §17) — editar qualquer um
+    dos três marca `retrato_editado_a_mao=true`, travando o retrato pra
+    `mover_conquista`/o resolver não recalcularem mais em cima da edição."""
+    if all(
+        v is None
+        for v in (body.status_captacao, body.observacoes, body.escola, body.cidade, body.uf)
+    ):
         raise HTTPException(status_code=400, detail="Nada a atualizar")
 
     cliente = get_supabase()
@@ -309,6 +319,14 @@ async def atualizar_candidato(
         patch["status_captacao"] = body.status_captacao
     if body.observacoes is not None:
         patch["observacoes"] = body.observacoes
+    if body.escola is not None or body.cidade is not None or body.uf is not None:
+        if body.escola is not None:
+            patch["escola"] = body.escola
+        if body.cidade is not None:
+            patch["cidade"] = body.cidade
+        if body.uf is not None:
+            patch["uf"] = body.uf
+        patch["retrato_editado_a_mao"] = True
 
     atualizado = (
         cliente.table("candidato_externo")
@@ -420,7 +438,9 @@ async def mover_conquista(
     """Reatribui UM resultado pra outro perfil do mesmo nome — o coração do
     modo avançado. Recalcula o retrato de quem ganhou e de quem perdeu a
     conquista (se ainda sobrar alguma), pra nenhum dos dois ficar com um
-    retrato de anos atrás depois do reagrupamento."""
+    retrato de anos atrás depois do reagrupamento — EXCETO quem tem
+    `retrato_editado_a_mao` (docs/41 §17): um humano já corrigiu esse
+    perfil, então o recálculo automático não pisa em cima da edição."""
     cliente = get_supabase()
 
     conquista = (
@@ -440,7 +460,7 @@ async def mover_conquista(
 
     pares = (
         cliente.table("candidato_externo")
-        .select("id, nome_normalizado")
+        .select("id, nome_normalizado, retrato_editado_a_mao")
         .in_("id", [i for i in (origem_id, body.candidato_id) if i])
         .execute()
         .data
@@ -461,6 +481,9 @@ async def mover_conquista(
     ).eq("id", body.conquista_id).execute()
 
     for candidato_id in {origem_id, body.candidato_id} & set(por_id):
+        if por_id[candidato_id].get("retrato_editado_a_mao"):
+            continue  # travado — a edição manual vale mais que o recálculo
+
         conquistas_restantes = (
             cliente.table("conquista_externa")
             .select(_COLUNAS_CONQUISTA)

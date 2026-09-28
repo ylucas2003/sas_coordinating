@@ -29,6 +29,12 @@ reversível a qualquer momento, arrastando em `CaptacaoPerfil.tsx`
 
 Idempotente por construção: só processa `conquista_externa` com
 `candidato_id IS NULL` — uma vez resolvida, nunca mais aparece na consulta.
+
+Ajuste de 28/09/2026, mesmo dia (docs/41 §17): escola/cidade/UF passaram a
+ser editáveis à mão em `CaptacaoPerfil.tsx`, e a edição TRAVA o retrato
+(`retrato_editado_a_mao`) — este script respeita a trava: anexa a conquista
+nova normalmente (isso nunca dependeu do retrato), mas pula o recálculo de
+escola/cidade/UF pra quem já foi editado à mão, pra não apagar a edição.
 """
 
 from __future__ import annotations
@@ -102,10 +108,11 @@ def main() -> int:
     # alvo (`_perfil_alvo`); o retrato de quem ganha conquista é recalculado
     # depois, com a lista de conquistas completa do candidato.
     perfis_por_nome: dict[str, list[dict]] = {n: [] for n in nomes}
+    travados: set[str] = set()  # candidato_id com retrato_editado_a_mao
     for lote_nomes in _em_lotes(nomes):
         linhas = (
             cliente.table("v_candidato_externo")
-            .select("id, nome_normalizado, conquistas_total, criado_em")
+            .select("id, nome_normalizado, conquistas_total, criado_em, retrato_editado_a_mao")
             .in_("nome_normalizado", lote_nomes)
             .execute()
             .data
@@ -113,6 +120,8 @@ def main() -> int:
         )
         for linha in linhas:
             perfis_por_nome[linha["nome_normalizado"]].append(linha)
+            if linha.get("retrato_editado_a_mao"):
+                travados.add(linha["id"])
 
     criados = 0
     anexados = 0
@@ -164,12 +173,15 @@ def main() -> int:
 
     # Retrato de quem recebeu conquista NOVA num perfil que já existia: busca
     # o conjunto final (velhas + novas) e recalcula com a mais recente, pro
-    # cartão não ficar mostrando escola/cidade de anos atrás. Upsert (não
-    # update simples) porque cada candidato leva um valor diferente no mesmo
-    # lote — e por isso a linha inteira, com nome/nome_normalizado: a fase de
-    # INSERT do upsert exige as colunas NOT NULL mesmo quando o destino real
-    # é só um UPDATE (mesmo achado de `separar_candidatos_externos.py`).
-    ids_tocados = list(alvos_tocados)
+    # cartão não ficar mostrando escola/cidade de anos atrás — EXCETO quem
+    # está travado (`retrato_editado_a_mao`, docs/41 §17): um humano já
+    # corrigiu esse perfil à mão, e o recálculo automático não pisa em cima
+    # da edição. Upsert (não update simples) porque cada candidato leva um
+    # valor diferente no mesmo lote — e por isso a linha inteira, com
+    # nome/nome_normalizado: a fase de INSERT do upsert exige as colunas NOT
+    # NULL mesmo quando o destino real é só um UPDATE (mesmo achado de
+    # `separar_candidatos_externos.py`).
+    ids_tocados = [i for i in alvos_tocados if i not in travados]
     for lote_ids in _em_lotes(ids_tocados):
         conquistas = (
             cliente.table("conquista_externa")
@@ -198,9 +210,11 @@ def main() -> int:
                 sub, on_conflict="id", returning="minimal"
             ).execute()
 
+    travados_tocados = len(alvos_tocados) - len(ids_tocados)
     print(
         f"resultado: {criados} candidato_externo criados (nome novo), "
-        f"{anexados} conquistas anexadas a perfil já existente",
+        f"{anexados} conquistas anexadas a perfil já existente "
+        f"({travados_tocados} deles com retrato travado — não recalculado)",
         file=sys.stderr,
     )
     return 0

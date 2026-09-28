@@ -126,6 +126,80 @@ def test_criar_perfil_404_sem_ninguem_no_nome(banco):
     assert exc.value.status_code == 404
 
 
+# ─── atualizar candidato: funil + retrato editável (docs/41 §17) ──────────
+
+
+def test_atualizar_status_e_observacoes(banco):
+    banco["candidato_externo"]["cand-1"] = {"id": "cand-1", "status_captacao": "novo"}
+
+    resposta = asyncio.run(
+        captacao.atualizar_candidato(
+            captacao.AtualizarCandidatoBody(status_captacao="contatado", observacoes="Ligou pra família"),
+            _FakeRequest(),
+            _tarefas(),
+            "cand-1",
+            COORDENADOR,
+        )
+    )
+
+    assert resposta["status_captacao"] == "contatado"
+    assert resposta["observacoes"] == "Ligou pra família"
+    # Status mudou -> auditou.
+    assert banco["evento_auditoria"]
+
+
+def test_atualizar_escola_trava_o_retrato(banco):
+    """O guard central do docs/41 §17: editar escola/cidade/uf à mão marca
+    `retrato_editado_a_mao`, pra `mover_conquista`/o resolver pararem de
+    recalcular em cima da edição."""
+    banco["candidato_externo"]["cand-1"] = {
+        "id": "cand-1", "status_captacao": "novo", "escola": None, "retrato_editado_a_mao": False,
+    }
+
+    resposta = asyncio.run(
+        captacao.atualizar_candidato(
+            captacao.AtualizarCandidatoBody(escola="Colégio Ari de Sá", cidade="Fortaleza", uf="CE"),
+            _FakeRequest(),
+            _tarefas(),
+            "cand-1",
+            COORDENADOR,
+        )
+    )
+
+    assert resposta["escola"] == "Colégio Ari de Sá"
+    assert resposta["cidade"] == "Fortaleza"
+    assert resposta["uf"] == "CE"
+    assert resposta["retrato_editado_a_mao"] is True
+    # Editar retrato não é "status" -> não auditou.
+    assert not banco["evento_auditoria"]
+
+
+def test_atualizar_400_sem_nenhum_campo(banco):
+    banco["candidato_externo"]["cand-1"] = {"id": "cand-1", "status_captacao": "novo"}
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            captacao.atualizar_candidato(
+                captacao.AtualizarCandidatoBody(), _FakeRequest(), _tarefas(), "cand-1", COORDENADOR
+            )
+        )
+    assert exc.value.status_code == 400
+
+
+def test_atualizar_404_candidato_inexistente(banco):
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            captacao.atualizar_candidato(
+                captacao.AtualizarCandidatoBody(status_captacao="contatado"),
+                _FakeRequest(),
+                _tarefas(),
+                "fantasma",
+                COORDENADOR,
+            )
+        )
+    assert exc.value.status_code == 404
+
+
 # ─── mover conquista ────────────────────────────────────────────────────────
 
 
@@ -162,6 +236,38 @@ def test_mover_reatribui_e_recalcula_os_dois_retratos(banco):
     # lista vazia), retrato continua como estava antes.
     assert "ano_referencia_serie" not in banco["candidato_externo"]["cand-c"]
     assert banco["evento_auditoria"]
+
+
+def test_mover_pula_recalculo_de_quem_esta_travado(banco):
+    """docs/41 §17: cand-a já foi editado à mão (`retrato_editado_a_mao`) —
+    ganhar uma conquista não pode apagar a edição."""
+    banco["candidato_externo"] = {
+        "cand-a": {
+            "id": "cand-a", "nome": "Ana Beatriz Souza", "nome_normalizado": "ANA BEATRIZ SOUZA",
+            "escola": "Editado à mão", "retrato_editado_a_mao": True,
+        },
+        "cand-c": {"id": "cand-c", "nome": "Ana Beatriz Souza", "nome_normalizado": "ANA BEATRIZ SOUZA"},
+    }
+    banco["conquista_externa"] = {
+        "q-ime": _conquista(
+            id="q-ime", candidato_id="cand-c", ano=2024, resultado="Aprovado",
+            escola_informada="Escola Nova", cidade_informada="Recife", uf_informada="PE",
+        ),
+    }
+
+    asyncio.run(
+        captacao.mover_conquista(
+            captacao.MoverConquistaBody(conquista_id="q-ime", candidato_id="cand-a"),
+            _FakeRequest(),
+            _tarefas(),
+            COORDENADOR,
+        )
+    )
+
+    assert banco["conquista_externa"]["q-ime"]["candidato_id"] == "cand-a"  # moveu de verdade
+    # Mas o retrato NÃO mudou — a edição manual venceu.
+    assert banco["candidato_externo"]["cand-a"]["escola"] == "Editado à mão"
+    assert "cidade" not in banco["candidato_externo"]["cand-a"]
 
 
 def test_mover_recusa_candidato_de_outro_nome(banco):
