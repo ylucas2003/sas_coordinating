@@ -7,14 +7,19 @@
 // Simplificação de 25/09/2026: não existe mais fila de fusão, decisão
 // permanente nem sinal de confiança (`tem_conflito_nivel`/`ufs_distintas`) —
 // causavam um bug sério (nome "decidido" ficava escondido pra sempre, mesmo
-// ganhando conquista nova depois). Agrupar é só manual, sempre disponível.
+// ganhando conquista nova depois). Separar (não juntar) é que é só manual.
+//
+// Ajuste de 28/09/2026 (docs/41 §16): o default voltou a ser 1
+// `candidato_externo` por NOME (não por conquista) — o resolver anexa
+// conquista nova ao perfil existente em vez de sempre criar um novo.
 
 export type StatusCaptacao = 'novo' | 'contatado' | 'interessado' | 'matriculado' | 'descartado';
 
-/** Um `candidato_externo` — sempre 1:1 com uma conquista ao nascer
- * (`resolver_candidatos_externos.py`); só fica com mais de uma depois de um
- * humano arrastar (`mover_conquista`). É o formato de UM CARTÃO em
- * `CaptacaoPerfil.tsx`. */
+/** Um `candidato_externo` — nasce com todas as conquistas já conhecidas do
+ * nome (`resolver_candidatos_externos.py` anexa ao perfil existente, docs/41
+ * §16); só fica em MAIS de um perfil quando um humano separa arrastando
+ * (`mover_conquista`, criando um perfil novo primeiro). É o formato de UM
+ * CARTÃO em `CaptacaoPerfil.tsx`. */
 export interface CandidatoExterno {
   id: string;
   nome: string;
