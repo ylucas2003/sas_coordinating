@@ -1617,3 +1617,63 @@ separação, revisão da lista de funil preservado, rodada real, migration
 0063, deploy do código — nessa ordem (ver o script pra detalhe de por que a
 ordem importa: ele só mexe em tabela crua, não em view, então é seguro
 rodar antes do schema mudar).
+
+
+## 16 · Default voltou a ser 1 perfil por NOME, não por conquista (28/09/2026)
+
+O §15 tirou toda "inteligência" de agrupamento — e foi longe demais num
+ponto: `resolver_candidatos_externos.py` passou a criar um
+`candidato_externo` novo pra CADA conquista órfã, sempre, mesmo quando o
+nome já era conhecido. Em produção isso virou visível na hora: abrir
+"Ryan Nojosa Barros" em `CaptacaoPerfil.tsx` mostrava **14 cartões**, um por
+resultado, nenhum criado por um humano — a tela desenhada pra "casos raros de
+homônimo" virou o caso comum. Pedido do coordenador, direto olhando a
+produção: "quero que por default um nome tenha só um perfil. os outros
+perfis serão criados e as conquistas redistribuídas manualmente."
+
+**Isso não é voltar ao que existia antes do §15.** Antes de 25/09, o
+agrupamento automático era por (nome, escola) — e por cima dele havia
+`confirmar_fusoes_alta_confianca.py` + `candidato_externo_fusao_decisao`
+marcando um nome como "decidido" e escondendo ele PRA SEMPRE, mesmo ganhando
+conquista nova depois (o bug que causou o §15 inteiro). Nenhum dos dois
+volta: o agrupamento agora é só por NOME (mais simples que nome+escola — a
+escola nem entra na conta), e não existe tabela de decisão nenhuma. A lista
+geral (`v_candidato_externo_por_nome`) sempre mostrou todo nome
+incondicional desde o §15, e continua assim — é justamente isso que torna
+seguro reagrupar por nome de novo sem reabrir o buraco antigo.
+
+**`resolver_candidatos_externos.py` reescrito**: agrupa as conquistas órfãs
+do lote por `nome_normalizado` antes de decidir o que fazer. Nome sem
+nenhum `candidato_externo` ainda → cria 1 perfil, com o retrato da conquista
+mais recente do próprio lote (`retrato_dominante`, movida pra
+`scripts/_captacao_comum.py` porque agora tem três consumidores: os dois
+scripts e `routes/captacao.py::mover_conquista`, que usava uma cópia privada
+— `_serie_dominante` — da mesma fórmula). Nome que JÁ tem 1+ perfil → a
+conquista nova é anexada ao perfil com mais conquistas (`_perfil_alvo`);
+sem heurística de escola/cidade nenhuma — se for o perfil errado (homônimo
+raro), é um arrasto pra corrigir em `CaptacaoPerfil.tsx`, não uma perda de
+dado. O retrato do perfil que ganhou conquista é recalculado no fim do run.
+
+**`unificar_candidatos_externos.py` (novo, script de transição ÚNICA)**:
+desfaz a fragmentação que os ~3 dias com o resolver antigo já causaram —
+todo nome com `perfis_no_grupo > 1` em `v_candidato_externo_por_nome` volta
+a virar 1 `candidato_externo` só. Mesmo critério de escolha de quem fica
+(`_keeper`: mais conquistas, empate pelo mais antigo) e mesmo cuidado com
+funil perdido (quando um perfil descartado tinha `status_captacao` ou
+`observacoes` preenchidos por um humano, o script avisa no stderr — não
+tenta fundir texto de observação automaticamente). Idempotente pela mesma
+receita do script de separação: a entrada é sempre `perfis_no_grupo > 1`, e
+um nome unificado some da própria consulta.
+
+**Validado localmente em escala real antes de produção**: rodada completa
+contra o Postgres do compose (27.690 nomes fragmentados, os mesmos que o
+`separar_candidatos_externos.py` do §15 tinha criado) — `--simular` bateu
+com a rodada real, 64.767 perfis removidos, 0 nomes fragmentados e 0 órfãos
+sobrando no fim, e um grupo sintético com funil preenchido no perfil
+descartado confirmou o aviso de "funil perdido" disparando certo.
+
+**Backend**: `routes/captacao.py` só mudou o import (`retrato_dominante` de
+`scripts/_captacao_comum.py` no lugar da função privada) — nenhuma rota
+mudou de contrato. **Frontend**: nada mudou — `CaptacaoPerfil.tsx` já tratava
+1 perfil como o caso normal desde o §15 (pluralização e a dica de arrastar já
+só aparecem com 2+), só passou a ser o caso comum de verdade.

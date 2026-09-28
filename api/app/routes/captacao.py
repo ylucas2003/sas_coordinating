@@ -22,12 +22,19 @@ permanente. `candidato_externo_fusao_decisao`/`v_fusao_candidata` marcavam um
 nome como "já decidido" e o escondiam PRA SEMPRE — mesmo ganhando conquista
 nova depois (achado em produção: "Yan Lucas Freitas de Araújo" tinha 12
 `candidato_externo`, nenhum visível em lugar nenhum, porque um script tinha
-"decidido" o nome quando só existia 1). Agrupar agora é só manual, sempre
-disponível, nunca "concluído": toda conquista nasce com o próprio
-`candidato_externo`, e um humano junta duas arrastando em
-`CaptacaoPerfil.tsx` (`mover_conquista`). A lista geral
+"decidido" o nome quando só existia 1). Agrupar continua manual (o coordenador
+sempre pode separar arrastando em `CaptacaoPerfil.tsx`, `mover_conquista`), e
+nunca "concluído" — não há decisão permanente pra registrar. A lista geral
 (`GET /captacao/candidatos`) junta por `nome_normalizado` incondicional, via
 `v_candidato_externo_por_nome` (migration 0063).
+
+⚠️ Ajuste de 28/09/2026 (docs/41 §16): o DEFAULT voltou a ser 1
+`candidato_externo` por NOME, não por conquista —
+`resolver_candidatos_externos.py` anexa conquista nova ao perfil já existente
+do nome (`scripts/_captacao_comum.py::retrato_dominante`), e só cria perfil
+novo pra nome nunca visto. Isso não reabre o bug de 25/09: continua sem
+tabela de decisão, a lista geral continua incondicional, e separar continua
+manual e reversível a qualquer momento.
 """
 
 from __future__ import annotations
@@ -38,6 +45,8 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query, Request
 from pydantic import BaseModel, field_validator
+
+from scripts._captacao_comum import retrato_dominante
 
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
@@ -221,9 +230,10 @@ async def listar_provas() -> dict:
 @router.get("/perfis/{nome_normalizado}")
 async def obter_perfis_do_nome(nome_normalizado: str = Path(...)) -> dict:
     """Todo `candidato_externo` com este nome, cada um com as próprias
-    conquistas — a ficha de QUALQUER nome (não só "casos em disputa": com
-    tudo nascendo 1:1, a maioria dos nomes tem exatamente 1 perfil, e
-    `CaptacaoPerfil.tsx` precisa abrir pra ele do mesmo jeito)."""
+    conquistas — a ficha de QUALQUER nome (não só "casos em disputa": com o
+    default sendo 1 perfil por nome (docs/41 §16), a maioria já tem
+    exatamente 1, e `CaptacaoPerfil.tsx` precisa abrir pra ele do mesmo
+    jeito)."""
     cliente = get_supabase()
     candidatos = (
         cliente.table("v_candidato_externo")
@@ -329,32 +339,14 @@ async def atualizar_candidato(
     return atualizado[0]
 
 
-# ─── Modo avançado: agrupar é sempre manual (simplificação de 25/09/2026) ──
+# ─── Modo avançado: separar continua sempre manual ─────────────────────────
 #
-# Nenhum agrupamento automático mais — resolver_candidatos_externos.py cria
-# 1 candidato_externo por conquista, sempre. As três rotas abaixo são a
-# ÚNICA forma de duas conquistas virarem "a mesma pessoa": mover uma pro
-# perfil da outra. Não existe "decisão" nem "concluir" — cada arraste já
-# persiste na hora, sozinho; a lista geral (v_candidato_externo_por_nome)
+# Desde 28/09/2026 o resolver pode anexar conquista nova a um perfil já
+# existente do nome (docs/41 §16) — mas juntar duas conquistas que já
+# nasceram em perfis DIFERENTES continua exigindo as três rotas abaixo: mover
+# uma pro perfil da outra. Não existe "decisão" nem "concluir" — cada arraste
+# já persiste na hora, sozinho; a lista geral (v_candidato_externo_por_nome)
 # só reflete o estado atual, sem nada permanente pra desfazer.
-
-
-def _serie_dominante(conquistas: list[dict]) -> dict:
-    """O retrato (nome/escola/cidade/uf/série) da conquista mais RECENTE
-    entre as de um candidato — mesma regra de
-    `scripts/_captacao_comum.py::retrato_da_conquista`, aplicada aqui pra um
-    GRUPO (depois de `mover_conquista`, um candidato pode ter mais de uma),
-    pro candidato não ficar com um retrato de anos atrás."""
-    mais_recente = max(conquistas, key=lambda c: c["ano"])
-    return {
-        "nome": mais_recente["nome_informado"],
-        "escola": mais_recente.get("escola_informada"),
-        "cidade": mais_recente.get("cidade_informada"),
-        "uf": mais_recente.get("uf_informada"),
-        "serie_referencia_min": mais_recente.get("serie_referencia_min"),
-        "serie_referencia_max": mais_recente.get("serie_referencia_max"),
-        "ano_referencia_serie": mais_recente["ano"],
-    }
 
 
 @router.post("/perfis/criar")
@@ -367,7 +359,7 @@ async def criar_perfil(
     """Perfil novo, vazio, com o mesmo nome — pra arrastar pra dentro dele um
     resultado que na verdade é de outra pessoa (homônimo). O retrato
     (escola/cidade/UF) fica em branco: assim que uma conquista for movida
-    pra cá, `mover_conquista` recalcula com `_serie_dominante`."""
+    pra cá, `mover_conquista` recalcula com `retrato_dominante`."""
     cliente = get_supabase()
     candidatos = (
         cliente.table("candidato_externo")
@@ -478,10 +470,10 @@ async def mover_conquista(
             or []
         )
         # Sem conquista sobrando (origem esvaziada pelo movimento):
-        # `_serie_dominante` quebra em lista vazia, e o retrato deixa de
+        # `retrato_dominante` quebra em lista vazia, e o retrato deixa de
         # importar — o cartão vira candidato a "Remover perfil vazio".
         if conquistas_restantes:
-            retrato = _serie_dominante(conquistas_restantes)
+            retrato = retrato_dominante(conquistas_restantes)
             cliente.table("candidato_externo").update(
                 {**retrato, "atualizado_em": _agora()}
             ).eq("id", candidato_id).execute()

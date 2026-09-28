@@ -17,16 +17,17 @@ import type { ConquistaExterna, PerfilDoNome, StatusCaptacao } from '../../tipos
 import '../../../styles/captacao.css';
 
 // A ficha de QUALQUER nome da captação (docs/41, simplificação de
-// 25/09/2026) — não só "casos em disputa". Todo `candidato_externo` nasce
-// 1:1 com uma conquista (`resolver_candidatos_externos.py` não agrupa mais
-// nada sozinho); a maioria dos nomes tem exatamente 1 perfil, e esta tela
-// abre pra ele do mesmo jeito. Quando um nome tem mais de um (homônimo raro,
-// ou fonte sem escola que nunca cruzou sozinha com o resto), o coordenador
-// arrasta os blocos de resultado entre os cartões pra reorganizar quem é
-// quem — cada arraste já persiste na hora, sozinho. Não existe "concluir":
-// não há decisão permanente nenhuma pra registrar (era exatamente esse
-// mecanismo — um nome "decidido" ficava escondido pra sempre — que causou o
-// bug achado em produção com "Yan Lucas Freitas de Araújo").
+// 25/09/2026) — não só "casos em disputa". O default (docs/41 §16, ajuste de
+// 28/09/2026) é 1 `candidato_externo` por NOME: `resolver_candidatos_externos.py`
+// anexa conquista nova ao perfil já existente do nome, e a maioria dos
+// nomes tem exatamente 1 perfil — esta tela abre pra ele do mesmo jeito.
+// Quando um nome tem mais de um (homônimo real, separado à mão por um
+// coordenador), o coordenador arrasta os blocos de resultado entre os
+// cartões pra reorganizar quem é quem — cada arraste já persiste na hora,
+// sozinho. Não existe "concluir": não há decisão permanente nenhuma pra
+// registrar (era exatamente esse mecanismo — um nome "decidido" ficava
+// escondido pra sempre — que causou o bug achado em produção com "Yan Lucas
+// Freitas de Araújo").
 //
 // O "cartão-alvo" durante o arraste é achado por HIT-TEST de coordenada
 // (`getBoundingClientRect` de cada cartão, refeito a cada `onDrag` — a lane
