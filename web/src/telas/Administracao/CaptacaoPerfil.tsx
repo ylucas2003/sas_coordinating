@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { LayoutGroup, motion } from 'framer-motion';
 
-import { CabecaDeCampo } from '../../componentes/ui/Campo';
+import { CabecaDeCampo, EloQuieto } from '../../componentes/ui/Campo';
 import { rotuloDaSerie, serieEstimadaHoje } from '../../dominio/captacao';
 import {
   useAtualizarCandidato,
@@ -360,6 +360,14 @@ export function CaptacaoPerfil() {
                     {c.conquistas.length} {c.conquistas.length === 1 ? 'resultado' : 'resultados'}
                   </p>
                   {rotulo && <p className="fusao-cartao__serie">{rotulo}</p>}
+                  {c.conquistas.length > 0 && (
+                    <EloQuieto
+                      para={`/administracao/captacao/${encodeURIComponent(nomeNormalizado)}/${c.id}`}
+                      texto="Ver conquistas em detalhe"
+                      contagem={null}
+                      semContagem
+                    />
+                  )}
                 </div>
 
                 <FunilDoCartao candidato={c} nomeNormalizado={nomeNormalizado} />
