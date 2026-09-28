@@ -62,9 +62,16 @@ class Query:
     def eq(self, c, v): self.filtros.append(("eq", c, v)); return self
     def lt(self, c, v): self.filtros.append(("lt", c, v)); return self
     def lte(self, c, v): self.filtros.append(("lte", c, v)); return self
+    def gt(self, c, v): self.filtros.append(("gt", c, v)); return self
     def gte(self, c, v): self.filtros.append(("gte", c, v)); return self
     def in_(self, c, v): self.filtros.append(("in", c, list(v))); return self
     def is_(self, c, v): self.filtros.append(("is", c, v)); return self
+    def ilike(self, c, v): self.filtros.append(("ilike", c, v)); return self
+    # `.contains(col, [valor])` -> operador @> do Postgres (índice GIN nas
+    # views que agregam array, ex. v_candidato_externo_por_nome, 0063) — bate
+    # se TODO item de `v` estiver na coluna-array da linha. Só o caso de um
+    # valor só (`[x]`) importa hoje (filtro de UF/status em captacao.py).
+    def contains(self, c, v): self.filtros.append(("contains", c, list(v))); return self
 
     @property
     def not_(self):
@@ -93,10 +100,17 @@ class Query:
             if tipo == "nao_is" and val == "null" and atual is None: return False
             if tipo == "lt" and not (atual is not None and str(atual) < str(val)): return False
             if tipo == "lte" and not (atual is not None and str(atual) <= str(val)): return False
+            if tipo == "gt" and not (atual is not None and str(atual) > str(val)): return False
             if tipo == "gte" and not (atual is not None and str(atual) >= str(val)): return False
             if tipo == "like":
                 alvo = str(val).replace("%", "")
                 if not str(atual or "").startswith(alvo): return False
+            if tipo == "ilike":
+                alvo = str(val).replace("%", "").lower()
+                if alvo not in str(atual or "").lower(): return False
+            if tipo == "contains":
+                atual_lista = atual or []
+                if not all(item in atual_lista for item in val): return False
         return True
 
     #: Embeds de FILHO: {tabela_filha: coluna_fk}. O PostgREST resolve pela FK

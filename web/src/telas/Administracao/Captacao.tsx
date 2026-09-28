@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { CabecaDeCampo, EloQuieto } from '../../componentes/ui/Campo';
+import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { BarraFiltros, Busca, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
-import { TarjaProcedencia } from '../../componentes/ui/TarjaProcedencia';
 import { resumirTexto } from '../../dominio/filtros';
-import { useCandidatos, useFusoes } from '../../hooks/captacao';
+import { useCandidatos, useProvas } from '../../hooks/captacao';
 import type { FiltrosCaptacao as Filtros, StatusCaptacao } from '../../tipos/captacao';
+
+import '../../../styles/captacao.css';
 
 // Captação externa (docs/41) — candidatos achados FORA do colégio, cruzando
 // resultado público de olimpíada/vestibular/concurso. Não tem nada a ver com
@@ -14,14 +15,20 @@ import type { FiltrosCaptacao as Filtros, StatusCaptacao } from '../../tipos/cap
 // quem convidar.
 //
 // **Paginação de verdade**, ao contrário de `Alunos.tsx` — e isso não é
-// inconsistência, é a mesma régua do `Banco` (docs/41 §7.1, CLAUDE.md
-// armadilha 2): lá o volume é fixo (~900 alunos, sem teto de propósito); aqui
-// é gente de fora, sem teto natural — 26 mil e crescendo a cada fonte nova.
+// inconsistência, é a mesma régua do `Banco` (CLAUDE.md armadilha 2): lá o
+// volume é fixo (~900 alunos, sem teto de propósito); aqui é gente de fora,
+// sem teto natural — mais de 100 mil nomes e crescendo a cada fonte nova.
 //
 // A ordem padrão do servidor é por Nº DE CONQUISTAS, decrescente
 // (`routes/captacao.py::listar_candidatos`): quem cruzou premiação em quatro
 // anos seguidos é lead mais forte que quem apareceu uma vez, e é essa
 // pergunta — "quem já provou que é bom?" — que a tela responde primeiro.
+//
+// Cada NOME é uma linha, sempre (`v_candidato_externo_por_nome`, 0063) —
+// sem fila de fusão, sem "pendente": escola/cidade/UF/status são o CONJUNTO
+// de tudo que qualquer conquista/perfil daquele nome já teve, e clicar no
+// nome abre a mesma tela pra qualquer um (`CaptacaoPerfil.tsx`), fragmentado
+// ou não (simplificação de 25/09/2026).
 
 const STATUS_LABEL: Record<StatusCaptacao, string> = {
   novo: 'Novo',
@@ -57,13 +64,16 @@ function fmtQuando(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+/** Lista curta em texto — "—" vazia, item único sem vírgula, resto junto por ", ". */
+function fmtLista(itens: string[]): string {
+  return itens.length ? itens.join(', ') : '—';
+}
+
 export function Captacao() {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_INICIAIS);
   const [ufDigitada, setUfDigitada] = useState('');
   const { data, isPending, isError, isPlaceholderData } = useCandidatos(filtros);
-  // `por_pagina: 1` só pra ler o `total` — o mesmo truque barato do resumo
-  // de captação no HubAdministracao.tsx (count="exact" é HEAD no PostgREST).
-  const { data: fusoes } = useFusoes({ porPagina: 1 });
+  const { data: provas } = useProvas();
 
   const candidatos = data?.candidatos ?? [];
   const total = data?.total ?? 0;
@@ -87,16 +97,8 @@ export function Captacao() {
       <div className="tela-cabecalho">
         <p className="tela-subtitulo">
           Gente que nunca estudou aqui, achada cruzando listas públicas de premiação de olimpíada e
-          vestibular. Abra a ficha pra ver todas as conquistas cruzadas de cada pessoa.
+          vestibular. Abra o nome pra ver todas as conquistas cruzadas dessa pessoa.
         </p>
-      </div>
-
-      <div className="campo-elos">
-        <EloQuieto
-          para="/administracao/captacao/fusoes"
-          texto="Nomes repetidos pra revisar (fusão)"
-          contagem={fusoes?.total ?? null}
-        />
       </div>
 
       <BarraFiltros
@@ -172,7 +174,7 @@ export function Captacao() {
           <p className="tela-subtitulo">
             {isPending
               ? 'Carregando…'
-              : `${total.toLocaleString('pt-BR')} ${total === 1 ? 'candidato' : 'candidatos'} · página ${pagina} de ${totalPaginas}`}
+              : `${total.toLocaleString('pt-BR')} ${total === 1 ? 'nome' : 'nomes'} · página ${pagina} de ${totalPaginas}`}
             {isPlaceholderData && ' · atualizando…'}
           </p>
         </div>
@@ -198,38 +200,31 @@ export function Captacao() {
             </thead>
             <tbody>
               {candidatos.map((c) => (
-                <tr key={c.id}>
+                <tr key={c.nome_normalizado}>
                   <td data-rotulo="Nome" data-titulo>
-                    {/* Cada linha já é o grupo inteiro — a view agrupada
-                        (0062) colapsa nome pendente na fila de fusão num
-                        representante só, pra não repetir a mesma pessoa 3×
-                        numa busca. O elo de "N perfis" fica visível sem
-                        precisar abrir a ficha primeiro (docs/41, 24/09/2026). */}
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <Link to={`/administracao/captacao/${c.id}`}>{c.nome}</Link>
+                      <Link to={`/administracao/captacao/${encodeURIComponent(c.nome_normalizado)}`}>
+                        {c.nome}
+                      </Link>
+                      {/* perfis_no_grupo > 1 é o único sinal de fragmentação
+                          que sobra — texto solto, não outro elo: o nome
+                          acima já leva pra mesma tela onde dá pra arrumar. */}
                       {c.perfis_no_grupo > 1 && (
-                        <Link
-                          to={`/administracao/captacao/fusoes/${encodeURIComponent(c.nome_normalizado)}`}
-                          className="link-botao"
-                          style={{ fontSize: 12 }}
-                        >
+                        <span className="section__subtitle" style={{ fontSize: 12 }}>
                           {c.perfis_no_grupo} perfis
-                        </Link>
-                      )}
-                      {c.tem_conflito_nivel && (
-                        <TarjaProcedencia estado="falhou" fonte="nível conflitante" />
+                        </span>
                       )}
                     </span>
                   </td>
-                  <td data-rotulo="Escola">{c.escola || '—'}</td>
+                  <td data-rotulo="Escola">{fmtLista(c.escolas)}</td>
                   <td data-rotulo="Cidade/UF">
-                    {[c.cidade, c.uf].filter(Boolean).join(' · ') || '—'}
+                    {fmtLista(c.cidades)} · {fmtLista(c.ufs)}
                   </td>
                   <td data-rotulo="Conquistas">
                     {c.conquistas_total}
                     {c.ano_mais_recente && ` · até ${c.ano_mais_recente}`}
                   </td>
-                  <td data-rotulo="Status">{STATUS_LABEL[c.status_captacao]}</td>
+                  <td data-rotulo="Status">{fmtLista(c.status_captacao.map((s) => STATUS_LABEL[s]))}</td>
                   <td data-rotulo="Última atualização" data-secundario>{fmtQuando(c.atualizado_em)}</td>
                 </tr>
               ))}
@@ -262,6 +257,27 @@ export function Captacao() {
           </nav>
         )}
       </section>
+
+      {provas && provas.provas.length > 0 && (
+        <section className="card">
+          <div className="tela-cabecalho" style={{ padding: '10px 16px 0' }}>
+            <p className="tela-subtitulo">Fontes carregadas nesta lista</p>
+          </div>
+          <div className="provas-pista">
+            {provas.provas.map((p) => (
+              <div key={p.nome} className="provas-cartao">
+                <span className="provas-cartao__nome">{p.nome}</span>
+                <span className="provas-cartao__anos">
+                  {p.ano_min && p.ano_max
+                    ? p.ano_min === p.ano_max ? p.ano_min : `${p.ano_min}–${p.ano_max}`
+                    : '—'}
+                </span>
+                <span className="provas-cartao__categoria">{p.categoria.replace('_', ' ')}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -3,14 +3,22 @@
 // `v_candidato_externo`/`conquista_externa`, sem schema Pydantic com alias no
 // meio — o mesmo desenho de `FiltroAuditoria`/`UsuarioCoordenacao` em
 // `servicos/api.ts`. Mudou uma coluna lá, mude aqui.
+//
+// Simplificação de 25/09/2026: não existe mais fila de fusão, decisão
+// permanente nem sinal de confiança (`tem_conflito_nivel`/`ufs_distintas`) —
+// causavam um bug sério (nome "decidido" ficava escondido pra sempre, mesmo
+// ganhando conquista nova depois). Agrupar é só manual, sempre disponível.
 
 export type StatusCaptacao = 'novo' | 'contatado' | 'interessado' | 'matriculado' | 'descartado';
 
-/** Uma linha da lista — o resumo de `v_candidato_externo` (migration 0058). */
+/** Um `candidato_externo` — sempre 1:1 com uma conquista ao nascer
+ * (`resolver_candidatos_externos.py`); só fica com mais de uma depois de um
+ * humano arrastar (`mover_conquista`). É o formato de UM CARTÃO em
+ * `CaptacaoPerfil.tsx`. */
 export interface CandidatoExterno {
   id: string;
   nome: string;
-  /** Chave de agrupamento (maiúsculas, sem acento) — é o que liga esta pessoa à fila de fusão (0059/0061) e ao grupo dela na view agrupada (0062). */
+  /** Chave de agrupamento (maiúsculas, sem acento) — é o que liga este perfil aos outros com o mesmo nome. */
   nome_normalizado: string;
   escola: string | null;
   cidade: string | null;
@@ -49,24 +57,41 @@ export interface ConquistaExterna {
   notas_por_materia: Record<string, number> | null;
 }
 
-/** A ficha: o candidato e TODAS as conquistas cruzadas dele, ano decrescente. */
-export interface CandidatoFicha extends CandidatoExterno {
+/** Um perfil do nome, com as próprias conquistas — o que um cartão de `CaptacaoPerfil.tsx` desenha. */
+export interface PerfilDoNome extends CandidatoExterno {
   conquistas: ConquistaExterna[];
-  /** Quantos OUTROS `candidato_externo` têm este mesmo nome, ainda pendentes na fila de fusão (0 = nome sozinho, sem duplicata). Base do alerta na ficha. */
-  duplicatas_pendentes: number;
-  /** Sinal FORTE de que as duplicatas são pessoas diferentes (nível de ensino conflitante no mesmo ano) — não só "cuidado" como ufs_distintas. */
-  tem_conflito_nivel: boolean;
 }
 
-/** Uma linha da lista geral — vem de `v_candidato_externo_agrupado` (0062): nome ainda pendente na fila de fusão já chega colapsado num representante só. */
-export interface CandidatoExternoAgrupado extends CandidatoExterno {
-  /** Quantos `candidato_externo` este representante resume — 1 = nome sem ambiguidade (nada foi colapsado). */
+/** Todo `candidato_externo` com um nome — a tela inteira de `CaptacaoPerfil.tsx`. */
+export interface PerfisDoNome {
+  nome_normalizado: string;
+  candidatos: PerfilDoNome[];
+}
+
+/** Uma linha da lista geral — vem de `v_candidato_externo_por_nome` (migration
+ * 0063): TODO nome vira uma linha, sempre, incondicional. escolas/cidades/ufs/
+ * status_captacao são CONJUNTOS — o que qualquer conquista/perfil daquele nome
+ * já teve —, não um valor escolhido por heurística. Arrays independentes,
+ * nunca pareados por índice entre si (duas conquistas podem repetir cidade com
+ * UF diferente por erro de digitação da fonte). */
+export interface CandidatoPorNome {
+  nome_normalizado: string;
+  nome: string;
+  escolas: string[];
+  cidades: string[];
+  ufs: string[];
+  status_captacao: StatusCaptacao[];
+  conquistas_total: number;
+  provas_distintas: number;
+  /** Quantos `candidato_externo` existem hoje pra este nome — 1 = nada fragmentado. */
   perfis_no_grupo: number;
-  tem_conflito_nivel: boolean;
+  ano_mais_recente: number | null;
+  criado_em: string;
+  atualizado_em: string;
 }
 
 export interface PaginaCandidatos {
-  candidatos: CandidatoExternoAgrupado[];
+  candidatos: CandidatoPorNome[];
   total: number;
   pagina: number;
   por_pagina: number;
@@ -76,61 +101,26 @@ export interface FiltrosCaptacao {
   uf?: string;
   status_captacao?: StatusCaptacao;
   conquistas_min?: number;
-  prova_id?: string;
   busca?: string;
   pagina?: number;
   por_pagina?: number;
 }
 
-/** Só o funil manual — os outros campos são derivados (0056 §3). */
+/** Só o funil manual — os outros campos são derivados (0056 §3). Editado direto em cada cartão de `CaptacaoPerfil.tsx`. */
 export interface RemendoCandidato {
   status_captacao?: StatusCaptacao;
   observacoes?: string;
 }
 
-// ─── Fila de fusão de baixa confiança (docs/41 §8, item 1) ────────────────
-// O resolver só funde por nome+escola exatos (§4.1); isto aqui é o segundo
-// nível, nome sozinho — nunca funde automático, só sugere pra um humano
-// confirmar ou rejeitar.
-
-/** Uma linha da fila: um NOME com mais de um `candidato_externo`. */
-export interface GrupoFusao {
-  nome_normalizado: string;
-  /** Quantos `candidato_externo` distintos têm este nome. */
-  candidatos: number;
-  /** 1 = todos batem na mesma UF (alta confiança); mais que 1 = cuidado. */
-  ufs_distintas: number;
-  /** Nível de ensino conflitante no mesmo ano entre candidatos do grupo — sinal FORTE de gente diferente, não só "cuidado" (scripts/sinalizar_fusoes_conflito_de_nivel.py). */
-  tem_conflito_nivel: boolean;
+/** Uma prova (ITA, IME, OBMEP...) com o intervalo de anos carregado — o rodapé "quais fontes alimentam esta lista" de `Captacao.tsx`. */
+export interface ResumoProva {
+  nome: string;
+  categoria: string;
+  ano_min: number | null;
+  ano_max: number | null;
+  conquistas_total: number;
 }
 
-export interface PaginaFusoes {
-  grupos: GrupoFusao[];
-  total: number;
-  pagina: number;
-  por_pagina: number;
-}
-
-/** Um candidato do grupo, com as próprias conquistas — pra comparar lado a lado. */
-export interface MembroDaFusao extends CandidatoExterno {
-  conquistas: ConquistaExterna[];
-}
-
-export interface DetalheDaFusao {
-  nome_normalizado: string;
-  candidatos: MembroDaFusao[];
-}
-
-export interface ResultadoDaFusao {
-  sobrevivente_id: string;
-  candidatos_fundidos: number;
-}
-
-// ─── Modo avançado: dividir um grupo à mão (docs/41, 24/09/2026) ──────────
-// O binário acima decide o grupo INTEIRO de uma vez; estas ações operam num
-// perfil ou numa conquista por vez, pra separar quem o resolver misturou.
-
-export interface ResultadoDaConclusao {
-  status: 'confirmada' | 'rejeitada';
-  perfis_finais: number;
+export interface PaginaProvas {
+  provas: ResumoProva[];
 }

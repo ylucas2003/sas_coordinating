@@ -1,6 +1,9 @@
 // Hooks da captação externa (docs/41) — leitura e o funil manual de escrita.
 // Mesma divisão de `hooks/banco.ts`: chaves e mutações no mesmo arquivo,
 // porque o recurso é um só (candidato + conquistas).
+//
+// Simplificação de 25/09/2026: sem fila de fusão, sem decisão permanente.
+// Agrupar é sempre manual — as três mutações do fim do arquivo.
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as captacao from '../servicos/captacao';
@@ -10,17 +13,14 @@ export const chavesCaptacao = {
   raiz: ['captacao'] as const,
   candidatos: ['captacao', 'candidatos'] as const,
   pagina: (filtros: FiltrosCaptacao) => ['captacao', 'candidatos', filtros] as const,
-  candidato: (id: string) => ['captacao', 'candidatos', id] as const,
-  fusoes: ['captacao', 'fusoes'] as const,
-  paginaDeFusoes: (opcoes: { ufIncerta?: boolean; soConflitoNivel?: boolean; pagina?: number }) =>
-    ['captacao', 'fusoes', opcoes] as const,
-  fusao: (nomeNormalizado: string) => ['captacao', 'fusoes', nomeNormalizado] as const,
+  provas: ['captacao', 'provas'] as const,
+  perfis: (nomeNormalizado: string) => ['captacao', 'perfis', nomeNormalizado] as const,
 };
 
 /**
- * Página de candidatos. `keepPreviousData` seguindo `useQuestoes`
- * (hooks/banco.ts): sem isso a lista pisca vazia a cada troca de página ou
- * filtro, numa tabela de 26 mil linhas que não tem como carregar inteira.
+ * Página de nomes. `keepPreviousData` seguindo `useQuestoes` (hooks/banco.ts):
+ * sem isso a lista pisca vazia a cada troca de página ou filtro, numa tabela
+ * de 100 mil+ linhas que não tem como carregar inteira.
  */
 export function useCandidatos(filtros: FiltrosCaptacao = {}) {
   return useQuery({
@@ -30,93 +30,56 @@ export function useCandidatos(filtros: FiltrosCaptacao = {}) {
   });
 }
 
-export function useCandidato(id: string | null) {
+/** As provas que alimentam a lista (ITA, IME, OBMEP...) — muda raríssimo, só
+ * quando um dev roda o pipeline manual pra uma fonte nova; `staleTime` longo
+ * de propósito. */
+export function useProvas() {
   return useQuery({
-    queryKey: chavesCaptacao.candidato(id ?? ''),
-    queryFn: () => captacao.obterCandidato(id as string),
-    enabled: !!id,
+    queryKey: chavesCaptacao.provas,
+    queryFn: () => captacao.listarProvas(),
+    staleTime: 60 * 60 * 1000,
   });
 }
 
-export function useAtualizarCandidato(id: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (remendo: RemendoCandidato) => captacao.atualizarCandidato(id, remendo),
-    onSuccess: (candidato) => {
-      // A ficha aberta atualiza na hora, sem esperar reconsulta; as páginas da
-      // lista (que somam por status/conquistas) só invalidam, porque um PATCH
-      // de status pode mudar em qual página este candidato aparece.
-      queryClient.setQueryData(chavesCaptacao.candidato(id), candidato);
-      queryClient.invalidateQueries({ queryKey: chavesCaptacao.candidatos });
-    },
-  });
-}
-
-// ─── Fila de fusão de baixa confiança (docs/41 §8, item 1) ────────────────
-
-export function useFusoes(
-  opcoes: { ufIncerta?: boolean; soConflitoNivel?: boolean; pagina?: number; porPagina?: number } = {},
-) {
+/** Todo `candidato_externo` com este nome, cada um com as próprias
+ * conquistas — os dados de `CaptacaoPerfil.tsx`. */
+export function usePerfisDoNome(nomeNormalizado: string | null) {
   return useQuery({
-    queryKey: chavesCaptacao.paginaDeFusoes({
-      ufIncerta: opcoes.ufIncerta,
-      soConflitoNivel: opcoes.soConflitoNivel,
-      pagina: opcoes.pagina,
-    }),
-    queryFn: () => captacao.listarFusoes(opcoes),
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useFusao(nomeNormalizado: string | null) {
-  return useQuery({
-    queryKey: chavesCaptacao.fusao(nomeNormalizado ?? ''),
-    queryFn: () => captacao.obterFusao(nomeNormalizado as string),
+    queryKey: chavesCaptacao.perfis(nomeNormalizado ?? ''),
+    queryFn: () => captacao.obterPerfisDoNome(nomeNormalizado as string),
     enabled: !!nomeNormalizado,
   });
 }
 
-/**
- * Confirmar ou rejeitar, na mesma mutação: as duas ações têm o mesmo efeito
- * sobre o cache (o grupo sai da fila) e a mesma forma de chamada (só o
- * nome). Separar em dois hooks só duplicaria o `onSuccess`.
- */
-export function useDecidirFusao(nomeNormalizado: string) {
+/** O funil manual (`status_captacao`/`observacoes`), editado direto em cada
+ * cartão. `nomeNormalizado` é só pra saber o que invalidar — a escrita em si
+ * é sempre por `id` de um `candidato_externo` específico. */
+export function useAtualizarCandidato(id: string, nomeNormalizado: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    // Anotado à mão: os dois braços devolvem formas diferentes (confirmar
-    // devolve o sobrevivente, rejeitar só um `ok`), e quem chama nunca lê o
-    // valor de volta — só espera a promessa assentar.
-    mutationFn: (decisao: 'confirmar' | 'rejeitar'): Promise<unknown> =>
-      decisao === 'confirmar'
-        ? captacao.confirmarFusao(nomeNormalizado)
-        : captacao.rejeitarFusao(nomeNormalizado),
+    mutationFn: (remendo: RemendoCandidato) => captacao.atualizarCandidato(id, remendo),
     onSuccess: () => {
-      // O grupo decidido não existe mais na fila (fundido ou marcado) — a
-      // lista de candidatos também pode ter mudado (um id sumiu, outro
-      // ganhou conquista) —, então invalida os dois.
-      queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusoes });
+      queryClient.invalidateQueries({ queryKey: chavesCaptacao.perfis(nomeNormalizado) });
       queryClient.invalidateQueries({ queryKey: chavesCaptacao.candidatos });
     },
   });
 }
 
-// ─── Modo avançado: dividir um grupo à mão (docs/41, 24/09/2026) ──────────
+// ─── Modo avançado: agrupar é sempre manual (docs/41, 25/09/2026) ─────────
 //
-// Estas quatro mutações operam DENTRO de um grupo aberto — cada uma só
-// invalida `fusao(nomeNormalizado)`, não a fila nem a lista geral, porque
-// mover/criar/remover não fecha a revisão (o grupo continua pendente até
-// `useConcluirRevisao`). A lista geral lê a view materializada (0062), que o
-// backend já atualiza sozinho em segundo plano a cada escrita — invalidar
-// aqui também seria redundante e só forçaria uma requisição a mais.
+// As três mutações abaixo operam DENTRO de um nome aberto — cada uma só
+// invalida `perfis(nomeNormalizado)`, não a lista geral: ela lê a view
+// materializada (0063), que o backend já atualiza sozinho em segundo plano a
+// cada escrita — invalidar aqui também seria redundante e só forçaria uma
+// requisição a mais.
 
 /** Perfil novo, vazio, com o mesmo nome — alvo pra arrastar um homônimo pra fora do candidato errado. */
-export function useCriarPerfilNoGrupo(nomeNormalizado: string) {
+export function useCriarPerfil(nomeNormalizado: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => captacao.criarPerfilNoGrupo(nomeNormalizado),
+    mutationFn: () => captacao.criarPerfil(nomeNormalizado),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusao(nomeNormalizado) });
+      queryClient.invalidateQueries({ queryKey: chavesCaptacao.perfis(nomeNormalizado) });
     },
   });
 }
@@ -128,7 +91,7 @@ export function useMoverConquista(nomeNormalizado: string) {
     mutationFn: ({ conquistaId, candidatoId }: { conquistaId: string; candidatoId: string }) =>
       captacao.moverConquista(conquistaId, candidatoId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusao(nomeNormalizado) });
+      queryClient.invalidateQueries({ queryKey: chavesCaptacao.perfis(nomeNormalizado) });
     },
   });
 }
@@ -139,24 +102,7 @@ export function useRemoverCandidatoVazio(nomeNormalizado: string) {
   return useMutation({
     mutationFn: (candidatoId: string) => captacao.removerCandidatoVazio(candidatoId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusao(nomeNormalizado) });
-    },
-  });
-}
-
-/**
- * Fecha a revisão manual de um nome — generaliza confirmar/rejeitar pro caso
- * em que o coordenador mexeu à mão (moveu/criou/removeu) em vez de decidir o
- * grupo inteiro de um clique só. Mesmo `onSuccess` de `useDecidirFusao`: o
- * nome sai da fila, a lista geral pode ter mudado.
- */
-export function useConcluirRevisao(nomeNormalizado: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => captacao.concluirRevisao(nomeNormalizado),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: chavesCaptacao.fusoes });
-      queryClient.invalidateQueries({ queryKey: chavesCaptacao.candidatos });
+      queryClient.invalidateQueries({ queryKey: chavesCaptacao.perfis(nomeNormalizado) });
     },
   });
 }

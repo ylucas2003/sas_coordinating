@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Cruza `conquista_externa` em `candidato_externo` — o passo de "resolução de
-identidade" do funil de captação.
+"""Cria `candidato_externo` pra cada `conquista_externa` órfã — o passo de
+"nasce sozinha" do funil de captação.
 
 Código que não roda em requisição vive como script (mesma escolha do
 `importar_captacao_externa.py`).
@@ -8,54 +8,52 @@ Código que não roda em requisição vive como script (mesma escolha do
 Uso:
     ./.venv/bin/python scripts/resolver_candidatos_externos.py
 
-Chave de match usada (ALTA confiança, de propósito): nome normalizado
-(maiúsculas, sem acento) + escola informada, exatos. Dá falso NEGATIVO (a
-mesma pessoa que trocou de escola entre duas conquistas vira dois candidatos)
-em vez de falso POSITIVO (duas pessoas diferentes viradas uma só) — errar pra
-esse lado é mais barato: perde um cruzamento, não inventa um. Não tem fila de
-revisão ainda porque não tem UI ainda; quando tiver, um segundo passo (nome +
-cidade/UF, confiança mais baixa) pode alimentar essa fila em vez de mesclar
-direto.
+⚠️ Não agrupa mais por nome+escola. Até 25/09/2026 este script juntava
+conquistas da mesma pessoa (nome+escola exatos) num `candidato_externo` só —
+e essa "inteligência" automática, somada a `confirmar_fusoes_alta_confianca.py`
+e a `candidato_externo_fusao_decisao` (que marcava um nome como "decidido"
+pra sempre), causou um bug sério: 4.395 dos 17.427 nomes "decididos" — TODOS
+por script, NENHUM por um humano — ganharam conquista nova depois da decisão
+e ficaram escondidos de qualquer tela (achado em produção, 25/09/2026:
+"Yan Lucas Freitas de Araújo" tinha 12 `candidato_externo`, nenhum visível
+em lugar nenhum). A correção foi tirar a inteligência inteira: toda
+conquista nasce com o PRÓPRIO `candidato_externo`, e só um humano junta
+duas, arrastando em `CaptacaoPerfil.tsx`
+(`routes/captacao.py::mover_conquista`). A lista geral
+(`GET /captacao/candidatos`, `v_candidato_externo_por_nome`) já junta por
+nome sozinha, incondicional, sem depender de `candidato_id` nenhum — não
+precisa mais que ESTE script adivinhe quem é quem.
 
-Idempotente: relê TODA `conquista_externa` (resolvida ou não) a cada rodada,
-não só o que está com candidato_id nulo — é assim que uma conquista nova de
-uma prova nova gruda no candidato_externo que já existe de uma prova antiga,
-em vez de criar uma pessoa duplicada.
+Idempotente por construção: só processa `conquista_externa` com
+`candidato_id IS NULL` — uma vez resolvida, nunca mais aparece na consulta.
+Bem mais barato que a versão antiga (que relia a tabela inteira a cada
+rodada, de propósito, pra grudar conquista nova em candidato já existente —
+não precisa mais, porque não existe mais "grudar", só "nascer sozinho").
 """
 
 from __future__ import annotations
 
-import re
 import sys
-import unicodedata
-from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.supabase_client import criar_cliente_supabase
+from scripts._captacao_comum import retrato_da_conquista
 
 TAMANHO_LOTE = 200
 
+# Linha INTEIRA, não só id+candidato_id: conquista_externa tem colunas NOT
+# NULL (prova_id, ano, resultado...) que um upsert parcial não preenche — o
+# Postgres tenta o INSERT da linha antes de cair no conflito, e falha por
+# NOT NULL mesmo quando o destino real é só um UPDATE. Reenviar a linha
+# completa (já em mãos, veio do SELECT abaixo) resolve isso em poucas
+# dezenas de chamadas em lote — mesmo motivo da versão antiga deste script.
 COLUNAS = (
-    "id,prova_id,candidato_id,ano,nivel_texto,serie_referencia_min,serie_referencia_max,"
-    "resultado,nome_informado,escola_informada,cidade_informada,uf_informada,fonte_url"
+    "id, prova_id, ano, nivel_texto, serie_referencia_min, serie_referencia_max, "
+    "resultado, nome_informado, escola_informada, cidade_informada, uf_informada, "
+    "fonte_url, raspado_em, notas_por_materia"
 )
-
-
-def normalizar_nome(nome: str) -> str:
-    sem_acento = unicodedata.normalize("NFKD", nome).encode("ascii", "ignore").decode("ascii")
-    return re.sub(r"\s+", " ", sem_acento.upper()).strip()
-
-
-def chave_do_grupo(linha: dict[str, Any]) -> tuple[str, str]:
-    escola = (linha.get("escola_informada") or "").strip().upper()
-    if not escola:
-        # Sem escola não dá pra confiar em match por nome sozinho (homônimo é
-        # comum demais no Brasil) — cada linha sem escola vira grupo de 1.
-        return (normalizar_nome(linha["nome_informado"]), f"__sem_escola__{linha['id']}")
-    return (normalizar_nome(linha["nome_informado"]), escola)
 
 
 def _em_lotes(itens: list, tamanho: int = TAMANHO_LOTE):
@@ -66,127 +64,42 @@ def _em_lotes(itens: list, tamanho: int = TAMANHO_LOTE):
 def main() -> int:
     cliente = criar_cliente_supabase()
 
-    # Sem paginação de propósito (mesma régua da 0022/banco de questões pra
-    # outras tabelas grandes): PGRST_DB_MAX_ROWS fica sem valor, então um
-    # select sem .range() já devolve tudo.
-    todas = cliente.table("conquista_externa").select(COLUNAS).execute().data
-    print(f"{len(todas)} conquista_externa no total", file=sys.stderr)
+    orfas = (
+        cliente.table("conquista_externa")
+        .select(COLUNAS)
+        .is_("candidato_id", "null")
+        .execute()
+        .data
+        or []
+    )
+    print(f"{len(orfas)} conquista_externa sem candidato_externo", file=sys.stderr)
+    if not orfas:
+        return 0
 
-    grupos: dict[tuple[str, str], list[dict]] = defaultdict(list)
-    for linha in todas:
-        grupos[chave_do_grupo(linha)].append(linha)
-
-    print(f"{len(grupos)} pessoas distintas (nome+escola)", file=sys.stderr)
-
-    por_id = {linha["id"]: linha for linha in todas}
-
-    a_criar: list[dict] = []  # grupos sem candidato_id nenhum ainda
-    # candidato_id -> todas as linhas de TODOS os grupos (nome, escola) que
-    # apontam pra ele — nunca uma lista de patches, direto (ver o comentário
-    # antes do upsert, embaixo, pro motivo).
-    linhas_por_candidato_existente: dict[str, list[dict]] = defaultdict(list)
-    a_vincular: dict[str, str] = {}  # conquista_id -> candidato_id, só pra quem precisa mudar
-
-    for chave, linhas in grupos.items():
-        candidato_id_existente = next((l["candidato_id"] for l in linhas if l["candidato_id"]), None)
-
-        if candidato_id_existente is None:
-            mais_recente = max(linhas, key=lambda l: l["ano"])
-            dados_candidato = {
-                "nome": mais_recente["nome_informado"],
-                "nome_normalizado": chave[0],
-                "escola": mais_recente.get("escola_informada"),
-                "cidade": mais_recente.get("cidade_informada"),
-                "uf": mais_recente.get("uf_informada"),
-                "serie_referencia_min": mais_recente.get("serie_referencia_min"),
-                "serie_referencia_max": mais_recente.get("serie_referencia_max"),
-                "ano_referencia_serie": mais_recente["ano"],
-            }
-            a_criar.append({"_chave": chave, "_linhas": linhas, **dados_candidato})
-        else:
-            linhas_por_candidato_existente[candidato_id_existente].extend(linhas)
-            for l in linhas:
-                if l["candidato_id"] != candidato_id_existente:
-                    a_vincular[l["id"]] = candidato_id_existente
-
-    # Um retrato só por candidato_id, nunca um por (nome, escola) — uma fusão
-    # manual (routes/captacao.py::confirmar_fusao) já pode ter juntado
-    # conquista de ESCOLAS diferentes debaixo do mesmo candidato_id, e cada
-    # escola ainda vira grupo (nome, escola) PRÓPRIO aqui. Sem esta junção,
-    # dois grupos emitiam patch pro MESMO id no mesmo lote de upsert, e o
-    # Postgres recusa com "ON CONFLICT DO UPDATE cannot affect row a second
-    # time" — achado rodando de verdade em 17/09/2026, depois do primeiro
-    # lote de fusão em massa (5.479 candidatos com escola divergente entre
-    # as próprias conquistas).
-    a_atualizar_candidato: list[dict] = []
-    for candidato_id, linhas in linhas_por_candidato_existente.items():
-        mais_recente = max(linhas, key=lambda l: l["ano"])
-        a_atualizar_candidato.append(
-            {
-                "id": candidato_id,
-                "nome": mais_recente["nome_informado"],
-                "nome_normalizado": normalizar_nome(mais_recente["nome_informado"]),
-                "escola": mais_recente.get("escola_informada"),
-                "cidade": mais_recente.get("cidade_informada"),
-                "uf": mais_recente.get("uf_informada"),
-                "serie_referencia_min": mais_recente.get("serie_referencia_min"),
-                "serie_referencia_max": mais_recente.get("serie_referencia_max"),
-                "ano_referencia_serie": mais_recente["ano"],
-            }
-        )
-
-    # ── Cria candidato_externo novo pra cada grupo sem match anterior ──
-    #
-    # ⚠️ O par item↔linha-criada é por POSIÇÃO (`zip`), nunca por (nome, escola)
-    # de volta. Foi um dicionário chaveado por (nome, escola) até a OBM expor o
-    # bug: SEM escola (toda conquista da OBM), duas pessoas DIFERENTES com o
-    # mesmo nome no mesmo lote de 200 colidiam na mesma chave, e as duas
-    # ficavam apontando pro MESMO candidato — exatamente o falso POSITIVO que
-    # o §4.1 do docs/41 diz ser o erro caro desta feature. `INSERT ... VALUES
-    # (...), (...) RETURNING` do Postgres preserva a ordem da lista de valores
-    # (sem `ORDER BY`, sem paralelismo dentro do mesmo statement) — é a mesma
-    # garantia que bibliotecas de ORM usam pra mapear objeto→linha inserida, e
-    # aqui substitui a chave ambígua sem custo nenhum.
     criados = 0
-    for lote in _em_lotes(a_criar):
-        payload = [
-            {k: v for k, v in item.items() if not k.startswith("_")} for item in lote
-        ]
+    for lote in _em_lotes(orfas):
+        payload = [retrato_da_conquista(c) for c in lote]
         resultado = (
             cliente.table("candidato_externo")
             .insert(payload, returning="representation")
             .execute()
         )
-        for item, linha_criada in zip(lote, resultado.data, strict=True):
-            for linha in item["_linhas"]:
-                a_vincular[linha["id"]] = linha_criada["id"]
-        criados += len(lote)
-        print(f"  candidatos criados: {criados}/{len(a_criar)}", file=sys.stderr)
-
-    # ── Atualiza o retrato (escola/série/ano de referência) de candidatos já existentes ──
-    for lote in _em_lotes(a_atualizar_candidato):
-        cliente.table("candidato_externo").upsert(
-            lote, on_conflict="id", returning="minimal"
-        ).execute()
-
-    # ── Aponta cada conquista_externa pro candidato_id resolvido ──
-    # Upsert com a linha INTEIRA (não só id+candidato_id): conquista_externa
-    # tem colunas NOT NULL (prova_id, ano, resultado...) que um upsert parcial
-    # não preenche — Postgres tenta o INSERT da linha antes de cair no
-    # conflito, e falha por NOT NULL mesmo quando o destino é só um UPDATE.
-    # Reenviar a linha completa (já em mãos, veio do SELECT lá em cima) deixa
-    # isso em poucas dezenas de chamadas em lote, em vez de uma por linha.
-    itens_vinculo = [{**por_id[cid_conquista], "candidato_id": cid_candidato} for cid_conquista, cid_candidato in a_vincular.items()]
-    for lote in _em_lotes(itens_vinculo):
+        # Pareia por POSIÇÃO (`zip`), nunca por nome_normalizado de volta:
+        # `INSERT ... VALUES (...), (...) RETURNING` do Postgres preserva a
+        # ordem da lista (sem ORDER BY, sem paralelismo no mesmo statement) —
+        # e dois órfãos com o MESMO nome (homônimos raspados no mesmo lote)
+        # não são a mesma pessoa só por coincidência de string.
+        vinculos = [
+            {**c, "candidato_id": novo["id"]}
+            for c, novo in zip(lote, resultado.data, strict=True)
+        ]
         cliente.table("conquista_externa").upsert(
-            lote, on_conflict="id", returning="minimal"
+            vinculos, on_conflict="id", returning="minimal"
         ).execute()
+        criados += len(lote)
+        print(f"  candidatos criados: {criados}/{len(orfas)}", file=sys.stderr)
 
-    print(
-        f"resultado: {criados} candidatos novos, {len(a_atualizar_candidato)} candidatos já existiam, "
-        f"{len(a_vincular)} conquista_externa vinculadas",
-        file=sys.stderr,
-    )
+    print(f"resultado: {criados} candidato_externo criados, 1 por conquista", file=sys.stderr)
     return 0
 
 

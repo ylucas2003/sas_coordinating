@@ -2,18 +2,32 @@
 público de olimpíada/vestibular/concurso (docs/41).
 
 Só leitura + o funil manual (`status_captacao`, `observacoes`). Quem escreve
-`prova_externa`/`conquista_externa`/`candidato_externo` de verdade são os
-scripts de `api/scripts/importar_captacao_externa.py` e
-`api/scripts/resolver_candidatos_externos.py` (docs/41 §4) — esta rota nunca
-cria candidato nem conquista, e nunca reescreve os campos que o resolver
-deriva (nome, escola, série de referência...).
+`prova_externa`/`conquista_externa` de verdade é
+`api/scripts/importar_captacao_externa.py`; `candidato_externo` nasce
+1:1 por conquista via `api/scripts/resolver_candidatos_externos.py` — esta
+rota nunca cria conquista, e só cria/edita `candidato_externo` pelas rotas
+explícitas do modo avançado (`criar_perfil`/`mover_conquista`/
+`remover_candidato_vazio`), nunca reescrevendo os campos que o resolver
+derivou na criação original.
 
 `get_current_coordenador`, e não administrador: é leitura/triagem de lead
 sobre gente de FORA do colégio, não acesso a conta ou nota de quem já estuda
-aqui — mesma régua de `banco.py` (docs/41 §7.1).
+aqui — mesma régua de `banco.py`.
 
 ⚠️ `candidato_externo` não tem nada a ver com `aluno`. É gente que nunca
 colocou os pés no colégio; a migration 0056 explica o porquê das três tabelas.
+
+⚠️ Simplificação de 25/09/2026: não existe mais "fila de fusão" nem decisão
+permanente. `candidato_externo_fusao_decisao`/`v_fusao_candidata` marcavam um
+nome como "já decidido" e o escondiam PRA SEMPRE — mesmo ganhando conquista
+nova depois (achado em produção: "Yan Lucas Freitas de Araújo" tinha 12
+`candidato_externo`, nenhum visível em lugar nenhum, porque um script tinha
+"decidido" o nome quando só existia 1). Agrupar agora é só manual, sempre
+disponível, nunca "concluído": toda conquista nasce com o próprio
+`candidato_externo`, e um humano junta duas arrastando em
+`CaptacaoPerfil.tsx` (`mover_conquista`). A lista geral
+(`GET /captacao/candidatos`) junta por `nome_normalizado` incondicional, via
+`v_candidato_externo_por_nome` (migration 0063).
 """
 
 from __future__ import annotations
@@ -24,7 +38,6 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query, Request
 from pydantic import BaseModel, field_validator
-from supabase import Client
 
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
@@ -47,15 +60,24 @@ STATUS_CAPTACAO = ("novo", "contatado", "interessado", "matriculado", "descartad
 POR_PAGINA_PADRAO = 20
 POR_PAGINA_MAXIMO = 100
 
+# Um candidato_externo por linha — usada pela ficha de um nome (vários por
+# vez) e pelas rotas do modo avançado.
 _COLUNAS_CANDIDATO = (
     "id, nome, nome_normalizado, escola, cidade, uf, serie_referencia_min, serie_referencia_max, "
     "ano_referencia_serie, status_captacao, observacoes, criado_em, atualizado_em, "
     "conquistas_total, provas_distintas, ano_mais_recente"
 )
 
-# Só a lista geral lê a view agrupada (0062) — perfis_no_grupo/tem_conflito_nivel
-# não existem em v_candidato_externo, só no que agrega por nome_normalizado.
-_COLUNAS_CANDIDATO_AGRUPADO = _COLUNAS_CANDIDATO + ", perfis_no_grupo, tem_conflito_nivel"
+# Um nome_normalizado por linha — a lista geral (v_candidato_externo_por_nome,
+# 0063). Sem `id`: a linha não representa mais um candidato_externo
+# específico, é o nome inteiro. escolas/cidades/ufs/status_captacao são
+# CONJUNTOS (arrays independentes, não pareados entre si — ver comentário da
+# migration).
+_COLUNAS_CANDIDATO_POR_NOME = (
+    "nome_normalizado, nome, escolas, cidades, ufs, status_captacao, "
+    "conquistas_total, provas_distintas, perfis_no_grupo, ano_mais_recente, "
+    "criado_em, atualizado_em"
+)
 
 _COLUNAS_CONQUISTA = (
     "id, prova_id, ano, nivel_texto, serie_referencia_min, serie_referencia_max, "
@@ -68,7 +90,7 @@ def _agora() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _refresh_view_agrupada() -> None:
+def _refresh_view_por_nome() -> None:
     """Chamada pelo BackgroundTasks, depois da resposta já ter saído.
 
     Cliente NOVO (não cacheado), mesmo motivo de
@@ -79,45 +101,23 @@ def _refresh_view_agrupada() -> None:
 
     Erro aqui é engolido (CLAUDE.md: "erro em caminho de auditoria ou
     telemetria é engolido") — é uma view de LEITURA em cache, não o dado em
-    si; se falhar, a lista geral só fica desatualizada até o próximo
-    refresh (o cron do resolver é o backstop).
+    si; se falhar, a lista geral só fica desatualizada até o próximo refresh.
     """
     try:
-        criar_cliente_supabase().rpc("atualizar_v_candidato_externo_agrupado", {}).execute()
+        criar_cliente_supabase().rpc("atualizar_v_candidato_externo_por_nome", {}).execute()
     except Exception:
-        _log.warning("Falha ao atualizar v_candidato_externo_agrupado", exc_info=True)
+        _log.warning("Falha ao atualizar v_candidato_externo_por_nome", exc_info=True)
 
 
-def _agendar_refresh_view_agrupada(tarefas: BackgroundTasks) -> None:
+def _agendar_refresh_view_por_nome(tarefas: BackgroundTasks) -> None:
     """Toda rota que escreve em candidato_externo/conquista_externa chama
-    isto antes de devolver a resposta — a view agrupada (0062) é
+    isto antes de devolver a resposta — a view por nome (0063) é
     MATERIALIZADA por custo (~1,3s pra recalcular do zero, medido) e não
     acompanha a escrita sozinha."""
-    tarefas.add_task(_refresh_view_agrupada)
+    tarefas.add_task(_refresh_view_por_nome)
 
 
-def _ids_por_prova(cliente: Client, prova_id: str) -> list[str]:
-    """Candidatos com ao menos uma conquista da prova pedida.
-
-    `v_candidato_externo` não tem `prova_id` — um candidato cruza N provas —,
-    então filtrar "por prova" exige pré-consultar `conquista_externa` e aplicar
-    o resultado como `.in_("id", ...)` na view. Mesmo desenho de
-    `banco/consultas.py::_ids_por_topico`, pelo mesmo motivo: o filtro não é
-    coluna da tabela principal.
-    """
-    linhas = (
-        cliente.table("conquista_externa")
-        .select("candidato_id")
-        .eq("prova_id", prova_id)
-        .not_.is_("candidato_id", "null")
-        .execute()
-        .data
-        or []
-    )
-    return list({linha["candidato_id"] for linha in linhas})
-
-
-class FusaoBody(BaseModel):
+class NomeNormalizadoBody(BaseModel):
     nome_normalizado: str
 
 
@@ -142,24 +142,27 @@ class AtualizarCandidatoBody(BaseModel):
 
 @router.get("/candidatos")
 async def listar_candidatos(
-    uf: str | None = Query(None, description="sigla, ex.: 'CE'"),
-    status_captacao: str | None = Query(None),
+    uf: str | None = Query(None, description="sigla, ex.: 'CE' — bate se QUALQUER conquista do nome tiver essa UF"),
+    status_captacao: str | None = Query(None, description="bate se QUALQUER perfil do nome tiver esse status"),
     conquistas_min: int | None = Query(
         None, ge=1, description="nº mínimo de conquistas cruzadas — o sinal mais forte de lead"
     ),
-    prova_id: str | None = Query(None, description="só candidatos com conquista desta prova"),
     busca: str | None = Query(None, description="texto no nome"),
     pagina: int = Query(1, ge=1, description="1-based, como a URL mostra"),
     por_pagina: int = Query(POR_PAGINA_PADRAO, ge=1, le=POR_PAGINA_MAXIMO),
 ) -> dict:
-    """Página de candidatos, de quem mais cruzou conquista pra quem menos —
-    é a ordem que separa lead forte de aparição única (docs/41 §5).
+    """Página de NOMES (não de candidato_externo), de quem mais cruzou
+    conquista pra quem menos — é a ordem que separa lead forte de aparição
+    única. Cada nome vira UMA linha sempre, incondicional, mesmo quando por
+    baixo tem vários `candidato_externo` ainda não arrumados à mão
+    (`perfis_no_grupo` diz quantos) — quem está caçando lead não devia ver a
+    fragmentação interna do resolver.
 
     **Paginação de verdade**, ao contrário do resto do sistema (CLAUDE.md,
     armadilha 2). Lá o teto é proibido porque truncaria leitura ESTATÍSTICA em
     silêncio; aqui a resposta é navegação sobre gente de fora, sem o teto
-    natural dos ~900 alunos — 26 mil candidatos e crescendo a cada fonte nova
-    (docs/41 §7.1).
+    natural dos ~900 alunos — mais de 100 mil nomes e crescendo a cada fonte
+    nova.
     """
     if status_captacao is not None and status_captacao not in STATUS_CAPTACAO:
         raise HTTPException(
@@ -167,43 +170,28 @@ async def listar_candidatos(
         )
 
     cliente = get_supabase()
-    # v_candidato_externo_agrupado (0062), não v_candidato_externo: um nome
-    # ainda pendente na fila de fusão (docs/41 §8 item 1) vira UMA linha aqui,
-    # com perfis_no_grupo dizendo quantos existem de verdade — quem está
-    # caçando lead não deveria ver a fragmentação interna do resolver.
-    consulta = cliente.table("v_candidato_externo_agrupado").select(
-        _COLUNAS_CANDIDATO_AGRUPADO, count="exact"
+    consulta = cliente.table("v_candidato_externo_por_nome").select(
+        _COLUNAS_CANDIDATO_POR_NOME, count="exact"
     )
     if uf:
-        consulta = consulta.eq("uf", uf.upper())
+        # .contains() -> `ufs=cs.{CE}` -> operador @> do Postgres (índice
+        # GIN, migration 0063) — bate se a UF estiver em QUALQUER conquista
+        # do nome, não só numa escolhida por heurística.
+        consulta = consulta.contains("ufs", [uf.upper()])
     if status_captacao:
-        consulta = consulta.eq("status_captacao", status_captacao)
+        consulta = consulta.contains("status_captacao", [status_captacao])
     if conquistas_min is not None:
         consulta = consulta.gte("conquistas_total", conquistas_min)
     if busca and busca.strip():
         consulta = consulta.ilike("nome", f"%{busca.strip()}%")
-    if prova_id:
-        # Limitação conhecida (não usada pela UI hoje — Captacao.tsx não expõe
-        # filtro de prova): contra a view agrupada, `id` é sempre o do PERFIL
-        # REPRESENTANTE do grupo — se a conquista daquela prova estiver num
-        # candidato_externo que não é o representante, o filtro não acha.
-        # Corrigir exigiria traduzir os ids pra nome_normalizado → id
-        # representante antes do `.in_()`, o que não vale o custo enquanto o
-        # filtro não é visível em lugar nenhum.
-        ids_da_prova = _ids_por_prova(cliente, prova_id)
-        if not ids_da_prova:
-            return {"candidatos": [], "total": 0, "pagina": pagina, "por_pagina": por_pagina}
-        consulta = consulta.in_("id", ids_da_prova)
 
-    # `id` no fim do `order`, como em `banco/consultas.py::listar_questoes`:
-    # `conquistas_total` empata para milhares de candidatos com uma conquista
-    # só, e sem um critério total o Postgres é livre para reordenar os empates
-    # a cada página — a virada repete um candidato e perde outro.
+    # nome_normalizado no fim do `order`: é a chave única da linha (a view
+    # agrupa por ele), então basta como critério de desempate total — ao
+    # contrário da view antiga, não precisa mais de um `id` de representante.
     inicio = (pagina - 1) * por_pagina
     resposta = (
         consulta.order("conquistas_total", desc=True)
-        .order("nome")
-        .order("id")
+        .order("nome_normalizado")
         .range(inicio, inicio + por_pagina - 1)
         .execute()
     )
@@ -212,71 +200,70 @@ async def listar_candidatos(
     return {"candidatos": linhas, "total": total, "pagina": pagina, "por_pagina": por_pagina}
 
 
-@router.get("/candidatos/{candidato_id}")
-async def obter_candidato(candidato_id: str = Path(...)) -> dict:
-    """A ficha: o candidato resolvido e TODAS as conquistas cruzadas dele,
-    da mais recente para a mais antiga — é o cruzamento que a captação existe
-    pra mostrar (docs/41 §0)."""
+@router.get("/provas")
+async def listar_provas() -> dict:
+    """Uma linha por prova (ITA, IME, OBMEP...) com o intervalo de anos
+    carregado — o rodapé "quais fontes alimentam esta lista" de
+    `Captacao.tsx`. 10 linhas hoje, sem paginação."""
     cliente = get_supabase()
-    linhas = (
-        cliente.table("v_candidato_externo")
-        .select(_COLUNAS_CANDIDATO)
-        .eq("id", candidato_id)
-        .limit(1)
+    provas = (
+        cliente.table("v_prova_externa_resumo")
+        .select("nome, categoria, ano_min, ano_max, conquistas_total")
+        .order("categoria")
+        .order("nome")
         .execute()
         .data
+        or []
     )
-    if not linhas:
-        raise HTTPException(status_code=404, detail="Candidato não encontrado")
-    candidato = linhas[0]
+    return {"provas": provas}
+
+
+@router.get("/perfis/{nome_normalizado}")
+async def obter_perfis_do_nome(nome_normalizado: str = Path(...)) -> dict:
+    """Todo `candidato_externo` com este nome, cada um com as próprias
+    conquistas — a ficha de QUALQUER nome (não só "casos em disputa": com
+    tudo nascendo 1:1, a maioria dos nomes tem exatamente 1 perfil, e
+    `CaptacaoPerfil.tsx` precisa abrir pra ele do mesmo jeito)."""
+    cliente = get_supabase()
+    candidatos = (
+        cliente.table("v_candidato_externo")
+        .select(_COLUNAS_CANDIDATO)
+        .eq("nome_normalizado", nome_normalizado)
+        .order("criado_em")
+        .execute()
+        .data
+        or []
+    )
+    if not candidatos:
+        raise HTTPException(status_code=404, detail="Nenhum candidato com este nome")
 
     conquistas = (
         cliente.table("conquista_externa")
-        .select(_COLUNAS_CONQUISTA)
-        .eq("candidato_id", candidato_id)
+        .select(f"candidato_id, {_COLUNAS_CONQUISTA}")
+        .in_("candidato_id", [c["id"] for c in candidatos])
         .order("ano", desc=True)
         .execute()
         .data
         or []
     )
-
     # Nome e categoria da prova, resolvidos em Python — a mesma junção manual
     # de `banco/consultas.py::montar_questoes`, e pelo mesmo motivo: o projeto
     # não usa embedding do PostgREST, só `.table()` + merge (api/CLAUDE.md).
     ids_das_provas = list({c["prova_id"] for c in conquistas})
     provas = (
-        cliente.table("prova_externa")
-        .select("id, nome, categoria")
-        .in_("id", ids_das_provas)
-        .execute()
-        .data
+        cliente.table("prova_externa").select("id, nome").in_("id", ids_das_provas).execute().data
         if ids_das_provas
         else []
     )
     nome_da_prova = {p["id"]: p["nome"] for p in provas}
-    categoria_da_prova = {p["id"]: p["categoria"] for p in provas}
+    por_candidato: dict[str, list[dict]] = {c["id"]: [] for c in candidatos}
     for c in conquistas:
         c["prova_nome"] = nome_da_prova.get(c["prova_id"])
-        c["prova_categoria"] = categoria_da_prova.get(c["prova_id"])
+        por_candidato.setdefault(c["candidato_id"], []).append(c)
 
-    candidato["conquistas"] = conquistas
-
-    # Duplicata pendente na fila de fusão (docs/41 §8 item 1) — é a base do
-    # alerta na ficha (a coordenação descobre a partir do PERFIL da pessoa,
-    # não só varrendo a fila separada). v_fusao_candidata (0061) já grupo por
-    # nome_normalizado e já traz tem_conflito_nivel calculado.
-    fusao = (
-        cliente.table("v_fusao_candidata")
-        .select("candidatos, tem_conflito_nivel")
-        .eq("nome_normalizado", candidato["nome_normalizado"])
-        .limit(1)
-        .execute()
-        .data
-    )
-    candidato["duplicatas_pendentes"] = (fusao[0]["candidatos"] - 1) if fusao else 0
-    candidato["tem_conflito_nivel"] = fusao[0]["tem_conflito_nivel"] if fusao else False
-
-    return candidato
+    for candidato in candidatos:
+        candidato["conquistas"] = por_candidato.get(candidato["id"], [])
+    return {"nome_normalizado": nome_normalizado, "candidatos": candidatos}
 
 
 @router.patch("/candidatos/{candidato_id}")
@@ -288,9 +275,10 @@ async def atualizar_candidato(
     coordenador: dict = Depends(get_current_coordenador),
 ) -> dict:
     """Só `status_captacao` e `observacoes` — o funil manual da coordenação
-    (0056 §3). Os outros campos são derivados: só
-    `api/scripts/resolver_candidatos_externos.py` escreve neles, e reescrevê-los
-    aqui os deixaria divergentes na próxima resolução."""
+    (0056 §3), editado direto em cada cartão de `CaptacaoPerfil.tsx`. Os
+    outros campos são derivados: só
+    `api/scripts/resolver_candidatos_externos.py` e as rotas do modo
+    avançado escrevem neles."""
     if body.status_captacao is None and body.observacoes is None:
         raise HTTPException(status_code=400, detail="Nada a atualizar")
 
@@ -337,26 +325,26 @@ async def atualizar_candidato(
             detalhe={"valor_antes": status_anterior, "valor_depois": body.status_captacao},
         )
 
-    _agendar_refresh_view_agrupada(tarefas)
+    _agendar_refresh_view_por_nome(tarefas)
     return atualizado[0]
 
 
-# ─── Fila de fusão de baixa confiança (docs/41 §8, item 1) ──────────────
+# ─── Modo avançado: agrupar é sempre manual (simplificação de 25/09/2026) ──
 #
-# O resolver só funde por nome+escola EXATOS (§4.1) — de propósito, pra
-# nunca juntar duas pessoas diferentes por engano. Isso deixa cada conquista
-# de fonte sem escola (OBM, ITA, IME) como candidato PRÓPRIO, mesmo quando é
-# a mesma pessoa que a OBMEP/OBF já resolveram. Aqui é o segundo nível,
-# nome sozinho — mais barato de achar, mais arriscado de confiar — por isso
-# NUNCA funde sozinho: só sugere, e um humano confirma ou rejeita.
+# Nenhum agrupamento automático mais — resolver_candidatos_externos.py cria
+# 1 candidato_externo por conquista, sempre. As três rotas abaixo são a
+# ÚNICA forma de duas conquistas virarem "a mesma pessoa": mover uma pro
+# perfil da outra. Não existe "decisão" nem "concluir" — cada arraste já
+# persiste na hora, sozinho; a lista geral (v_candidato_externo_por_nome)
+# só reflete o estado atual, sem nada permanente pra desfazer.
 
 
 def _serie_dominante(conquistas: list[dict]) -> dict:
     """O retrato (nome/escola/cidade/uf/série) da conquista mais RECENTE
-    entre todas as do grupo fundido — mesma regra do resolver
-    (`resolver_candidatos_externos.py::dados_candidato`), aplicada aqui pro
-    candidato sobrevivente não ficar com um retrato de anos atrás só porque
-    foi o primeiro a ser criado."""
+    entre as de um candidato — mesma regra de
+    `scripts/_captacao_comum.py::retrato_da_conquista`, aplicada aqui pra um
+    GRUPO (depois de `mover_conquista`, um candidato pode ter mais de uma),
+    pro candidato não ficar com um retrato de anos atrás."""
     mais_recente = max(conquistas, key=lambda c: c["ano"])
     return {
         "nome": mais_recente["nome_informado"],
@@ -369,237 +357,15 @@ def _serie_dominante(conquistas: list[dict]) -> dict:
     }
 
 
-@router.get("/fusoes")
-async def listar_fusoes(
-    uf_incerta: bool = Query(False, description="só grupos com mais de uma UF entre os candidatos — mais arriscado"),
-    so_conflito_nivel: bool = Query(
-        False,
-        description=(
-            "só grupos com nível de ensino conflitante entre candidatos — sinal FORTE "
-            "de gente diferente (quase certeza), não só 'cuidado' como ufs_distintas"
-        ),
-    ),
-    pagina: int = Query(1, ge=1),
-    por_pagina: int = Query(POR_PAGINA_PADRAO, ge=1, le=POR_PAGINA_MAXIMO),
-) -> dict:
-    """A fila: nomes com mais de um `candidato_externo`, ainda não
-    decididos. Ordenada do mais confiável (uma UF só entre os candidatos)
-    pro menos, e dentro disso do grupo com mais candidatos pro com menos —
-    é o que faz o trabalho de revisão render mais rápido primeiro.
-    """
-    cliente = get_supabase()
-    consulta = cliente.table("v_fusao_candidata").select(
-        "nome_normalizado, candidatos, ufs_distintas, tem_conflito_nivel", count="exact"
-    )
-    if uf_incerta:
-        consulta = consulta.gt("ufs_distintas", 1)
-    if so_conflito_nivel:
-        consulta = consulta.eq("tem_conflito_nivel", True)
-
-    inicio = (pagina - 1) * por_pagina
-    resposta = (
-        consulta.order("ufs_distintas")
-        .order("candidatos", desc=True)
-        .order("nome_normalizado")
-        .range(inicio, inicio + por_pagina - 1)
-        .execute()
-    )
-    linhas = resposta.data or []
-    total = int(resposta.count) if resposta.count is not None else len(linhas)
-    return {"grupos": linhas, "total": total, "pagina": pagina, "por_pagina": por_pagina}
-
-
-@router.get("/fusoes/{nome_normalizado}")
-async def obter_fusao(nome_normalizado: str = Path(...)) -> dict:
-    """O grupo inteiro: todo `candidato_externo` com este nome, cada um com
-    as próprias conquistas — pra comparar escola/cidade/UF lado a lado
-    antes de decidir."""
-    cliente = get_supabase()
-    candidatos = (
-        cliente.table("v_candidato_externo")
-        .select(_COLUNAS_CANDIDATO)
-        .eq("nome_normalizado", nome_normalizado)
-        .order("criado_em")
-        .execute()
-        .data
-        or []
-    )
-    if len(candidatos) < 2:
-        raise HTTPException(status_code=404, detail="Nada pra fundir com este nome")
-
-    conquistas = (
-        cliente.table("conquista_externa")
-        .select(f"candidato_id, {_COLUNAS_CONQUISTA}")
-        .in_("candidato_id", [c["id"] for c in candidatos])
-        .order("ano", desc=True)
-        .execute()
-        .data
-        or []
-    )
-    ids_das_provas = list({c["prova_id"] for c in conquistas})
-    provas = (
-        cliente.table("prova_externa").select("id, nome").in_("id", ids_das_provas).execute().data
-        if ids_das_provas
-        else []
-    )
-    nome_da_prova = {p["id"]: p["nome"] for p in provas}
-    por_candidato: dict[str, list[dict]] = {c["id"]: [] for c in candidatos}
-    for c in conquistas:
-        c["prova_nome"] = nome_da_prova.get(c["prova_id"])
-        por_candidato.setdefault(c["candidato_id"], []).append(c)
-
-    for candidato in candidatos:
-        candidato["conquistas"] = por_candidato.get(candidato["id"], [])
-    return {"nome_normalizado": nome_normalizado, "candidatos": candidatos}
-
-
-@router.post("/fusoes/confirmar")
-async def confirmar_fusao(
-    body: FusaoBody,
+@router.post("/perfis/criar")
+async def criar_perfil(
+    body: NomeNormalizadoBody,
     request: Request,
     tarefas: BackgroundTasks,
     coordenador: dict = Depends(get_current_coordenador),
 ) -> dict:
-    """São a mesma pessoa: combina todo `candidato_externo` deste nome num
-    só. O sobrevivente é o que já tem MAIS conquistas (empate: o mais
-    antigo) — os outros são apagados depois de repassar as conquistas
-    deles pro sobrevivente. Nunca desfeito automaticamente; a trilha de
-    auditoria guarda quem eram os candidatos fundidos, pra investigar se um
-    dia alguém discordar da decisão."""
-    cliente = get_supabase()
-    candidatos = (
-        cliente.table("candidato_externo")
-        .select("id, criado_em")
-        .eq("nome_normalizado", body.nome_normalizado)
-        .execute()
-        .data
-        or []
-    )
-    if len(candidatos) < 2:
-        raise HTTPException(status_code=404, detail="Nada pra fundir com este nome")
-
-    ids = [c["id"] for c in candidatos]
-    conquistas = (
-        cliente.table("conquista_externa")
-        .select(f"id, candidato_id, {_COLUNAS_CONQUISTA}")
-        .in_("candidato_id", ids)
-        .execute()
-        .data
-        or []
-    )
-
-    contagem: dict[str, int] = {i: 0 for i in ids}
-    for c in conquistas:
-        contagem[c["candidato_id"]] = contagem.get(c["candidato_id"], 0) + 1
-    criado_em_por_id = {c["id"]: c["criado_em"] for c in candidatos}
-    # Mais conquistas primeiro; empate resolvido pelo mais antigo — o
-    # sobrevivente natural é quem já tinha mais história, não um sorteio.
-    # `criado_em` é ISO 8601: comparar como string já ordena por data,
-    # sem precisar converter pra `datetime`.
-    maior_contagem = max(contagem.values())
-    top = [i for i in ids if contagem[i] == maior_contagem]
-    sobrevivente_id = min(top, key=lambda i: criado_em_por_id[i])
-
-    outros_ids = [i for i in ids if i != sobrevivente_id]
-    retrato = _serie_dominante(conquistas)
-
-    cliente.table("conquista_externa").update(
-        {"candidato_id": sobrevivente_id}
-    ).in_("candidato_id", outros_ids).execute()
-
-    cliente.table("candidato_externo").update(
-        {**retrato, "atualizado_em": _agora()}
-    ).eq("id", sobrevivente_id).execute()
-
-    for outro_id in outros_ids:
-        cliente.table("candidato_externo").delete().eq("id", outro_id).execute()
-
-    cliente.table("candidato_externo_fusao_decisao").upsert(
-        {
-            "nome_normalizado": body.nome_normalizado,
-            "status": "confirmada",
-            "decidido_por": coordenador.get("nome"),
-            "decidido_em": _agora(),
-        },
-        on_conflict="nome_normalizado",
-    ).execute()
-
-    auditar(
-        cliente,
-        "captacao_fusao_confirmada",
-        canal="captacao",
-        ator_tipo="coordenador",
-        ator_id=coordenador.get("sub"),
-        recurso=f"candidato_externo/{sobrevivente_id}",
-        ip=request.client.host if request.client else None,
-        detalhe={
-            "nome_normalizado": body.nome_normalizado,
-            "sobrevivente": sobrevivente_id,
-            "fundidos": outros_ids,
-        },
-    )
-    _agendar_refresh_view_agrupada(tarefas)
-    return {"sobrevivente_id": sobrevivente_id, "candidatos_fundidos": len(outros_ids)}
-
-
-@router.post("/fusoes/rejeitar")
-async def rejeitar_fusao(
-    body: FusaoBody,
-    request: Request,
-    tarefas: BackgroundTasks,
-    coordenador: dict = Depends(get_current_coordenador),
-) -> dict:
-    """Não são a mesma pessoa: tira este nome da fila pra sempre (nenhum
-    candidato_externo é tocado — só a decisão fica registrada)."""
-    cliente = get_supabase()
-    cliente.table("candidato_externo_fusao_decisao").upsert(
-        {
-            "nome_normalizado": body.nome_normalizado,
-            "status": "rejeitada",
-            "decidido_por": coordenador.get("nome"),
-            "decidido_em": _agora(),
-        },
-        on_conflict="nome_normalizado",
-    ).execute()
-
-    auditar(
-        cliente,
-        "captacao_fusao_rejeitada",
-        canal="captacao",
-        ator_tipo="coordenador",
-        ator_id=coordenador.get("sub"),
-        recurso=f"candidato_externo_fusao/{body.nome_normalizado}",
-        ip=request.client.host if request.client else None,
-        detalhe={"nome_normalizado": body.nome_normalizado},
-    )
-    _agendar_refresh_view_agrupada(tarefas)
-    return {"ok": True}
-
-
-# ─── Modo avançado: dividir um grupo à mão (pedido de 24/09/2026) ──────────
-#
-# O binário confirmar/rejeitar acima resolve o caso simples (todo mundo é a
-# mesma pessoa, ou ninguém é) — mas o caso mais comum na prática é misto: 2
-# destes 3 candidatos são a mesma pessoa, o terceiro é homônimo. As quatro
-# rotas abaixo dão o controle fino — mover CADA resultado pro perfil certo,
-# criar um perfil vazio pra separar um homônimo, remover o que sobrar vazio —
-# e `concluir` fecha o nome com o que restou, reaproveitando os DOIS status já
-# existentes em `candidato_externo_fusao_decisao` (sem migration no CHECK):
-# 1 perfil sobrevivente = mesma semântica de "confirmada"; 2+ = mesma
-# semântica de "rejeitada" (pessoas diferentes), só que agora com os
-# resultados no perfil certo em vez de intocados.
-
-
-@router.post("/fusoes/criar-perfil")
-async def criar_perfil_no_grupo(
-    body: FusaoBody,
-    request: Request,
-    tarefas: BackgroundTasks,
-    coordenador: dict = Depends(get_current_coordenador),
-) -> dict:
-    """Perfil novo, vazio, com o mesmo nome do grupo — pra arrastar pra
-    dentro dele um resultado que na verdade é de outra pessoa (homônimo
-    misturado num candidato_externo que hoje junta os dois). O retrato
+    """Perfil novo, vazio, com o mesmo nome — pra arrastar pra dentro dele um
+    resultado que na verdade é de outra pessoa (homônimo). O retrato
     (escola/cidade/UF) fica em branco: assim que uma conquista for movida
     pra cá, `mover_conquista` recalcula com `_serie_dominante`."""
     cliente = get_supabase()
@@ -648,7 +414,7 @@ async def criar_perfil_no_grupo(
     novo_candidato["conquistas_total"] = 0
     novo_candidato["provas_distintas"] = 0
     novo_candidato["ano_mais_recente"] = None
-    _agendar_refresh_view_agrupada(tarefas)
+    _agendar_refresh_view_por_nome(tarefas)
     return novo_candidato
 
 
@@ -735,7 +501,7 @@ async def mover_conquista(
             "nome_normalizado": destino["nome_normalizado"],
         },
     )
-    _agendar_refresh_view_agrupada(tarefas)
+    _agendar_refresh_view_por_nome(tarefas)
     return {"ok": True}
 
 
@@ -779,66 +545,5 @@ async def remover_candidato_vazio(
         ip=request.client.host if request.client else None,
         detalhe={"nome_normalizado": candidato["nome_normalizado"]},
     )
-    _agendar_refresh_view_agrupada(tarefas)
+    _agendar_refresh_view_por_nome(tarefas)
     return {"ok": True}
-
-
-@router.post("/fusoes/concluir")
-async def concluir_fusao(
-    body: FusaoBody,
-    request: Request,
-    tarefas: BackgroundTasks,
-    coordenador: dict = Depends(get_current_coordenador),
-) -> dict:
-    """Fecha um nome depois de mexer nele à mão (mover/criar/remover), em vez
-    de confirmar/rejeitar tudo de uma vez. Limpa quem ficou vazio no meio do
-    caminho e grava a decisão com o vocabulário que já existe: 1 perfil
-    sobrevivente = `confirmada`, 2+ = `rejeitada` — o `detalhe` da auditoria
-    guarda a história real (quantos perfis, quais ids), já que o status
-    sozinho não distingue "sempre foram 2" de "eram 3, viraram 2 na mão"."""
-    cliente = get_supabase()
-    candidatos = (
-        cliente.table("v_candidato_externo")
-        .select("id, conquistas_total")
-        .eq("nome_normalizado", body.nome_normalizado)
-        .execute()
-        .data
-        or []
-    )
-    if not candidatos:
-        raise HTTPException(status_code=404, detail="Nenhum candidato com este nome")
-
-    vazios = [c["id"] for c in candidatos if c["conquistas_total"] == 0]
-    for candidato_id in vazios:
-        cliente.table("candidato_externo").delete().eq("id", candidato_id).execute()
-
-    restantes = [c["id"] for c in candidatos if c["conquistas_total"] > 0]
-    status = "confirmada" if len(restantes) <= 1 else "rejeitada"
-
-    cliente.table("candidato_externo_fusao_decisao").upsert(
-        {
-            "nome_normalizado": body.nome_normalizado,
-            "status": status,
-            "decidido_por": coordenador.get("nome"),
-            "decidido_em": _agora(),
-        },
-        on_conflict="nome_normalizado",
-    ).execute()
-
-    auditar(
-        cliente,
-        "captacao_fusao_revisada",
-        canal="captacao",
-        ator_tipo="coordenador",
-        ator_id=coordenador.get("sub"),
-        recurso=f"candidato_externo_fusao/{body.nome_normalizado}",
-        ip=request.client.host if request.client else None,
-        detalhe={
-            "nome_normalizado": body.nome_normalizado,
-            "status": status,
-            "perfis_finais": restantes,
-            "removidos_vazios": vazios,
-        },
-    )
-    _agendar_refresh_view_agrupada(tarefas)
-    return {"status": status, "perfis_finais": len(restantes)}
