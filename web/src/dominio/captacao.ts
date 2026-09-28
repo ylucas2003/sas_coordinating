@@ -53,3 +53,26 @@ export function rotuloDaSerie(faixa: FaixaDeSerie | null): string | null {
   if (min === max) return rotuloMin;
   return `${rotuloMin} – ${NOME_DA_SERIE[max] ?? `${max}º ano`}`;
 }
+
+/** Vocabulário livre de `conquista_externa.notas_por_materia` (cada prova usa
+ * o próprio) — chave compartilhada entre `CaptacaoModalConquista.tsx` e
+ * `CaptacaoConquistas.tsx`, pra não divergir o rótulo de uma mesma chave. */
+export const ROTULO_MATERIA: Record<string, string> = {
+  mat: 'Matemática',
+  fis: 'Física',
+  qui: 'Química',
+  quim: 'Química',
+  port: 'Português',
+  por: 'Português',
+  ing: 'Inglês',
+  ing_obj: 'Inglês (objetiva)',
+  ing_disc: 'Inglês (discursiva)',
+  red: 'Redação',
+  redacao: 'Redação',
+  mo: 'Média objetiva',
+  media: 'Média',
+  media_1fase: 'Média — 1ª fase',
+  media_2fase: 'Média — 2ª fase',
+  classificacao: 'Classificação',
+  total: 'Total',
+};

@@ -1736,3 +1736,41 @@ local): criar perfil novo mostra "Perfil 2"; editar escola/cidade/UF salva
 editado NÃO apagou a edição — conferido também direto no banco
 (`retrato_editado_a_mao=true`, escola continuou a editada, a conquista
 mudou de `candidato_id` normalmente).
+
+
+## 18 · Ficha de leitura de um perfil — filtrar por ano/prova (28/09/2026, mesmo dia)
+
+Pedido do coordenador, na sequência do §17: "em cada perfil, ter o botão de
+entrar e visualizar de maneira mais organizada aquele perfil, podendo
+organizar/filtrar as conquistas por ano, por prova... vendo os detalhes
+escritos". A lane de `CaptacaoPerfil.tsx` é pra ARRASTAR — bloco compacto,
+clique abre `CaptacaoModalConquista` uma conquista de cada vez; não tinha
+como ver as 27 conquistas de alguém de uma vez, nem filtrar.
+
+**Tela nova, `CaptacaoConquistas.tsx`**, rota
+`/administracao/captacao/:nome/:candidatoId`. Não é uma rota nova no
+backend — lê o mesmo `usePerfisDoNome(nomeNormalizado)` que a lane já busca
+(já em cache ao entrar vindo dela) e acha o candidato pelo `id` da URL,
+client-side. Cada cartão da lane ganhou um elo quieto, "Ver conquistas em
+detalhe" (`EloQuieto`, `semContagem`), visível só quando o perfil tem pelo
+menos 1 conquista.
+
+Filtro por ano e por prova: `BarraFiltros` com duas `PillsUnica` (mesmo
+componente das 9 outras superfícies com faixa de filtro — web/CLAUDE.md), as
+opções calculadas a partir das PRÓPRIAS conquistas do perfil (não uma
+consulta nova) — um grupo só aparece quando tem mais de um valor distinto
+pra filtrar (filtrar por ano num perfil com uma conquista só não ajuda
+ninguém). Cada conquista aparece como um cartão aberto — ano, prova,
+resultado, nível, escola/cidade/UF informada, notas por matéria (grade de
+`Kpi`, quando a fonte publica) e link pra fonte — sem clique nenhum
+escondendo informação, ao contrário do modal da lane.
+
+`ROTULO_MATERIA` (o vocabulário livre de `notas_por_materia`, cada prova com
+o próprio) saiu de uma cópia privada em `CaptacaoModalConquista.tsx` e foi
+pra `dominio/captacao.ts`, com os dois consumidores agora.
+
+**Verificado no browser real** (Chrome MCP, dev local, "Nailton Gama de
+Castro", 27 conquistas): a ficha abre com todo o histórico legível, os
+filtros de Ano (2017–2024) e Prova (EFOMM/IME/ITA/OBF/OBI/OBM/OBMEP/OBQ/OBQ
+Jr) aparecem certos, clicar em "ITA" reduz a lista às 4 conquistas de ITA na
+hora, "Limpar filtros" restaura as 27.

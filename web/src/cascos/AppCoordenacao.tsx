@@ -26,6 +26,7 @@ import { HubAdministracao } from '../telas/Administracao/HubAdministracao';
 import { Contas } from '../telas/Administracao/Contas';
 import { Captacao } from '../telas/Administracao/Captacao';
 import { CaptacaoPerfil } from '../telas/Administracao/CaptacaoPerfil';
+import { CaptacaoConquistas } from '../telas/Administracao/CaptacaoConquistas';
 import { Integracoes } from '../telas/Integracoes/Integracoes';
 import { SincronizacaoAulas } from '../telas/Integracoes/SincronizacaoAulas';
 import {
@@ -110,6 +111,13 @@ export default function AppCoordenacao() {
             separada (simplificação de 25/09/2026): CaptacaoPerfil.tsx abre
             pra qualquer nome, fragmentado ou não. */}
         <Route path="/administracao/captacao/:nome" element={<CaptacaoPerfil />} />
+        {/* A ficha de LEITURA de um perfil — pedido de 28/09/2026: filtrar as
+            conquistas por ano/prova, vendo o detalhe de cada uma sem clique.
+            Elo "Ver conquistas em detalhe" em cada cartão da lane. */}
+        <Route
+          path="/administracao/captacao/:nome/:candidatoId"
+          element={<CaptacaoConquistas />}
+        />
         <Route path="/integracoes" element={<Integracoes />} />
         <Route path="/integracoes/aulas" element={<SincronizacaoAulas />} />
         {/* CANTINA — o hub e as quatro portas (docs/39 fase 5).

@@ -336,3 +336,36 @@
     flex-basis: 180px;
   }
 }
+
+/* A ficha de leitura de UM perfil (CaptacaoConquistas.tsx, docs/41 §18) —
+   pedido do coordenador: ver cada conquista aberta, sem precisar clicar,
+   com filtro de ano/prova por cima. Cartão empilhado, não lane horizontal
+   como `.fusao-pista`: aqui não se arrasta nada, é só ler. */
+.captacao-conquistas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.captacao-conquistas__item {
+  padding: 16px;
+}
+
+.captacao-conquistas__cabecalho {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.captacao-conquistas__ano {
+  flex-shrink: 0;
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--sas-magnitude);
+}
+
+.captacao-conquistas__fonte {
+  margin-top: 12px;
+}

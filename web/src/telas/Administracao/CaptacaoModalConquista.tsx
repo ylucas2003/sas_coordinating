@@ -1,31 +1,15 @@
 import { Dialogo } from '../../componentes/dialogos/Dialogo';
 import { Kpi } from '../../componentes/ui/Kpi';
+import { ROTULO_MATERIA } from '../../dominio/captacao';
 import type { ConquistaExterna } from '../../tipos/captacao';
 
 // O detalhe de UMA conquista — pedido explícito: clicar no Resultado abre a
 // nota por matéria (quando a fonte publica) junto com o link pra fonte, em
 // vez de espalhar isso em colunas/blocos extras onde conquista cruzada
-// aparece (CaptacaoPerfil.tsx).
-
-const ROTULO_MATERIA: Record<string, string> = {
-  mat: 'Matemática',
-  fis: 'Física',
-  qui: 'Química',
-  quim: 'Química',
-  port: 'Português',
-  por: 'Português',
-  ing: 'Inglês',
-  ing_obj: 'Inglês (objetiva)',
-  ing_disc: 'Inglês (discursiva)',
-  red: 'Redação',
-  redacao: 'Redação',
-  mo: 'Média objetiva',
-  media: 'Média',
-  media_1fase: 'Média — 1ª fase',
-  media_2fase: 'Média — 2ª fase',
-  classificacao: 'Classificação',
-  total: 'Total',
-};
+// aparece (CaptacaoPerfil.tsx). Usada também dentro da lane de arraste,
+// então continua um modal — `CaptacaoConquistas.tsx` (docs/41, ver ficha do
+// perfil) mostra o mesmo detalhe já aberto, sem precisar de clique, porque
+// lá tem espaço de sobra e o objetivo é justamente ler tudo de uma vez.
 
 export function CaptacaoModalConquista({
   conquista,
