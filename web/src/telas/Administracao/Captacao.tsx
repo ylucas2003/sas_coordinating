@@ -64,9 +64,15 @@ function fmtQuando(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-/** Lista curta em texto — "—" vazia, item único sem vírgula, resto junto por ", ". */
-function fmtLista(itens: string[]): string {
-  return itens.length ? itens.join(', ') : '—';
+/** Lista curta em texto — "—" vazia, item único sem vírgula, resto junto por ", ".
+ * `?? []` é defesa de verdade, não enfeite: a view (`v_candidato_externo_por_nome`,
+ * 0065) já tinha o bug de mandar `null` em vez de `[]` quando nenhuma
+ * conquista do nome preenchia o campo — derrubava a tela inteira em toda
+ * busca que trouxesse um desses nomes pra página (achado em produção,
+ * 28/09/2026). O SQL foi corrigido, mas esta função é a última linha de
+ * defesa contra a mesma classe de bug voltar sem avisar. */
+function fmtLista(itens: string[] | null | undefined): string {
+  return itens?.length ? itens.join(', ') : '—';
 }
 
 export function Captacao() {
