@@ -61,7 +61,10 @@ from scripts._captacao_comum import retrato_dominante
 TAMANHO_LOTE = 200
 ATOR_ID = "script:unificar_candidatos_externos"
 
-_COLUNAS_CANDIDATO = "id, nome_normalizado, status_captacao, observacoes, criado_em, conquistas_total"
+_COLUNAS_CANDIDATO = (
+    "id, nome_normalizado, status_captacao, observacoes, criado_em, "
+    "conquistas_total, retrato_editado_a_mao"
+)
 _COLUNAS_CONQUISTA = (
     "id, candidato_id, prova_id, ano, nivel_texto, serie_referencia_min, "
     "serie_referencia_max, resultado, nome_informado, escola_informada, "
@@ -158,11 +161,16 @@ def main() -> int:
                 for c in conquistas_do_grupo
                 if c["candidato_id"] != keeper["id"]
             )
+            # Retrato só é recalculado se o keeper não estiver travado
+            # (`retrato_editado_a_mao`, docs/41 §17) — um humano pode ter
+            # editado escola/cidade/UF à mão antes deste script rodar de
+            # novo, e o recálculo automático não deve apagar essa edição.
+            retrato = {} if keeper["retrato_editado_a_mao"] else retrato_dominante(conquistas_do_grupo)
             keepers_payload.append(
                 {
                     "id": keeper["id"],
                     "nome_normalizado": nome,
-                    **retrato_dominante(conquistas_do_grupo),
+                    **retrato,
                     "atualizado_em": _agora(),
                 }
             )

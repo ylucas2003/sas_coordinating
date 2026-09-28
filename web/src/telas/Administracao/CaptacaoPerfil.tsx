@@ -66,6 +66,109 @@ function GripDoBloco() {
 }
 
 /**
+ * Escola/cidade/UF de UM cartão — editáveis desde docs/41 §17 (pedido do
+ * coordenador: o perfil vazio de "Novo perfil" não tinha como ser rotulado
+ * antes de uma conquista chegar). Enquanto vazio, o campo de escola mostra
+ * "Perfil N" (N = posição do cartão na lane) como placeholder — não como
+ * valor de verdade, só pra dar um nome estável a cada cartão antes de
+ * alguém digitar algo ou arrastar um resultado pra dentro.
+ *
+ * Editar qualquer um dos três TRAVA o retrato no backend
+ * (`retrato_editado_a_mao`): a partir daí `mover_conquista`/o resolver não
+ * recalculam mais escola/cidade/UF pra este perfil sozinhos, mesmo ganhando
+ * conquista nova — senão a edição sumiria na próxima vez que algo fosse
+ * arrastado pra cá. Mesmo autosave debounced (~800ms) + flush no blur do
+ * funil abaixo, pelo mesmo motivo (o gesto principal da tela é arrastar).
+ */
+function RetratoDoCartao({
+  candidato,
+  nomeNormalizado,
+  indice,
+}: {
+  candidato: PerfilDoNome;
+  nomeNormalizado: string;
+  indice: number;
+}) {
+  const atualizar = useAtualizarCandidato(candidato.id, nomeNormalizado);
+  const [escola, setEscola] = useState(candidato.escola ?? '');
+  const [cidade, setCidade] = useState(candidato.cidade ?? '');
+  const [uf, setUf] = useState(candidato.uf ?? '');
+  const [estado, setEstado] = useState<'ocioso' | 'salvando' | 'salvo' | 'erro'>('ocioso');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setEscola(candidato.escola ?? '');
+    setCidade(candidato.cidade ?? '');
+    setUf(candidato.uf ?? '');
+  }, [candidato.escola, candidato.cidade, candidato.uf]);
+
+  function salvar(valores: { escola: string; cidade: string; uf: string }) {
+    setEstado('salvando');
+    atualizar.mutate(valores, { onSuccess: () => setEstado('salvo'), onError: () => setEstado('erro') });
+  }
+
+  function aoDigitar(campo: 'escola' | 'cidade' | 'uf', valorDigitado: string) {
+    const valor = campo === 'uf' ? valorDigitado.toUpperCase() : valorDigitado;
+    if (campo === 'escola') setEscola(valor);
+    else if (campo === 'cidade') setCidade(valor);
+    else setUf(valor);
+
+    const proximo = { escola, cidade, uf, [campo]: valor };
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => salvar(proximo), 800);
+  }
+
+  function aoSairDoCampo() {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const mudou =
+      escola !== (candidato.escola ?? '') ||
+      cidade !== (candidato.cidade ?? '') ||
+      uf !== (candidato.uf ?? '');
+    if (mudou) salvar({ escola, cidade, uf });
+  }
+
+  return (
+    <div className="fusao-cartao__retrato">
+      <input
+        className="fusao-cartao__escola"
+        value={escola}
+        placeholder={`Perfil ${indice + 1}`}
+        aria-label="Escola"
+        onChange={(e) => aoDigitar('escola', e.target.value)}
+        onBlur={aoSairDoCampo}
+      />
+      <div className="fusao-cartao__local">
+        <input
+          className="fusao-cartao__cidade"
+          value={cidade}
+          placeholder="Cidade"
+          aria-label="Cidade"
+          onChange={(e) => aoDigitar('cidade', e.target.value)}
+          onBlur={aoSairDoCampo}
+        />
+        <input
+          className="fusao-cartao__uf"
+          value={uf}
+          maxLength={2}
+          placeholder="UF"
+          aria-label="UF"
+          onChange={(e) => aoDigitar('uf', e.target.value)}
+          onBlur={aoSairDoCampo}
+        />
+      </div>
+      <span className="fusao-funil__estado">
+        {estado === 'salvando' && 'Salvando…'}
+        {estado === 'salvo' && 'Salvo'}
+        {estado === 'erro' && 'Não foi possível salvar'}
+      </span>
+    </div>
+  );
+}
+
+/**
  * O funil manual (status + observações) de UM cartão — reaproveita
  * `PATCH /captacao/candidatos/{id}`, que não mudou. Status salva no
  * `onChange` (valor único, baixo risco — mesmo padrão imediato das pills de
@@ -243,7 +346,7 @@ export function CaptacaoPerfil() {
 
       <LayoutGroup>
         <div className="fusao-pista">
-          {data.candidatos.map((c) => {
+          {data.candidatos.map((c, indice) => {
             const rotulo = rotuloDaSerie(serieEstimadaHoje(c, anoAtual));
             return (
               <div
@@ -252,10 +355,9 @@ export function CaptacaoPerfil() {
                 className={`fusao-cartao${alvoValido === c.id ? ' fusao-cartao--alvo' : ''}`}
               >
                 <div className="fusao-cartao__cabecalho">
-                  <h2 className="section__title">{c.escola || '— sem escola —'}</h2>
+                  <RetratoDoCartao candidato={c} nomeNormalizado={nomeNormalizado} indice={indice} />
                   <p className="section__subtitle">
-                    {[c.cidade, c.uf].filter(Boolean).join(' · ') || 'Sem cidade/UF'} · {c.conquistas.length}{' '}
-                    {c.conquistas.length === 1 ? 'resultado' : 'resultados'}
+                    {c.conquistas.length} {c.conquistas.length === 1 ? 'resultado' : 'resultados'}
                   </p>
                   {rotulo && <p className="fusao-cartao__serie">{rotulo}</p>}
                 </div>

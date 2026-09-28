@@ -1677,3 +1677,62 @@ descartado confirmou o aviso de "funil perdido" disparando certo.
 mudou de contrato. **Frontend**: nada mudou — `CaptacaoPerfil.tsx` já tratava
 1 perfil como o caso normal desde o §15 (pluralização e a dica de arrastar já
 só aparecem com 2+), só passou a ser o caso comum de verdade.
+
+
+## 17 · Escola/cidade/UF editáveis à mão, com trava (28/09/2026, mesmo dia do §16)
+
+Pedido do coordenador testando em produção logo depois do §16: o perfil
+vazio criado por "Novo perfil" (pra separar homônimo — ver print de "Nailton
+Gama de Castro", 2 perfis, um deles vazio) nascia com escola/cidade/UF em
+branco e ficava mostrando "— sem escola —" até alguém arrastar um resultado
+pra dentro. Não dava pra rotular o cartão antes disso, e o coordenador pediu
+pra editar direto.
+
+**A decisão de escopo**: a edição TRAVA o retrato pra sempre, em vez de ser
+só um rótulo temporário até a próxima conquista mudar de dono. O motivo:
+escola/cidade/UF já eram recalculados sozinhos toda vez que uma conquista
+entra ou sai de um perfil (`mover_conquista`, e desde o §16 também o
+resolver, que pode anexar conquista nova a um perfil já existente). Sem
+trava, editar à mão e depois arrastar algo pra dentro apagaria a edição em
+silêncio — a mesma classe de bug que o projeto evita em outro lugar
+(comentário e teste de `dominio/tokensCss.test.ts` no frontend, por
+exemplo).
+
+**Schema** (migration 0064): `candidato_externo.retrato_editado_a_mao
+boolean NOT NULL DEFAULT false`. `v_candidato_externo` (0058) precisa expor
+a coluna nova — `CREATE OR REPLACE VIEW` só aceita ACRESCENTAR coluna no
+fim, nunca reordenar, então ela entra depois de `ano_mais_recente`.
+
+**Backend**: `AtualizarCandidatoBody` ganhou `escola`/`cidade`/`uf` (além de
+`status_captacao`/`observacoes`, que não mudaram). `atualizar_candidato`
+marca `retrato_editado_a_mao=true` sempre que qualquer um dos três vem no
+PATCH. `mover_conquista` e `resolver_candidatos_externos.py` passaram a
+selecionar essa coluna e PULAM o recálculo do retrato (todos os seis campos
+juntos — escola/cidade/uf/serie_referencia_min/serie_referencia_max/
+ano_referencia_serie são um bloco só, sempre recalculados/travados juntos)
+pra quem está travado — mas continuam movendo/anexando a conquista
+normalmente, porque isso nunca dependeu do retrato.
+`unificar_candidatos_externos.py` (script de transição do §16, já rodado)
+ganhou o mesmo guard por defensividade, caso seja rodado de novo no futuro —
+não tinha efeito prático nesta rodada, porque a coluna não existia ainda
+quando ele rodou.
+
+**Frontend**: `CaptacaoPerfil.tsx` ganhou `RetratoDoCartao`, mesmo padrão de
+autosave debounced (~800ms) + flush no blur do `FunilDoCartao` (o gesto
+principal da tela é arrastar; um blur puro seria frágil). O `<h2>` de
+escola virou `<input>`; cidade/UF viraram dois inputs pequenos lado a lado.
+Sem moldura por padrão — só aparece ao passar o mouse/focar, pra não parecer
+formulário no meio de uma tela de arrastar. **O placeholder do campo de
+escola, quando vazio, é "Perfil N"** (N = posição do cartão na lane, 1-based)
+em vez de "— sem escola —": dá um nome estável a cada cartão antes de
+qualquer edição ou de uma conquista chegar — pedido explícito do
+coordenador, andando de mão em mão com a edição.
+
+**Testado**: 5 testes novos em `test_captacao_perfis.py` (PATCH de escola
+trava; `mover_conquista` pula recálculo de quem está travado; 400 sem nenhum
+campo; 404; funil básico). Verificado no browser real (Chrome MCP, dev
+local): criar perfil novo mostra "Perfil 2"; editar escola/cidade/UF salva
+("Salvo" aparece); arrastar uma conquista de verdade pra dentro do perfil
+editado NÃO apagou a edição — conferido também direto no banco
+(`retrato_editado_a_mao=true`, escola continuou a editada, a conquista
+mudou de `candidato_id` normalmente).

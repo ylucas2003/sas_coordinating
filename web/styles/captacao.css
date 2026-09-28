@@ -55,6 +55,71 @@
   color: var(--sas-texto-2);
 }
 
+/* Escola/cidade/UF editáveis (docs/41 §17) — inputs sem moldura por padrão,
+   pra não parecerem formulário no meio de uma tela cujo gesto principal é
+   arrastar; a borda só aparece em foco/hover, como uma pista discreta de que
+   dá pra editar. Tipografia herdada de `.section__title`/`.section__subtitle`
+   (layout.css) pra não abrir um terceiro tamanho de fonte só pra isto. */
+.fusao-cartao__retrato {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fusao-cartao__escola {
+  width: 100%;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--sas-magnitude);
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+}
+
+.fusao-cartao__escola::placeholder {
+  font-weight: 400;
+  color: var(--sas-texto-2);
+}
+
+.fusao-cartao__local {
+  display: flex;
+  gap: 6px;
+}
+
+.fusao-cartao__cidade,
+.fusao-cartao__uf {
+  padding: 2px 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--sas-texto-2);
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+}
+
+.fusao-cartao__cidade {
+  flex: 1;
+  min-width: 0;
+}
+
+.fusao-cartao__uf {
+  width: 28px;
+  text-transform: uppercase;
+}
+
+.fusao-cartao__escola:hover,
+.fusao-cartao__escola:focus,
+.fusao-cartao__cidade:hover,
+.fusao-cartao__cidade:focus,
+.fusao-cartao__uf:hover,
+.fusao-cartao__uf:focus {
+  border-bottom-color: var(--sas-fio-forte);
+  outline: none;
+}
+
 .fusao-cartao__lista {
   display: flex;
   flex-direction: column;

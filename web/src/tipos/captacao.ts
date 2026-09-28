@@ -111,10 +111,16 @@ export interface FiltrosCaptacao {
   por_pagina?: number;
 }
 
-/** Só o funil manual — os outros campos são derivados (0056 §3). Editado direto em cada cartão de `CaptacaoPerfil.tsx`. */
+/** O funil manual (0056 §3) e, desde docs/41 §17, escola/cidade/uf também —
+ * editar qualquer um dos três trava o retrato (`retrato_editado_a_mao` no
+ * banco): `mover_conquista`/o resolver param de recalcular em cima da
+ * edição. Editado direto em cada cartão de `CaptacaoPerfil.tsx`. */
 export interface RemendoCandidato {
   status_captacao?: StatusCaptacao;
   observacoes?: string;
+  escola?: string;
+  cidade?: string;
+  uf?: string;
 }
 
 /** Uma prova (ITA, IME, OBMEP...) com o intervalo de anos carregado — o rodapé "quais fontes alimentam esta lista" de `Captacao.tsx`. */
