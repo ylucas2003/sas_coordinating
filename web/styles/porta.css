@@ -144,6 +144,20 @@
   font-family: var(--font-family);
 }
 
+/* A capa do aluno é um PÔSTER 4:5, e no celular a cena era um quadrado de 46dvh
+   que recortava 20% dele: cortava o topo, encostava o emblema no "TURMA ITA/IME"
+   e espremia as legendas numa faixa de 90px ("MONTENEGRO / FILHO" em três
+   linhas) — visto na captura do usuário, não no CSS. Aqui a cena cresce até a
+   imagem caber INTEIRA (125vw é a altura dela na largura da tela), limitada a
+   62% da altura para o botão do Canvas continuar na primeira tela.
+
+   Vem ANTES dos blocos de 900px e de aparelho baixo, que têm a mesma
+   especificidade e precisam vencer: no desktop o grid vira duas colunas, e no
+   celular deitado a cena volta a ser uma faixa. */
+.porta--capa {
+  grid-template-rows: min(125vw, 62dvh) 1fr;
+}
+
 .porta__cena-caixa {
   position: relative;
   overflow: hidden;
@@ -160,6 +174,139 @@
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* ── A capa do aluno ─────────────────────────────────────────────────────
+   Imagem (WebP) + linha + legendas, todos dentro de um QUADRO com a proporção
+   da imagem (1122×1402) que faz o papel de `object-fit: cover`. Legenda e linha
+   são percentuais do quadro: seguem as cabeças da imagem mesmo quando o recorte
+   muda, que é o que `object-fit` sozinho não garante.
+
+   O quadro cobre o contêiner pela LARGURA quando a cena é mais larga que 4:5
+   (desktop, celular) e pela ALTURA quando é mais estreita (tablet em pé).
+
+   O que sobra de ALTURA é cortado por cima, não por baixo: o quadro sobe só o
+   bastante para a última linha de legenda (e uma folga) caber no rodapé da cena.
+   Foco fixo em % não serve — a 30% ele cortava as legendas no celular (faixa de
+   ~390px), visto na captura, não no CSS. A altura da legenda entra na conta
+   (`--nome` × 4,8 ≈ dois nomes + feito em duas linhas) porque a fonte encolhe com o quadro.
+
+   `cqw`/`cqh` (Chrome 105, Safari 16, Firefox 110). Sem eles o quadro cai para
+   100% de largura e colado ao topo, o que já é uma capa correta. */
+.porta__capa {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  container-type: size;
+  /* A cor REAL da borda de baixo da imagem (medida: #00061b a #020d2b), a um
+     passo do `--noite-fundo` do painel. Se o quadro sobrar, não aparece fresta —
+     e no celular em tema escuro a cena encontra o painel sem costura. */
+  background: #01071e;
+}
+
+.porta__quadro {
+  --nome: 13px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 1122 / 1402;
+}
+
+@supports (width: 1cqw) {
+  .porta__quadro {
+    --quadro-l: max(100cqw, calc(100cqh * 1122 / 1402));
+    --nome: clamp(9px, calc(var(--quadro-l) * 0.0175), 18px);
+    width: var(--quadro-l);
+    left: calc((100cqw - var(--quadro-l)) * 0.5);
+    top: min(0px, calc(100cqh - var(--quadro-l) * 1402 / 1122 * 0.835 - var(--nome) * 4.8));
+  }
+}
+
+/* Cena MUITO larga para a altura que tem (celular deitado, tablet): só cabe um
+   pedaço da imagem, e legenda e linha cairiam cortadas ao meio. Somem, e o foco
+   sobe para os rostos (olhos a ~46% do quadro) — a imagem sozinha ainda diz o que
+   precisa. */
+@container (min-aspect-ratio: 13/10) {
+  .porta__quadro {
+    top: calc((100cqh - var(--quadro-l) * 1402 / 1122) * 0.46);
+  }
+
+  .porta__linhagem,
+  .porta__quadro-linha {
+    display: none;
+  }
+}
+
+.porta__quadro-imagem {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* A linha de corte, a mesma de todas as telas: contínua, reta, sem brilho e sem
+   rótulo. Fica logo abaixo de onde os bustos terminam, e a cabeça do aluno —
+   mais alta que as outras — já está acima dela. */
+.porta__quadro-linha {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 81%;
+  height: 2px;
+  background: var(--alu-valor);
+}
+
+.porta__linhagem {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.porta__pessoa {
+  position: absolute;
+  top: 82.4%;
+  /* 24%: a 22% "SANTOS-DUMONT" quebrava no hífen em 390px e o nome virava três
+     linhas, empurrando o feito para fora da cena. */
+  width: 24%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+  text-align: center;
+  font-size: var(--nome);
+  color: #ffffff;
+}
+
+/* O centro de cada coluna é o centro da CABEÇA na imagem, em % da largura. */
+.porta__pessoa--santos-dumont { left: 13.4%; }
+.porta__pessoa--casimiro { left: 37.4%; }
+.porta__pessoa--ozires { left: 59.3%; }
+.porta__pessoa--voce {
+  /* Mais à direita que o tronco (80,7%): o aluno está inclinado e a cabeça, que
+     é o que a legenda precisa acompanhar, cai em ~83,8%. */
+  left: 83%;
+  font-size: calc(var(--nome) * 1.18);
+}
+
+.porta__pessoa-nome {
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.porta__pessoa-feito {
+  font-size: max(0.8em, 8.5px);
+  font-weight: 500;
+  line-height: 1.3;
+  /* O mesmo azul-claro do rastro da cena: a legenda é da família da paleta, e
+     não uma cor nova — troca junto com o tema. */
+  color: var(--porta-rastro);
+  text-wrap: balance;
 }
 
 .porta__marca {
@@ -197,6 +344,10 @@
   line-height: 1.3;
   padding-left: 12px;
   border-left: 1px solid rgba(255, 255, 255, 0.22);
+  /* A capa do aluno tem a fachada clara atrás da marca no celular, onde a cena
+     é uma faixa estreita e o céu escuro quase não aparece. Sem sombra o texto
+     some sobre a parede — visto na captura de 390px, não no CSS. */
+  text-shadow: 0 1px 10px rgba(3, 7, 19, 0.75);
 }
 
 .porta__manchete {
