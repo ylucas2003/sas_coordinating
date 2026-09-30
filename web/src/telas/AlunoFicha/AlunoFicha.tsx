@@ -72,7 +72,7 @@ export function AlunoFicha() {
   const { id = '' } = useParams();
   const navegar = useNavigate();
 
-  const { data: aluno, isPending, isError } = useAluno(id);
+  const { data: aluno, isPending, isError, isPlaceholderData } = useAluno(id);
   const { data: turmas = [] } = useTurmas();
   const { data: sedes = [] } = useSedes();
   const { data: materias = [] } = useMaterias();
@@ -513,7 +513,9 @@ export function AlunoFicha() {
           </div>
         </section>
 
-        <AcessoDoAluno aluno={aluno} />
+        {/* Só com o dado confirmado: o provisório da lista não traz o e-mail, e este
+            bloco diria "não cadastrado" a quem só ainda não chegou. */}
+        {!isPlaceholderData && <AcessoDoAluno aluno={aluno} />}
       </aside>
 
       {emEdicao && (
