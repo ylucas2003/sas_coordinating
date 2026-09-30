@@ -24,6 +24,7 @@ import { Auditoria } from '../telas/Auditoria/Auditoria';
 import { Calibracao } from '../telas/Calibracao/Calibracao';
 import { HubAdministracao } from '../telas/Administracao/HubAdministracao';
 import { Contas } from '../telas/Administracao/Contas';
+import { TrocaDeTelas } from '../telas/Administracao/TrocaDeTelas';
 import { Captacao } from '../telas/Administracao/Captacao';
 import { CaptacaoPerfil } from '../telas/Administracao/CaptacaoPerfil';
 import { CaptacaoConquistas } from '../telas/Administracao/CaptacaoConquistas';
@@ -107,6 +108,7 @@ export default function AppCoordenacao() {
         <Route path="/administracao" element={<HubAdministracao />} />
         <Route path="/administracao/contas" element={<Contas />} />
         <Route path="/administracao/captacao" element={<Captacao />} />
+        <Route path="/administracao/troca-de-telas" element={<TrocaDeTelas />} />
         {/* Uma rota só pra qualquer nome — sem fila de fusão, sem ficha
             separada (simplificação de 25/09/2026): CaptacaoPerfil.tsx abre
             pra qualquer nome, fragmentado ou não. */}

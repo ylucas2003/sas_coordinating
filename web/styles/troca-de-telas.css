@@ -1,0 +1,142 @@
+/* ─── Troca de Telas Automática — download + tutorial ─────────────────────
+   Importado só pela tela (mesmo padrão de `captacao.css`), não em main.tsx.
+   Só tokens que já existem; nenhuma cor nova. Texto corrido em coluna de
+   ~720px: passo a passo com linha longa demais deixa de ser lido.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.troca-baixar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px;
+  max-width: 720px;
+  margin-bottom: 28px;
+}
+
+.troca-intro {
+  max-width: 720px;
+  margin: 0 0 28px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.troca-baixar__texto {
+  max-width: 620px;
+}
+
+/* O título da seção traz margem de 12px para a lista; aqui ele fica colado à nota. */
+.troca-baixar__texto .troca-secao__titulo {
+  margin-bottom: 4px;
+}
+
+.troca-baixar__nota {
+  margin: 0;
+  color: var(--sas-texto-2);
+  font-size: 13px;
+}
+
+/* `<a>` com cara de botão: o `.btn` não zera o sublinhado nem o display. */
+.troca-baixar__botao {
+  flex: 0 0 auto;
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
+.troca-secao {
+  max-width: 720px;
+  margin-bottom: 28px;
+}
+
+.troca-secao__titulo {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.troca-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  counter-reset: passo;
+}
+
+.troca-lista__item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.troca-lista--numerada .troca-lista__item {
+  position: relative;
+  padding-left: 40px;
+  counter-increment: passo;
+}
+
+.troca-lista--numerada .troca-lista__item::before {
+  content: counter(passo);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--sas-borda);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.troca-lista__titulo {
+  font-size: 15px;
+}
+
+.troca-lista__corpo {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+.troca-problemas {
+  padding: 6px 18px;
+}
+
+.troca-problema {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--sas-borda);
+}
+
+.troca-problema:last-child {
+  border-bottom: 0;
+}
+
+.troca-problema__sintoma {
+  font-size: 14px;
+}
+
+.troca-problema__solucao {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--sas-texto-2);
+}
+
+.troca-rodape {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+@media (max-width: 760px) {
+  .troca-baixar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -335,24 +335,18 @@ export function HubAdministracao() {
         />
 
         {/* TROCA DE TELAS AUTOMÁTICA — o AutoSwift OBS (repositório `obs`), que
-            troca a cena do OBS conforme o professor se move na sala. É um
-            programa de Windows, e o card BAIXA o zip em vez de navegar: o
-            arquivo mora FORA da imagem, em `/opt/sas/dados/downloads/` no
-            servidor (bind mount em `/srv/downloads`, servido pelo nginx em
-            `/downloads/`), e não é rota do SPA. Só administrador vê o card — o
-            hub inteiro é dele, mas o download é a única coisa aqui que não é
-            dado do sistema, então a guarda é explícita.
-
-            ⚠️ A guarda é só do CARD. O nginx serve o arquivo por URL, SEM login
-            (não há auth_request nem ACL em `location /downloads/`): quem souber
-            o endereço baixa. O zip não pode conter segredo — token, .env,
-            credencial do OBS. */}
+            troca a cena do OBS conforme o professor se move na sala. O card
+            leva a uma tela com o DOWNLOAD e o TUTORIAL (`TrocaDeTelas.tsx`), e
+            não direto ao arquivo: sem o passo a passo, o erro mais comum do
+            programa ("Failed to load Python DLL", de quem roda de dentro do
+            zip) é o primeiro que a pessoa vê. Só administrador vê o card, e a
+            tela se guarda sozinha. Detalhes do arquivo e do servidor, lá. */}
         {sessao.ehAdministrador() && (
           <CartaoDeCampo
             olho="Ferramentas"
             titulo="Troca de Telas Automática"
-            baixar="/downloads/AutoSwift-OBS-Windows.zip"
-            subtitulo="Programa para Windows · baixar o .zip e extrair a pasta inteira"
+            para="/administracao/troca-de-telas"
+            subtitulo="Programa para Windows · download e passo a passo"
             vazio=""
             glifo={
               <>
