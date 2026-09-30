@@ -248,7 +248,7 @@ class TestFotoDoAlunoPelaCoordenacao:
         db = {"aluno": {}}
         monkeypatch.setattr(alunos, "get_supabase", lambda: FakeCliente(db))
         with pytest.raises(HTTPException) as exc:
-            asyncio.run(alunos.foto_do_aluno("fantasma"))
+            alunos.foto_do_aluno("fantasma")
         assert exc.value.status_code == 404
 
     def test_coordenacao_le_a_foto_do_aluno(self, tmp_path, monkeypatch):
@@ -259,7 +259,7 @@ class TestFotoDoAlunoPelaCoordenacao:
         db = {"aluno": {"a1": {"id": "a1", "foto_perfil_storage": caminho}}}
         monkeypatch.setattr(alunos, "get_supabase", lambda: FakeCliente(db))
 
-        resultado = asyncio.run(alunos.foto_do_aluno("a1"))
+        resultado = alunos.foto_do_aluno("a1")
         assert resultado["fotoDataUrl"].startswith("data:image/jpeg;base64,")
 
     def test_coordenacao_remove_foto_impropria_com_auditoria_diferenciada(self, tmp_path, monkeypatch):
@@ -272,9 +272,7 @@ class TestFotoDoAlunoPelaCoordenacao:
         db = {"aluno": {"a1": {"id": "a1", "foto_perfil_storage": caminho}}}
         monkeypatch.setattr(alunos, "get_supabase", lambda: FakeCliente(db))
 
-        resultado = asyncio.run(
-            alunos.remover_foto_do_aluno("a1", _FakeRequest(), coordenador={"sub": "c1"})
-        )
+        resultado = alunos.remover_foto_do_aluno("a1", _FakeRequest(), coordenador={"sub": "c1"})
         assert resultado == {"ok": True}
         assert db["aluno"]["a1"]["foto_perfil_storage"] is None
         assert not (tmp_path / "fotos-perfil" / "aluno" / "a1.jpg").exists()

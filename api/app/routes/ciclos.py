@@ -1,6 +1,5 @@
 """Endpoints de ciclos."""
 
-import asyncio
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -184,7 +183,7 @@ async def enviar_ciclo_ao_canvas(
 TETO_NOTAS_POR_LOTE = 80
 
 
-async def _pendencias_do_ciclo(cliente, ciclo_id: str) -> dict:
+def _pendencias_do_ciclo(cliente, ciclo_id: str) -> dict:
     """O que deste ciclo não está refletido no Canvas, por tipo.
 
     Leitura pura, sem efeito: é ela que alimenta o diálogo de confirmação. A
@@ -281,12 +280,12 @@ async def _pendencias_do_ciclo(cliente, ciclo_id: str) -> dict:
 
 
 @router.get("/{ciclo_id}/pendencias-canvas", response_model=dict)
-async def pendencias_canvas(
+def pendencias_canvas(
     ciclo_id: str,
     _: dict = Depends(get_current_coordenador),
 ) -> dict:
     """O que subiria se o coordenador mandasse o ciclo inteiro. Não escreve."""
-    return await _pendencias_do_ciclo(get_supabase(), ciclo_id)
+    return _pendencias_do_ciclo(get_supabase(), ciclo_id)
 
 
 @router.post("/{ciclo_id}/enviar-canvas-lote", response_model=dict)
@@ -314,7 +313,7 @@ async def enviar_ciclo_ao_canvas_em_lote(
        "escolheu não mandar" de "mandou e falhou" daqui a três meses.
     """
     cliente = get_supabase()
-    pendencias = await _pendencias_do_ciclo(cliente, ciclo_id)
+    pendencias = _pendencias_do_ciclo(cliente, ciclo_id)
     ip = request.client.host if request.client else None
     ator = coordenador.get("sub")
     itens: list[dict] = []
@@ -381,7 +380,7 @@ def _resumo_do_lote(itens: list[dict], interrompido: str | None = None) -> dict:
 
 
 @router.get("", response_model=list[Ciclo])
-async def listar_ciclos() -> list[Ciclo]:
+def listar_ciclos() -> list[Ciclo]:
     cliente = get_supabase()
     mapa = _agrupar_simulados_por_ciclo(cliente)
     resp = (
@@ -397,7 +396,7 @@ async def listar_ciclos() -> list[Ciclo]:
 
 
 @router.get("/{ciclo_id}", response_model=Ciclo)
-async def obter_ciclo(ciclo_id: str) -> Ciclo:
+def obter_ciclo(ciclo_id: str) -> Ciclo:
     cliente = get_supabase()
     resp = (
         cliente.table("ciclo")
@@ -417,7 +416,7 @@ async def obter_ciclo(ciclo_id: str) -> Ciclo:
 
 
 @router.get("/{ciclo_id}/classificacao")
-async def classificacao_do_ciclo(
+def classificacao_do_ciclo(
     ciclo_id: str,
     criterio: str = Query(
         "tio-leo",
@@ -467,7 +466,7 @@ _MATERIAS_CONHECIDAS = ("matematica", "fisica", "quimica", "portugues", "ingles"
 
 
 @router.get("/criterios/disponiveis")
-async def criterios_disponiveis() -> list[dict]:
+def criterios_disponiveis() -> list[dict]:
     """Os critérios que o seletor do painel oferece — embutidos e criados."""
     cliente = get_supabase()
     return [
@@ -523,7 +522,7 @@ def _descrever_criterio(c: criterios.Criterio) -> dict:
 
 
 @router.get("/{ciclo_id}/estatisticas")
-async def estatisticas_do_ciclo(
+def estatisticas_do_ciclo(
     ciclo_id: str,
     com_insights: bool = Query(
         True,
@@ -561,18 +560,14 @@ async def estatisticas_do_ciclo(
 
     payload["criterio"] = _descrever_criterio(regua)
     if com_insights:
-        # ⚠️ `to_thread` porque `_anexar_insights` faz até QUATRO chamadas
-        # síncronas de LLM em série (conjunta prática, conjunta técnica, e o par
-        # de cada matéria), e este handler é `async def` no event loop único do
-        # processo. Chamado direto, um `?insights=true` congelava a API inteira
-        # por dezenas de segundos — o balcão da cantina esperando a ficha de
-        # ciclo de outra pessoa (docs/40 §12.1.1).
-        #
-        # O irmão desta rota, `GET /me/insight`, já resolvia isto de outro
-        # jeito: o handler de lá é `def`, e o FastAPI o roda no threadpool
-        # sozinho. Aqui não dava para fazer o mesmo — o resto do handler é
-        # `async` e tem `await` — então a fronteira é explícita.
-        await asyncio.to_thread(_anexar_insights, cliente, payload)
+        # `_anexar_insights` faz até QUATRO chamadas síncronas de LLM em série.
+        # Este handler é `def` (threadpool do FastAPI), então a espera não trava
+        # o event loop — antes ele era `async def` e a fronteira era um
+        # `asyncio.to_thread` explícito, porque chamado direto congelava a API
+        # inteira por dezenas de segundos: o balcão da cantina esperando a ficha
+        # de ciclo de outra pessoa (docs/40 §12.1.1). Ao virar `def` por causa da
+        # performance da ficha (29/09/2026), o `to_thread` deixou de ser preciso.
+        _anexar_insights(cliente, payload)
     return payload
 
 

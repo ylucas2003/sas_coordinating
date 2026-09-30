@@ -38,6 +38,7 @@ from ..auth import get_current_coordenador
 from ..banco.missao import hoje_na_escola
 from ..schemas.domain import Aluno
 from ..stats import classificacao as _classif
+from ..stats import serie_recente as _series
 from ..stats.utils import (
     como_float,
     filtro_nota_valida,
@@ -430,7 +431,7 @@ def _direitos_por_aluno(cliente, *, aluno_ids: list[str] | None = None) -> dict[
 
 
 @router.get("", response_model=list[AlunoDaCoordenacao])
-async def listar_alunos(
+def listar_alunos(
     recorte: str | None = Query(None, description="em-risco | em-ascensao | perfil-irregular | zona-corte"),
     sede_id: str | None = Query(None, alias="sedeId"),
     turma_id: str | None = Query(None, alias="turmaId"),
@@ -448,7 +449,7 @@ async def listar_alunos(
     turma_para_sede = _mapa_turma_para_sede(cliente)
     classificacoes = _classif.mapa_classificacao(cliente)
     vestibulares = _vestibulares_por_aluno(cliente)
-    sparklines = _classif.sparkline_por_aluno(cliente)
+    sparklines = _series.sparklines(cliente)
 
     simulados = _mapa_simulados(cliente)
     referencia = _referencia_de_medias(cliente, simulados)
@@ -503,7 +504,7 @@ async def listar_alunos(
 
 
 @router.get("/{aluno_id}", response_model=AlunoDaCoordenacao)
-async def obter_aluno(aluno_id: str) -> AlunoDaCoordenacao:
+def obter_aluno(aluno_id: str) -> AlunoDaCoordenacao:
     cliente = get_supabase()
     resp = (
         cliente.table("aluno")
@@ -517,9 +518,9 @@ async def obter_aluno(aluno_id: str) -> AlunoDaCoordenacao:
 
     aluno_para_turma = _mapa_aluno_para_turma_ativa(cliente)
     turma_para_sede = _mapa_turma_para_sede(cliente)
-    classificacoes = _classif.mapa_classificacao(cliente)
+    classificacoes = _classif.mapa_classificacao(cliente, aluno_ids=[aluno_id])
     vestibulares = _vestibulares_por_aluno(cliente)
-    sparklines = _classif.sparkline_por_aluno(cliente)
+    sparklines = _series.sparklines(cliente, aluno_ids=[aluno_id])
 
     id_turma = aluno_para_turma.get(aluno_id, "")
     id_sede = turma_para_sede.get(id_turma, "") if id_turma else ""
@@ -559,7 +560,7 @@ async def obter_aluno(aluno_id: str) -> AlunoDaCoordenacao:
 
 
 @router.get("/{aluno_id}/trajetoria")
-async def trajetoria_aluno(aluno_id: str) -> list[dict]:
+def trajetoria_aluno(aluno_id: str) -> list[dict]:
     """Lista cronológica das notas do aluno (já em escala 0–10).
 
     Retorna `pontuacao` normalizada (`acertos / total * 10`). O cliente recebe
@@ -608,7 +609,7 @@ async def trajetoria_aluno(aluno_id: str) -> list[dict]:
 
 
 @router.get("/{aluno_id}/heatmap")
-async def heatmap_aluno(aluno_id: str) -> dict:
+def heatmap_aluno(aluno_id: str) -> dict:
     """Matriz matérias × simulados pra heatmap.
 
     Saída:
@@ -698,14 +699,14 @@ async def heatmap_aluno(aluno_id: str) -> dict:
 
 
 @router.get("/{aluno_id}/similares")
-async def alunos_similares(aluno_id: str, k: int = 5) -> list[dict]:
+def alunos_similares(aluno_id: str, k: int = 5) -> list[dict]:
     """kNN por vetor de features (média por matéria + desvio + slope).
 
     Distância euclidiana. Retorna os `k` alunos mais próximos (excluindo o
     próprio). Vetor com NaN em uma feature pula essa coordenada na soma.
     """
     cliente = get_supabase()
-    vetores = _vetores_de_features(cliente)
+    vetores = _series.vetores(cliente)
     if aluno_id not in vetores:
         return []
 
@@ -723,9 +724,10 @@ async def alunos_similares(aluno_id: str, k: int = 5) -> list[dict]:
     top = distancias[:k]
 
     # Anexa nome e classificação.
-    nomes_resp = cliente.table("aluno").select("id, nome").execute()
-    nomes = {a["id"]: a["nome"] for a in (nomes_resp.data or [])}
-    classif = _classif.mapa_classificacao(cliente)
+    ids_top = [outro_id for outro_id, _ in top]
+    nomes_resp = cliente.table("aluno").select("id, nome").in_("id", ids_top).execute() if ids_top else None
+    nomes = {a["id"]: a["nome"] for a in ((nomes_resp.data if nomes_resp else None) or [])}
+    classif = _classif.mapa_classificacao(cliente, aluno_ids=ids_top)
 
     saida: list[dict] = []
     for outro_id, dist in top:
@@ -745,68 +747,9 @@ async def alunos_similares(aluno_id: str, k: int = 5) -> list[dict]:
 
 
 # ─── Vetor de features por aluno ─────────────────────────────────────────
-
-
-def _vetores_de_features(cliente) -> dict[str, list[float | None]]:
-    """{aluno_id: [media_mat1, media_mat2, ..., desvio, slope]}.
-
-    Materias ordenadas alfabeticamente por nome → ordem estável. None onde
-    o aluno não tem nota da matéria.
-    """
-    materias_resp = cliente.table("materia").select("id, nome").execute()
-    materias = sorted(materias_resp.data or [], key=lambda m: m["nome"])
-    materia_ids = [m["id"] for m in materias]
-
-    # Notas com materia_id e pontuação — normalizadas em 0–10 antes de
-    # virar feature. Sem isso, vetores de alunos comparam apples to oranges.
-    resp = (
-        cliente.table("nota")
-        .select(
-            "aluno_id, pontuacao, simulado("
-            "materia_id, data_aplicacao, anulado, e_agregado, nota_confiavel, nota_maxima"
-            ")"
-        )
-        .eq("presente", True)
-        .eq("computavel", True)
-        .execute()
-    )
-
-    notas_por_aluno: dict[str, list[dict]] = defaultdict(list)
-    for linha in resp.data or []:
-        sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
-            continue
-        mid = sim.get("materia_id")
-        nota = nota_real(
-            como_float(linha.get("pontuacao")),
-            como_float(sim.get("nota_maxima")),
-        )
-        if nota is None or not mid:
-            continue
-        notas_por_aluno[linha["aluno_id"]].append(
-            {"materia_id": mid, "pontuacao": nota, "data": sim.get("data_aplicacao") or ""}
-        )
-
-    classif = _classif.mapa_classificacao(cliente)
-
-    vetores: dict[str, list[float | None]] = {}
-    for aluno_id, notas in notas_por_aluno.items():
-        por_materia: dict[str, list[float]] = defaultdict(list)
-        for n in notas:
-            por_materia[n["materia_id"]].append(n["pontuacao"])
-        # 6 médias por matéria
-        v: list[float | None] = []
-        for mid in materia_ids:
-            valores = por_materia.get(mid, [])
-            v.append(st.mean(valores) if valores else None)
-        # Desvio geral
-        todas = [n["pontuacao"] for n in notas]
-        v.append(st.stdev(todas) if len(todas) > 1 else None)
-        # Slope (vem da classificação)
-        c = classif.get(aluno_id) or {}
-        v.append(como_float(c.get("coef_tendencia")))
-        vetores[aluno_id] = v
-    return vetores
+# O vetor deixou de ser calculado aqui: ele vem de `aluno_serie_recente`
+# (migration 0066), regravada junto com a classificação. Calculá-lo por
+# requisição relia as ~78 mil notas a cada clique numa ficha de aluno.
 
 
 def _distancia(a: list[float | None], b: list[float | None]) -> float | None:
@@ -847,7 +790,7 @@ def _distancia(a: list[float | None], b: list[float | None]) -> float | None:
 
 
 @router.get("/{aluno_id}/foto")
-async def foto_do_aluno(aluno_id: str) -> dict:
+def foto_do_aluno(aluno_id: str) -> dict:
     cliente = get_supabase()
     resp = (
         cliente.table("aluno")
@@ -870,7 +813,7 @@ async def foto_do_aluno(aluno_id: str) -> dict:
 
 
 @router.delete("/{aluno_id}/foto")
-async def remover_foto_do_aluno(
+def remover_foto_do_aluno(
     aluno_id: str, request: Request, coordenador: dict = Depends(get_current_coordenador)
 ) -> dict:
     """Tira uma foto imprópria do ar (docs/sprints.html · SPRINT FOTO · P5).

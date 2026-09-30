@@ -68,7 +68,7 @@ def _chamar_lote(cliente):
 
 
 def _pendencias(cliente):
-    return asyncio.run(rota_ciclos.pendencias_canvas("c1", COORD))
+    return rota_ciclos.pendencias_canvas("c1", COORD)
 
 
 def _mockar(monkeypatch, cliente, *, chamadas, grupo_ok=True, simulado="sincronizado", nota_ok=True):
@@ -179,5 +179,5 @@ def test_ciclo_inexistente_e_404(db, monkeypatch):
     cliente = FakeCliente(db)
     monkeypatch.setattr(rota_ciclos, "get_supabase", lambda: cliente)
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(rota_ciclos.pendencias_canvas("nao-existe", COORD))
+        rota_ciclos.pendencias_canvas("nao-existe", COORD)
     assert exc.value.status_code == 404

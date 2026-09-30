@@ -98,7 +98,7 @@ def _linha_para_simulado(
 
 
 @router.get("", response_model=list[Simulado])
-async def listar_simulados() -> list[Simulado]:
+def listar_simulados() -> list[Simulado]:
     cliente = get_supabase()
     metricas = mapa_metrica_geral_por_simulado(cliente)
     materias = _mapa_materias(cliente)
@@ -295,11 +295,11 @@ async def agendar_simulado(
             }
         ).execute()
 
-    return await obter_simulado(simulado_linha["id"])
+    return obter_simulado(simulado_linha["id"])
 
 
 @router.get("/{simulado_id}", response_model=Simulado)
-async def obter_simulado(simulado_id: str) -> Simulado:
+def obter_simulado(simulado_id: str) -> Simulado:
     cliente = get_supabase()
     resp = (
         cliente.table("simulado")
@@ -317,7 +317,7 @@ async def obter_simulado(simulado_id: str) -> Simulado:
 
 
 @router.get("/{simulado_id}/histograma")
-async def histograma_simulado(simulado_id: str) -> dict:
+def histograma_simulado(simulado_id: str) -> dict:
     """Distribuição de notas em bins de 0,5 ponto. Lê direto de metrica_simulado."""
     cliente = get_supabase()
     metrica = carregar_metrica_geral(cliente, simulado_id)
@@ -336,7 +336,7 @@ async def histograma_simulado(simulado_id: str) -> dict:
 
 
 @router.get("/{simulado_id}/notas")
-async def listar_notas_simulado(simulado_id: str) -> list[dict]:
+def listar_notas_simulado(simulado_id: str) -> list[dict]:
     """Tabela completa: aluno × nota (em escala 0–10). Usada na ficha do simulado.
 
     Também devolve `acertos` (pontuação bruta) e `total` (nota_maxima) caso
@@ -385,7 +385,7 @@ async def listar_notas_simulado(simulado_id: str) -> list[dict]:
 
 
 @router.get("/{simulado_id}/por-materia")
-async def metricas_por_materia(simulado_id: str) -> list[dict]:
+def metricas_por_materia(simulado_id: str) -> list[dict]:
     """Quebra por matéria.
 
     No schema atual, cada simulado tem uma única `materia_id` (ou None se
@@ -438,7 +438,7 @@ async def metricas_por_materia(simulado_id: str) -> list[dict]:
 
 
 @router.get("/{simulado_id}/por-sede")
-async def metricas_por_sede(simulado_id: str) -> list[dict]:
+def metricas_por_sede(simulado_id: str) -> list[dict]:
     """Quebra do simulado por sede (a partir de metrica_simulado)."""
     cliente = get_supabase()
     metricas_resp = (
@@ -691,7 +691,7 @@ async def retry_canvas(
         ip=request.client.host if request.client else None,
         detalhe={"canvas_estado": estado},
     )
-    return await obter_simulado(simulado_id)
+    return obter_simulado(simulado_id)
 
 
 @router.delete("/{simulado_id}", status_code=200)
