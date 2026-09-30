@@ -120,6 +120,9 @@ services:
       # deploy do certbot copia com o dono certo (infra/vps/renovar-tls.sh).
       - /opt/sas/dados/acme:/var/www/certbot:ro
       - /opt/sas/dados/tls:/etc/nginx/tls:ro
+      # Programas para baixar (/downloads/, card da Administração). Fica fora
+      # da imagem: o zip do AutoSwift OBS troca com `scp`, sem rebuild.
+      - /opt/sas/dados/downloads:/srv/downloads:ro
     environment:
       TZ: ${TZ:-America/Fortaleza}
 

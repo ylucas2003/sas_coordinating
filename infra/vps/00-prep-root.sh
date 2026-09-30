@@ -62,6 +62,10 @@ chown -R 101:101 /opt/sas/dados/acme /opt/sas/dados/tls
 chmod 750 /opt/sas/dados/tls
 ok "/opt/sas/dados/{acme,tls} (dono uid 101, o do nginx)"
 
+mkdir -p /opt/sas/dados/downloads
+chown -R 101:101 /opt/sas/dados/downloads
+ok "/opt/sas/dados/downloads (zip do AutoSwift OBS, servido em /downloads/)"
+
 echo
 echo "  Pronto. Agora, da sua máquina:"
 echo "      ./infra/vps/deploy.sh"

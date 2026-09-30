@@ -13,6 +13,14 @@ final — inclusive os erros que a pesquisa corrigiu em relação ao levantament
 errado de uma prova, sigla que não existe, olimpíada extinta). Preservados como fonte de verdade caso
 seja preciso atualizar o dossiê publicado depois.
 
+A planilha [`Dossie de Provas - Revisao para Captacao.xlsx`](Dossie%20de%20Provas%20-%20Revisao%20para%20Captacao.xlsx)
+traz a lista do dossiê publicado (66 provas) num formato para **revisar a várias mãos**: cada linha tem uma coluna
+`Score (1-5)` — a importância da prova para a captação de alunos, dada por quem revisa — e a aba
+`Resumo` conta por categoria e calcula a média. Provas que não valem o acompanhamento são apagadas da
+lista. Ela sai **sem nenhum score preenchido**. O plano de fontes da captação externa
+([docs/41](../docs/41-plano-captacao-externa.md)) parte deste Dossiê. Só informação pública das bancas —
+nada de dado de aluno.
+
 ## Sumário
 
 **Olimpíadas nacionais**

@@ -6,6 +6,7 @@ import { useCandidatos } from '../../hooks/captacao';
 import { useCalendarioNaCoordenacao } from '../../hooks/cantina';
 import { isoDoDia } from '../../dominio/cantina';
 import { useParametroDeImportancia } from '../../hooks/banco';
+import * as sessao from '../../servicos/sessao';
 import { resumoAndamento, situacaoDe } from '../../dominio/gravacoes';
 
 // ADMINISTRAÇÃO — quatro campos, e nada além deles.
@@ -332,6 +333,36 @@ export function HubAdministracao() {
             </>
           }
         />
+
+        {/* TROCA DE TELAS AUTOMÁTICA — o AutoSwift OBS (repositório `obs`), que
+            troca a cena do OBS conforme o professor se move na sala. É um
+            programa de Windows, e o card BAIXA o zip em vez de navegar: o
+            arquivo mora FORA da imagem, em `/opt/sas/dados/downloads/` no
+            servidor (bind mount em `/srv/downloads`, servido pelo nginx em
+            `/downloads/`), e não é rota do SPA. Só administrador vê o card — o
+            hub inteiro é dele, mas o download é a única coisa aqui que não é
+            dado do sistema, então a guarda é explícita.
+
+            ⚠️ A guarda é só do CARD. O nginx serve o arquivo por URL, SEM login
+            (não há auth_request nem ACL em `location /downloads/`): quem souber
+            o endereço baixa. O zip não pode conter segredo — token, .env,
+            credencial do OBS. */}
+        {sessao.ehAdministrador() && (
+          <CartaoDeCampo
+            olho="Ferramentas"
+            titulo="Troca de Telas Automática"
+            baixar="/downloads/AutoSwift-OBS-Windows.zip"
+            subtitulo="Programa para Windows · baixar o .zip e extrair a pasta inteira"
+            vazio=""
+            glifo={
+              <>
+                <rect x="10" y="16" width="34" height="24" rx="3" />
+                <rect x="26" y="30" width="34" height="24" rx="3" />
+                <path d="M35 60h16" />
+              </>
+            }
+          />
+        )}
       </div>
 
       {/*

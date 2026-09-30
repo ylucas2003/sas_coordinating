@@ -64,6 +64,12 @@ interface PropsCartao {
    * construção, sem que ninguém precise declarar.
    */
   para?: string;
+  /**
+   * Um arquivo para baixar, no lugar de uma tela. Vira `<a download>` em vez de
+   * `<Link>`: o destino não é rota do SPA, e o router não pode interceptá-lo
+   * (o fallback do nginx devolveria o index.html no lugar do arquivo).
+   */
+  baixar?: string;
   /** O `<path>` do glifo de 70×70, em traço fino. Decorativo: quem nomeia o destino é o texto. */
   glifo?: ReactNode;
   /**
@@ -126,11 +132,11 @@ interface PropsCartao {
 }
 
 export function CartaoDeCampo({
-  olho, titulo, para, glifo, carregando = false, subtitulo = null, vazio,
+  olho, titulo, para, baixar, glifo, carregando = false, subtitulo = null, vazio,
   magnitude, magnitudeLegenda, aviso = null, marca = null, inerte = false,
   compacto = false, acao = null,
 }: PropsCartao) {
-  const semDestino = inerte || !para;
+  const semDestino = inerte || (!para && !baixar);
   const classe = [
     'campo-cartao',
     compacto ? 'campo-cartao--compacto' : '',
@@ -199,7 +205,9 @@ export function CartaoDeCampo({
   // barata de escrever e a mais cara de descobrir.
   if (semDestino) return <div className={classe}>{conteudo}</div>;
 
-  const cartao = <Link className={classe} to={para!}>{conteudo}</Link>;
+  const cartao = baixar
+    ? <a className={classe} href={baixar} download>{conteudo}</a>
+    : <Link className={classe} to={para!}>{conteudo}</Link>;
   if (!acao) return cartao;
 
   // ⚠️ **A ação é IRMÃ do link, nunca filha.** Um `<button>` dentro de uma
