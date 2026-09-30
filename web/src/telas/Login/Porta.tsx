@@ -127,7 +127,7 @@ export function Porta({
   const comSenha = modo !== 'aluno';
   const texto = TEXTO_DO_PAINEL[modo];
   return (
-    <div className="porta">
+    <div className={modo === 'aluno' ? 'porta porta--capa' : 'porta'}>
       <div className="porta__cena-caixa">
         {modo === 'aluno' ? <CapaDoAluno /> : <Amanhecer />}
 

@@ -144,6 +144,20 @@
   font-family: var(--font-family);
 }
 
+/* A capa do aluno é um PÔSTER 4:5, e no celular a cena era um quadrado de 46dvh
+   que recortava 20% dele: cortava o topo, encostava o emblema no "TURMA ITA/IME"
+   e espremia as legendas numa faixa de 90px ("MONTENEGRO / FILHO" em três
+   linhas) — visto na captura do usuário, não no CSS. Aqui a cena cresce até a
+   imagem caber INTEIRA (125vw é a altura dela na largura da tela), limitada a
+   62% da altura para o botão do Canvas continuar na primeira tela.
+
+   Vem ANTES dos blocos de 900px e de aparelho baixo, que têm a mesma
+   especificidade e precisam vencer: no desktop o grid vira duas colunas, e no
+   celular deitado a cena volta a ser uma faixa. */
+.porta--capa {
+  grid-template-rows: min(125vw, 62dvh) 1fr;
+}
+
 .porta__cena-caixa {
   position: relative;
   overflow: hidden;
@@ -211,10 +225,11 @@
 
 /* Cena MUITO larga para a altura que tem (celular deitado, tablet): só cabe um
    pedaço da imagem, e legenda e linha cairiam cortadas ao meio. Somem, e o foco
-   sobe para os rostos — a imagem sozinha ainda diz o que precisa. */
+   sobe para os rostos (olhos a ~46% do quadro) — a imagem sozinha ainda diz o que
+   precisa. */
 @container (min-aspect-ratio: 13/10) {
   .porta__quadro {
-    top: calc((100cqh - var(--quadro-l) * 1402 / 1122) * 0.42);
+    top: calc((100cqh - var(--quadro-l) * 1402 / 1122) * 0.46);
   }
 
   .porta__linhagem,
