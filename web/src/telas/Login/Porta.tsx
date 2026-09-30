@@ -25,11 +25,17 @@ import capaDoAluno from '../../../assets/porta-aluno-ita.webp';
 // carrega o cobogó e a linha de corte, então a coordenação passou a herdar de
 // graça a fachada que o brief pedia que ela tivesse.
 //
-// ⚠️ Desde 30/09/2026 isso vale só para a coordenação e a cantina. A porta do
-// ALUNO tem capa própria (`CapaDoAluno`, abaixo): a fachada do ITA com os três
-// nomes que fundaram o instituto e o "Você". Ela reverte, de propósito, a regra
-// do brief de "nenhuma insígnia do ITA" — o emblema e o lettering da fachada
-// estão na imagem, por decisão de quem responde pelo produto.
+// ⚠️ Desde 30/09/2026 a cena do `/login` é a CAPA (`CapaDoLogin`, abaixo): a
+// fachada do ITA com os três nomes que fundaram o instituto e o "Você". Vale para
+// as DUAS portas de lá — aluno e coordenação —, porque elas são o mesmo casco e
+// só o painel troca. A primeira versão da capa era só do aluno, e clicar em "Sou
+// da coordenação" trocava a imagem inteira: era exatamente o defeito que a
+// remoção do `.lp` resolveu. A CANTINA, que mora noutra URL e não tem travessia,
+// segue com `Amanhecer`.
+//
+// Ela reverte, de propósito, a regra do brief de "nenhuma insígnia do ITA" — o
+// emblema e o lettering da fachada estão na imagem, por decisão de quem responde
+// pelo produto.
 //
 // São ~900 alunos contra uma dúzia de coordenadores: o padrão é a porta do
 // aluno, e a travessia é um link discreto no rodapé do painel, nos dois
@@ -125,11 +131,14 @@ export function Porta({
   // formulário e escondem o botão do Canvas. O que as separa é só o texto do
   // cabeçalho e a existência da travessia.
   const comSenha = modo !== 'aluno';
+  // A capa é do `/login` inteiro (aluno e coordenação). A cantina tem URL própria
+  // e público próprio, e "Você, o próximo iteano" não fala com ela.
+  const comCapa = modo !== 'cantina';
   const texto = TEXTO_DO_PAINEL[modo];
   return (
-    <div className={modo === 'aluno' ? 'porta porta--capa' : 'porta'}>
+    <div className={comCapa ? 'porta porta--capa' : 'porta'}>
       <div className="porta__cena-caixa">
-        {modo === 'aluno' ? <CapaDoAluno /> : <Amanhecer />}
+        {comCapa ? <CapaDoLogin /> : <Amanhecer />}
 
         <div className="porta__marca">
           {/* A marca do colégio, não um selo inventado. A versão branca é a
@@ -141,23 +150,22 @@ export function Porta({
           <span className="porta__marca-sub">Turma ITA/IME</span>
         </div>
 
-        {/* ⚠️ Na porta do aluno a manchete SOME da vista e continua no DOM. A capa
+        {/* ⚠️ Com a capa a manchete SOME da vista e continua no DOM. A capa
             é uma imagem de proporção 4:5 e a cena aqui é mais larga que isso; o
             recorte já gasta o que sobra de altura, e a manchete (2 linhas de ~60px)
             caía por cima das legendas. A linha dourada e o "Você" fazem o papel
             dela. O `h1` tem de ficar — é o título da página para o leitor de tela. */}
-        <h1 className={modo === 'aluno' ? 'alu-so-leitor' : 'porta__manchete'}>
+        <h1 className={comCapa ? 'alu-so-leitor' : 'porta__manchete'}>
           Todo dia
           <br />
           acima da linha
         </h1>
       </div>
 
-      {/* ⚠️ Só o PAINEL troca. A marca é a mesma nas duas portas, e a cena é a
-          mesma da coordenação à cantina — é isso que faz a coordenação parar de
-          parecer outro produto ao clicar em "Sou da coordenação". A exceção é a
-          CAPA do aluno, que fala com ele ("Você") e por isso não vale para as
-          outras portas. */}
+      {/* ⚠️ Só o PAINEL troca. A marca e a cena são as mesmas nas duas portas do
+          `/login` — é isso que faz a coordenação parar de parecer outro produto
+          ao clicar em "Sou da coordenação". Só a cantina, noutra URL, tem cena
+          própria. */}
       <div className="porta__painel">
         <div className="porta__painel-interno">
           {avisoCanvas && !comSenha && (
@@ -243,7 +251,7 @@ const LINHAGEM = [
 ] as const;
 
 /**
- * A capa da porta do ALUNO: a fachada do ITA ao amanhecer, os três nomes que
+ * A capa do `/login` (aluno e coordenação): a fachada do ITA ao amanhecer, os três nomes que
  * explicam por que o instituto existe e, à frente deles, "Você — o próximo
  * iteano".
  *
@@ -266,10 +274,10 @@ const LINHAGEM = [
  * pelo responsável: a porta é pública e o aluno é menor de idade (LGPD). Trocar o
  * arquivo não exige mexer no código — só manter as cabeças nas mesmas posições.
  *
- * ⚠️ Só a porta do aluno usa esta capa. A mensagem dela fala com o aluno
- * ("Você"), e a coordenação e a cantina seguem com `Amanhecer`.
+ * ⚠️ A cantina NÃO usa esta capa e segue com `Amanhecer`: ela mora noutra URL, e a
+ * mensagem ("Você, o próximo iteano") não fala com quem lança o cardápio.
  */
-function CapaDoAluno() {
+function CapaDoLogin() {
   return (
     <div className="porta__capa">
       <div className="porta__quadro">

@@ -196,10 +196,11 @@ sobre fundo claro. Use `--alu-valor` para traço e preenchimento,
 - **Nenhuma marca real de terceiro.** Nada de brasão do ITA, do IME ou de
   qualquer instituição. O selo do colégio é asset nosso e entra como placeholder
   circular no mockup.
-  ⚠️ **Exceção aberta em 30/09/2026, só na capa da porta do aluno:** ela traz a
-  fachada do ITA com o lettering e o emblema, e retratos de Santos-Dumont,
-  Casimiro Montenegro Filho e Ozires Silva (`web/assets/porta-aluno-ita.webp`,
-  `CapaDoAluno` em `telas/Login/Porta.tsx`). Decisão de quem responde pelo
+  ⚠️ **Exceção aberta em 30/09/2026, só na capa do `/login` (aluno e
+  coordenação; a cantina não usa):** ela traz a fachada do ITA com o lettering e
+  o emblema, e retratos de Santos-Dumont, Casimiro Montenegro Filho e Ozires
+  Silva (`web/assets/porta-aluno-ita.webp`, `CapaDoLogin` em
+  `telas/Login/Porta.tsx`). Decisão de quem responde pelo
   produto; a regra continua valendo para o resto do app. O rosto do aluno na
   capa tem de ser fictício ou autorizado por escrito (LGPD).
 - **Nenhum número institucional inventado.** Onde um número não vier de dado,
