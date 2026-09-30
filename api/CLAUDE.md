@@ -119,6 +119,10 @@ docker compose restart postgrest     # OBRIGATÓRIO depois de mexer em tabela
 Depois de qualquer migration que toque `metrica_simulado`, rode
 `python -m scripts.recalcular_metricas` (idempotente).
 
+`aluno_serie_recente` (0066) guarda a sparkline e o vetor do kNN por aluno, e
+é regravada junto com `classificacao_aluno`. Se suspeitar que envelheceu:
+`python -m app.stats.serie_recente` (o deploy roda com `--se-vazia`).
+
 ## Ferramentas
 
 ```sh
@@ -146,7 +150,16 @@ o mypy a gate.
 
 ## Convenções
 
-- `async def` em todos os endpoints, type hints em todas as funções.
+- **`def`, e não `async def`, no endpoint que só faz I/O síncrono** — e quase
+  todos fazem: o cliente PostgREST é síncrono. Um `async def` que chama
+  `.execute()` roda NO event loop (`UVICORN_WORKERS=1`), então as 8–10
+  requisições que uma tela dispara em paralelo são atendidas uma por vez, e uma
+  lenta congela o processo para todo mundo. `def` vai para o threadpool do
+  FastAPI. Só é `async def` quem tem `await` de verdade (escrita no Canvas,
+  streaming). Foi por isso que `alunos.py`, `ciclos.py` e `simulados.py`
+  mudaram em 29/09/2026 — e um teste que chamava o handler com `asyncio.run`
+  passa a chamá-lo direto.
+- Type hints em todas as funções.
 - Nomes em português, inclusive colunas de banco.
 - Comentário explica o porquê e cita a fonte (`docs/14 §4.1`).
 - Erro em caminho de auditoria ou telemetria é engolido; erro em caminho de

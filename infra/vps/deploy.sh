@@ -345,6 +345,16 @@ done
     && ok "API responde através do nginx" \
     || { erro "API não respondeu em /api/health"; docker compose logs --tail=40 api; exit 1; }
 
+# ── Backfill das séries por aluno (migration 0066) ───────────────────────
+# A tabela nasce vazia, e sem ela a coordenação veria sparklines e "alunos
+# parecidos" vazios até o próximo recálculo da classificação. `--se-vazia` faz o
+# script trabalhar só na primeira vez; nos deploys seguintes ele responde
+# "nada a fazer". `-T </dev/null` pelo motivo da armadilha 6 do CLAUDE.md:
+# `compose exec` lê stdin, e o stdin deste bloco é o resto do script.
+docker compose exec -T api python -m app.stats.serie_recente --se-vazia </dev/null \
+    && ok "séries por aluno em dia" \
+    || erro "backfill das séries falhou — rode: docker compose exec api python -m app.stats.serie_recente"
+
 docker compose ps --format "  {{.Service}}\t{{.Status}}"
 REMOTO
 }

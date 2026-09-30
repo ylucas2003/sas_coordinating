@@ -158,6 +158,7 @@ Biome saiu de 9 erros de baseline para 8.
 | 2 | Cartão de decisão | ✅ | `FaixaDecisao.tsx`, `contarDecisoes` + `alertasDoRecorte` testados, `AlertCard` finalmente montado, âncora `#alertas`, e o alerta passou a dizer `entidadeTipo`/`entidadeId` |
 | 3 | Busca num lugar só | ✅ | `<Busca>` na `BarraFiltros`, nas **oito** superfícies; a do Painel saiu do cabeçalho, a da Administração trocou de dono |
 | 4 | Dossiê de ciclo | ✅ | `CicloFicha/dossie.ts` — PDF e Word, **com os gráficos** (SVG → canvas → `data:`) |
+| 4b | Dossiê: cor, fonte e diagramação | ✅ 29/09/2026 | A 1ª versão saía **em preto e branco**: o SVG serializado perde a folha de estilo (`var(--sas-*)`, `color-mix`), então o preenchimento virava preto e as barras abaixo do corte, que são só contorno, sumiam. Agora o estilo computado viaja no SVG, a Plus Jakarta Sans vai em base64, o tema é sempre dia, o `.doc` usa tabelas (o Word não conhece `flex`) e o PDF zera a margem de página para o navegador não imprimir "about:blank" no rodapé |
 | 5 | Explicar o acesso (4a) | ✅ | Parágrafo antes de "Nova conta", a recusa que ensina, e o que a senha sorteada é e não é |
 | — | Convite por e-mail (4b) | ⬜ **travado** | Espera a decisão "coordenação recebe e-mail transacional?" |
 | 6 | `/banco` na `BarraFiltros` | ✅ | Árvore de assuntos em painel; `<aside>` e o grid de duas colunas removidos; docs/22 §3.5 corrigido |

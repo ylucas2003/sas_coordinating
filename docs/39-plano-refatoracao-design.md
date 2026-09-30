@@ -288,6 +288,11 @@ conserta de passagem:
    CSS** (`dialog-escala__*`, `dialog-pontuacao__*`, `dialog-presenca__*`,
    `dialog__olho`). É a peça central da fase 3 — a escala 0–10 que substituiu
    os seis KPIs — e ela renderiza sem forma nenhuma.
+   **RESOLVIDO em 29/09/2026** (a coordenação reclamou do card "mal formatado e
+   feio": eram exatamente estas classes). O CSS foi escrito em `styles/edicao.css`,
+   logo abaixo de `.dialog--largo`, e o card foi conferido no browser: cabe em
+   480×637 px sem rolagem. `.dialog--largo` ganhou `max-height: min(760px, 92dvh)`
+   porque o corpo passa dos 600px do diálogo comum.
 2. **`telas/Painel/Painel.tsx::PrimeiroDia` idem**, com sete classes
    `painel-primeiro*` sem CSS.
 3. **As duas listas de `/provas`** (fase 3, acima).

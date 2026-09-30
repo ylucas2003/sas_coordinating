@@ -24,7 +24,6 @@ o padrão de `test_alertas.py` e `test_papeis.py`.
 Rodar:  cd api && ./.venv/bin/python -m pytest tests/test_medias_do_aluno.py -q
 """
 
-import asyncio
 from datetime import date
 
 import pytest
@@ -363,7 +362,7 @@ def _listar() -> list:
     um objeto que não é turma nenhuma, peneirando a lista inteira. A lista
     voltava vazia e todo assert falhava por um motivo que não é o do teste.
     """
-    return asyncio.run(alunos.listar_alunos(recorte=None, sede_id=None, turma_id=None))
+    return alunos.listar_alunos(recorte=None, sede_id=None, turma_id=None)
 
 
 def _por_id(lista: list) -> dict:
@@ -427,7 +426,7 @@ def test_a_lista_nao_carrega_restricao_alimentar(banco):
 
 def test_obter_aluno_traz_o_mesmo_formato_da_lista(banco):
     """A ficha não pode discordar da linha — é o mesmo aluno."""
-    ficha = asyncio.run(alunos.obter_aluno("A1"))
+    ficha = alunos.obter_aluno("A1")
     linha = _por_id(_listar())["A1"]
     assert ficha.medias.model_dump() == linha.medias.model_dump()
     assert ficha.direitos == linha.direitos

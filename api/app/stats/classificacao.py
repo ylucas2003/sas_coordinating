@@ -19,7 +19,7 @@ from dataclasses import replace
 
 from supabase import Client
 
-from . import criterios
+from . import criterios, serie_recente
 from . import thresholds as th
 from .utils import (
     como_float,
@@ -68,6 +68,7 @@ def recalcular_tudo(cliente: Client) -> int:
         ):
             classificados += 1
 
+    _gravar_series(cliente, notas_por_aluno, aluno_ids=None)
     return classificados
 
 
@@ -112,7 +113,24 @@ def recalcular_alunos(cliente: Client, aluno_ids: Iterable[str]) -> int:
         ):
             classificados += 1
 
+    _gravar_series(cliente, notas_por_aluno, aluno_ids=ids)
     return classificados
+
+
+def _gravar_series(
+    cliente: Client, notas_por_aluno: dict[str, list[dict]], *, aluno_ids: list[str] | None
+) -> None:
+    """Regrava sparkline e vetor do kNN (`aluno_serie_recente`, migration 0066).
+
+    Roda DEPOIS do loop de classificação: o vetor traz o `coef_tendencia`, que
+    acabou de ser gravado. Uma falha aqui é registrada e NÃO derruba o recálculo
+    — a classificação é o produto, a série é cache de leitura, e o backfill
+    (`python -m app.stats.serie_recente`) a refaz sem reclassificar ninguém.
+    """
+    try:
+        serie_recente.gravar(cliente, notas_recentes=notas_por_aluno, aluno_ids=aluno_ids)
+    except Exception:
+        log.exception("falha gravando aluno_serie_recente — séries podem estar defasadas")
 
 
 def _classificar_e_salvar(
@@ -539,17 +557,24 @@ def _menor_corte_por_aluno(cliente: Client) -> dict[str, float]:
 # ─── Consultas auxiliares ────────────────────────────────────────────────
 
 
-def mapa_classificacao(cliente: Client) -> dict[str, dict]:
-    """{aluno_id: linha de classificacao_aluno} usado pelas rotas."""
-    resp = (
-        cliente.table("classificacao_aluno")
-        .select("aluno_id, perfil, tendencia, zona, media_recente, desvio_recente, coef_tendencia, janela_simulados")
-        .execute()
-    )
-    return {linha["aluno_id"]: linha for linha in (resp.data or [])}
+def mapa_classificacao(
+    cliente: Client, *, aluno_ids: Iterable[str] | None = None
+) -> dict[str, dict]:
+    """{aluno_id: linha de classificacao_aluno} usado pelas rotas.
 
+    `aluno_ids` restringe a leitura: a ficha de UM aluno não precisa da tabela
+    inteira.
+    """
+    def consulta():
+        return cliente.table("classificacao_aluno").select(
+            "aluno_id, perfil, tendencia, zona, media_recente, desvio_recente, coef_tendencia, janela_simulados"
+        )
 
-def sparkline_por_aluno(cliente: Client, *, janela: int = th.JANELA_CLASSIFICACAO) -> dict[str, list[float]]:
-    """{aluno_id: [pontuacoes_cronologicas]} pra mini-gráfico das telas."""
-    notas = _notas_recentes_por_aluno(cliente, janela=janela)
-    return {aluno_id: [n["pontuacao"] for n in lista] for aluno_id, lista in notas.items()}
+    if aluno_ids is None:
+        linhas = consulta().execute().data or []
+    else:
+        ids = list(dict.fromkeys(aluno_ids))
+        linhas = []
+        for inicio in range(0, len(ids), 200):
+            linhas.extend(consulta().in_("aluno_id", ids[inicio : inicio + 200]).execute().data or [])
+    return {linha["aluno_id"]: linha for linha in linhas}

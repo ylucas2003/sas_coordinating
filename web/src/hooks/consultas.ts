@@ -4,7 +4,7 @@
 //
 // Substitui o `cacheGet` que vivia dentro do cliente HTTP antigo.
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../servicos/api';
 import type {
   Aluno, AlunoSimilar, EstatisticasCiclo, NotaSimulado, PontoTrajetoria,
@@ -237,9 +237,20 @@ export function useAcessosDeAlunos() {
 // ─── Ficha do aluno ──────────────────────────────────────────────────────
 
 export function useAluno(id: string) {
+  const cliente = useQueryClient();
   return useQuery({
     queryKey: chaves.aluno(id),
     queryFn: () => api.obterAluno(id) as Promise<Aluno | null>,
+    // Quem chega da lista de alunos ou da ficha de um ciclo JÁ TEM este aluno
+    // na memória: `GET /alunos` devolve o mesmo formato. Usá-lo como provisório
+    // tira o "Carregando…" da frente — a ficha desenha na hora e a rota do
+    // aluno confirma por baixo.
+    //
+    // ⚠️ É PROVISÓRIO, e a diferença importa: a lista não traz o `email`
+    // (vem `null`, e `null` aqui é "não sei", não "não cadastrado"). Quem lê
+    // campos que só a rota individual tem deve checar `isPlaceholderData`.
+    placeholderData: () =>
+      cliente.getQueryData<Aluno[]>(chaves.alunos)?.find((aluno) => aluno.id === id),
   });
 }
 

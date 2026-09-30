@@ -333,6 +333,306 @@
 
 .dialog--largo {
   max-width: 480px;
+  /* O corpo da ficha (presença, pontuação, escala) passa dos 600px do diálogo
+     comum; com 600 a escala ficava atrás de uma rolagem. */
+  max-height: min(760px, 92dvh);
+}
+
+/* ── Olho: o rótulo miúdo de um bloco (legend, label, legenda de valor) ──
+   Um só estilo para os três, porque os três dizem a mesma coisa: "isto é o
+   nome do que está abaixo". */
+.dialog__olho {
+  display: block;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sas-referencia);
+}
+
+/* `fieldset` sai do estilo do navegador (borda dupla, padding e min-width
+   próprios) — era isto que desenhava a caixa branca em volta da presença. */
+.dialog__campo--grupo {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.dialog__campo--grupo > .dialog__olho {
+  margin-bottom: 8px;
+}
+
+/* ── Presença: dois estados do registro, lado a lado ─────────────────── */
+.dialog-presenca {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dialog-presenca__opcao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  text-align: left;
+  font-family: var(--font-family);
+  color: var(--sas-texto);
+  background: transparent;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.dialog-presenca__opcao:hover {
+  border-color: var(--sas-referencia);
+}
+
+/* O estado escolhido é AÇÃO (o que se aperta), não dado: contorno e véu da cor
+   de ação. */
+.dialog-presenca__opcao.is-ativa {
+  border-color: var(--sas-acao);
+  background: color-mix(in srgb, var(--sas-acao) 10%, transparent);
+}
+
+.dialog-presenca__rotulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sas-magnitude);
+}
+
+.dialog-presenca__consequencia {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--sas-texto-2);
+}
+
+/* ── Pontuação: bruto à esquerda, a nota de 0 a 10 à direita ─────────── */
+.dialog-pontuacao__topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialog-pontuacao__maximo {
+  font-size: 12px;
+  color: var(--sas-referencia);
+}
+
+.dialog-pontuacao {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.dialog-pontuacao__campo {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-family: var(--font-family);
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--sas-magnitude);
+  background: var(--sas-fundo);
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.dialog-pontuacao__campo:focus {
+  border-color: var(--sas-dado);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sas-dado) 16%, transparent);
+}
+
+.dialog-pontuacao__campo:disabled {
+  background: var(--sas-superficie-2);
+  color: var(--sas-referencia);
+  cursor: not-allowed;
+}
+
+.dialog-pontuacao__campo--falta {
+  border-color: var(--sas-alerta);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sas-alerta) 14%, transparent);
+}
+
+.dialog-pontuacao__unidade {
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+.dialog-pontuacao__nota {
+  text-align: right;
+}
+
+.dialog-pontuacao__nota-valor {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--sas-magnitude);
+}
+
+.dialog-pontuacao__mensagem {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
+.dialog-pontuacao__mensagem--falta {
+  color: var(--sas-alerta-texto);
+}
+
+/* ── A escala: a régua, a turma e esta nota numa pista de 0 a 10 ─────────
+   Quatro faixas na vertical, para nenhum rótulo cair em cima de outro:
+     0–16   a tag do corte (ouro)
+     20–38  a nuvem da turma (referência, miúda)
+     52     o eixo, com o chip da nota centrado nele
+     70+    os rótulos das três marcas, abaixo do eixo
+   A pista tem margem lateral porque rótulos centrados em 0 ou 10 vazariam
+   do diálogo. */
+.dialog-escala {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-md);
+}
+
+.dialog-escala__topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.dialog-escala__corte-rotulo {
+  font-size: 12px;
+  color: var(--sas-valor-texto);
+}
+
+.dialog-escala__sem-turma {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sas-referencia);
+}
+
+.dialog-escala__plano {
+  padding: 0 34px;
+}
+
+.dialog-escala__pista {
+  position: relative;
+  height: 92px;
+}
+
+.dialog-escala__eixo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52px;
+  height: 2px;
+  background: var(--sas-fio-forte);
+}
+
+.dialog-escala__ponto {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  margin: 22px 0 0 -3px;
+  border-radius: 50%;
+  background: var(--sas-referencia-fraca);
+}
+
+.dialog-escala__marca {
+  position: absolute;
+  top: 46px;
+  width: 1px;
+  height: 14px;
+  background: var(--sas-referencia);
+}
+
+.dialog-escala__marca-rotulo {
+  position: absolute;
+  top: 24px;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--sas-referencia);
+}
+
+.dialog-escala__corte {
+  position: absolute;
+  top: 18px;
+  height: 74px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--sas-valor);
+}
+
+.dialog-escala__corte-tag {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--sas-valor-texto);
+}
+
+/* A nota fica sobre o eixo, na frente de tudo. A etiqueta de distância vai
+   ao lado do chip, sem empurrá-lo: o conjunto é ancorado pelo chip. */
+.dialog-escala__nota {
+  position: absolute;
+  top: 53px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.dialog-escala__nota .nota-badge {
+  background-clip: padding-box;
+}
+
+/* A etiqueta de distância cai, quase sempre, entre a nota e a linha do corte —
+   e a linha de ouro a riscava. O fundo da própria escala a levanta por cima. */
+.dialog-escala__nota .nota-etiqueta {
+  padding: 1px 3px;
+  background: var(--sas-superficie-2);
+  border-radius: 4px;
+}
+
+.dialog-escala__extremos {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 -22px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sas-referencia);
+}
+
+.dialog-escala__leitura {
+  margin: 0;
+  padding-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sas-texto);
+  border-top: 1px solid var(--sas-fio);
 }
 
 /* ─── Agendamento (P1 — novo simulado / novo ciclo) ──────────────────── */

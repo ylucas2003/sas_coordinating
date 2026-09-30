@@ -72,18 +72,18 @@ def _ou_404(resultado: dict) -> dict:
 
 
 @router.get("")
-async def me(user: dict = Depends(get_current_aluno)):
-    return await obter_aluno(user["aluno_id"])
+def me(user: dict = Depends(get_current_aluno)):
+    return obter_aluno(user["aluno_id"])
 
 
 @router.get("/trajetoria")
-async def me_trajetoria(user: dict = Depends(get_current_aluno)):
-    return await trajetoria_aluno(user["aluno_id"])
+def me_trajetoria(user: dict = Depends(get_current_aluno)):
+    return trajetoria_aluno(user["aluno_id"])
 
 
 @router.get("/heatmap")
-async def me_heatmap(user: dict = Depends(get_current_aluno)):
-    return await heatmap_aluno(user["aluno_id"])
+def me_heatmap(user: dict = Depends(get_current_aluno)):
+    return heatmap_aluno(user["aluno_id"])
 
 
 # ── Área do aluno (extrações compartilhadas em stats/aluno_dados.py) ──────

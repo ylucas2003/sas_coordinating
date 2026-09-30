@@ -321,7 +321,10 @@ export function Histograma({
             key={i}
             x={(padLeft + i * binW).toFixed(1)}
             y={(padTop + plotH + 14).toFixed(1)}
-            textAnchor="middle" fontSize="10" fill="var(--sas-referencia)"
+            /* O último rótulo cai na borda direita do gráfico, onde só sobram
+               `padRight` px: centrado, o "10,0" saía cortado. Ancorado pelo fim,
+               ele termina na borda e cabe. */
+            textAnchor={i === nBins ? 'end' : 'middle'} fontSize="10" fill="var(--sas-referencia)"
           >
             {(i * larguraBin).toFixed(1).replace('.', ',')}
           </text>

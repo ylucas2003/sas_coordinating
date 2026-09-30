@@ -18,20 +18,16 @@ import { fmtNota } from '../../util/formato';
 // topo da ficha.
 //
 // Ela também ABSORVEU `CicloRegua.tsx`, que era uma segunda tabela dos mesmos
-// alunos do mesmo ciclo. Duas colunas vieram de lá e não podiam se perder na
-// fusão, porque são a única explicação de corte que este produto tem:
+// alunos do mesmo ciclo. A coluna que veio de lá e ficou é a
 //
-//   Situação  — o motivo em PALAVRAS ("Física 3,2 < 4,0", "Passou"), que diz
-//               qual matéria e qual mínimo. Uma célula vermelha não diria
-//               nada disso (R4/R7).
 //   Distância — o tamanho do buraco, e o número pelo qual a tabela está
 //               ordenada (R6). Ele saíra do Painel porque repetia a pior
 //               etiqueta das células; volta porque aqui é o ordenador, e uma
 //               ordenação cujo número não aparece não se confere.
 //
-// Elas entram como COLUNAS, não como tooltip: num tooltip teriam se perdido na
-// fusão (prancheta de Provas, "SITUAÇÃO E DISTÂNCIA SÃO COLUNAS, NÃO
-// TOOLTIP").
+// A coluna "Situação" (o motivo do corte em palavras) foi RETIRADA a pedido da
+// coordenação em 29/09/2026. O motivo não se perdeu: continua no `title` do
+// nome do aluno, e a distância mostra o tamanho do corte.
 //
 // ⚠️ Uma coluna por SIMULADO, agrupadas por matéria, com o fio forte marcando
 // a virada de fase. O Kit de peças da prancheta mostra uma versão por matéria;
@@ -286,11 +282,11 @@ export function TabelaDoCiclo({
   classificacao, criterio, ordenacao, nomeDaTurma,
   recolhidos, onToggleLimite, onEditarNota,
 }: Props) {
-  // #, Aluno, as colunas de prova, Situação e Distância. O separador de
+  // #, Aluno, as colunas de prova e Distância. O separador de
   // ranking atravessa a linha inteira e precisa da conta certa — ela estava
   // errada em dois antes da mudança de casa, e a linha vazava para fora da
   // tabela sem que nada reclamasse.
-  const totalColunas = colunas.length + 4;
+  const totalColunas = colunas.length + 3;
 
   return (
     <div className="painel-tabela-wrap">
@@ -323,7 +319,6 @@ export function TabelaDoCiclo({
                 {col.fase}
               </th>
             ))}
-            <th className="painel-tabela__th-situacao" rowSpan={2}>Situação</th>
             <th className="painel-tabela__th-dist" rowSpan={2}>Distância</th>
           </tr>
           <tr>
@@ -351,7 +346,6 @@ export function TabelaDoCiclo({
                 <NotaBadge nota={mediasPorColuna[col.id] ?? null} daTurma />
               </td>
             ))}
-            <td className="painel-tabela__td-situacao" />
             <td className="painel-tabela__td-dist" />
           </tr>
 
@@ -436,21 +430,6 @@ export function TabelaDoCiclo({
                     </td>
                   );
                 })}
-
-                {/* A SITUAÇÃO é palavra, não cor: o motivo já diz qual matéria
-                    e qual mínimo (R4/R7). "Passou" fica em referência, porque
-                    quem passou não é o assunto da varredura; o motivo do corte
-                    fica em texto cheio. Sem veredito nenhum não se escreve
-                    "Passou" — escreve-se que não sabemos. */}
-                <td className="painel-tabela__td-situacao">
-                  {!veredito ? (
-                    <span className="painel-tabela__situacao--vazia" title="ainda sem classificação">—</span>
-                  ) : veredito.aprovado ? (
-                    <span className="painel-tabela__situacao--passou">Passou</span>
-                  ) : (
-                    <span title={veredito.motivo ?? undefined}>{veredito.motivo ?? 'Cortado'}</span>
-                  )}
-                </td>
 
                 {/* A DISTÂNCIA é o número pelo qual a tabela está ordenada.
                     Vermelho só aqui e na etiqueta da célula (R4). Nulo é "—",

@@ -730,7 +730,6 @@
 }
 
 .painel-tabela__tr-media .painel-tabela__td-nota,
-.painel-tabela__tr-media .painel-tabela__td-situacao,
 .painel-tabela__tr-media .painel-tabela__td-dist {
   border-bottom: 2px solid var(--sas-borda);
 }
@@ -968,47 +967,6 @@
 .painel-tabela__aluno-link.is-cortado,
 .painel-tabela__aluno-link.is-aprovado {
   color: var(--sas-texto);
-}
-
-
-/* ─── Situação — a única explicação de corte que o produto tem ────────────
-   Veio de `CicloRegua.tsx` na fusão (docs/39, fase 3). O motivo é PALAVRA:
-   "Química 3,2 — mínimo 4,0 (ITA §4.6.6.5)" diz qual matéria e qual mínimo,
-   que é o que o coordenador precisa para decidir se chama o aluno. Uma célula
-   vermelha não diria nada disso (R4/R7).
-
-   ⚠️ `.ciclo-regua__motivo` dividia estas regras e SAIU: a tela dela foi
-   apagada na mesma passagem, e uma classe que só a tela morta usava é CSS que
-   ninguém remove depois porque ninguém sabe mais se está em uso.
-   ─────────────────────────────────────────────────────────────────────── */
-
-.painel-tabela__th-situacao {
-  text-align: left;
-  padding: 14px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--sas-referencia);
-  white-space: nowrap;
-  border-bottom: 1px solid var(--sas-borda);
-  width: 190px;
-}
-
-.painel-tabela__td-situacao {
-  padding: 0 12px;
-  font-size: 12px;
-  color: var(--sas-texto);
-  border-bottom: 1px solid var(--sas-fio);
-  max-width: 190px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Quem passou não é o assunto da varredura: fica em referência, atrás de quem
-   não passou (R5). */
-.painel-tabela__situacao--passou,
-.painel-tabela__situacao--vazia {
-  color: var(--sas-referencia);
 }
 
 
