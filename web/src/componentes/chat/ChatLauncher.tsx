@@ -22,8 +22,8 @@ interface Props {
 }
 
 export function ChatLauncher({
-  rotuloFab = 'Assistente',
-  tituloDrawer = 'Assistente',
+  rotuloFab = 'Tio Léo',
+  tituloDrawer = 'Tio Léo',
   sugestoes,
   capacidades,
   derivarSugestoes,
@@ -122,7 +122,7 @@ export function ChatLauncher({
     <>
       <button
         className="chat-fab"
-        title={`Conversar com o ${rotuloFab.toLowerCase()}`}
+        title={`Conversar com o ${rotuloFab}`}
         onClick={() => setAberto((a) => !a)}
       >
         <span className="chat-fab__icone">💬</span>
@@ -131,7 +131,7 @@ export function ChatLauncher({
 
       <aside
         className={`chat-drawer${aberto ? ' is-aberto' : ''}`}
-        aria-label="Chat com o assistente"
+        aria-label={`Chat com o ${tituloDrawer}`}
       >
         {aberto && (
           <>

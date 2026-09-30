@@ -8,7 +8,7 @@
 //
 // Testado em chatStream.test.ts.
 
-import type { ArtefatoChat, ToolCall } from '../tipos/chat';
+import type { ArtefatoChat, MensagemChat, ToolCall } from '../tipos/chat';
 
 export interface TraceTool {
   id: string;
@@ -64,6 +64,26 @@ export function extrairArtefatos(toolCalls: readonly ToolCall[] = []): ArtefatoC
     }
   }
   return artefatos;
+}
+
+/**
+ * A resposta concluída, no formato que o histórico da conversa guarda.
+ *
+ * O stream só vive até a próxima pergunta: sem esta conversão, abrir o stream
+ * seguinte descartava a resposta anterior — o backend a persistia, mas a tela
+ * só a mostraria de novo depois de recarregar a conversa. Devolve `null` quando
+ * o stream não chegou ao `end` (falhou ou ainda roda): texto parcial e erro não
+ * são mensagem, e o backend também não os persiste como resposta.
+ */
+export function mensagemDaResposta(estado: EstadoStream): MensagemChat | null {
+  if (!estado.final) return null;
+
+  return {
+    papel: 'assistant',
+    conteudo: estado.final.texto,
+    toolCalls: estado.traces.map((t) => ({ nome: t.nome, args: t.args })),
+    artefatos: estado.final.artefatos,
+  };
 }
 
 export function reduzirEvento(estado: EstadoStream, evento: EventoBruto): EstadoStream {
