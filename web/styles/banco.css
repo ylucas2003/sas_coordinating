@@ -658,12 +658,33 @@
   outline: none;
 }
 
+/* No tema escuro `--sas-acao` e `--sas-valor` são o MESMO amarelo, e o "i"
+   sumia: amarelo sobre amarelo. `--sas-acao-texto` é a tinta que o sistema já
+   usa sobre esse amarelo (o texto do balão, abaixo). Mesmo padrão de três
+   seletores do logo do rail (casco.css) — o tema é escolhido no HTML, mas até
+   lá vale o do aparelho. O claro não muda: lá o "i" segue azul. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='dia']) .botao-info {
+    color: var(--sas-acao-texto);
+  }
+}
+
+:root[data-tema='noite'] .botao-info {
+  color: var(--sas-acao-texto);
+}
+
 /* `position: fixed` porque o balão vive num portal no <body> (BotaoInfo.tsx)
    — o card tem `overflow: hidden` (.banco-questao acima) e cortaria um
-   balão posicionado por dentro dele. */
+   balão posicionado por dentro dele.
+
+   `pointer-events: none`: o balão abre por passagem do mouse e pode cair sobre
+   a linha seguinte de uma lista (o seletor de régua). Se capturasse o mouse, o
+   `mousedown` que fecha o balão removeria o alvo do clique, e o clique na
+   linha de baixo se perderia — seria preciso clicar duas vezes. */
 .botao-info__balao {
   position: fixed;
   z-index: 500;
+  pointer-events: none;
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   background: var(--sas-acao-base);

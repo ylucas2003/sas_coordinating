@@ -96,6 +96,175 @@
   border-color: var(--sas-dado-claro);
 }
 
+/* ─── O seletor de régua e o "i" de cada uma ────────────────────────────
+   componentes/ui/SeletorCriterio.tsx. Deixou de ser `<select>` porque
+   `<option>` não aceita botão: a lista é própria, com um "i" por linha que
+   explica como aquela régua corta. A pílula é a mesma `.painel-criterio`. */
+
+.regua-seletor {
+  position: relative;
+}
+
+.regua-seletor__campo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* O `<select>` reservava 30px à direita para a seta nativa; aqui a seta é um
+   caractere na própria linha, então o botão se distribui por conta própria. */
+.regua-seletor__botao {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px 0 16px;
+  text-align: left;
+}
+
+.regua-seletor__seta {
+  font-size: 11px;
+  color: var(--sas-referencia);
+}
+
+.regua-seletor__lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(320px, 92vw);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+}
+
+.regua-seletor__lista--esquerda {
+  right: auto;
+  left: 0;
+}
+
+.regua-seletor__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 6px;
+  border-radius: 6px;
+}
+
+.regua-seletor__item:hover,
+.regua-seletor__item:focus-within {
+  background: var(--sas-superficie-2);
+}
+
+.regua-seletor__opcao {
+  flex: 1;
+  min-height: 36px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--sas-texto);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* A régua em vigor se diz pelo peso da letra — não pela cor, que neste
+   produto é o que carrega a distância ao corte (docs/37). */
+.regua-seletor__opcao--atual {
+  font-weight: 700;
+}
+
+.regua-seletor__opcao:focus-visible {
+  outline: 2px solid var(--sas-dado-claro);
+  outline-offset: -2px;
+}
+
+.regua-seletor__grupo {
+  padding: 8px 10px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+/* O conteúdo do balão do "i". O balão em si (`.botao-info__balao`, em
+   banco.css) é azul-escuro com texto claro; aqui só a estrutura dentro dele. */
+.regua-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.regua-info p,
+.regua-info ul {
+  margin: 0;
+}
+
+.regua-info__nome {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.regua-info__titulo {
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.regua-info__lista {
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.regua-info__marca {
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  opacity: 0.85;
+}
+
+/* No toque o "i" tem 18px, e acertar 18px com o dedo não se faz. A área
+   ampliada é invisível (`::after`) e fica dentro da folga da linha; a linha
+   sobe para 44px junto, como o resto dos controles de celular. */
+@media (max-width: 760px) {
+  .regua-seletor__opcao {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .regua-seletor .botao-info {
+    position: relative;
+  }
+
+  .regua-seletor .botao-info::after {
+    content: '';
+    position: absolute;
+    inset: -13px;
+  }
+}
+
 /* ─── Top N ─────────────────────────────────────────────────────────────── */
 
 .painel-topn {
