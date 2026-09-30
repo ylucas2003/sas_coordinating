@@ -1,39 +1,443 @@
-/* ─── Troca de Telas Automática — download + tutorial ─────────────────────
+/* ─── Troca de Telas Automática — guia em quatro passos + download ────────
    Importado só pela tela (mesmo padrão de `captacao.css`), não em main.tsx.
-   Só tokens que já existem; nenhuma cor nova. Texto corrido em coluna de
-   ~720px: passo a passo com linha longa demais deixa de ser lido.
+   Só papéis `--sas-*` e os raios de `forma.css`; nenhuma cor nova, nenhuma
+   sombra. A forma segue o guia em slides: cada passo é uma faixa com o texto
+   à esquerda e o recorte da tela do programa à direita.
+
+   ⚠️ O bloco de celular de cada regra vem DEPOIS dela: `@media` não soma
+   especificidade, e uma media declarada antes da regra-base perde para ela.
    ─────────────────────────────────────────────────────────────────────── */
+
+.troca {
+  max-width: 1080px;
+  gap: 28px;
+}
+
+/* ─── Capa ──────────────────────────────────────────────────────────────── */
+
+.troca-capa {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 26px 28px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+.troca-capa__olho {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sas-acao-borda-texto);
+}
+
+.troca-capa__titulo {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: var(--sas-magnitude);
+}
+
+.troca-capa__texto {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+.troca-capa__indice {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.troca-capa__fase {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 8px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.troca-capa__n {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--sas-acao);
+  color: var(--sas-acao-texto);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.troca-capa__nota {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+/* ─── A fase: cabeçalho + texto à esquerda, recortes à direita ───────────── */
+
+.troca-fase {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 36px;
+  row-gap: 18px;
+  align-items: start;
+}
+
+.troca-fase__topo {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.troca-fase__numero {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--sas-acao);
+  color: var(--sas-acao-texto);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.troca-fase__olho {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sas-acao-borda-texto);
+}
+
+.troca-fase__titulo {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 800;
+  color: var(--sas-magnitude);
+}
+
+/* O corpo vira duas colunas do grid da fase, sem caixa própria. */
+.troca-fase__corpo {
+  display: contents;
+}
+
+/* ─── Itens do passo ───────────────────────────────────────────────────── */
+
+.troca-itens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.troca-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-md);
+}
+
+.troca-item__marca {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-borda);
+  color: var(--sas-texto);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.troca-item__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.troca-item__titulo {
+  font-size: 15px;
+}
+
+.troca-item__corpo {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+.troca-item__corpo strong {
+  color: var(--sas-texto);
+}
+
+.troca-item__corpo code,
+.troca-destaque code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-borda);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12.5px;
+  color: var(--sas-texto);
+}
+
+/* ─── Destaques ────────────────────────────────────────────────────────── */
+
+.troca-destaque {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.troca-destaque__icone {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+/* Dica: papel de "selecionado" (`--sas-dado`). Alerta: o papel de alerta, que
+   é reservado à falha — aqui, ao que quebra se ignorado. */
+.troca-destaque--dica {
+  border: 1px solid var(--sas-dado);
+  color: var(--sas-texto);
+}
+
+.troca-destaque--dica .troca-destaque__icone {
+  color: var(--sas-acao-borda-texto);
+}
+
+.troca-destaque--alerta {
+  border: 1px solid var(--sas-alerta);
+  color: var(--sas-texto);
+}
+
+.troca-destaque--alerta .troca-destaque__icone {
+  color: var(--sas-alerta-texto);
+}
+
+/* ─── Recortes da tela ─────────────────────────────────────────────────── */
+
+.troca-figuras {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.troca-figura {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.troca-figura__legenda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sas-texto-2);
+}
+
+.troca-figura__letra {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-borda);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sas-texto);
+}
+
+/* Os recortes são do app em tema escuro, com fundo próprio. O quadro escuro
+   fixo evita uma tarja clara em volta no tema do dia. */
+.troca-figura__quadro {
+  max-width: 520px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: #0a0d1a;
+  border: 1px solid var(--sas-borda);
+}
+
+.troca-figura__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+/* Parado → Conectando… → Rodando: montado em CSS, como no slide. */
+.troca-selos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.troca-selos__seta {
+  color: var(--sas-texto-2);
+}
+
+.troca-selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--sas-borda);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sas-texto-2);
+}
+
+.troca-selo::before {
+  content: '●';
+  font-size: 10px;
+}
+
+.troca-selo--meio {
+  border-color: var(--sas-dado);
+  color: var(--sas-acao-borda-texto);
+}
+
+.troca-selo--fim {
+  background: var(--sas-acao);
+  border-color: var(--sas-acao);
+  color: var(--sas-acao-texto);
+}
+
+/* ─── Recursos da aula ─────────────────────────────────────────────────── */
+
+.troca-extras__titulo {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--sas-magnitude);
+}
+
+.troca-extras__grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.troca-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-md);
+}
+
+.troca-extra__titulo {
+  font-size: 15px;
+}
+
+.troca-extra__corpo {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+/* ─── Ajuda & Dicas ────────────────────────────────────────────────────── */
+
+.troca-problemas {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.troca-problema {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) auto minmax(0, 7fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-md);
+}
+
+.troca-problema__sintoma {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13.5px;
+}
+
+.troca-problema__seta {
+  color: var(--sas-texto-2);
+}
+
+.troca-problema__solucao {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--sas-texto-2);
+}
+
+.troca-rodape {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+/* ─── Download, no fim ─────────────────────────────────────────────────── */
 
 .troca-baixar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 22px;
-  max-width: 720px;
-  margin-bottom: 28px;
+  padding: 22px 26px;
 }
 
-.troca-intro {
-  max-width: 720px;
-  margin: 0 0 28px;
-  font-size: 15px;
-  line-height: 1.55;
-}
-
-.troca-baixar__texto {
-  max-width: 620px;
-}
-
-/* O título da seção traz margem de 12px para a lista; aqui ele fica colado à nota. */
-.troca-baixar__texto .troca-secao__titulo {
-  margin-bottom: 4px;
+.troca-baixar__titulo {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--sas-magnitude);
 }
 
 .troca-baixar__nota {
   margin: 0;
-  color: var(--sas-texto-2);
   font-size: 13px;
+  color: var(--sas-texto-2);
 }
 
 /* `<a>` com cara de botão: o `.btn` não zera o sublinhado nem o display. */
@@ -44,97 +448,36 @@
   text-align: center;
 }
 
-.troca-secao {
-  max-width: 720px;
-  margin-bottom: 28px;
+/* ─── Celular ──────────────────────────────────────────────────────────── */
+
+@media screen and (max-width: 900px) {
+  .troca-fase {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .troca-problema {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .troca-problema__seta {
+    display: none;
+  }
 }
 
-.troca-secao__titulo {
-  margin: 0 0 12px;
-  font-size: 18px;
-  font-weight: 700;
-}
+@media screen and (max-width: 760px) {
+  .troca {
+    gap: 24px;
+  }
 
-.troca-lista {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  counter-reset: passo;
-}
+  .troca-capa {
+    padding: 20px 18px;
+  }
 
-.troca-lista__item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
+  .troca-capa__titulo {
+    font-size: 28px;
+  }
 
-.troca-lista--numerada .troca-lista__item {
-  position: relative;
-  padding-left: 40px;
-  counter-increment: passo;
-}
-
-.troca-lista--numerada .troca-lista__item::before {
-  content: counter(passo);
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 1px solid var(--sas-borda);
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.troca-lista__titulo {
-  font-size: 15px;
-}
-
-.troca-lista__corpo {
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--sas-texto-2);
-}
-
-.troca-problemas {
-  padding: 6px 18px;
-}
-
-.troca-problema {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--sas-borda);
-}
-
-.troca-problema:last-child {
-  border-bottom: 0;
-}
-
-.troca-problema__sintoma {
-  font-size: 14px;
-}
-
-.troca-problema__solucao {
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--sas-texto-2);
-}
-
-.troca-rodape {
-  margin: 12px 0 0;
-  font-size: 13px;
-  color: var(--sas-texto-2);
-}
-
-@media (max-width: 760px) {
   .troca-baixar {
     flex-direction: column;
     align-items: stretch;

@@ -121,10 +121,15 @@ export function useMigalhas(): Migalha[] {
           : [PROVAS, { texto: 'Simulados' }];
       case 'banco':
         return [{ texto: 'Banco' }];
-      case 'administracao':
-        // `/administracao` é o hub de quatro campos; `/administracao/contas` é
-        // um deles. `temId` aqui é o segmento "contas", não um identificador.
+      case 'administracao': {
+        // `/administracao` é o hub; o segundo segmento é o campo, não um
+        // identificador. ⚠️ A troca de telas e a captação caíam no ternário
+        // antigo e a trilha dizia "Quem tem acesso" — a tela de Contas.
+        const campo = partes[1];
+        if (campo === 'troca-de-telas') return [ADMIN, { texto: 'Troca de Telas Automática' }];
+        if (campo === 'captacao') return [ADMIN, { texto: 'Captação' }];
         return temId ? [ADMIN, { texto: 'Quem tem acesso' }] : [{ texto: 'Administração' }];
+      }
       case 'auditoria':
         return [ADMIN, { texto: 'Auditoria' }];
       case 'calibracao':
