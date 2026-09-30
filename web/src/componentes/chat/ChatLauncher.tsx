@@ -12,10 +12,6 @@ import type { ChatThreadDetalhe, ChatThreadResumo, GrupoSugestoes } from '../../
 // o Esc só fecha quando o foco está dentro do painel — do contrário o Esc de
 // um dropdown qualquer da página derrubaria a conversa.
 
-// O rosto do Tio Léo. Fica no ícone do botão, e não só no rótulo, porque abaixo
-// de 540px o rótulo some (chat.css) e o botão vira só o ícone.
-const ROSTO_TIO_LEO = '😎';
-
 interface Props {
   rotuloFab?: string;
   tituloDrawer?: string;
@@ -129,7 +125,7 @@ export function ChatLauncher({
         title={`Conversar com o ${rotuloFab}`}
         onClick={() => setAberto((a) => !a)}
       >
-        <span className="chat-fab__icone" aria-hidden="true">{ROSTO_TIO_LEO}</span>
+        <span className="chat-fab__icone">💬</span>
         <span className="chat-fab__label">{rotuloFab}</span>
       </button>
 
@@ -149,7 +145,7 @@ export function ChatLauncher({
                   ☰
                 </button>
                 <div className="chat-drawer__titulo-bloco">
-                  <div className="chat-drawer__pequeno">{`${ROSTO_TIO_LEO} ${tituloDrawer}`}</div>
+                  <div className="chat-drawer__pequeno">{tituloDrawer}</div>
                   <h2 className="chat-drawer__titulo">{detalhe?.titulo || 'Conversa'}</h2>
                 </div>
               </div>
