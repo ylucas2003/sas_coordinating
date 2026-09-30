@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import capaDoAluno from '../../../assets/porta-aluno-ita.webp';
+
 // A PORTA — a tela de login inteira, das DUAS entradas, não só uma ilustração.
 //
 // É a ÚNICA tela do produto que pode ser ilustrada, e o motivo da ilustração é
@@ -22,6 +24,12 @@ import type { ReactNode } from 'react';
 // A cena, a marca e a manchete são as mesmas nas duas portas. A ilustração já
 // carrega o cobogó e a linha de corte, então a coordenação passou a herdar de
 // graça a fachada que o brief pedia que ela tivesse.
+//
+// ⚠️ Desde 30/09/2026 isso vale só para a coordenação e a cantina. A porta do
+// ALUNO tem capa própria (`CapaDoAluno`, abaixo): a fachada do ITA com os três
+// nomes que fundaram o instituto e o "Você". Ela reverte, de propósito, a regra
+// do brief de "nenhuma insígnia do ITA" — o emblema e o lettering da fachada
+// estão na imagem, por decisão de quem responde pelo produto.
 //
 // São ~900 alunos contra uma dúzia de coordenadores: o padrão é a porta do
 // aluno, e a travessia é um link discreto no rodapé do painel, nos dois
@@ -121,7 +129,7 @@ export function Porta({
   return (
     <div className="porta">
       <div className="porta__cena-caixa">
-        <Amanhecer />
+        {modo === 'aluno' ? <CapaDoAluno /> : <Amanhecer />}
 
         <div className="porta__marca">
           {/* A marca do colégio, não um selo inventado. A versão branca é a
@@ -133,16 +141,23 @@ export function Porta({
           <span className="porta__marca-sub">Turma ITA/IME</span>
         </div>
 
-        <h1 className="porta__manchete">
+        {/* ⚠️ Na porta do aluno a manchete SOME da vista e continua no DOM. A capa
+            é uma imagem de proporção 4:5 e a cena aqui é mais larga que isso; o
+            recorte já gasta o que sobra de altura, e a manchete (2 linhas de ~60px)
+            caía por cima das legendas. A linha dourada e o "Você" fazem o papel
+            dela. O `h1` tem de ficar — é o título da página para o leitor de tela. */}
+        <h1 className={modo === 'aluno' ? 'alu-so-leitor' : 'porta__manchete'}>
           Todo dia
           <br />
           acima da linha
         </h1>
       </div>
 
-      {/* ⚠️ Só o PAINEL troca. A cena, a marca e a manchete são as mesmas nas
-          duas portas — é isso que faz a coordenação parar de parecer outro
-          produto ao clicar em "Sou da coordenação". */}
+      {/* ⚠️ Só o PAINEL troca. A marca é a mesma nas duas portas, e a cena é a
+          mesma da coordenação à cantina — é isso que faz a coordenação parar de
+          parecer outro produto ao clicar em "Sou da coordenação". A exceção é a
+          CAPA do aluno, que fala com ele ("Você") e por isso não vale para as
+          outras portas. */}
       <div className="porta__painel">
         <div className="porta__painel-interno">
           {avisoCanvas && !comSenha && (
@@ -201,6 +216,81 @@ export function Porta({
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── A capa do aluno ─────────────────────────────────────────────────────
+
+/**
+ * Quem aparece na capa, da esquerda para a direita, em ordem cronológica. A
+ * POSIÇÃO de cada um não mora aqui: está no CSS (`porta__pessoa--*`), porque ela
+ * é a posição da cabeça na imagem e muda junto com ela.
+ *
+ * ⚠️ "Pai da aviação", e não "inventor do primeiro avião": fora do Brasil o
+ * pioneirismo é disputado (irmãos Wright, 1903), e quem vai prestar ITA pode
+ * discutir. O título é o que o país dá a Santos-Dumont e não abre discussão.
+ *
+ * ⚠️ Confira nomes e feitos com fonte antes de mexer: é a história do ITA escrita
+ * na porta de entrada.
+ */
+const LINHAGEM = [
+  { classe: 'santos-dumont', nome: 'Alberto Santos-Dumont', feito: 'Pai da aviação' },
+  { classe: 'casimiro', nome: 'Casimiro Montenegro Filho', feito: 'Idealizador do ITA' },
+  { classe: 'ozires', nome: 'Ozires Silva', feito: 'Iteano e criador da Embraer' },
+  { classe: 'voce', nome: 'Você', feito: 'O próximo iteano' },
+] as const;
+
+/**
+ * A capa da porta do ALUNO: a fachada do ITA ao amanhecer, os três nomes que
+ * explicam por que o instituto existe e, à frente deles, "Você — o próximo
+ * iteano".
+ *
+ * A IMAGEM não tem texto nenhum — nem as legendas nem a linha dourada. Elas são
+ * escritas aqui, em código, pelo mesmo motivo de sempre: legenda gerada nunca
+ * bate com a fonte do site, fica ilegível no celular e não acompanha o tema. A
+ * linha é a linha de corte de todas as outras telas (`--alu-valor`), no lugar
+ * onde os bustos terminam.
+ *
+ * O QUADRO é o que segura o alinhamento: ele tem a proporção da imagem e se
+ * comporta como `object-fit: cover`, então legenda e linha são percentuais DELE e
+ * seguem as cabeças mesmo quando o recorte muda (celular estreito, janela alta).
+ *
+ * É imagem pronta, não SVG: quem a desenhou foi um gerador a partir de retratos
+ * históricos, e a fidelidade dos rostos é o ponto — redesenhar à mão seria trocar
+ * a pessoa por uma caricatura. Fica em `assets/` (nossa origem, sem CDN — regra 7
+ * do CLAUDE.md).
+ *
+ * ⚠️ O rosto do aluno na imagem tem de ser FICTÍCIO ou autorizado por escrito
+ * pelo responsável: a porta é pública e o aluno é menor de idade (LGPD). Trocar o
+ * arquivo não exige mexer no código — só manter as cabeças nas mesmas posições.
+ *
+ * ⚠️ Só a porta do aluno usa esta capa. A mensagem dela fala com o aluno
+ * ("Você"), e a coordenação e a cantina seguem com `Amanhecer`.
+ */
+function CapaDoAluno() {
+  return (
+    <div className="porta__capa">
+      <div className="porta__quadro">
+        <img
+          className="porta__quadro-imagem"
+          src={capaDoAluno}
+          width={1122}
+          height={1402}
+          alt="Fachada do Instituto Tecnológico de Aeronáutica ao amanhecer, com os retratos de quatro pessoas em fila: os três pioneiros e um aluno do Colégio Ari de Sá."
+          fetchPriority="high"
+          decoding="async"
+        />
+        <span className="porta__quadro-linha" aria-hidden="true" />
+        <ol className="porta__linhagem">
+          {LINHAGEM.map((pessoa) => (
+            <li key={pessoa.classe} className={`porta__pessoa porta__pessoa--${pessoa.classe}`}>
+              <strong className="porta__pessoa-nome">{pessoa.nome}</strong>
+              <span className="porta__pessoa-feito">{pessoa.feito}</span>
+            </li>
+          ))}
+        </ol>
       </div>
     </div>
   );
