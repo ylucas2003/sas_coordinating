@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ESTADO_INICIAL, extrairArtefatos, reduzirEvento } from './chatStream';
+import { ESTADO_INICIAL, extrairArtefatos, mensagemDaResposta, reduzirEvento } from './chatStream';
 import type { EstadoStream } from './chatStream';
 
 const reduzir = (eventos: Array<{ nome: string; dados?: unknown }>): EstadoStream =>
@@ -103,5 +103,40 @@ describe('extrairArtefatos', () => {
     expect(extrairArtefatos([
       { name: 'gerar_grafico', resultado: { tipo: 'linha_temporal', payload: {} } },
     ])).toHaveLength(1);
+  });
+});
+
+// Regressão: a resposta sumia da tela na pergunta seguinte, porque o stream era
+// zerado sem que ela passasse para o histórico.
+describe('mensagemDaResposta', () => {
+  it('converte a resposta concluída em mensagem do assistente, com traces e artefatos', () => {
+    const e = reduzir([
+      { nome: 'tool_call_start', dados: { tool_call_id: 'a', nome: 'alunos_destaque', args: { ano: 2026 } } },
+      { nome: 'tool_call_end', dados: { tool_call_id: 'a', resumido: '75 alunos' } },
+      { nome: 'token', dados: { texto: 'rascunho' } },
+      {
+        nome: 'end',
+        dados: {
+          texto_final: 'Os que mais evoluíram são…',
+          tool_calls: [{ nome: 'exportar_csv', resultado: { tipo: 'csv', titulo: 'Evolução', conteudo: 'a,b', nLinhas: 1 } }],
+        },
+      },
+    ]);
+
+    expect(mensagemDaResposta(e)).toEqual({
+      papel: 'assistant',
+      conteudo: 'Os que mais evoluíram são…',
+      toolCalls: [{ nome: 'alunos_destaque', args: { ano: 2026 } }],
+      artefatos: [{ tipo: 'csv', titulo: 'Evolução', payload: { conteudo: 'a,b', nLinhas: 1 } }],
+    });
+  });
+
+  // Texto parcial + erro não é resposta: o backend também não persiste como tal.
+  it('devolve null enquanto o stream não chegou ao end', () => {
+    expect(mensagemDaResposta(ESTADO_INICIAL)).toBeNull();
+    expect(mensagemDaResposta(reduzir([
+      { nome: 'token', dados: { texto: 'parcial' } },
+      { nome: 'erro', dados: { mensagem: 'timeout' } },
+    ]))).toBeNull();
   });
 });

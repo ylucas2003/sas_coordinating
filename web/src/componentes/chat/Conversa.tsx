@@ -5,7 +5,7 @@ import { useContextoDaTela } from '../layout/migalhas';
 import { Markdown } from '../ui/Markdown';
 import { Mensagem } from './Mensagem';
 import { ToolTrace } from './ToolTrace';
-import { ESTADO_INICIAL, reduzirEvento } from '../../dominio/chatStream';
+import { ESTADO_INICIAL, mensagemDaResposta, reduzirEvento } from '../../dominio/chatStream';
 import type { EstadoStream } from '../../dominio/chatStream';
 import * as api from '../../servicos/api';
 import type { ContextoDaTela } from '../../dominio/contextoDaTela';
@@ -73,9 +73,19 @@ export function Conversa({
   async function enviar(texto: string) {
     if (enviando || !texto.trim()) return;
 
+    // A resposta anterior ainda está em `stream`, e `setStream(ESTADO_INICIAL)`
+    // abaixo a apagaria: é aqui que ela passa para o histórico. Fazer no mesmo
+    // lote da pergunta nova mantém a ordem (resposta, pergunta) sem um quadro
+    // em que a resposta some.
+    const respostaAnterior = stream ? mensagemDaResposta(stream) : null;
+
     setEnviando(true);
     setErroEnvio('');
-    setHistorico((h) => [...h, { papel: 'user', conteudo: texto }]);
+    setHistorico((h) => [
+      ...h,
+      ...(respostaAnterior ? [respostaAnterior] : []),
+      { papel: 'user', conteudo: texto },
+    ]);
     setStream(ESTADO_INICIAL);
 
     try {
@@ -216,7 +226,7 @@ function Composer({
       <textarea
         ref={ref}
         className="chat-composer__input"
-        placeholder="Pergunte algo ao assistente..."
+        placeholder="Pergunte algo ao Tio Léo..."
         rows={2}
         value={texto}
         disabled={enviando}
