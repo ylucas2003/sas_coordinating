@@ -2461,4 +2461,38 @@
   top: 0;
   width: 1100px;
   pointer-events: none;
+  /* ⚠️ O DOSSIÊ É PAPEL, e papel é tema DIA — seja qual for o tema da tela.
+     Os gráficos são rasterizados a partir desta árvore lendo o estilo COMPUTADO
+     (dossie.ts), então as variáveis precisam valer aqui dentro. Sem isto, quem
+     exportava com o tema escuro ligado recebia tinta clara sobre papel branco.
+     São os mesmos mapeamentos do bloco de dia de `papeis.css`, escopados. */
+  color-scheme: light;
+  background: #ffffff;
+  --sas-fundo: var(--dia-fundo);
+  --sas-superficie: var(--dia-superficie);
+  --sas-superficie-2: var(--dia-superficie-2);
+  --sas-borda: var(--dia-borda);
+  --sas-fio: var(--dia-fio);
+  --sas-fio-forte: var(--dia-fio-forte);
+  --sas-acao: var(--dia-acao);
+  --sas-acao-base: var(--dia-acao-base);
+  --sas-acao-texto: var(--dia-acao-texto);
+  --sas-acao-borda-texto: var(--dia-acao-borda-texto);
+  --sas-valor: var(--dia-valor);
+  --sas-valor-texto: var(--dia-valor-texto);
+  --sas-dado: var(--dia-dado);
+  --sas-dado-claro: var(--dia-dado-claro);
+  --sas-dado-texto-forte: var(--dia-dado-texto-forte);
+  --sas-referencia: var(--dia-referencia);
+  --sas-referencia-fraca: var(--dia-referencia-fraca);
+  --sas-sequencia: var(--dia-sequencia);
+  --sas-alerta: var(--dia-alerta);
+  --sas-alerta-texto: var(--dia-alerta-texto);
+  --sas-magnitude: var(--dia-magnitude);
+  --sas-texto: var(--dia-texto);
+  --sas-texto-2: var(--dia-texto-2);
+  --sas-realce: var(--dia-realce);
+  --sas-grade: var(--dia-grade);
+  --sas-hachura: var(--dia-hachura);
+  color: var(--sas-texto);
 }
