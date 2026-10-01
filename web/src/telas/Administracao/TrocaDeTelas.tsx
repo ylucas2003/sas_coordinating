@@ -156,7 +156,7 @@ const EXTRAS: { titulo: string; corpo: string }[] = [
   {
     titulo: 'Tratamento de áudio',
     corpo:
-      'Aplica no microfone uma cadeia de filtros (supressão de ruído, equalização de grave, médio e agudo, compressor, limitador) por preset Leve, Médio ou Forte, sem ninguém precisar entender de dB. O ajuste automático aprende a sala e guarda a calibração para a próxima aula.',
+      'Aplica no microfone uma cadeia de filtros por preset Leve, Médio ou Forte, sem ninguém precisar entender de dB: supressão de ruído e limitador em todos, e compressor e equalização de grave, médio e agudo do Médio para cima. O ajuste automático aprende a sala e guarda a calibração para a próxima aula.',
   },
 ];
 
@@ -388,17 +388,18 @@ export function TrocaDeTelas() {
       {/* EQ dinâmico por plugin VST no OBS (TDR Nova). Com o tratamento de áudio
           ligado, o programa cria o filtro "AutoSwift · EQ dinâmico" antes do
           compressor, ou adota o "EQ dinâmico" feito à mão; a afinação é feita na
-          janela do plugin e o programa nunca a sobrescreve. Só cortes, porque o
-          timbre fixo (grave, médio e agudo) já vem do EQ do preset. O texto espelha
+          janela do plugin e o programa nunca a sobrescreve. Só cortes, porque nos
+          presets Médio e Forte o timbre fixo (grave, médio e agudo) já vem do EQ do
+          preset. O texto espelha
           a seção "EQ dinâmico" de docs/TRATAMENTO-AUDIO.md, no repositório `obs`.
           ⚠️ Vale a partir do build do programa que traz o EQ dinâmico: este texto
           entra no ar junto com o zip novo em /downloads/. */}
       <Fase numero="+" olho="Opcional" titulo="Equalizador dinâmico no microfone">
         <ul className="troca-itens">
           <Destaque tom="dica">
-            Com o tratamento de áudio ligado, o programa já equaliza grave, médio e agudo. O EQ dinâmico
-            vai além: corta o grave embolado e o chiado do "s" só quando eles aparecem. Ele usa o{' '}
-            <strong>TDR Nova</strong>, um plugin gratuito instalado uma vez por máquina.
+            Nos presets Médio e Forte, o programa já equaliza grave, médio e agudo. O EQ dinâmico vai
+            além, em qualquer preset: corta o grave embolado e o chiado do "s" só quando eles aparecem.
+            Ele usa o <strong>TDR Nova</strong>, um plugin gratuito instalado uma vez por máquina.
           </Destaque>
           <Item marca="1">
             Baixe o TDR Nova em{' '}
@@ -424,8 +425,9 @@ export function TrocaDeTelas() {
             afinação, e o programa a guarda para refazer o filtro igual se ele for apagado.
           </Item>
           <Destaque tom="dica">
-            Já tinha criado um filtro <strong>EQ dinâmico</strong> à mão? O programa passa a cuidar dele
-            e mantém a afinação.
+            Já tinha criado um filtro <strong>EQ dinâmico</strong> à mão com o TDR Nova? O programa passa
+            a cuidar dele e mantém a afinação. Ao desligar o tratamento de áudio, o filtro só é
+            desligado, não apagado.
           </Destaque>
         </ul>
         <ul className="troca-itens">
@@ -444,8 +446,8 @@ export function TrocaDeTelas() {
             Corta de 3 a 6 dB só nos "s" e "ch".
           </Item>
           <Destaque tom="alerta">
-            Use <strong>só cortes</strong> no TDR Nova. O grave, o médio e o agudo fixos já vêm do
-            tratamento de áudio do programa: reforçar de novo aqui soma os dois.
+            Use <strong>só cortes</strong> no TDR Nova. Nos presets Médio e Forte, o grave, o médio e o
+            agudo fixos já vêm do programa, e reforçar aqui soma os dois.
           </Destaque>
         </ul>
       </Fase>
