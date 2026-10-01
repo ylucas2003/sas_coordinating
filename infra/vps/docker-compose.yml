@@ -121,7 +121,23 @@ services:
       - /opt/sas/dados/acme:/var/www/certbot:ro
       - /opt/sas/dados/tls:/etc/nginx/tls:ro
       # Programas para baixar (/downloads/, card da Administração). Fica fora
-      # da imagem: o zip do AutoSwift OBS troca com `scp`, sem rebuild.
+      # da imagem: o zip do AutoSwift OBS troca sem rebuild.
+      #
+      # `scp` direto NÃO basta: a pasta é do uid 101 (este nginx), e o usuário
+      # `sas` não escreve nela nem tem sudo sem senha. O caminho é mandar para
+      # uma pasta de espera e gravar como 101 — nome temporário e `mv`, para
+      # quem baixar no meio da cópia não levar meio zip:
+      #
+      #   scp AutoSwift-OBS-Windows.zip sas@VPS:upload-downloads/
+      #   docker run --rm --user 101:101 --network none --entrypoint sh \
+      #     -v /opt/sas/dados/downloads:/d -v ~/upload-downloads:/src:ro \
+      #     postgres:16-alpine -c 'cp /src/AutoSwift-OBS-Windows.zip /d/.novo \
+      #       && chmod 644 /d/.novo && mv -f /d/.novo /d/AutoSwift-OBS-Windows.zip'
+      #
+      # O zip precisa ter `AutoSwift OBS.exe` e `_internal/` na RAIZ. Um zip
+      # dentro de outro zip (o "Comprimir" do Finder sobre o artefato do CI)
+      # leva o usuário a abrir o .exe de dentro do zip, que é o "Failed to load
+      # Python DLL" que o tutorial existe para evitar.
       - /opt/sas/dados/downloads:/srv/downloads:ro
     environment:
       TZ: ${TZ:-America/Fortaleza}

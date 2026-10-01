@@ -87,3 +87,10 @@ sas-rea-do-aluno/
 # `.html` é a fonte que gera o `.png` (Chrome headless); os dois têm o mesmo
 # conteúdo sensível, por isso a regra pega os dois.
 /acessos-coordenacao.*
+
+# Programas de /downloads/ (hoje o zip do AutoSwift OBS, ~180 MB) passam pela
+# raiz do repositório a caminho do servidor, mas moram FORA da imagem e do
+# git: vão por `scp` (procedimento no volume `/srv/downloads` de
+# infra/vps/docker-compose.yml). Sem esta regra, o rsync do `deploy.sh` os
+# levaria para /opt/sas/ a cada deploy, onde ninguém os serve.
+/*.zip

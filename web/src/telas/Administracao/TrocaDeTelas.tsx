@@ -38,7 +38,9 @@ import imgPresets from '../../../assets/troca-de-telas/s5-preset.webp';
 // ⚠️ O arquivo mora FORA da imagem, em `/opt/sas/dados/downloads/` no servidor
 // (bind mount em `/srv/downloads`, servido pelo nginx em `/downloads/`). O
 // nginx o serve por URL, SEM login: a guarda de administrador é desta tela e
-// do card, não do arquivo. O zip não pode conter segredo.
+// do card, não do arquivo. O zip não pode conter segredo. Trocar o arquivo
+// não passa pelo deploy nem pelo git: o procedimento está no volume
+// `/srv/downloads` de `infra/vps/docker-compose.yml`.
 
 const ARQUIVO = '/downloads/AutoSwift-OBS-Windows.zip';
 
