@@ -380,15 +380,32 @@ class ClienteCanvas:
     # página fica publicada e fora de módulo — existe, mas o aluno não acha,
     # porque é por módulo que ele navega.
 
+    # Paginados: um módulo que junta os dois semestres passa de 100 itens, e o
+    # corte seria silencioso. A página da aula "não estaria" em módulo nenhum e
+    # ganharia um segundo item.
     async def listar_modulos(self, course_id: str) -> list[dict[str, Any]]:
-        resposta = await self._get(f"/courses/{course_id}/modules", params={"per_page": 100})
-        return resposta.json()
+        return await self._get_paginado(f"/courses/{course_id}/modules")
 
     async def listar_itens_modulo(self, course_id: str, modulo_id: str) -> list[dict[str, Any]]:
-        resposta = await self._get(
-            f"/courses/{course_id}/modules/{modulo_id}/items", params={"per_page": 100}
+        return await self._get_paginado(f"/courses/{course_id}/modules/{modulo_id}/items")
+
+    async def criar_modulo(
+        self, course_id: str, *, nome: str, publicado: bool
+    ) -> dict[str, Any]:
+        """POST e depois PUT: a criação não aceita `published`, e o módulo
+        nasce despublicado. Item dentro de módulo despublicado some para o
+        aluno, e a página voltaria a ser uma que ele não acha."""
+        resposta = await self._post(
+            f"/courses/{course_id}/modules", json={"module": {"name": nome}}
         )
-        return resposta.json()
+        modulo = resposta.json()
+        if publicado:
+            resposta = await self._put(
+                f"/courses/{course_id}/modules/{modulo['id']}",
+                json={"module": {"published": True}},
+            )
+            modulo = resposta.json()
+        return modulo
 
     async def criar_item_modulo(
         self,

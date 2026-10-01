@@ -206,6 +206,9 @@ _SEPARADOR_ASSUNTO = ":"
 class ItemModulo:
     titulo: str
     posicao: int
+    #: Slug da página, quando o item é uma página. É por ele, e não pelo
+    #: título, que se sabe se a aula já está pendurada: o professor renomeia.
+    page_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -287,9 +290,9 @@ def escolher_modulo(
     """Qual módulo recebe a página, e em que posição.
 
     Em ordem: o assunto decide quando casa com exatamente um módulo; se não
-    decidir, vale o módulo configurado no curso; se não houver, NÃO pendura e
-    diz por quê — melhor página fora de módulo, que dá para arrastar, que
-    página na trilha errada."""
+    decidir, vale o módulo configurado no curso; se não houver, NÃO escolhe e
+    diz por quê — melhor o módulo genérico, de onde se arrasta, que a trilha
+    errada. Quem leva o `SemModulo` até o genérico é canvas_publicacao."""
     chave = chave_de_assunto(titulo_pagina)
     if chave:
         casam = [m for m in modulos if any(chave_de_assunto(i.titulo) == chave for i in m.itens)]
@@ -307,3 +310,49 @@ def escolher_modulo(
         return SemModulo(f"canvas_modulo_id {modulo_padrao_id!r} não existe mais no curso")
 
     return SemModulo(f"assunto {chave!r} não casa com módulo nenhum e o curso não tem padrão")
+
+
+# ─── O módulo genérico: último recurso ──────────────────────────────────────
+#
+# Quando nem o assunto nem o módulo padrão decidem, a página não fica mais
+# fora de módulo: vai para um módulo publicado com este nome, um por curso.
+# Lá o aluno acha a aula, e a coordenação a arrasta para a trilha certa
+# quando puder. Nome e visibilidade foram escolhidos com a coordenação em
+# 30/09/2026. O nome é o que o ALUNO lê na lista de módulos.
+
+NOME_MODULO_GENERICO = "Outras aulas gravadas"
+
+
+def modulo_da_pagina(modulos: Sequence[ModuloCanvas], slug: str | None) -> ModuloCanvas | None:
+    """O módulo que já tem esta página, se algum tiver.
+
+    Vale para a página que o professor criou (e quase sempre já pendurou) e
+    para a que a automação pendurou numa rodada cujo registro no banco se
+    perdeu. Nos dois casos, pendurar de novo criaria um item duplicado."""
+    if not slug:
+        return None
+    return next((m for m in modulos if any(i.page_url == slug for i in m.itens)), None)
+
+
+def achar_modulo_generico(
+    modulos: Sequence[ModuloCanvas], id_salvo: str | None
+) -> ModuloCanvas | None:
+    """Pelo id guardado no curso; sem ele, pelo nome.
+
+    O nome cobre dois casos: o POST que criou o módulo e estourou o timeout
+    antes de o id ser guardado, e alguém da coordenação que o criou à mão.
+    O id vem primeiro para que renomear o módulo no Canvas não faça nascer
+    um segundo."""
+    if id_salvo:
+        m = next((x for x in modulos if x.id == str(id_salvo)), None)
+        if m:
+            return m
+    alvo = _normalizar(NOME_MODULO_GENERICO)
+    return next((x for x in modulos if _normalizar(x.nome) == alvo), None)
+
+
+def no_modulo_generico(generico: ModuloCanvas, data_aula: date) -> ModuloEscolhido:
+    """Em ordem de data também ali: é o que o aluno percorre."""
+    return ModuloEscolhido(
+        generico.id, generico.nome, _posicao_cronologica(generico.itens, data_aula)
+    )
