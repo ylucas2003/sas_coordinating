@@ -267,8 +267,9 @@
 .porta__pessoa {
   position: absolute;
   top: 82.4%;
-  /* 24%: a 22% "SANTOS-DUMONT" quebrava no hífen em 390px e o nome virava três
-     linhas, empurrando o feito para fora da cena. */
+  /* 24%: a 22% "SANTOS DUMONT" quebrava no meio em 390px e o nome virava três
+     linhas, empurrando o feito para fora da cena. (Medido quando o nome ainda
+     tinha hífen; o espaço ocupa quase a mesma largura.) */
   width: 24%;
   transform: translateX(-50%);
   display: flex;
