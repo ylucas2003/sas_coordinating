@@ -238,13 +238,18 @@ export function Porta({
  *
  * ⚠️ "Pai da aviação", e não "inventor do primeiro avião": fora do Brasil o
  * pioneirismo é disputado (irmãos Wright, 1903), e quem vai prestar ITA pode
- * discutir. O título é o que o país dá a Santos-Dumont e não abre discussão.
+ * discutir. O título é o que o país dá a Santos Dumont e não abre discussão.
+ *
+ * ⚠️ "Santos Dumont", sem hífen: é o nome de registro (e o da Wikipédia em
+ * português). O hífen — e depois o "=" — era como ELE assinava na França, para
+ * não virar "Monsieur Dumont"; a ABL segue a assinatura, e é por isso que as
+ * fontes divergem.
  *
  * ⚠️ Confira nomes e feitos com fonte antes de mexer: é a história do ITA escrita
  * na porta de entrada.
  */
 const LINHAGEM = [
-  { classe: 'santos-dumont', nome: 'Alberto Santos-Dumont', feito: 'Pai da aviação' },
+  { classe: 'santos-dumont', nome: 'Alberto Santos Dumont', feito: 'Pai da aviação' },
   { classe: 'casimiro', nome: 'Casimiro Montenegro Filho', feito: 'Idealizador do ITA' },
   { classe: 'ozires', nome: 'Ozires Silva', feito: 'Iteano e criador da Embraer' },
   { classe: 'voce', nome: 'Você', feito: 'O próximo iteano' },
