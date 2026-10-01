@@ -156,7 +156,7 @@ const EXTRAS: { titulo: string; corpo: string }[] = [
   {
     titulo: 'Tratamento de áudio',
     corpo:
-      'Aplica no microfone uma cadeia de filtros (supressão de ruído, compressor, limitador) por preset Leve, Médio ou Forte, sem ninguém precisar entender de dB.',
+      'Aplica no microfone uma cadeia de filtros (supressão de ruído, equalização de grave, médio e agudo, compressor, limitador) por preset Leve, Médio ou Forte, sem ninguém precisar entender de dB. O ajuste automático aprende a sala e guarda a calibração para a próxima aula.',
   },
 ];
 
@@ -385,41 +385,47 @@ export function TrocaDeTelas() {
         </div>
       </section>
 
-      {/* EQ dinâmico por plugin VST no OBS. O programa não instala nem cria este
-          filtro: é feito à mão, uma vez por máquina. Só cortes, porque a cada
-          reaplicação o programa põe os filtros "AutoSwift · " no topo da lista e
-          o VST acaba no fim, depois do limitador — ali um reforço estouraria. */}
+      {/* EQ dinâmico por plugin VST no OBS (TDR Nova). Com o tratamento de áudio
+          ligado, o programa cria o filtro "AutoSwift · EQ dinâmico" antes do
+          compressor, ou adota o "EQ dinâmico" feito à mão; a afinação é feita na
+          janela do plugin e o programa nunca a sobrescreve. Só cortes, porque o
+          timbre fixo (grave, médio e agudo) já vem do EQ do preset. O texto espelha
+          a seção "EQ dinâmico" de docs/TRATAMENTO-AUDIO.md, no repositório `obs`.
+          ⚠️ Vale a partir do build do programa que traz o EQ dinâmico: este texto
+          entra no ar junto com o zip novo em /downloads/. */}
       <Fase numero="+" olho="Opcional" titulo="Equalizador dinâmico no microfone">
         <ul className="troca-itens">
           <Destaque tom="dica">
-            O tratamento de áudio do programa usa equalização fixa. Para cortar o grave embolado e o
-            chiado do "s" só quando eles acontecem, instale no OBS o <strong>TDR Nova</strong>, um
-            plugin gratuito. É feito uma vez por máquina.
+            Com o tratamento de áudio ligado, o programa já equaliza grave, médio e agudo. O EQ dinâmico
+            vai além: corta o grave embolado e o chiado do "s" só quando eles aparecem. Ele usa o{' '}
+            <strong>TDR Nova</strong>, um plugin gratuito instalado uma vez por máquina.
           </Destaque>
           <Item marca="1">
             Baixe o TDR Nova em{' '}
             <a href="https://www.tokyodawn.net/tdr-nova/" target="_blank" rel="noreferrer">
               tokyodawn.net/tdr-nova
             </a>{' '}
-            e rode o instalador marcando a versão <strong>VST2 de 64 bits</strong>. Se ele perguntar a
-            pasta do VST2, use <code>{'C:\\Program Files\\VSTPlugins'}</code>.
+            (a versão gratuita, não a "GE") e rode o instalador marcando a versão{' '}
+            <strong>VST2 de 64 bits</strong>. Se ele perguntar a pasta do VST2, use{' '}
+            <code>{'C:\\Program Files\\VSTPlugins'}</code>.
           </Item>
           <Item marca="2">
-            Confira se o arquivo do TDR Nova (<code>.dll</code>) ficou nessa pasta e{' '}
-            <strong>reinicie o OBS</strong>.
+            <strong>Reinicie o OBS e o programa.</strong> Com o tratamento de áudio ligado, o programa
+            coloca o filtro <strong>AutoSwift · EQ dinâmico</strong> no microfone sozinho, já na posição
+            certa.
           </Item>
           <Item marca="3">
-            No <strong>Mixer de áudio</strong>, clique na engrenagem do microfone →{' '}
-            <strong>Filtros</strong> → <strong>+</strong> → <strong>VST 2.x</strong>. Dê o nome{' '}
-            <strong>EQ dinâmico</strong>.
+            Para afinar: no <strong>Mixer de áudio</strong>, clique na engrenagem do microfone →{' '}
+            <strong>Filtros</strong> → <strong>AutoSwift · EQ dinâmico</strong> e abra a interface do
+            plug-in. Use o ponto de partida desta seção.
           </Item>
           <Item marca="4">
-            Escolha <strong>TDR Nova</strong> na lista, abra a interface do plug-in, configure com o
-            ponto de partida desta seção e feche a janela. O OBS guarda a configuração.
+            Depois de afinar, <strong>feche e abra o OBS uma vez</strong>. É quando o OBS grava a
+            afinação, e o programa a guarda para refazer o filtro igual se ele for apagado.
           </Item>
-          <Destaque tom="alerta">
-            Não comece o nome do filtro com <strong>"AutoSwift · "</strong>: o programa apaga os filtros
-            com esse prefixo que não fazem parte do preset.
+          <Destaque tom="dica">
+            Já tinha criado um filtro <strong>EQ dinâmico</strong> à mão? O programa passa a cuidar dele
+            e mantém a afinação.
           </Destaque>
         </ul>
         <ul className="troca-itens">
@@ -438,9 +444,8 @@ export function TrocaDeTelas() {
             Corta de 3 a 6 dB só nos "s" e "ch".
           </Item>
           <Destaque tom="alerta">
-            Use <strong>só cortes</strong>, nunca reforços. O programa reorganiza os filtros dele no topo
-            da lista, então o EQ dinâmico sempre fica no fim, depois do limitador — ali um reforço pode
-            estourar o áudio.
+            Use <strong>só cortes</strong> no TDR Nova. O grave, o médio e o agudo fixos já vêm do
+            tratamento de áudio do programa: reforçar de novo aqui soma os dois.
           </Destaque>
         </ul>
       </Fase>
