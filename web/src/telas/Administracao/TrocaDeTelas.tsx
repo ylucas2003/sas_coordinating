@@ -72,10 +72,12 @@ function Figura({ letra, legenda, src, alt }: PropsFigura) {
 function Fase({
   numero,
   titulo,
+  olho,
   children,
 }: {
   numero: number | string;
   titulo: string;
+  olho?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -83,7 +85,9 @@ function Fase({
       <header className="troca-fase__topo">
         <span className="troca-fase__numero">{numero}</span>
         <div>
-          <span className="troca-fase__olho">{typeof numero === 'number' ? `Passo ${numero}` : 'Ajuda'}</span>
+          <span className="troca-fase__olho">
+            {olho ?? (typeof numero === 'number' ? `Passo ${numero}` : 'Ajuda')}
+          </span>
           <h2 className="troca-fase__titulo">{titulo}</h2>
         </div>
       </header>
@@ -380,6 +384,66 @@ export function TrocaDeTelas() {
           ))}
         </div>
       </section>
+
+      {/* EQ dinâmico por plugin VST no OBS. O programa não instala nem cria este
+          filtro: é feito à mão, uma vez por máquina. Só cortes, porque a cada
+          reaplicação o programa põe os filtros "AutoSwift · " no topo da lista e
+          o VST acaba no fim, depois do limitador — ali um reforço estouraria. */}
+      <Fase numero="+" olho="Opcional" titulo="Equalizador dinâmico no microfone">
+        <ul className="troca-itens">
+          <Destaque tom="dica">
+            O tratamento de áudio do programa usa equalização fixa. Para cortar o grave embolado e o
+            chiado do "s" só quando eles acontecem, instale no OBS o <strong>TDR Nova</strong>, um
+            plugin gratuito. É feito uma vez por máquina.
+          </Destaque>
+          <Item marca="1">
+            Baixe o TDR Nova em{' '}
+            <a href="https://www.tokyodawn.net/tdr-nova/" target="_blank" rel="noreferrer">
+              tokyodawn.net/tdr-nova
+            </a>{' '}
+            e rode o instalador marcando a versão <strong>VST2 de 64 bits</strong>. Se ele perguntar a
+            pasta do VST2, use <code>{'C:\\Program Files\\VSTPlugins'}</code>.
+          </Item>
+          <Item marca="2">
+            Confira se o arquivo do TDR Nova (<code>.dll</code>) ficou nessa pasta e{' '}
+            <strong>reinicie o OBS</strong>.
+          </Item>
+          <Item marca="3">
+            No <strong>Mixer de áudio</strong>, clique na engrenagem do microfone →{' '}
+            <strong>Filtros</strong> → <strong>+</strong> → <strong>VST 2.x</strong>. Dê o nome{' '}
+            <strong>EQ dinâmico</strong>.
+          </Item>
+          <Item marca="4">
+            Escolha <strong>TDR Nova</strong> na lista, abra a interface do plug-in, configure com o
+            ponto de partida desta seção e feche a janela. O OBS guarda a configuração.
+          </Item>
+          <Destaque tom="alerta">
+            Não comece o nome do filtro com <strong>"AutoSwift · "</strong>: o programa apaga os filtros
+            com esse prefixo que não fazem parte do preset.
+          </Destaque>
+        </ul>
+        <ul className="troca-itens">
+          <Destaque tom="dica">
+            Ponto de partida para a voz do professor. Ajuste o limiar de cada banda ouvindo a fala: o
+            corte deve acontecer só nos picos, não o tempo todo.
+          </Destaque>
+          <Item marca="a" titulo="Passa-alta em ~80 Hz">
+            Tira ronco, batida na mesa e barulho de ar-condicionado.
+          </Item>
+          <Item marca="b" titulo="Banda em ~250 Hz, dinâmica">
+            Corta de 2 a 4 dB só quando o grave embola, por exemplo quando o professor chega perto do
+            microfone.
+          </Item>
+          <Item marca="c" titulo="Banda em ~6–7 kHz, estreita, dinâmica">
+            Corta de 3 a 6 dB só nos "s" e "ch".
+          </Item>
+          <Destaque tom="alerta">
+            Use <strong>só cortes</strong>, nunca reforços. O programa reorganiza os filtros dele no topo
+            da lista, então o EQ dinâmico sempre fica no fim, depois do limitador — ali um reforço pode
+            estourar o áudio.
+          </Destaque>
+        </ul>
+      </Fase>
 
       <Fase numero="?" titulo="Ajuda & Dicas">
         <div className="troca-problemas">
