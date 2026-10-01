@@ -146,7 +146,7 @@ const EXTRAS: { titulo: string; corpo: string }[] = [
   {
     titulo: 'Controle de 2 botões',
     corpo:
-      'Um apresentador de slides Bluetooth/RF funciona como controle: o Botão 1 pula para uma cena especial (slide, documento) e volta ao automático; o Botão 2 conduz a aula — inicia a transmissão, entra no automático e encerra com contagem regressiva. Na aba "Controle" do programa você vincula cada botão físico.',
+      'Um apresentador de slides Bluetooth/RF funciona como controle: o Botão 1 pula para uma cena especial (slide, documento) e volta ao automático; o Botão 2 conduz o ciclo com a live já no ar — entra no automático e encerra com contagem regressiva. Quem liga a transmissão agora é você, pelo botão "Iniciar transmissão" (Passo 4) ou direto no OBS. Na aba "Controle" do programa você vincula cada botão físico.',
   },
   {
     titulo: 'Início automático por áudio',
@@ -339,15 +339,20 @@ export function TrocaDeTelas() {
 
       <Fase numero={4} titulo="Operar no dia a dia">
         <ul className="troca-itens">
-          <Item marca="1">
-            Em <strong>Automático</strong>, o app troca a cena sozinho pela detecção.
+          <Item marca="1" titulo="Ligue a transmissão">
+            Clique em <strong>● Iniciar transmissão</strong> (ou ligue a live direto no OBS) para
+            começar a aula. O programa percebe sozinho e põe a cena de início no ar; o controle
+            físico não liga mais a live — só conduz o resto do ciclo.
           </Item>
           <Item marca="2">
+            Em <strong>Automático</strong>, o app troca a cena sozinho pela detecção.
+          </Item>
+          <Item marca="3">
             Em <strong>Manual</strong>, você comanda: clique numa cena (ou <code>Ctrl+1…9</code>) para
             colocá-la no ar — útil para forçar uma cena e depois voltar ao automático.{' '}
             <code>Ctrl+M</code> alterna entre os dois modos.
           </Item>
-          <Item marca="3">
+          <Item marca="4">
             Salve <strong>presets</strong> por cenário (Salvar · Salvar como… · Excluir), como "Sala
             204" e "Auditório", e acompanhe a <strong>cena no ar</strong> pela setinha ▼.
           </Item>
