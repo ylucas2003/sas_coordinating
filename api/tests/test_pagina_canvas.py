@@ -310,3 +310,49 @@ def test_modulo_sem_aula_anterior_anexa_no_fim():
         modulo_padrao_id="2609",
     )
     assert isinstance(r, ModuloEscolhido) and r.posicao is None
+
+
+# ─── Módulo genérico ─────────────────────────────────────────────────────
+
+from app.gravacoes_aula.pagina_canvas import (  # noqa: E402
+    NOME_MODULO_GENERICO,
+    achar_modulo_generico,
+    modulo_da_pagina,
+    no_modulo_generico,
+)
+
+
+def test_pagina_ja_pendurada_e_achada_pelo_slug_e_nao_pelo_titulo():
+    """O professor renomeia o item; o slug da página não muda."""
+    m = ModuloCanvas("1", "Aulas", (ItemModulo("título editado à mão", 4, "aula-07-27-08"),))
+    assert modulo_da_pagina((_TRIGONOMETRIA, m), "aula-07-27-08") is m
+    assert modulo_da_pagina((m,), "outra-pagina") is None
+    # Slug vazio não pode casar com item sem página (link, arquivo).
+    assert modulo_da_pagina((ModuloCanvas("2", "x", (ItemModulo("link", 1),)),), "") is None
+
+
+def test_generico_pelo_id_vence_o_nome():
+    renomeado = ModuloCanvas("777", "Aulas avulsas", ())
+    homonimo = ModuloCanvas("888", NOME_MODULO_GENERICO, ())
+    assert achar_modulo_generico((homonimo, renomeado), "777") is renomeado
+
+
+def test_generico_sem_id_e_achado_pelo_nome_sem_caixa_nem_acento():
+    m = ModuloCanvas("888", "  OUTRAS aulas   GRAVADAS ", ())
+    assert achar_modulo_generico((_TRIGONOMETRIA, m), None) is m
+    # Id guardado que sumiu do curso: cai para o nome.
+    assert achar_modulo_generico((m,), "777") is m
+    assert achar_modulo_generico((_TRIGONOMETRIA,), None) is None
+
+
+def test_no_generico_a_aula_entra_em_ordem_de_data():
+    g = ModuloCanvas(
+        "888",
+        NOME_MODULO_GENERICO,
+        (
+            ItemModulo("Aula 09 - 27/08/2026 - Geometria: Retas", 1),
+            ItemModulo("Aula 12 - 10/09/2026 - Geometria: Círculos", 2),
+        ),
+    )
+    r = no_modulo_generico(g, date(2026, 9, 3))
+    assert r.modulo_id == "888" and r.posicao == 2

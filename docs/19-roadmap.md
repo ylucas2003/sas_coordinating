@@ -320,11 +320,27 @@ com página criada no Canvas — e 7 em `aguardando_gravacao`, esperando o BBB
 disponibilizar o arquivo. A imagem da API passou a incluir `ffmpeg` (~250 MB) —
 o build de produção ficou maior.
 
-**Sobrou uma pontinha:** Matemática (`691`) é o único curso sem
-`canvas_modulo_id` de fallback. Quando o assunto da aula não casa com módulo
-nenhum, a página é criada *fora de módulo* em vez de falhar — conserto é um
-`UPDATE` em `curso_monitorado_gravacao` quando o módulo padrão da matéria for
-escolhido.
+**A pontinha virou problema e foi fechada (30/09, migration `0067`, no `main`,
+ainda não em produção).** Muitas aulas acabavam publicadas e *fora de módulo*,
+e por três caminhos: Matemática (`691`) não tinha módulo padrão, então toda
+aula cujo assunto não casava ficava solta; um assunto presente em dois módulos
+também ficava solto; e toda aula embutida numa página que **o professor** já
+tinha criado nunca teve o módulo registrado, então a tela a mostrava como
+"fora de módulo" mesmo quando ela estava pendurada. Como `publicado` é
+terminal, nenhuma delas era revista.
+
+Agora a ordem é **assunto → `canvas_modulo_id` → módulo genérico**. O genérico
+se chama **"Outras aulas gravadas"**, é **publicado** (o aluno acha a aula) e
+existe um por curso. O código o cria na primeira vez que faz falta, ou adota um
+que alguém tenha criado à mão com esse nome, e grava o id em
+`curso_monitorado_gravacao.canvas_modulo_generico_id`. A coordenação arrasta
+dali para a trilha certa, e a dica do selo em `/integracoes/aulas` diz por que
+a aula caiu ali. O padrão de 29/08 (`692`, `693` e `581`) continua valendo
+antes do genérico: as conferências de Física e Química não têm assunto, e
+trocar o padrão mandaria as duas matérias inteiras para o genérico. A varredura
+ganhou uma segunda fase (`_rependurar`), que repassa até 20 aulas publicadas e
+fora de módulo por rodada, começando pela mais nova. Quando a página já está
+num módulo, ela só anota qual.
 
 ### Blocos B, C, D do [docs/10](10-problemas-e-visao.md) — o que já caiu no caminho
 
