@@ -31,6 +31,95 @@ def normalizar_nome(nome: str) -> str:
     return re.sub(r"\s+", " ", sem_acento.upper()).strip()
 
 
+# ─── Faixa: o que uma conquista VALE, comparável entre provas (docs/41 §20) ──
+#
+# `conquista_externa.resultado` continua cru (0056: "cada prova tem seu próprio
+# vocabulário — não normalizamos aqui"): a OBF escreve "MEDALHA DE OURO", a
+# OBMEP "Ouro — rede pública", a OBI "Ouro". Sem uma tradução comum não dá pra
+# perguntar "quem tirou ouro?" atravessando provas — é o que a busca por
+# conquista (o caminho inverso, conquista → candidato) precisa. A faixa é essa
+# tradução, gravada ao lado do texto cru, nunca no lugar dele.
+#
+# Duas escadas, porque olimpíada e vestibular não medem a mesma coisa:
+#   olimpíada   ouro > prata > bronze > mencao > finalista
+#   vestibular  aprovado > classificado_final > passou_de_fase > participou > ausente
+#
+# `classificado_final` = passou em todas as provas, mas a fonte não confirma
+# vaga (excedente do IME, reserva da EFOMM/Escola Naval, a classificação da
+# 2ª fase do ITA 2020-2023, que vai além do nº de vagas). É o lead típico de
+# pré-vestibular: chegou até o fim e (provavelmente) não entrou.
+FAIXAS_OLIMPIADA = ("ouro", "prata", "bronze", "mencao", "finalista")
+FAIXAS_VESTIBULAR = ("aprovado", "classificado_final", "passou_de_fase", "participou", "ausente")
+FAIXAS = FAIXAS_OLIMPIADA + FAIXAS_VESTIBULAR
+
+# Ter feito (ou faltado) a 1ª fase do ITA não é destaque nenhum — fica no banco
+# como dado, mas sai da contagem de conquistas e da ordenação da lista
+# (decisão de 07/10/2026, docs/41 §20). Mesma lista no FILTER da migration 0068.
+FAIXAS_SO_PARTICIPACAO = ("participou", "ausente")
+
+_MEDALHAS: list[tuple[str, str]] = [
+    (r"^(MEDALHA DE )?OURO\b", "ouro"),  # "OURO REDE PUBLICA", "OURO ESPECIAL", "MEDALHA DE OURO"
+    (r"^(MEDALHA DE )?PRATA\b", "prata"),
+    (r"^(MEDALHA DE )?BRONZE\b", "bronze"),
+    (r"^MENCAO HONROSA$", "mencao"),
+]
+
+# Por PROVA, e não uma lista global: "RESERVA" é carreira militar no ITA/IME
+# (aprovado) e lista de espera na EFOMM/Escola Naval — o mesmo texto vale
+# coisas diferentes conforme quem publicou. Regex sobre o texto normalizado
+# (`normalizar_nome`: maiúsculo, sem acento, "—" some, "1ª" vira "1A").
+_REGRAS_POR_PROVA: dict[str, list[tuple[str, str]]] = {
+    "OBMEP": _MEDALHAS,
+    "OBM": _MEDALHAS,
+    "OBF": _MEDALHAS,
+    "OBI": _MEDALHAS,
+    "OBQ": [*_MEDALHAS, (r"^DEMAIS CLASSIFICADOS$", "finalista")],
+    "OBQ Jr": [*_MEDALHAS, (r"^DEMAIS CLASSIFICADOS$", "finalista")],
+    "ITA": [
+        (r"^AUSENTE 1A FASE$", "ausente"),
+        (r"^REALIZOU A 1A FASE$", "participou"),
+        (r"^CONVOCADO 2A FASE$", "passou_de_fase"),
+        (r"^NAO CLASSIFICADO 2A FASE$", "passou_de_fase"),
+        (r"^CLASSIFICADO 2A FASE \(NO \d+\)$", "classificado_final"),
+        # Convocados pra 3ª fase (2024-2025): o título da seção, sem tradução.
+        (r"^((ATIVA|RESERVA) \()?(AMPLA CONCORRENCIA|COTA RACIAL)\)?$", "aprovado"),
+    ],
+    "IME": [
+        (r"^HABILITADO 2A FASE \((ATIVA|RESERVA)\)$", "passou_de_fase"),
+        (r"^NAO APROVADO 2A FASE\b", "passou_de_fase"),
+        (r"^(ATIVA|RESERVA) EXCEDENTE$", "classificado_final"),
+        (r"^(ATIVA|RESERVA)( AMPLA CONCORRENCIA| LEI 12\.990 \(COTA RACIAL\))?$", "aprovado"),
+    ],
+    "EFOMM": [
+        (r"^(CIAGA|CIABA) (POS-)?CLASSIFICADO \(.*1A FASE\)$", "passou_de_fase"),
+        (r"^(CIAGA|CIABA) TITULAR \(CLASSIFICACAO FINAL\)$", "aprovado"),
+        (r"^(CIAGA|CIABA) RESERVA \(CLASSIFICACAO FINAL\)$", "classificado_final"),
+    ],
+    "Escola Naval (CPAEN)": [
+        (r"^NAO ELIMINADO NAS PROVAS ESCRITAS\b", "passou_de_fase"),
+        (r"^RESULTADO DA SELECAO INICIAL (TITULAR|RESERVA)$", "passou_de_fase"),
+        (r"^RESULTADO FINAL( DA SELECAO)? TITULAR$", "aprovado"),
+        (r"^RESULTADO FINAL( DA SELECAO)? RESERVA$", "classificado_final"),
+    ],
+}
+
+
+def classificar_faixa(prova_nome: str, resultado: str) -> str:
+    """A faixa de uma conquista. **Falha alto** quando não reconhece — prova
+    sem régua, ou um texto de resultado que a régua da prova não cobre — em vez
+    de devolver um "desconhecido" silencioso: é a lição que cada fonte nova do
+    docs/41 ensinou de novo (contagem que não bate vira vazio, sem erro). O
+    importador valida o lote inteiro antes de gravar qualquer linha."""
+    regras = _REGRAS_POR_PROVA.get(prova_nome)
+    if regras is None:
+        raise ValueError(f"prova {prova_nome!r} sem régua de faixa em _captacao_comum.py")
+    texto = normalizar_nome(resultado)
+    for padrao, faixa in regras:
+        if re.search(padrao, texto):
+            return faixa
+    raise ValueError(f"resultado {resultado!r} da prova {prova_nome!r} não casa com nenhuma faixa")
+
+
 def retrato_da_conquista(conquista: dict[str, Any]) -> dict[str, Any]:
     """O retrato (nome/escola/cidade/UF/série) de UMA conquista — o que um
     `candidato_externo` criado a partir dela deve ter quando ela é a única

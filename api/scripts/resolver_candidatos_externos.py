@@ -210,6 +210,11 @@ def main() -> int:
                 sub, on_conflict="id", returning="minimal"
             ).execute()
 
+    # A lista geral é MATERIALIZADA (0063) e não acompanha escrita sozinha —
+    # sem isto, os nomes que acabaram de nascer só apareciam na tela depois
+    # que alguém editasse qualquer coisa pela captação (achado em 07/10/2026).
+    cliente.rpc("atualizar_v_candidato_externo_por_nome", {}).execute()
+
     travados_tocados = len(alvos_tocados) - len(ids_tocados)
     print(
         f"resultado: {criados} candidato_externo criados (nome novo), "

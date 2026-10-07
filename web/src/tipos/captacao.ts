@@ -15,6 +15,26 @@
 
 export type StatusCaptacao = 'novo' | 'contatado' | 'interessado' | 'matriculado' | 'descartado';
 
+/** O que uma conquista VALE, comparável entre provas (migration 0068, docs/41
+ * §20) — mesma lista de `_captacao_comum.py::FAIXAS` e do CHECK da 0068.
+ * Duas escadas: olimpíada (ouro → finalista) e vestibular (aprovado → ausente). */
+export type Faixa =
+  | 'ouro' | 'prata' | 'bronze' | 'mencao' | 'finalista'
+  | 'aprovado' | 'classificado_final' | 'passou_de_fase' | 'participou' | 'ausente';
+
+/** Público da captação no ANO DE INGRESSO (decisão de 07/10/2026). */
+export type Publico = 'fundamental' | 'medio' | 'pre_vestibular';
+
+/** Uma conquista que fez o nome entrar na busca por conquista — até 3 por
+ * linha, da mais forte pra mais fraca (`buscar_candidatos_por_conquista`, 0068). */
+export interface Evidencia {
+  prova: string;
+  ano: number;
+  faixa: Faixa;
+  resultado: string;
+  nivel: string | null;
+}
+
 /** Um `candidato_externo` — nasce com todas as conquistas já conhecidas do
  * nome (`resolver_candidatos_externos.py` anexa ao perfil existente, docs/41
  * §16); só fica em MAIS de um perfil quando um humano separa arrastando
@@ -86,13 +106,19 @@ export interface CandidatoPorNome {
   cidades: string[];
   ufs: string[];
   status_captacao: StatusCaptacao[];
+  /** Sem participação (1ª fase do ITA feita ou faltada) — essa vai em `participacoes` (0068). */
   conquistas_total: number;
   provas_distintas: number;
+  participacoes: number;
   /** Quantos `candidato_externo` existem hoje pra este nome — 1 = nada fragmentado. */
   perfis_no_grupo: number;
   ano_mais_recente: number | null;
   criado_em: string;
   atualizado_em: string;
+  /** Só na busca por conquista: quantas conquistas do nome casaram os critérios… */
+  conquistas_casadas?: number;
+  /** …e as até 3 mais fortes delas — o "por que está aqui". */
+  evidencias?: Evidencia[];
 }
 
 export interface PaginaCandidatos {
@@ -100,6 +126,8 @@ export interface PaginaCandidatos {
   total: number;
   pagina: number;
   por_pagina: number;
+  /** O ano letivo de referência do público (padrão: o ano que vem). */
+  ano_ingresso: number;
 }
 
 export interface FiltrosCaptacao {
@@ -107,6 +135,11 @@ export interface FiltrosCaptacao {
   status_captacao?: StatusCaptacao;
   conquistas_min?: number;
   busca?: string;
+  /** Critérios de CONQUISTA — todos valem para a mesma conquista (docs/41 §20). */
+  prova?: string[];
+  faixa?: Faixa[];
+  ano_min?: number;
+  publico?: Publico[];
   pagina?: number;
   por_pagina?: number;
 }

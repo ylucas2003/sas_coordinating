@@ -1,5 +1,12 @@
 # 41 — Captação externa · achar potenciais alunos cruzando resultados de provas públicas
 
+> ⚠️ **Leia de trás pra frente.** Este documento cresceu fonte a fonte, e as
+> seções antigas descrevem modelos que já saíram. O que vale hoje: **§15–§19**
+> (identidade: 1 perfil por nome, separar homônimo é manual — a régua
+> nome+escola do §4.1 e a fila de fusão dos §9–§10 são histórico) e **§20**
+> (a busca por conquista, o caminho inverso). O §7.1 também envelheceu: a
+> ficha é `CaptacaoPerfil.tsx`, e o filtro por prova voltou só no §20.
+
 > **Feito de ponta a ponta pra OBMEP**: schema aplicado, pipeline completo,
 > quase 70 mil linhas cruas e 53 mil pessoas resolvidas (§5) — **e agora
 > também as rotas de API e a tela em Administração** (§7), que na primeira
@@ -1815,3 +1822,153 @@ guarda é uma linha.
 **Verificado**: reproduzido em produção (conta descartável) e em dev local
 com digitação real; depois da migration, "Gonçalves" (644 nomes, batia
 direto num nome com escolas NULL antes da correção) busca sem erro.
+
+
+## 20 · O caminho inverso: achar candidato a partir da conquista (07/10/2026)
+
+Até aqui a captação só andava num sentido: **nome → conquistas** (buscar
+alguém e ver tudo o que a pessoa ganhou). O pedido foi o outro sentido:
+**conquista → nomes** — "quem tirou ouro na OBF 2025 e vai estar no Médio no
+ano que vem?", "quem chegou à 2ª fase do ITA/IME e não entrou?".
+
+### 20.1 · Decisões do usuário (07/10/2026)
+
+1. **Público: Fundamental 2, Médio e Pré-vestibular.** O pré-vestibular muda
+   duas coisas: vestibular deixa de ser só validação (§6.1) e vira lead —
+   quem passou de fase e não entrou é o aluno típico de turma de
+   pré-vestibular —, e "já saiu da educação básica" deixa de ser lead frio,
+   porque quem se formou há 1-2 anos é público.
+2. **Participação não é conquista.** "Realizou a 1ª fase" e "Ausente — 1ª
+   fase" do ITA (31.908 linhas) continuam no banco, mas saem da contagem e da
+   ordenação da lista. Antes, 3.367 nomes apareciam em "2+ conquistas" só por
+   ter feito (ou faltado) a prova do ITA.
+3. **Aprovado não é o melhor lead.** Quem foi aprovado no ITA/IME/EFOMM/EN
+   provavelmente já entrou. Na ordenação, `classificado_final` (passou em
+   tudo, sem vaga confirmada) e `passou_de_fase` vêm antes de `aprovado`.
+
+### 20.2 · O modelo (migration 0068)
+
+**`conquista_externa.faixa`** — o que a conquista VALE, comparável entre
+provas. O `resultado` continua cru (regra da 0056); a faixa é a tradução,
+gravada ao lado:
+
+| Faixa | Exemplos reais |
+|---|---|
+| `ouro`, `prata`, `bronze`, `mencao` | "MEDALHA DE OURO" (OBF), "Ouro — rede pública" (OBMEP), "Ouro Especial" (OBM) |
+| `finalista` | "Demais Classificados" (OBQ/OBQ Jr) |
+| `aprovado` | "ATIVA — ampla concorrência" (IME), convocados da 3ª fase do ITA, "Titular" (EFOMM/EN) |
+| `classificado_final` | excedente do IME, reserva da EFOMM/EN, "Classificado — 2ª fase (nº N)" do ITA 2020-2023 |
+| `passou_de_fase` | "Convocado — 2ª fase" (ITA), "Habilitado — 2ª fase" e "Não aprovado — 2ª fase" (IME), classificado e pós-classificado na 1ª fase (EFOMM), "Não eliminado" (EN) |
+| `participou`, `ausente` | 1ª fase do ITA |
+
+A régua é **uma só**: `api/scripts/_captacao_comum.py::classificar_faixa`,
+com regras **por prova** — "RESERVA" é carreira militar no ITA/IME (aprovado)
+e lista de espera na EFOMM/EN. Ela **falha alto**: prova sem régua, ou texto
+que a régua não cobre, faz o importador recusar o lote inteiro antes de
+gravar qualquer linha. Fonte nova exige ensinar a régua primeiro (e pôr o
+caso em `tests/test_captacao_faixa.py`). As 166.034 conquistas locais
+classificaram sem nenhum erro.
+
+**`ano_conclusao_min/max`** — coluna GERADA: o ano em que a pessoa termina o
+3º médio, pela série da conquista (`ano + 12 − série`). Não envelhece, ao
+contrário de "série hoje", e por isso dá pra filtrar o público no banco. É
+NULL nos vestibulares, porque nenhum deles publica a série.
+
+**Público**, relativo ao **ano de ingresso** (padrão: o ano que vem, porque
+captação em outubro é para a turma seguinte):
+
+| Público | Conclui entre |
+|---|---|
+| Fundamental 2 (6º-9º no ingresso) | ingresso+3 e ingresso+6 |
+| Médio (1ª-3ª série) | ingresso e ingresso+2 |
+| Pré-vestibular (formado há 1-2 anos) | ingresso−2 e ingresso−1 — e também vestibular sem série dos dois anos anteriores ao ingresso |
+
+Fonte que publica por nível dá uma faixa de séries, e ela pode tocar dois
+públicos (a OBQ Jr publica "6º-9º" para todo mundo). Isso é o que a fonte
+permite afirmar; a busca não inventa precisão.
+
+**`buscar_candidatos_por_conquista()`** — a busca, chamada por RPC. **Todo
+critério de conquista (prova, faixa, ano, público) vale para a MESMA linha**
+de `conquista_externa`. Com 1 perfil por nome (§16), juntar "ouro" de uma
+linha com "OBMEP" de outra e "2024" de uma terceira casaria três conquistas
+de homônimos diferentes. Os critérios do nome (UF, status, nº de conquistas,
+busca) filtram depois, sobre a lista geral. A função devolve as 3 melhores
+conquistas que casaram (`evidencias`) e o total. É função, e não "pré-consulta
++ `.in_()`", porque a pré-consulta devolveria dezenas de milhares de ids.
+
+A lista geral (`v_candidato_externo_por_nome`) ganhou `participacoes`, e
+`conquistas_total`/`provas_distintas` deixaram de contar participação.
+`v_candidato_externo` (a de um perfil) **não mudou**: ela conta toda linha,
+e `remover_candidato_vazio` depende disso para não apagar um perfil que só
+tem participação.
+
+### 20.3 · Tela
+
+A mesma `Captacao.tsx`, não uma tela nova — a unidade do resultado é a mesma
+(um nome, que abre o mesmo `CaptacaoPerfil`). A faixa de filtros ganhou
+**Prova**, **Resultado** (só as faixas que as provas escolhidas produzem),
+**Ano** ("desde …") e **Público em {ano}**. Com qualquer um deles ativo, a
+tabela ganha a coluna **"Por que está aqui"** ("Ouro · OBF 2025 · 8º ano
++2"). A coluna de conquistas mostra a participação à parte ("25 · até 2024
+· 2 participações").
+
+### 20.4 · Consertos que vieram junto
+
+- **A lista não mostrava fonte recém-importada.** A view por nome é
+  materializada e só era atualizada pelas rotas da tela; nem o importador nem
+  o resolver chamavam o refresh. Agora os dois chamam (e o script de
+  classificação também).
+- **Rotas `async def` com cliente síncrono** — contra a convenção de
+  29/09/2026 (api/CLAUDE.md). A busca, com `count="exact"`, travava o
+  processo inteiro a cada tecla. Viraram `def`.
+- **Busca sensível a acento** — "Goncalves" não achava "Gonçalves". Agora a
+  busca é sobre `nome_normalizado`, com o termo normalizado do mesmo jeito.
+
+### 20.5 · Números (banco local, 07/10/2026)
+
+| Recorte | Nomes | Tempo |
+|---|---|---|
+| Ouro na OBF, Médio em 2027 | 108 | ~50 ms |
+| Ouro na OBMEP, Fundamental 2 em 2027, CE | 31 | ~120 ms |
+| ITA/IME, classificado sem vaga ou passou de fase, Pré-vestibular em 2027 | 1.597 | ~50 ms |
+| Qualquer medalha, Fundamental 2 ou Médio (o mais largo) | 23.260 | ~440 ms |
+
+### 20.6 · Para levar a produção
+
+Nesta ordem — a 0068 nasce com `faixa` NULL, e NULL conta como conquista
+(o comportamento de antes), então a lista nunca fica errada no meio do caminho:
+
+```sh
+./infra/vps/deploy.sh --migrar            # aplica a 0068 e reinicia o postgrest
+# no servidor, na pasta da stack:
+docker compose exec -T api python scripts/classificar_conquistas_externas.py --simular </dev/null
+docker compose exec -T api python scripts/classificar_conquistas_externas.py </dev/null
+```
+
+O script é idempotente: rodar de novo depois não acha nada para mudar.
+
+### 20.7 · O que ficou de fora, e por quê
+
+- **Quadro por prova** (clicar numa prova do rodapé e ver ano × faixa com
+  contagem) — a porta de entrada "sem saber nome nenhum". A busca já
+  responde a mesma pergunta pelos filtros; o quadro é atalho.
+- **Várias condições com E** ("ouro na OBMEP **e** qualquer medalha na OBF")
+  e **recortes salvos** com nome. A função já recebe listas, mas uma
+  condição só; a v2 precisa de um parâmetro de condições.
+- **Nota mínima** nos vestibulares (a 1ª fase do ITA traz nota por matéria
+  em 96% das linhas). Cada fonte usa chave e escala próprias em
+  `notas_por_materia`, e normalizar isso é um trabalho à parte.
+- **Área** da prova (matemática, física…) — com 10 provas, o filtro por
+  prova basta por ora.
+- **Posição do ITA dentro do texto** ("Classificado — 2ª fase (nº 93)") —
+  separar em coluna própria muda a chave de dedup (§11.3.1) e exige apagar e
+  reimportar; a faixa já resolve o filtro.
+- **`NULLS NOT DISTINCT` no índice de dedup (0057)** — resolveria na raiz o
+  bug de NULL que se repetiu na OBM, no ITA e quase no IME. Fica para uma
+  migration própria.
+
+**Verificado:** pytest (793), vitest (682), ruff, Biome e tsc; migration
+0068 aplicada, revertida e reaplicada no banco local; a busca contra o
+PostgREST real; e a tela no Chrome (desktop e 390px), com uma conta
+descartável apagada no fim. **Não verificado:** nada disso rodou em
+produção.
