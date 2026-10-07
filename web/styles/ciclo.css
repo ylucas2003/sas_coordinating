@@ -841,6 +841,47 @@
   border-radius: var(--radius-sm);
 }
 
+/* ── O TOM DE QUEM NÃO FOI CORTADO ───────────────────────────────────────
+   Um azul bem leve no fundo da linha, só para o olho separar de relance quem
+   passou de quem foi cortado. Fica no papel DADO — o mesmo azul do "preenchido
+   é acima do corte" —, e não inventa cor: não é verde, não é semáforo.
+
+   ⚠️ O que continua valendo da R4: o cortado NÃO ganha cor nenhuma (nem o nome,
+   nem a linha) — o alerta segue sendo só a etiqueta de distância. O tom está do
+   lado de quem NÃO é alerta, e é por isso que cabe; se um dia alguém quiser
+   pintar o cortado também, é outra decisão, e contra o brief.
+
+   Mesma técnica do realce abaixo: o tom é translúcido, então a linha o leva no
+   `tr` e as colunas congeladas — que precisam de fundo opaco para as notas não
+   passarem por baixo ao rolar — o levam por cima de `--sas-superficie`. O hover
+   (mais específico) continua vencendo: realce é posição, e tem de aparecer. */
+
+.painel-tabela__tr--nao-cortado {
+  --tom-nao-cortado: color-mix(in srgb, var(--sas-dado) 6%, transparent);
+  background: var(--tom-nao-cortado);
+}
+
+/* No escuro o azul de dado (#2f6bff) sobre a superfície (#0c1530) some nos
+   mesmos 6% — o realce do hover é discreto lá pelo mesmo motivo, e ele é
+   posição, não precisa saltar. Este tom precisa. O azul claro, em 10%, é o que
+   se enxerga de relance sem virar faixa. Mesmo padrão de três seletores do
+   logo do rail (casco.css): a escolha explícita vence, e até ela vale o
+   aparelho. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='dia']) .painel-tabela__tr--nao-cortado {
+    --tom-nao-cortado: color-mix(in srgb, var(--sas-dado-claro) 10%, transparent);
+  }
+}
+
+:root[data-tema='noite'] .painel-tabela__tr--nao-cortado {
+  --tom-nao-cortado: color-mix(in srgb, var(--sas-dado-claro) 10%, transparent);
+}
+
+.painel-tabela__tr--nao-cortado .painel-tabela__td-aluno,
+.painel-tabela__tr--nao-cortado .painel-tabela__td-pos {
+  background: linear-gradient(var(--tom-nao-cortado), var(--tom-nao-cortado)), var(--sas-superficie);
+}
+
 /* ── A LINHA DE REALCE ───────────────────────────────────────────────────
    `--sas-realce` é o papel que existe para isto: dizer "esta é a linha em que
    você está" sem que a cor signifique desempenho. É o mesmo tom da pílula

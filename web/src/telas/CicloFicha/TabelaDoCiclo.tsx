@@ -359,7 +359,9 @@ export function TabelaDoCiclo({
             const distancia = distanciaAoCorte(veredito, criterio);
 
             const linha = (
-              <tr key={aluno.id}>
+              // O tom só sai de um veredito explícito: quem não tem nota não foi
+              // avaliado pela régua e fica sem tom, em vez de parecer aprovado.
+              <tr key={aluno.id} className={veredito?.aprovado ? 'painel-tabela__tr--nao-cortado' : undefined}>
                 <td className="painel-tabela__td-pos">
                   <span className="pos-badge">{pos}</span>
                 </td>

@@ -123,8 +123,15 @@ export function BarraFiltros({ tela, grupos, onLimpar, algumAtivo = false }: Pro
   return (
     <div className={`barra-filtros${aberta ? '' : ' is-colapsada'}`}>
       {/* O botão só aparece quando há o que colapsar: nas telas em que a faixa
-          cabe numa linha, ela continua exatamente como era. */}
-      {transbordou && (
+          cabe numa linha, ela continua exatamente como era.
+
+          ⚠️ `|| !aberta` não é enfeite. A medição só roda com a faixa ABERTA
+          (acima), então `transbordou` nasce `false` a cada carga. Quem recolheu a
+          faixa pelo botão e recarregou a página tinha a escolha "fechada" em
+          `localStorage`, a faixa nascia fechada, nunca media, e ficava SEM o
+          botão para reabri-la — presa, com todos os filtros escondidos, até
+          limpar o storage. Faixa fechada sempre tem de ter como abrir. */}
+      {(transbordou || !aberta) && (
         <button
           type="button"
           className="barra-filtros__alternar"

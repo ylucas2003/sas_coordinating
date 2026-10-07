@@ -42,3 +42,20 @@
 .tabela-th.is-ordenada .tabela-th__btn {
   color: var(--sas-acao);
 }
+
+/* O "i" dentro de um grupo da faixa (Corte, Presença) tem 18px, e no toque o
+   dedo não acerta 18px. A área ampliada é invisível (`::after`) e cabe na folga
+   entre o "i" e a pílula ao lado. Mesma conta do "i" do seletor de régua
+   (painel.css) — por isso escopado à faixa, e não em `.botao-info` para todo
+   lugar: no cartão de questão do Banco ele convive com outros botões. */
+@media (max-width: 760px) {
+  .barra-filtros .botao-info {
+    position: relative;
+  }
+
+  .barra-filtros .botao-info::after {
+    content: '';
+    position: absolute;
+    inset: -13px;
+  }
+}

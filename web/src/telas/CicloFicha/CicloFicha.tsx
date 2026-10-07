@@ -4,7 +4,8 @@ import { Link, useParams } from 'react-router-dom';
 import { CartaoDeCampo } from '../../componentes/ui/Campo';
 import { FichaNota } from '../../componentes/dialogos/FichaNota';
 import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
-import { BarraFiltros, Busca, Pills } from '../../componentes/ui/filtros/BarraFiltros';
+import { BotaoInfo } from '../../componentes/ui/BotaoInfo';
+import { BarraFiltros, Busca, Pills, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
 import { SeletorCriterio } from '../../componentes/ui/SeletorCriterio';
 import { BlocoPendenciasCanvas } from './PendenciasCanvas';
 import { TabelaDoCiclo } from './TabelaDoCiclo';
@@ -20,6 +21,8 @@ import {
   estatisticasDoSimulado, montarPainel, nomeSede, normMateria,
 } from '../../dominio/painel';
 import type { ClassificacaoPorAluno, OrdenacaoPainel } from '../../dominio/painel';
+import { filtrarPorSituacao, provasQueContam } from '../../dominio/situacaoDoAluno';
+import type { FiltroDeCorte, FiltroDePresenca } from '../../dominio/situacaoDoAluno';
 import {
   useAlunos, useCiclo, useCiclos, useClassificacaoCiclo, useCriteriosDisponiveis,
   useEstatisticasCiclo, useNotasDoCiclo, usePendenciasCanvas, useSedes, useSimulados, useTurmas,
@@ -105,6 +108,16 @@ const CASAS_DO_CALENDARIO = Array.from({ length: 24 }, (_, i) => ({
   y: 80 + Math.floor(i / 6) * 32,
 }));
 
+/** Os rótulos dos recortes de situação: na pílula e no resumo da faixa colapsada. */
+const ROTULO_CORTE: Record<FiltroDeCorte, string> = {
+  cortados: 'Cortados',
+  'nao-cortados': 'Não cortados',
+};
+const ROTULO_PRESENCA: Record<FiltroDePresenca, string> = {
+  presentes: 'Presentes',
+  ausentes: 'Ausentes',
+};
+
 /** O nome do ordenador, curto, para a faixa de filtros colapsada (R6). */
 const ROTULO_ORDEM_CURTO: Record<OrdenacaoPainel, string> = {
   distancia: 'pior primeiro',
@@ -144,6 +157,10 @@ export function CicloFicha() {
   const [turmaIds, setTurmaIds] = useState<ReadonlySet<string>>(new Set());
   const [busca, setBusca] = useState('');
   const [fase, setFase] = useState<'1' | '2'>('1');
+  // `null` = sem recorte. Corte e presença se combinam: "cortados E presentes"
+  // é quem a régua cortou por desempenho, não por faltar.
+  const [corte, setCorte] = useState<FiltroDeCorte | null>(null);
+  const [presenca, setPresenca] = useState<FiltroDePresenca | null>(null);
   // R6 · a tabela ABRE pela distância do corte, ascendente — o pior primeiro.
   // É o que substitui a cor como mecanismo de varredura, e por isso é o padrão
   // e não mais uma opção na lista.
@@ -225,6 +242,23 @@ export function CicloFicha() {
       ciclo, todos, alunosFiltrados, notasPorSim, fase, ordenacao, classificacao,
       classificacaoResp?.criterio,
     ],
+  );
+
+  // Os recortes de situação peneiram DEPOIS de `montarPainel`, e não antes
+  // como sede e turma: dependem de `notasAluno` e das colunas que ele devolve.
+  // Consequência que é escolha: a linha "Média da turma" segue sendo a do
+  // recorte de sede/turma/busca, e não encolhe quando se filtra por situação —
+  // a referência contra a qual se lê cada linha não deve mudar de sentido
+  // porque alguém pediu só os cortados.
+  const alunosDaTabela = useMemo(
+    () => filtrarPorSituacao(dados.alunosOrdenados, {
+      corte,
+      presenca,
+      classificacao,
+      provas: provasQueContam(dados.colunas, hoje),
+      notasAluno: dados.notasAluno,
+    }),
+    [dados.alunosOrdenados, dados.colunas, dados.notasAluno, corte, presenca, classificacao, hoje],
   );
 
   // A fase escolhida pode não existir neste ciclo — segue a que sobrou.
@@ -374,7 +408,8 @@ export function CicloFicha() {
   const aplicadas = doCiclo.filter((s) => s.dataAplicacao && s.dataAplicacao <= hoje).length;
   const previstas = ciclo.simuladoIds.length || doCiclo.length;
 
-  const algumFiltroAtivo = sedeIds.size > 0 || turmaIds.size > 0 || busca.trim() !== '';
+  const algumFiltroAtivo = sedeIds.size > 0 || turmaIds.size > 0 || busca.trim() !== ''
+    || corte !== null || presenca !== null;
 
   return (
     <div className="tela">
@@ -537,6 +572,8 @@ export function CicloFicha() {
           setSedeIds(new Set());
           setTurmaIds(new Set());
           setBusca('');
+          setCorte(null);
+          setPresenca(null);
         }}
         grupos={[
           {
@@ -563,6 +600,48 @@ export function CicloFicha() {
                 valor={dados.faseSelecionada}
                 onEscolher={setFase}
               />
+            ),
+          },
+          {
+            chave: 'corte', rotulo: 'Corte',
+            resumo: corte ? ROTULO_CORTE[corte] : null,
+            corpo: (
+              <>
+                <PillsUnica
+                  opcoes={[
+                    { valor: 'cortados' as const, label: ROTULO_CORTE.cortados },
+                    { valor: 'nao-cortados' as const, label: ROTULO_CORTE['nao-cortados'] },
+                  ]}
+                  selecionado={corte}
+                  // Clicar na ativa a desliga: o estado neutro é "sem recorte".
+                  onSelecionar={(v) => setCorte((atual) => (atual === v ? null : v))}
+                />
+                <BotaoInfo
+                  rotulo="Como funciona o filtro de corte"
+                  texto="Usa a régua escolhida acima. Quem não tem nota nenhuma neste ciclo não foi avaliado pela régua, então não aparece nem em cortados nem em não cortados."
+                />
+              </>
+            ),
+          },
+          {
+            chave: 'presenca', rotulo: 'Presença',
+            resumo: presenca ? ROTULO_PRESENCA[presenca] : null,
+            corpo: (
+              <>
+                <PillsUnica
+                  opcoes={[
+                    { valor: 'presentes' as const, label: ROTULO_PRESENCA.presentes },
+                    { valor: 'ausentes' as const, label: ROTULO_PRESENCA.ausentes },
+                  ]}
+                  selecionado={presenca}
+                  onSelecionar={(v) => setPresenca((atual) => (atual === v ? null : v))}
+                />
+                <BotaoInfo
+                  rotulo="Como funciona o filtro de presença"
+                  largura={300}
+                  texto="Ausente é quem zerou ou está sem nota em pelo menos uma das provas já aplicadas da fase em tela. Presente é quem fez todas com nota acima de zero. Só peneira a tabela: a régua, os indicadores do topo e a coluna Distância continuam contando o zero como nota."
+                />
+              </>
             ),
           },
           {
@@ -628,7 +707,7 @@ export function CicloFicha() {
           <div className="empty-state">{dados.erro}</div>
         ) : (
           <TabelaDoCiclo
-            alunos={dados.alunosOrdenados}
+            alunos={alunosDaTabela}
             colunas={dados.colunas}
             notasAluno={dados.notasAluno}
             notasIgnoradas={dados.notasIgnoradas}
