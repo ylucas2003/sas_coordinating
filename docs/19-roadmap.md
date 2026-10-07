@@ -34,8 +34,9 @@
 > linha de código.
 >
 > Em **15/09** começou a captação externa
-> ([41](41-plano-captacao-externa.md)) — schema e pipeline rodando só em dev,
-> tela e rotas ainda por escrever.
+> ([41](41-plano-captacao-externa.md)) — hoje em produção, com 10 provas e
+> busca nos dois sentidos (nome → conquistas e, desde 07/10, conquista →
+> nomes; ver o bloco no fim da §3).
 
 ---
 
@@ -680,10 +681,19 @@ dia, o direito não sabe dizer de qual cantina ele come, e a trava de
 
 ### 🔨 Captação externa · achar potencial aluno cruzando resultado de prova pública *(15/09)*
 
-> **Schema e pipeline RODANDO LOCAL, nada em produção.** Migrations `0056` e
-> `0057` aplicadas só neste ambiente de dev. Tela em Administração e rotas de
-> API são desenho, sem uma linha escrita — ver
-> [41-plano-captacao-externa.md](41-plano-captacao-externa.md) §7.
+> **Em produção** (`/administracao/captacao`), atualizado em 07/10/2026. O
+> estado fonte por fonte está no [41](41-plano-captacao-externa.md), que se
+> lê de trás pra frente (§15–§20 são o modelo vigente). O que está aqui
+> embaixo sobre "nome+escola" e "OBMEP 2022-2025" é o retrato de 15/09.
+>
+> - **10 provas**: OBMEP, OBM, OBF, OBI, OBQ, OBQ Jr (olimpíada) e ITA, IME,
+>   EFOMM, Escola Naval (vestibular). OBA e AFA pesquisadas e descartadas.
+>   166.034 conquistas, 101.268 nomes.
+> - **Identidade**: 1 perfil por nome; separar homônimo é manual, arrastando
+>   (41 §15–§17).
+> - **Busca por conquista** (41 §20, migration `0068`): prova, resultado, ano
+>   e público (Fundamental 2, Médio, Pré-vestibular). **Escrita e verificada
+>   local, ainda não em produção** — o §20.6 tem a ordem do deploy.
 
 Não é sobre os ~900 alunos que já estão no `aluno` — é sobre gente de fora,
 pra achar quem convidar pro colégio. Três tabelas novas (`prova_externa`,

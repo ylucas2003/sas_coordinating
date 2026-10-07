@@ -1,3 +1,5 @@
+import type { Evidencia, Faixa, Publico } from '../tipos/captacao';
+
 // Regra de negócio da captação externa (docs/41 §2 e §3): a série que um
 // candidato deve estar cursando HOJE, calculada na leitura a partir da série
 // de referência da conquista mais recente — nunca guardada, porque um número
@@ -76,3 +78,65 @@ export const ROTULO_MATERIA: Record<string, string> = {
   classificacao: 'Classificação',
   total: 'Total',
 };
+
+// ─── Busca por conquista — o caminho inverso (docs/41 §20) ─────────────────
+
+/** Rótulo de cada faixa (0068). `classificado_final` é "passou em tudo, sem
+ * vaga confirmada" — excedente do IME, reserva da EFOMM/Escola Naval. */
+export const ROTULO_FAIXA: Record<Faixa, string> = {
+  ouro: 'Ouro',
+  prata: 'Prata',
+  bronze: 'Bronze',
+  mencao: 'Menção honrosa',
+  finalista: 'Finalista',
+  aprovado: 'Aprovado',
+  classificado_final: 'Classificado sem vaga',
+  passou_de_fase: 'Passou de fase',
+  participou: 'Participou',
+  ausente: 'Ausente',
+};
+
+/** Que faixas cada categoria de prova produz — a régua de
+ * `_captacao_comum.py`: olimpíada só dá medalha/menção/finalista, vestibular
+ * só dá a escada de aprovação. */
+const FAIXAS_POR_CATEGORIA: Record<string, readonly Faixa[]> = {
+  olimpiada: ['ouro', 'prata', 'bronze', 'mencao', 'finalista'],
+  vestibular: ['aprovado', 'classificado_final', 'passou_de_fase', 'participou', 'ausente'],
+};
+
+const TODAS_AS_FAIXAS = Object.keys(ROTULO_FAIXA) as Faixa[];
+
+/**
+ * As faixas que fazem sentido oferecer dado o recorte de provas: sem prova
+ * escolhida, todas; com provas escolhidas, só as das categorias delas — pedir
+ * "Ouro" no ITA não traria ninguém, e a pílula só confundiria. Categoria que
+ * esta versão não conhece libera tudo, em vez de esconder filtro.
+ */
+export function faixasOferecidas(
+  provasEscolhidas: readonly string[],
+  provas: ReadonlyArray<{ nome: string; categoria: string }>,
+): Faixa[] {
+  if (!provasEscolhidas.length) return TODAS_AS_FAIXAS;
+  const categorias = new Set(
+    provas.filter((p) => provasEscolhidas.includes(p.nome)).map((p) => p.categoria),
+  );
+  if ([...categorias].some((c) => !(c in FAIXAS_POR_CATEGORIA))) return TODAS_AS_FAIXAS;
+  return TODAS_AS_FAIXAS.filter((f) =>
+    [...categorias].some((c) => FAIXAS_POR_CATEGORIA[c].includes(f)),
+  );
+}
+
+export const ROTULO_PUBLICO: Record<Publico, string> = {
+  fundamental: 'Fundamental 2',
+  medio: 'Médio',
+  pre_vestibular: 'Pré-vestibular',
+};
+
+/** "Ouro · OBMEP 2025 · Nível 1" — a linha que diz por que o nome entrou. O
+ * texto cru da fonte (`resultado`) fica pro título/ficha; aqui vai a faixa,
+ * que é o que o filtro escolheu. Vestibular não tem nível. */
+export function rotuloEvidencia(e: Evidencia): string {
+  return [ROTULO_FAIXA[e.faixa] ?? e.resultado, `${e.prova} ${e.ano}`, e.nivel]
+    .filter(Boolean)
+    .join(' · ');
+}

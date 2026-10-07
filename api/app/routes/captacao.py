@@ -35,6 +35,17 @@ do nome (`scripts/_captacao_comum.py::retrato_dominante`), e só cria perfil
 novo pra nome nunca visto. Isso não reabre o bug de 25/09: continua sem
 tabela de decisão, a lista geral continua incondicional, e separar continua
 manual e reversível a qualquer momento.
+
+Caminho inverso (07/10/2026, docs/41 §20): além de nome → conquistas, a lista
+acha nome A PARTIR de conquista — prova, faixa, ano e público (Fundamental 2,
+Médio, Pré-vestibular), todos valendo para a MESMA conquista. Quando algum
+desses critérios vem, `listar_candidatos` chama a função
+`buscar_candidatos_por_conquista` (0068) por RPC em vez de ler a view.
+
+Handlers são `def`, e não `async def`: o cliente PostgREST é síncrono, e um
+`async def` rodaria cada `.execute()` no event loop (api/CLAUDE.md,
+convenção de 29/09/2026) — a busca, com `count="exact"`, travava o processo
+inteiro a cada tecla digitada.
 """
 
 from __future__ import annotations
@@ -42,11 +53,12 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query, Request
 from pydantic import BaseModel, field_validator
 
-from scripts._captacao_comum import retrato_dominante
+from scripts._captacao_comum import FAIXAS, normalizar_nome, retrato_dominante
 
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
@@ -69,6 +81,19 @@ STATUS_CAPTACAO = ("novo", "contatado", "interessado", "matriculado", "descartad
 POR_PAGINA_PADRAO = 20
 POR_PAGINA_MAXIMO = 100
 
+# Público da captação (decisão de 07/10/2026): Fundamental 2, Médio e
+# Pré-vestibular. A tradução pra ano de conclusão mora na função da 0068.
+PUBLICOS = ("fundamental", "medio", "pre_vestibular")
+
+# Mesmo fuso de `banco/missao.py` — a "virada do ano" é a do colégio.
+_FUSO_DA_ESCOLA = ZoneInfo("America/Fortaleza")
+
+
+def _ano_ingresso_padrao() -> int:
+    """Captação é pra turma do ANO QUE VEM — em outubro ninguém mais entra na
+    turma deste ano. O público é calculado pra esse ano (docs/41 §20)."""
+    return datetime.now(_FUSO_DA_ESCOLA).year + 1
+
 # Um candidato_externo por linha — usada pela ficha de um nome (vários por
 # vez) e pelas rotas do modo avançado.
 _COLUNAS_CANDIDATO = (
@@ -84,7 +109,7 @@ _COLUNAS_CANDIDATO = (
 # migration).
 _COLUNAS_CANDIDATO_POR_NOME = (
     "nome_normalizado, nome, escolas, cidades, ufs, status_captacao, "
-    "conquistas_total, provas_distintas, perfis_no_grupo, ano_mais_recente, "
+    "conquistas_total, provas_distintas, participacoes, perfis_no_grupo, ano_mais_recente, "
     "criado_em, atualizado_em"
 )
 
@@ -157,23 +182,46 @@ class AtualizarCandidatoBody(BaseModel):
         return v
 
 
+def _recusar_fora_do_vocabulario(nome: str, valores: list[str] | None, vocabulario: tuple[str, ...]) -> None:
+    """400 em vez de um filtro que não casa com nada em silêncio (ou um 23514
+    do Postgres por trás do PostgREST) — mesmo motivo de `STATUS_CAPTACAO`."""
+    desconhecidos = [v for v in valores or [] if v not in vocabulario]
+    if desconhecidos:
+        raise HTTPException(status_code=400, detail=f"{nome} deve ser um de {vocabulario}")
+
+
 @router.get("/candidatos")
-async def listar_candidatos(
+def listar_candidatos(
     uf: str | None = Query(None, description="sigla, ex.: 'CE' — bate se QUALQUER conquista do nome tiver essa UF"),
     status_captacao: str | None = Query(None, description="bate se QUALQUER perfil do nome tiver esse status"),
     conquistas_min: int | None = Query(
         None, ge=1, description="nº mínimo de conquistas cruzadas — o sinal mais forte de lead"
     ),
-    busca: str | None = Query(None, description="texto no nome"),
+    busca: str | None = Query(None, description="texto no nome — sem diferença de acento nem de maiúscula"),
+    prova: list[str] | None = Query(None, description="nome da prova (OBMEP, ITA...) — repetível"),
+    faixa: list[str] | None = Query(None, description=f"repetível, um de {FAIXAS}"),
+    ano_min: int | None = Query(None, ge=1990, le=2100, description="ano da conquista, desde"),
+    ano_max: int | None = Query(None, ge=1990, le=2100, description="ano da conquista, até"),
+    publico: list[str] | None = Query(None, description=f"repetível, um de {PUBLICOS}"),
+    ano_ingresso: int | None = Query(
+        None, ge=2000, le=2100, description="ano letivo de referência do público — padrão: o ano que vem"
+    ),
     pagina: int = Query(1, ge=1, description="1-based, como a URL mostra"),
     por_pagina: int = Query(POR_PAGINA_PADRAO, ge=1, le=POR_PAGINA_MAXIMO),
 ) -> dict:
-    """Página de NOMES (não de candidato_externo), de quem mais cruzou
-    conquista pra quem menos — é a ordem que separa lead forte de aparição
-    única. Cada nome vira UMA linha sempre, incondicional, mesmo quando por
-    baixo tem vários `candidato_externo` ainda não arrumados à mão
-    (`perfis_no_grupo` diz quantos) — quem está caçando lead não devia ver a
-    fragmentação interna do resolver.
+    """Página de NOMES (não de candidato_externo). Cada nome vira UMA linha
+    sempre, incondicional, mesmo quando por baixo tem vários
+    `candidato_externo` ainda não arrumados à mão (`perfis_no_grupo` diz
+    quantos) — quem está caçando lead não devia ver a fragmentação interna do
+    resolver.
+
+    Dois caminhos, a mesma resposta:
+    - **sem critério de conquista**: a view por nome, de quem mais cruzou
+      conquista pra quem menos — participação (1ª fase do ITA) não conta
+      (0068);
+    - **com prova/faixa/ano/público**: a função `buscar_candidatos_por_conquista`
+      (0068), que exige que UMA MESMA conquista case todos esses critérios e
+      devolve, em `evidencias`, as que fizeram o nome entrar.
 
     **Paginação de verdade**, ao contrário do resto do sistema (CLAUDE.md,
     armadilha 2). Lá o teto é proibido porque truncaria leitura ESTATÍSTICA em
@@ -185,8 +233,53 @@ async def listar_candidatos(
         raise HTTPException(
             status_code=400, detail=f"status_captacao deve ser um de {STATUS_CAPTACAO}"
         )
+    _recusar_fora_do_vocabulario("faixa", faixa, FAIXAS)
+    _recusar_fora_do_vocabulario("publico", publico, PUBLICOS)
 
+    # Busca pelo nome NORMALIZADO, com o termo normalizado do mesmo jeito: quem
+    # digita "Goncalves" acha "Gonçalves". `%`/`_` saem porque são curinga do
+    # LIKE, não letra de nome.
+    termo = normalizar_nome(busca).replace("%", "").replace("_", "") if busca else ""
+    ingresso = ano_ingresso or _ano_ingresso_padrao()
+    inicio = (pagina - 1) * por_pagina
     cliente = get_supabase()
+
+    if prova or faixa or ano_min is not None or ano_max is not None or publico:
+        linhas = (
+            cliente.rpc(
+                "buscar_candidatos_por_conquista",
+                {
+                    "p_provas": prova or None,
+                    "p_faixas": faixa or None,
+                    "p_ano_min": ano_min,
+                    "p_ano_max": ano_max,
+                    "p_publicos": publico or None,
+                    "p_ano_ingresso": ingresso,
+                    "p_uf": uf.upper() if uf else None,
+                    "p_status": status_captacao,
+                    "p_conquistas_min": conquistas_min,
+                    "p_busca": termo or None,
+                    "p_limite": por_pagina,
+                    "p_deslocamento": inicio,
+                },
+            )
+            .execute()
+            .data
+            or []
+        )
+        # O total vem repetido em toda linha (window antes do LIMIT, 0068) —
+        # sai daqui pra não viajar 20 vezes pro front.
+        total = int(linhas[0]["total_filtrado"]) if linhas else 0
+        for linha in linhas:
+            linha.pop("total_filtrado", None)
+        return {
+            "candidatos": linhas,
+            "total": total,
+            "pagina": pagina,
+            "por_pagina": por_pagina,
+            "ano_ingresso": ingresso,
+        }
+
     consulta = cliente.table("v_candidato_externo_por_nome").select(
         _COLUNAS_CANDIDATO_POR_NOME, count="exact"
     )
@@ -199,13 +292,12 @@ async def listar_candidatos(
         consulta = consulta.contains("status_captacao", [status_captacao])
     if conquistas_min is not None:
         consulta = consulta.gte("conquistas_total", conquistas_min)
-    if busca and busca.strip():
-        consulta = consulta.ilike("nome", f"%{busca.strip()}%")
+    if termo:
+        consulta = consulta.ilike("nome_normalizado", f"%{termo}%")
 
     # nome_normalizado no fim do `order`: é a chave única da linha (a view
     # agrupa por ele), então basta como critério de desempate total — ao
     # contrário da view antiga, não precisa mais de um `id` de representante.
-    inicio = (pagina - 1) * por_pagina
     resposta = (
         consulta.order("conquistas_total", desc=True)
         .order("nome_normalizado")
@@ -214,11 +306,17 @@ async def listar_candidatos(
     )
     linhas = resposta.data or []
     total = int(resposta.count) if resposta.count is not None else len(linhas)
-    return {"candidatos": linhas, "total": total, "pagina": pagina, "por_pagina": por_pagina}
+    return {
+        "candidatos": linhas,
+        "total": total,
+        "pagina": pagina,
+        "por_pagina": por_pagina,
+        "ano_ingresso": ingresso,
+    }
 
 
 @router.get("/provas")
-async def listar_provas() -> dict:
+def listar_provas() -> dict:
     """Uma linha por prova (ITA, IME, OBMEP...) com o intervalo de anos
     carregado — o rodapé "quais fontes alimentam esta lista" de
     `Captacao.tsx`. 10 linhas hoje, sem paginação."""
@@ -236,7 +334,7 @@ async def listar_provas() -> dict:
 
 
 @router.get("/perfis/{nome_normalizado}")
-async def obter_perfis_do_nome(nome_normalizado: str = Path(...)) -> dict:
+def obter_perfis_do_nome(nome_normalizado: str = Path(...)) -> dict:
     """Todo `candidato_externo` com este nome, cada um com as próprias
     conquistas — a ficha de QUALQUER nome (não só "casos em disputa": com o
     default sendo 1 perfil por nome (docs/41 §16), a maioria já tem
@@ -285,7 +383,7 @@ async def obter_perfis_do_nome(nome_normalizado: str = Path(...)) -> dict:
 
 
 @router.patch("/candidatos/{candidato_id}")
-async def atualizar_candidato(
+def atualizar_candidato(
     body: AtualizarCandidatoBody,
     request: Request,
     tarefas: BackgroundTasks,
@@ -368,7 +466,7 @@ async def atualizar_candidato(
 
 
 @router.post("/perfis/criar")
-async def criar_perfil(
+def criar_perfil(
     body: NomeNormalizadoBody,
     request: Request,
     tarefas: BackgroundTasks,
@@ -429,7 +527,7 @@ async def criar_perfil(
 
 
 @router.post("/conquistas/mover")
-async def mover_conquista(
+def mover_conquista(
     body: MoverConquistaBody,
     request: Request,
     tarefas: BackgroundTasks,
@@ -521,7 +619,7 @@ async def mover_conquista(
 
 
 @router.delete("/candidatos/{candidato_id}")
-async def remover_candidato_vazio(
+def remover_candidato_vazio(
     request: Request,
     tarefas: BackgroundTasks,
     candidato_id: str = Path(...),

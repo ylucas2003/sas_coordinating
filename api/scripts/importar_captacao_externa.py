@@ -17,6 +17,12 @@ Uso:
 Depois de importar, rode `scripts/resolver_candidatos_externos.py` pra
 cruzar as conquistas em candidatos.
 
+Grava também `faixa` (0068, docs/41 §20) pela régua de
+`_captacao_comum.py::classificar_faixa` — e RECUSA o lote inteiro, antes de
+escrever qualquer linha, se algum resultado não casar com a régua: fonte nova
+(ou texto novo numa fonte velha) exige ensinar a régua primeiro, nunca entra
+sem faixa em silêncio.
+
 Formato esperado de cada item do JSON (ver captacao-externa/pipeline/obmep.py):
     prova_nome, ano, nivel_texto, serie_referencia_min, serie_referencia_max,
     resultado, nome_informado, escola_informada, cidade_informada,
@@ -34,6 +40,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.supabase_client import criar_cliente_supabase
+from scripts._captacao_comum import classificar_faixa
 
 TAMANHO_LOTE = 200
 
@@ -78,13 +85,28 @@ def main() -> int:
     ap.add_argument("--prova-fonte", default=None)
     args = ap.parse_args()
 
+    lotes: list[tuple[Path, list[dict]]] = [
+        (arquivo, json.loads(arquivo.read_text(encoding="utf-8"))) for arquivo in args.arquivos
+    ]
+    sem_faixa: set[str] = set()
+    for _, registros in lotes:
+        for r in registros:
+            try:
+                r["faixa"] = classificar_faixa(r["prova_nome"], r["resultado"])
+            except ValueError as erro:
+                sem_faixa.add(str(erro))
+    if sem_faixa:
+        print(f"{len(sem_faixa)} resultado(s) sem faixa — nada foi importado:", file=sys.stderr)
+        for erro in sorted(sem_faixa):
+            print(f"  {erro}", file=sys.stderr)
+        return 1
+
     cliente = criar_cliente_supabase()
     provas_cache: dict[str, str] = {}
     total_lidos = 0
     total_gravados = 0
 
-    for arquivo in args.arquivos:
-        registros: list[dict] = json.loads(arquivo.read_text(encoding="utf-8"))
+    for arquivo, registros in lotes:
         total_lidos += len(registros)
         if not registros:
             continue
@@ -110,6 +132,7 @@ def main() -> int:
                     "uf_informada": r.get("uf_informada"),
                     "fonte_url": r["fonte_url"],
                     "notas_por_materia": r.get("notas_por_materia"),
+                    "faixa": r["faixa"],
                 }
             )
 
@@ -123,6 +146,9 @@ def main() -> int:
 
         print(f"{arquivo.name}: {len(registros)} registros", file=sys.stderr)
 
+    # Reimportar pode mudar a faixa de linha que já tem dono — e a lista
+    # geral, materializada (0063), conta conquista pela faixa (0068).
+    cliente.rpc("atualizar_v_candidato_externo_por_nome", {}).execute()
     print(f"total: {total_lidos} lidos, {total_gravados} gravados (upsert)", file=sys.stderr)
     return 0
 

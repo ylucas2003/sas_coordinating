@@ -75,7 +75,10 @@ sas/
 │                 verificado no browser; **39 é a refatoração de design da
 │                 coordenação a partir da prancheta** (fases 0 a 5 feitas), e o
 │                 §6 dele é a varredura de consistência — o que ela consertou e
-│                 as seis coisas que ficaram, com caminho
+│                 as seis coisas que ficaram, com caminho; **41 é a captação
+│                 externa** (gente de fora, por resultado público de
+│                 olimpíada/vestibular) — lê-se de trás pra frente: §15–§20
+│                 são o modelo vigente, o resto é histórico
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no

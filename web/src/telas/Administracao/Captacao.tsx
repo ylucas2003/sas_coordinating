@@ -2,10 +2,13 @@ import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
-import { BarraFiltros, Busca, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
-import { resumirTexto } from '../../dominio/filtros';
+import { BarraFiltros, Busca, Pills, PillsUnica } from '../../componentes/ui/filtros/BarraFiltros';
+import { faixasOferecidas, ROTULO_FAIXA, ROTULO_PUBLICO, rotuloEvidencia } from '../../dominio/captacao';
+import { resumirSelecao, resumirTexto, resumirUnica } from '../../dominio/filtros';
 import { useCandidatos, useProvas } from '../../hooks/captacao';
-import type { FiltrosCaptacao as Filtros, StatusCaptacao } from '../../tipos/captacao';
+import type {
+  CandidatoPorNome, Faixa, FiltrosCaptacao as Filtros, Publico, StatusCaptacao,
+} from '../../tipos/captacao';
 
 import '../../../styles/captacao.css';
 
@@ -29,6 +32,13 @@ import '../../../styles/captacao.css';
 // de tudo que qualquer conquista/perfil daquele nome já teve, e clicar no
 // nome abre a mesma tela pra qualquer um (`CaptacaoPerfil.tsx`), fragmentado
 // ou não (simplificação de 25/09/2026).
+//
+// Dois caminhos na MESMA lista (docs/41 §20): do nome pras conquistas (a busca
+// por nome, como sempre), e das conquistas pros nomes — prova, resultado, ano
+// e público. Os critérios de conquista valem todos para UMA MESMA conquista;
+// quando algum está ativo, a coluna "Por que está aqui" mostra qual conquista
+// fez o nome entrar. A unidade do resultado não muda (um nome, que abre o
+// mesmo `CaptacaoPerfil`), por isso não é uma tela à parte.
 
 const STATUS_LABEL: Record<StatusCaptacao, string> = {
   novo: 'Novo',
@@ -48,16 +58,47 @@ const OPCOES_CONQUISTAS: Array<{ valor: number; label: string }> = [
   { valor: 4, label: '4+ conquistas' },
 ];
 
+const PUBLICOS = Object.keys(ROTULO_PUBLICO) as Publico[];
+const OPCOES_PUBLICO = PUBLICOS.map((valor) => ({ valor, label: ROTULO_PUBLICO[valor] }));
+
+/** "desde 2026" … "desde 2022" — conquista antiga é lead frio; cinco anos
+ * cobrem quem ainda está no Fundamental 2 hoje. */
+const ANO_CORRENTE = new Date().getFullYear();
+const OPCOES_ANO = [0, 1, 2, 3, 4].map((recuo) => ({
+  valor: ANO_CORRENTE - recuo,
+  label: `desde ${ANO_CORRENTE - recuo}`,
+}));
+
 const POR_PAGINA = 20;
 const FILTROS_INICIAIS: Filtros = { pagina: 1, por_pagina: POR_PAGINA };
 
-/** Campo vazio é campo ausente — senão `{ uf: '' }` e `{}` viram cache diferente pra mesma pergunta. */
+/** Campo vazio é campo ausente — senão `{ uf: '' }` e `{}` (ou `{ prova: [] }`)
+ * viram cache diferente pra mesma pergunta. */
 function semVazios(filtros: Filtros): Filtros {
   const limpo: Record<string, unknown> = {};
   for (const [chave, valor] of Object.entries(filtros)) {
-    if (valor !== undefined && valor !== null && valor !== '') limpo[chave] = valor;
+    if (valor === undefined || valor === null || valor === '') continue;
+    if (Array.isArray(valor) && valor.length === 0) continue;
+    limpo[chave] = valor;
   }
   return limpo as Filtros;
+}
+
+/** Liga/desliga um valor numa seleção múltipla, devolvendo lista nova. */
+function alternar<V>(lista: readonly V[] | undefined, valor: V): V[] {
+  const atual = lista ?? [];
+  return atual.includes(valor) ? atual.filter((v) => v !== valor) : [...atual, valor];
+}
+
+/** A célula de conquistas: participação (1ª fase do ITA feita ou faltada)
+ * não conta como conquista desde a 0068, mas continua visível ao lado. */
+function fmtConquistas(c: CandidatoPorNome): string {
+  const base = c.conquistas_total ? String(c.conquistas_total) : '—';
+  const ate = c.ano_mais_recente ? ` · até ${c.ano_mais_recente}` : '';
+  const participou = c.participacoes
+    ? ` · ${c.participacoes} ${c.participacoes === 1 ? 'participação' : 'participações'}`
+    : '';
+  return `${base}${ate}${participou}`;
 }
 
 function fmtQuando(iso: string): string {
@@ -83,6 +124,20 @@ export function Captacao() {
 
   const candidatos = data?.candidatos ?? [];
   const total = data?.total ?? 0;
+  const anoIngresso = data?.ano_ingresso ?? ANO_CORRENTE + 1;
+  const listaDeProvas = provas?.provas ?? [];
+  const provasEscolhidas = filtros.prova ?? [];
+  const faixasEscolhidas = filtros.faixa ?? [];
+  const publicosEscolhidos = filtros.publico ?? [];
+  // A ativa fica sempre visível, mesmo se a prova escolhida depois não a
+  // produzir — senão vira filtro em vigor que ninguém enxerga pra desmarcar.
+  const opcoesFaixa = [
+    ...new Set<Faixa>([...faixasOferecidas(provasEscolhidas, listaDeProvas), ...faixasEscolhidas]),
+  ].map((valor) => ({ valor, label: ROTULO_FAIXA[valor] }));
+  const opcoesProva = listaDeProvas.map((p) => ({ valor: p.nome, label: p.nome }));
+  const porConquista = Boolean(
+    provasEscolhidas.length || faixasEscolhidas.length || filtros.ano_min || publicosEscolhidos.length,
+  );
   const pagina = data?.pagina ?? filtros.pagina ?? 1;
   const porPagina = data?.por_pagina ?? filtros.por_pagina ?? POR_PAGINA;
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
@@ -93,7 +148,7 @@ export function Captacao() {
   }, []);
 
   const algumAtivo = Boolean(
-    filtros.uf || filtros.status_captacao || filtros.conquistas_min || filtros.busca,
+    porConquista || filtros.uf || filtros.status_captacao || filtros.conquistas_min || filtros.busca,
   );
 
   return (
@@ -103,7 +158,8 @@ export function Captacao() {
       <div className="tela-cabecalho">
         <p className="tela-subtitulo">
           Gente que nunca estudou aqui, achada cruzando listas públicas de premiação de olimpíada e
-          vestibular. Abra o nome pra ver todas as conquistas cruzadas dessa pessoa.
+          vestibular. Procure pelo nome, ou pelo que a pessoa conquistou — prova, resultado, ano e
+          público — e abra o nome pra ver tudo dela.
         </p>
       </div>
 
@@ -115,6 +171,54 @@ export function Captacao() {
           setFiltros(FILTROS_INICIAIS);
         }}
         grupos={[
+          {
+            chave: 'prova',
+            rotulo: 'Prova',
+            resumo: resumirSelecao(new Set(provasEscolhidas), opcoesProva, 'prova', 'provas'),
+            corpo: (
+              <Pills
+                opcoes={opcoesProva}
+                selecionados={new Set(provasEscolhidas)}
+                onToggle={(v) => filtrar({ prova: alternar(filtros.prova, v) })}
+              />
+            ),
+          },
+          {
+            chave: 'faixa',
+            rotulo: 'Resultado',
+            resumo: resumirSelecao(new Set(faixasEscolhidas), opcoesFaixa, 'resultado', 'resultados'),
+            corpo: (
+              <Pills
+                opcoes={opcoesFaixa}
+                selecionados={new Set(faixasEscolhidas)}
+                onToggle={(v) => filtrar({ faixa: alternar(filtros.faixa, v) })}
+              />
+            ),
+          },
+          {
+            chave: 'ano',
+            rotulo: 'Ano',
+            resumo: resumirUnica(filtros.ano_min, OPCOES_ANO),
+            corpo: (
+              <PillsUnica
+                opcoes={OPCOES_ANO}
+                selecionado={filtros.ano_min ?? null}
+                onSelecionar={(v) => filtrar({ ano_min: filtros.ano_min === v ? undefined : v })}
+              />
+            ),
+          },
+          {
+            chave: 'publico',
+            rotulo: `Público em ${anoIngresso}`,
+            resumo: resumirSelecao(new Set(publicosEscolhidos), OPCOES_PUBLICO, 'público', 'públicos'),
+            corpo: (
+              <Pills
+                opcoes={OPCOES_PUBLICO}
+                selecionados={new Set(publicosEscolhidos)}
+                onToggle={(v) => filtrar({ publico: alternar(filtros.publico, v) })}
+              />
+            ),
+          },
           {
             chave: 'conquistas',
             rotulo: 'Conquistas',
@@ -197,6 +301,7 @@ export function Captacao() {
             <thead>
               <tr>
                 <th>Nome</th>
+                {porConquista && <th>Por que está aqui</th>}
                 <th>Escola</th>
                 <th>Cidade/UF</th>
                 <th>Conquistas</th>
@@ -222,14 +327,21 @@ export function Captacao() {
                       )}
                     </span>
                   </td>
+                  {porConquista && (
+                    <td data-rotulo="Por que está aqui" title={c.evidencias?.[0]?.resultado}>
+                      {c.evidencias?.[0] ? rotuloEvidencia(c.evidencias[0]) : '—'}
+                      {(c.conquistas_casadas ?? 0) > 1 && (
+                        <span className="section__subtitle" style={{ fontSize: 12 }}>
+                          {` +${(c.conquistas_casadas ?? 0) - 1}`}
+                        </span>
+                      )}
+                    </td>
+                  )}
                   <td data-rotulo="Escola">{fmtLista(c.escolas)}</td>
                   <td data-rotulo="Cidade/UF">
                     {fmtLista(c.cidades)} · {fmtLista(c.ufs)}
                   </td>
-                  <td data-rotulo="Conquistas">
-                    {c.conquistas_total}
-                    {c.ano_mais_recente && ` · até ${c.ano_mais_recente}`}
-                  </td>
+                  <td data-rotulo="Conquistas">{fmtConquistas(c)}</td>
                   <td data-rotulo="Status">{fmtLista(c.status_captacao.map((s) => STATUS_LABEL[s]))}</td>
                   <td data-rotulo="Última atualização" data-secundario>{fmtQuando(c.atualizado_em)}</td>
                 </tr>

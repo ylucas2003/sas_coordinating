@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rotuloDaSerie, serieEstimadaHoje } from './captacao';
+import { faixasOferecidas, rotuloDaSerie, rotuloEvidencia, serieEstimadaHoje } from './captacao';
 
 describe('serieEstimadaHoje', () => {
   it('desloca a faixa pelos anos decorridos desde a referência', () => {
@@ -33,5 +33,42 @@ describe('rotuloDaSerie', () => {
 
   it('sem faixa, sem rótulo', () => {
     expect(rotuloDaSerie(null)).toBeNull();
+  });
+});
+
+describe('faixasOferecidas', () => {
+  const provas = [
+    { nome: 'OBMEP', categoria: 'olimpiada' },
+    { nome: 'ITA', categoria: 'vestibular' },
+  ];
+
+  it('sem prova escolhida, oferece as dez', () => {
+    expect(faixasOferecidas([], provas)).toHaveLength(10);
+  });
+
+  it('só olimpíada: não oferece "Aprovado", que não traria ninguém', () => {
+    expect(faixasOferecidas(['OBMEP'], provas)).toEqual(['ouro', 'prata', 'bronze', 'mencao', 'finalista']);
+  });
+
+  it('olimpíada e vestibular juntos: as duas escadas', () => {
+    expect(faixasOferecidas(['OBMEP', 'ITA'], provas)).toHaveLength(10);
+  });
+
+  it('categoria desconhecida libera tudo em vez de esconder filtro', () => {
+    expect(faixasOferecidas(['X'], [{ nome: 'X', categoria: 'concurso_nivel_medio' }])).toHaveLength(10);
+  });
+});
+
+describe('rotuloEvidencia', () => {
+  it('faixa, prova e ano, e nível quando a fonte publica', () => {
+    expect(
+      rotuloEvidencia({ prova: 'OBMEP', ano: 2025, faixa: 'ouro', resultado: 'Ouro — rede pública', nivel: 'Nível 1' }),
+    ).toBe('Ouro · OBMEP 2025 · Nível 1');
+  });
+
+  it('vestibular não tem nível', () => {
+    expect(
+      rotuloEvidencia({ prova: 'IME', ano: 2025, faixa: 'classificado_final', resultado: 'ATIVA — excedente', nivel: null }),
+    ).toBe('Classificado sem vaga · IME 2025');
   });
 });

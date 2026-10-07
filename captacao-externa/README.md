@@ -71,18 +71,25 @@ cd captacao-externa
 ./.venv/bin/python pipeline/obmep.py --anos 2016 2017 2018 2019 2021 2022 2023 2024 2025
 
 # 2. importar — cria a linha de prova_externa na 1ª vez, upsert em conquista_externa
+#    com a `faixa` (docs/41 §20). Resultado que a régua não conhece RECUSA o lote
+#    inteiro: ensine a régua em api/scripts/_captacao_comum.py antes de importar.
 cd ../api
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/importar_captacao_externa.py \
     ../captacao-externa/dados/obmep_*.json \
     --prova-categoria olimpiada --prova-abrangencia nacional \
     --prova-fonte https://www.obmep.org.br/premiados.htm
 
-# 3. resolver — cruza conquista_externa em candidato_externo (relê tudo, idempotente)
+# 3. resolver — anexa cada conquista órfã ao perfil do nome (ou cria um, se o nome
+#    é novo) e atualiza a lista geral, que é materializada (docs/41 §16 e §20)
 POSTGREST_URL=http://localhost:3000 ./.venv/bin/python scripts/resolver_candidatos_externos.py
 
 # 4. validar — antes de ir pra próxima fonte, conferir uma amostra
 curl -s "http://localhost:3000/conquista_externa?uf_informada=eq.CE&limit=5" | python3 -m json.tool
 ```
+
+⚠️ Os parágrafos abaixo que falam em "funde"/"não funde" descrevem a régua
+nome+escola, que saiu entre 25 e 28/09/2026: hoje o resolver agrupa só por
+NOME, e separar homônimo é manual (docs/41 §15 e §16).
 
 E pra OBM (mesmos passos 2-4, só troca o scraper e o `--prova-fonte`):
 
