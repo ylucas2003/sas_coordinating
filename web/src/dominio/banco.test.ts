@@ -4,6 +4,7 @@ import {
   agruparPorBloco,
   algumFiltroAtivo,
   alternarAno,
+  alternativasTranscritas,
   anosMarcados,
   chaveTopico,
   combinarEstatisticas,
@@ -104,6 +105,32 @@ describe('temGabarito e ehDissertativa', () => {
   it('trata gabarito em branco como ausente', () => {
     expect(temGabarito(questao({ id: 'q3', gabarito: '   ' }))).toBe(false);
     expect(temGabarito(questao({ id: 'q4', gabarito: null }))).toBe(false);
+  });
+});
+
+describe('alternativasTranscritas', () => {
+  it('devolve letra e texto em ordem de letra', () => {
+    const q = questao({
+      id: 'q1',
+      alternativas: { C: 'terceira', A: 'primeira', B: 'segunda' },
+    });
+    expect(alternativasTranscritas(q)).toEqual([
+      { letra: 'A', texto: 'primeira' },
+      { letra: 'B', texto: 'segunda' },
+      { letra: 'C', texto: 'terceira' },
+    ]);
+  });
+
+  it('põe a letra em maiúscula e tira o que está em branco', () => {
+    const q = questao({
+      id: 'q2',
+      alternativas: { a: ' um ', B: '   ', C: '' },
+    });
+    expect(alternativasTranscritas(q)).toEqual([{ letra: 'A', texto: 'um' }]);
+  });
+
+  it('devolve vazio na dissertativa, que não tem alternativa', () => {
+    expect(alternativasTranscritas(questao({ id: 'q3', alternativas: null }))).toEqual([]);
   });
 });
 

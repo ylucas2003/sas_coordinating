@@ -78,6 +78,24 @@ export function letrasDaQuestao(q: QuestaoVestibular): string[] {
   return Array.from({ length: quantas }, (_, i) => String.fromCharCode(65 + i));
 }
 
+/**
+ * As alternativas que a transcrição CONSEGUIU ler, em ordem de letra — para
+ * mostrar o texto quando o enunciado cai da imagem para o texto.
+ *
+ * Fica de fora o que não tem texto: `letrasDaQuestao` completa a série para
+ * não tirar do aluno o botão da resposta certa, mas aqui o texto é a única
+ * fonte, e uma linha "B)" vazia diria que a alternativa existe e está em
+ * branco. A chave é normalizada porque o banco já trouxe `a` minúsculo.
+ */
+export function alternativasTranscritas(
+  q: QuestaoVestibular,
+): { letra: string; texto: string }[] {
+  return Object.entries(q.alternativas ?? {})
+    .map(([letra, texto]) => ({ letra: letra.toUpperCase(), texto: texto.trim() }))
+    .filter((alternativa) => alternativa.texto !== '')
+    .sort((a, b) => a.letra.localeCompare(b.letra));
+}
+
 // ─── Filtro em memória ───────────────────────────────────────────────────
 
 /**
