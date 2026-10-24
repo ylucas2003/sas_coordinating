@@ -59,6 +59,8 @@ const CAMINHOS = {
     'M4 7h16 M10 11v6 M14 11v6 M6 7l1 12.1a1 1 0 0 0 1 .9h8a1 1 0 0 0 1-.9L18 7 M9 7V4.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7',
   anotar: 'M12 20h9 M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
   externo: 'M14 4h6v6 M20 4l-9 9 M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6',
+  // Seta para uma bandeja: "levar para fora do app" — o PDF, a imagem e a planilha.
+  baixar: 'M12 3v12 M7 10l5 5 5-5 M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2',
   /* Expandir o artefato do Tio Léo para tela cheia — num aparelho de 390px é o
      que torna gráfico e imagem de questão legíveis (docs/27 §8). */
   expandir: 'M9 3H3v6 M3 3l7 7 M15 21h6v-6 M21 21l-7-7',
