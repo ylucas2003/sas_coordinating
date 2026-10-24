@@ -1535,15 +1535,18 @@ a.alu-est-elo-quieto:hover {
 /* ─── DESKTOP ─────────────────────────────────────────────────────────── */
 
 @media (min-width: 900px) {
-  /* Os três campos lado a lado: a comparação entre eles é o ponto da tela, e a
-     coluna de 640px comporta três cartões de 200px. */
+  /* Os quatro campos em grade 2×2. Eram três lado a lado — a coluna de 640px
+     comportava três cartões de 200px —, mas com o quarto (Horário de estudos,
+     docs/42 §4.1) cada um ficaria com ~150px e "Banco de questões" já quebra em
+     duas linhas a 200. Dois por linha dão ~311px, e a comparação entre eles
+     continua à vista. No celular segue uma coluna só. */
   .alu-campos {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 18px;
   }
 
   .alu-campo-cartao {
-    flex: 1;
     flex-direction: column;
     align-items: flex-start;
     gap: 18px;

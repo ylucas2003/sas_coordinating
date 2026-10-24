@@ -1,0 +1,586 @@
+/* ─── Horário de estudos (docs/42) ───────────────────────────────────────
+   Prefixo `alu-hor-`. Só lê os papéis `--alu-*`, e nenhuma cor nova: o dia de
+   hoje e o bloco que vem a seguir são DADO; o resto é superfície, borda e
+   magnitude. Não existe verde, semáforo nem vermelho aqui — apagar um bloco não
+   é ALERTA, e um horário que passou não fica apagado nem riscado (é um plano,
+   nunca um registro).
+
+   ⚠️ Sem grade 7×horas e sem tabela: a semana é uma lista de seções
+   (docs/24 §7). Os números são todos tabulares (`.alu-magnitude`).
+   ─────────────────────────────────────────────────────────────────────── */
+
+.alu-hor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ── A linha de contexto: um fato em cada ponta ───────────────────────── */
+
+.alu-hor__contexto {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--alu-texto-2);
+}
+
+/* Com o simulado ausente o total fica sozinho — e à direita, onde o olho já o
+   procurava, em vez de pular para a esquerda. */
+.alu-hor__contexto-total {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── A semana: sete seções ────────────────────────────────────────────── */
+
+.alu-hor__semana {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.alu-hor-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.alu-hor-dia__topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--alu-toque);
+}
+
+.alu-hor-dia__nome {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--alu-magnitude);
+}
+
+/* Hoje é a ÚNICA seção que muda de cor — e a cor é DADO, o papel de "o que está
+   ativo". O ponto cheio acompanha para a marca não depender só de matiz. */
+.alu-hor-dia--hoje .alu-hor-dia__nome {
+  color: var(--alu-dado);
+}
+
+.alu-hor-dia__ponto {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--alu-dado);
+}
+
+.alu-hor-dia__total {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+}
+
+/* O "+" de cada dia: vazado, redondo, 44px. É atalho — o gesto principal é o
+   "Adicionar bloco" da base —, então não leva a tecla de 4px. */
+.alu-hor-mais {
+  width: var(--alu-toque);
+  height: var(--alu-toque);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--alu-borda);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--alu-texto-2);
+  cursor: pointer;
+}
+
+.alu-hor-mais:hover {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+.alu-hor-dia__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Dia sem bloco: VAZADO, e a linha inteira é a ação. */
+.alu-hor-vazio {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  background: transparent;
+  color: var(--alu-texto-2);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.alu-hor-vazio:hover {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+/* ── O bloco ──────────────────────────────────────────────────────────── */
+
+.alu-hor-bloco {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 16px;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: 16px;
+  color: var(--alu-magnitude);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 80ms ease-out;
+}
+
+.alu-hor-bloco:active {
+  transform: translateY(2px);
+}
+
+.alu-hor-bloco__hora {
+  flex: none;
+  width: 64px;
+  font-size: 24px;
+}
+
+.alu-hor-bloco__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.alu-hor-bloco__rotulo {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.alu-hor-bloco__detalhe {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+}
+
+/* O que vem a seguir, e só ele: borda de 2px em DADO e uma etiqueta no canto.
+   Ganha uma linha de folga em cima para a etiqueta não disputar espaço com o
+   rótulo — que pode ter 80 caracteres. */
+.alu-hor-bloco--proximo {
+  border-color: var(--alu-dado);
+  padding-top: 26px;
+}
+
+.alu-hor-bloco__marca {
+  position: absolute;
+  top: 8px;
+  right: 14px;
+}
+
+/* ── A ação da base ───────────────────────────────────────────────────── */
+
+.alu-hor__acao {
+  position: sticky;
+  bottom: calc(var(--alu-barra-inferior) + env(safe-area-inset-bottom) + 12px);
+  z-index: 2;
+  padding-top: 12px;
+  /* O desvanecido separa o botão da lista que rola por baixo, sem sombra
+     flutuante — que o sistema proíbe. */
+  background: linear-gradient(to bottom, transparent, var(--alu-fundo) 40%);
+}
+
+/* No celular o botão flutuante do Tio Léo (56px, a 24px da borda) vive neste
+   canto. O botão deixa a coluna dele livre em vez de passar por baixo.
+
+   ⚠️ É `padding` e não `margin`: com margem o contêiner — e o desvanecido que
+   esconde a lista rolando por baixo — ficava 72px mais estreito que a coluna, e a
+   borda de um cartão aparecia ao lado do botão, sob o do Tio Léo. */
+@media (max-width: 899px) {
+  .alu-hor__acao {
+    padding-right: 72px;
+  }
+}
+
+@media (min-width: 900px) {
+  .alu-hor__acao {
+    bottom: 16px;
+  }
+}
+
+/* ── O vazio, que é o caso comum ──────────────────────────────────────── */
+
+.alu-hor-vazio-tela {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.alu-hor-vazio-tela__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alu-hor-vazio-tela__titulo {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--alu-magnitude);
+}
+
+/* A semana vazia, desenhada como o motivo da grade do fundo: quadradinhos, e
+   todos vazados. Decorativa — quem informa é o texto abaixo. */
+.alu-hor-mosaico {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio);
+}
+
+.alu-hor-mosaico__coluna {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.alu-hor-mosaico__rotulo {
+  margin-bottom: 4px;
+  padding: 2px 5px;
+  border-radius: var(--alu-raio-pilula);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--alu-texto-2);
+}
+
+/* O anel de hoje: o mesmo gesto da corrente de simulados da Hoje. */
+.alu-hor-mosaico__rotulo--hoje {
+  box-shadow: 0 0 0 1.5px var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+.alu-hor-mosaico__quadrado {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--alu-borda);
+  border-radius: 4px;
+}
+
+.alu-hor-privado {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--alu-texto-2);
+}
+
+/* ── O esqueleto: a forma do conteúdo, nunca um spinner ───────────────── */
+
+.alu-hor-osso {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: 16px;
+}
+
+.alu-hor-osso__linha {
+  height: 14px;
+  border-radius: 7px;
+  background: var(--alu-superficie-2);
+}
+
+.alu-hor-osso__linha--curta {
+  width: 35%;
+}
+
+/* ── A folha: o bloco lido como uma frase ─────────────────────────────── */
+
+.alu-hor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.alu-hor-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.alu-hor-campo > legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.alu-hor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.alu-hor-chip {
+  min-width: var(--alu-toque);
+  min-height: var(--alu-toque);
+  padding: 0 12px;
+  border: 1px solid var(--alu-borda);
+  border-radius: var(--alu-raio-pilula);
+  background: transparent;
+  color: var(--alu-texto);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+/* Preenchida em DADO quando marcada: é ESTADO da escolha, não ação — quem é
+   ação nesta folha é só o "Salvar bloco" do rodapé. */
+.alu-hor-chip.is-ativo {
+  background: var(--alu-dado);
+  border-color: var(--alu-dado);
+  color: #ffffff;
+}
+
+/* Os sete dias dividem a linha, e a 360px não há largura para mais que 4px de
+   respiro. A conta: (328 − 6×4) / 7 = 43,4px, com a altura de 44 segurando o alvo. */
+.alu-hor-chips--dias {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.alu-hor-chips--dias .alu-hor-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+}
+
+/* Seis durações cabem numa linha a 390px (≈352 dos 358 disponíveis) com este
+   respiro; a 360px elas quebram em duas, e quebrar é aceitável — o que não é
+   aceitável é a folha crescer a ponto de esconder o botão de salvar. */
+.alu-hor-chip--larga {
+  padding: 0 10px;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.alu-hor-campo:has(.alu-hor-chip--larga) .alu-hor-chips {
+  gap: 6px;
+}
+
+/* Os dois campos de escrita: fonte de 16px ou mais, senão o iOS dá zoom ao
+   focar e a folha sai do lugar. */
+.alu-hor-hora,
+.alu-hor-rotulo {
+  width: 100%;
+  min-width: 0;
+  background: var(--alu-superficie);
+  border: var(--alu-borda-largura) solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  color: var(--alu-magnitude);
+  font: inherit;
+}
+
+.alu-hor-hora {
+  min-height: 60px;
+  padding: 0 16px;
+  text-align: center;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.alu-hor-rotulo {
+  min-height: 56px;
+  padding: 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* `color-scheme` faz o navegador desenhar o relógio nativo (e o seletor que ele
+   abre) na cor certa — sem isto o ícone é preto também no tema noite. */
+.alu-hor-hora {
+  color-scheme: light;
+}
+
+:root[data-tema='noite'] .alu-hor-hora {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='dia']) .alu-hor-hora {
+    color-scheme: dark;
+  }
+}
+
+.alu-hor-hora:focus-visible,
+.alu-hor-rotulo:focus-visible {
+  outline: 2px solid var(--alu-dado);
+  outline-offset: 2px;
+}
+
+.alu-hor-rotulo::placeholder {
+  color: var(--alu-texto-2);
+  font-weight: 400;
+}
+
+.alu-hor-dica {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: var(--alu-texto-2);
+}
+
+/* Apagar é QUIETO, e não vermelho: a cor ALERTA é da etiqueta de distância e do
+   que está abaixo do corte. A confirmação em duas etapas é o freio. */
+.alu-hor-apagar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--alu-borda);
+}
+
+.alu-hor-apagar__botoes {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alu-hor-quieto {
+  min-height: var(--alu-toque);
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  color: var(--alu-texto-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.alu-hor-quieto:hover:not(:disabled) {
+  color: var(--alu-dado);
+}
+
+.alu-hor-quieto:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.alu-hor-rodape {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.alu-hor-rodape .alu-hor-quieto {
+  align-self: center;
+}
+
+/* O foco de teclado é visível em tudo que se toca. */
+.alu-hor-bloco:focus-visible,
+.alu-hor-vazio:focus-visible,
+.alu-hor-mais:focus-visible,
+.alu-hor-chip:focus-visible,
+.alu-hor-quieto:focus-visible {
+  outline: 2px solid var(--alu-dado);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alu-hor-bloco {
+    transition: none;
+  }
+}
+
+/* ── A linha na aba Hoje ──────────────────────────────────────────────────
+   Uma linha só, quieta: borda de 1px, sem a tecla de 4px e sem peso de cor. Lê
+   como link, não como cartão — o herói da Hoje é a missão, e esta linha não
+   disputa com ela. */
+
+.alu-hor-linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 16px;
+  border: 1px solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  color: var(--alu-magnitude);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.alu-hor-linha:hover {
+  border-color: var(--alu-dado);
+  text-decoration: none;
+}
+
+.alu-hor-linha > svg:first-child {
+  color: var(--alu-dado);
+}
+
+.alu-hor-linha > svg:last-child {
+  color: var(--alu-texto-2);
+}
+
+.alu-hor-linha__texto {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.alu-hor-linha__rotulo {
+  color: var(--alu-texto-2);
+}
+
+.alu-hor-linha:focus-visible {
+  outline: 2px solid var(--alu-dado);
+  outline-offset: 2px;
+}

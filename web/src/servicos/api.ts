@@ -4,7 +4,7 @@
 // Convenção: funções puras de I/O. Nada de estado, nada de invalidação — quem
 // invalida é o hook que chama (ver src/hooks/).
 
-import { del, get, patch, post, put, qs, streamSSE } from './http';
+import { ErroApi, del, get, patch, post, put, qs, streamSSE } from './http';
 import type { ContextoDaTela } from '../dominio/contextoDaTela';
 import type { EventoSSE, OpcoesDeRequisicao } from './http';
 import type {
@@ -18,6 +18,9 @@ import type {
   CustosDaCantina, ResumoDaCantina, RetiradaConfirmada, TokenDeRetirada,
 } from '../tipos/cantina';
 import { normalizarContagem } from '../dominio/cantina';
+import type {
+  BlocoDeEstudo, HorarioDeEstudos, NovoBloco, RemendoDeBloco,
+} from '../tipos/horarioEstudos';
 
 const enc = encodeURIComponent;
 
@@ -102,6 +105,31 @@ export const vestibularesMe = () =>
   get<{ vestibulares: string[]; completo: boolean }>('/me/vestibulares');
 export const definirVestibularesMe = (vestibulares: string[]) =>
   put<{ vestibulares: string[]; completo: boolean }>('/me/vestibulares', { vestibulares });
+
+
+// ─── Horário de estudos (docs/42) ────────────────────────────────────────
+// Um bloco por vez, e não "troca a semana inteira": o backend não tem transação,
+// e apagar-e-reinserir perderia a semana do aluno se o insert falhasse no meio.
+
+export const horarioEstudosMe = () => get<HorarioDeEstudos>('/me/horario-estudos');
+
+/** Cria um bloco por dia de `diasSemana`, tudo ou nada. Devolve só os criados. */
+export const criarBlocosDeEstudo = (bloco: NovoBloco) =>
+  post<BlocoDeEstudo[]>('/me/horario-estudos', bloco);
+
+export const atualizarBlocoDeEstudo = (id: string, remendo: RemendoDeBloco) =>
+  patch<BlocoDeEstudo>(`/me/horario-estudos/${enc(id)}`, remendo);
+
+/**
+ * A rota responde 204, e o `del` do http.ts sempre tenta ler JSON — o parse do
+ * corpo vazio falha **depois** de a exclusão já ter acontecido. É o mesmo caso de
+ * `apagarLista` (servicos/banco.ts): erro de verdade chega como `ErroApi`,
+ * levantado antes da leitura do corpo, então só o parse vazio é engolido.
+ */
+export const apagarBlocoDeEstudo = (id: string) =>
+  del<void>(`/me/horario-estudos/${enc(id)}`).catch((erro: unknown) => {
+    if (erro instanceof ErroApi) throw erro;
+  });
 export const obterSimuladoMe = (id: string) => get<unknown>(`/me/simulado/${enc(id)}`);
 export const questoesSimuladoMe = (id: string) => get<unknown>(`/me/simulado/${enc(id)}/questoes`);
 // `arquivoSimuladoMe` SAIU em 04/09 com `GET /me/simulado/{id}/arquivo`

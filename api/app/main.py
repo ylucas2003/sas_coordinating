@@ -40,6 +40,7 @@ from .routes import (
     disparos,
     email_eventos,
     foto_perfil,
+    horario_estudos,
     me,
     missao,
     notas,
@@ -147,6 +148,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_canvas.router)
     app.include_router(me.router)
     app.include_router(foto_perfil.router)
+    app.include_router(horario_estudos.router)
     app.include_router(alertas.router)
     app.include_router(alunos.router)
     app.include_router(simulados.router)

@@ -704,6 +704,20 @@ raspada e cruzada: **33.066 conquistas, 26.521 candidatos, 178 deles com
 medalha nos 4 anos seguidos**. O documento completo, com o fluxo que se repete
 a cada prova nova e as próximas fontes em ordem, está no [41](41-plano-captacao-externa.md).
 
+### 🔨 Horário de estudos · o quarto campo da aba Estudar *(24/10, em PR, sem deploy)* — [42](42-plano-horario-de-estudos.md)
+
+O aluno monta a própria semana de estudo: blocos de dia, hora, duração e rótulo
+livre, privados (a coordenação não vê). Ferramenta de planejamento, **sem XP,
+sem sequência e sem "cumpri"** — tempo de estudo não é verificável
+([26](26-mecanicas-do-jogo.md)). **Implementado e verificado no browser (360, 390
+e 1440px, dia e noite) contra um banco descartável; falta o deploy** — migration
+`0069`, com `./infra/vps/deploy.sh --migrar`. A estrutura da tela é a semana
+empilhada (os sete dias numa lista só), escolhida entre quatro exploradas em
+[prompts-design-horario-de-estudos.md](prompts-design-horario-de-estudos.md). A aba
+Estudar passou de três cartões lado a lado para uma grade 2×2 no desktop, e a Hoje
+ganhou uma linha. **Não verificado: Safari do iPhone** — ver o §9 do 42. Fora da
+v1, de propósito: lembrete por e-mail, assunto sugerido e aderência.
+
 ---
 
 ## 3.9 · A área do aluno · front escrito, backend pendente *(30/08)*

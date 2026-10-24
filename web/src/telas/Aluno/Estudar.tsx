@@ -1,11 +1,18 @@
 import { Link } from 'react-router-dom';
 
 import { useMeusErros, useProgressoBanco } from '../../dados/aluno';
+import { primeiraMaiuscula, proximoBloco, quandoDoProximo } from '../../dominio/horarioEstudos';
+import { useAgora, useHorarioDeEstudos } from '../../hooks/horarioEstudos';
 import { Icone } from './pecas/Icone';
 import { TarjaFonte } from './pecas/TarjaFonte';
 import { fmtInteiro } from './pecas/formato';
 
-// ESTUDAR — três campos, e nada além deles.
+// ESTUDAR — quatro campos, e nada além deles.
+//
+// ⚠️ Eram três até 24/10 (docs/42): o quarto, HORÁRIO DE ESTUDOS, responde à
+// pergunta que nenhum dos três respondia — QUANDO. No desktop a grade passou de
+// "três lado a lado" para 2×2, porque quatro em linha deixariam cada cartão com
+// ~150px (aluno-estudar.css).
 //
 // ⚠️ Substitui o desenho de duas metades ("Treinar agora" + "Todas as
 // questões"), que por sua vez tinha substituído três abas. A razão da troca
@@ -16,6 +23,7 @@ import { fmtInteiro } from './pecas/formato';
 //   BANCO         o material: 2.693 questões de prova do ITA e do IME
 //   ESTATÍSTICAS  o mundo: o que mais cai em cada assunto, ano a ano
 //   MEU PROGRESSO você: o que já marcou como feito, e de quanto
+//   HORÁRIO       quando: a semana de estudo que o aluno montou sozinho
 //
 // A divisão é por PERGUNTA, não por tipo de dado, e é isso que faz cada card ter
 // um destino óbvio. Note que Estatísticas fala só do mundo: nenhuma métrica de
@@ -30,9 +38,14 @@ export function Estudar() {
   const progresso = useProgressoBanco();
   const erros = useMeusErros();
 
+  const horario = useHorarioDeEstudos();
+  const agora = useAgora();
+
   const total = progresso.data?.total;
   const feitas = progresso.data?.feitas;
   const quantosErros = erros.data?.length ?? 0;
+  const blocos = horario.data?.blocos;
+  const proximo = blocos ? proximoBloco(blocos, agora) : null;
 
   return (
     <>
@@ -82,6 +95,27 @@ export function Estudar() {
             </span>
           </span>
           <IconeProgresso />
+        </Link>
+
+        <Link className="alu-campo-cartao" to="/estudar/horario">
+          <span className="alu-campo-cartao__texto">
+            <span className="alu-olho">Quando</span>
+            <span className="alu-campo-cartao__titulo">Horário de estudos</span>
+            <span className="alu-campo-cartao__sub">
+              {/* Três estados, e nenhum deles chuta: falha da consulta, semana
+                  vazia, ou o que vem a seguir. Enquanto carrega o texto é neutro
+                  — "Monte a sua semana" para quem tem doze blocos é a mentira
+                  mais cara deste cartão. */}
+              {horario.isError
+                ? 'Não deu para carregar agora'
+                : !blocos
+                  ? 'A sua semana de estudo, bloco a bloco'
+                  : proximo
+                    ? `${primeiraMaiuscula(quandoDoProximo(proximo))} · ${proximo.bloco.rotulo}`
+                    : 'Monte a sua semana de estudo'}
+            </span>
+          </span>
+          <IconeHorario />
         </Link>
       </div>
 
@@ -141,6 +175,27 @@ function IconeEstatisticas() {
       <rect x="30" y="26" width="10" height="30" />
       <rect x="44" y="14" width="10" height="42" />
       <path d="M12 60h48" strokeLinecap="round" opacity=".5" />
+    </svg>
+  );
+}
+
+// Um relógio com uma fatia cheia — "um bloco de tempo". É de propósito o único
+// dos quatro sem barra, folha nem grade: ao lado de uma folha, três barras e uma
+// grade de quadrados, o relógio se reconhece antes de se ler o título.
+function IconeHorario() {
+  return (
+    <svg
+      className="alu-campo-cartao__icone"
+      viewBox="0 0 70 70"
+      fill="none"
+      stroke="var(--alu-dado)"
+      strokeWidth="1.4"
+      aria-hidden="true"
+    >
+      <circle cx="35" cy="35" r="24" />
+      <path d="M35 35V11A24 24 0 1 1 23 55.8Z" fill="var(--alu-dado)" stroke="none" opacity=".55" />
+      <path d="M35 35V11M35 35L23 55.8" />
+      <path d="M35 14.5v3M55.5 35h-3M35 55.5v-3M14.5 35h3" strokeLinecap="round" opacity=".5" />
     </svg>
   );
 }

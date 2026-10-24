@@ -82,6 +82,21 @@ export const FONTES: Fonte[] = [
       + 'autodesliga — o dado muda porque OUTRA pessoa publicou (docs/38 §9).',
   },
 
+  {
+    chave: 'horarioEstudos',
+    estado: 'real',
+    descricao: 'A semana de estudo que o aluno montou sozinho: blocos de dia, hora, duração e rótulo',
+    doc: 'docs/42-plano-horario-de-estudos.md',
+    rotaFutura: 'GET/POST/PATCH/DELETE /me/horario-estudos',
+    telas: ['Estudar', 'Horário de estudos', 'Hoje'],
+    observacao:
+      'AUTODECLARADO e PRIVADO: não alimenta XP, sequência nem liga (tempo de estudo não é '
+      + 'verificável, docs/26 §1), e nenhuma rota da coordenação o lê (docs/42 §0). Um bloco por '
+      + 'vez, e não "troca a semana inteira": o backend não tem transação, e apagar-e-reinserir '
+      + 'perderia a semana se o insert falhasse no meio. Criar vários dias de uma vez é UM insert. '
+      + 'Sem bloco nenhum a linha da Hoje some; falha de consulta nunca vira "semana vazia".',
+  },
+
   // ─── REAL · provas ─────────────────────────────────────────────────────
   {
     chave: 'simulados',
