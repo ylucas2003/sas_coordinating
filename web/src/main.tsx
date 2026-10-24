@@ -87,6 +87,7 @@ import '../styles/aluno-casco.css';
 import '../styles/aluno-questao.css';
 import '../styles/aluno-hoje.css';
 import '../styles/aluno-estudar.css';
+import '../styles/aluno-horario.css';
 import '../styles/aluno-treino.css';
 import '../styles/aluno-provas.css';
 import '../styles/aluno-jornada.css';

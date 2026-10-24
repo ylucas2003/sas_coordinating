@@ -12,6 +12,8 @@ import {
   useSimulados,
   useZona,
 } from '../../dados/aluno';
+import { proximoBloco, quandoDoProximo } from '../../dominio/horarioEstudos';
+import { useAgora, useHorarioDeEstudos } from '../../hooks/horarioEstudos';
 import { BlocoDaCantina } from './Cantina';
 import { BarraCorte } from './pecas/BarraCorte';
 import { Bloco } from './pecas/Bloco';
@@ -62,6 +64,12 @@ export function Hoje({ nome }: { nome: string }) {
           O bloco se apaga sozinho para quem não tem direito a refeição — que é
           a maioria —, então ele não custa nada a quem não usa (docs/38 §4). */}
       <BlocoDaCantina />
+
+      {/* UMA LINHA, e não um bloco: devolve ao aluno o que ele mesmo escreveu no
+          Horário de estudos (docs/42 §4.3). Fica depois da cantina — que é a
+          única coisa desta tela que EXPIRA — e antes da sequência. Some para
+          quem não montou horário: a Hoje não cobra quem não usa. */}
+      <LinhaDoHorario />
 
       {/* ⚠️ Sequência e contagem regressiva também estão na coluna direita do
           desktop (CascoAluno.tsx), e a repetição é deliberada: a lateral é o
@@ -519,6 +527,39 @@ function TiraDaUltimaNota() {
 
       <Icone nome="chevron" tamanho={18} />
       <span className="alu-so-leitor">Ver todas as provas</span>
+    </Link>
+  );
+}
+
+// ─── Horário de estudos ──────────────────────────────────────────────────
+
+/**
+ * "Próximo: hoje, 19:00 · Estequiometria →" — e nada mais.
+ *
+ * ⚠️ SOME em três casos, e nenhum deles vira estado vazio: enquanto carrega, se a
+ * consulta falha e se o aluno não tem bloco nenhum. É uma linha opcional num
+ * herói que já tem dono (a missão) — um convite "monte o seu horário" repetido
+ * toda terça a quem não quer montar viraria a primeira coisa que ele aprende a
+ * ignorar. O convite mora em Estudar, onde o aluno vai quando quer planejar.
+ *
+ * ⚠️ Sem XP, sem sequência e sem tom de cobrança: é o que o aluno escreveu,
+ * devolvido a ele. Tempo de estudo é autodeclarado (docs/26 §1).
+ */
+function LinhaDoHorario() {
+  const horario = useHorarioDeEstudos();
+  const agora = useAgora();
+
+  const proximo = horario.data ? proximoBloco(horario.data.blocos, agora) : null;
+  if (!proximo) return null;
+
+  return (
+    <Link className="alu-hor-linha" to="/estudar/horario">
+      <Icone nome="relogio" tamanho={18} />
+      <span className="alu-hor-linha__texto">
+        <span className="alu-hor-linha__rotulo">Próximo:</span>{' '}
+        {quandoDoProximo(proximo)} · {proximo.bloco.rotulo}
+      </span>
+      <Icone nome="chevron" tamanho={18} />
     </Link>
   );
 }
