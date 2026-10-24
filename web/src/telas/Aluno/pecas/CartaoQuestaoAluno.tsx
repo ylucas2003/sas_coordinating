@@ -66,12 +66,11 @@ export function CartaoQuestaoAluno({
 
   const resolvida = questao.resolvida === true;
   const dissertativa = ehDissertativa(questao);
-  // 'visao' é página escaneada lida por um agente: ali o TEXTO é o principal e
-  // a imagem vira consulta, o inverso do caso comum (docs/22).
-  const ehVisao = questao.extraidoPor === 'visao';
   const ehPagina = questao.extraidoPor === 'pagina';
-  const mostrarImagem =
-    !ehVisao && questao.usaImagemNoRender && !!questao.imagemUrl && !imagemFalhou;
+  // `usaImagemNoRender` decide sozinho, como em `Treino.tsx::Enunciado`: 'visao'
+  // é como a questão entrou, não a qualidade do recorte, e a flag já vem
+  // desligada onde a imagem não presta (docs/23 §12.1).
+  const mostrarImagem = questao.usaImagemNoRender && !!questao.imagemUrl && !imagemFalhou;
   // ⚠️ No modo página `enunciadoMd` pode ser NULL (CHECK da 0033): a questão foi
   // ingerida sem transcrição de propósito. Se a imagem não carregar, o cartão
   // não tem o que mostrar — e dizer isso é melhor que um retângulo vazio.

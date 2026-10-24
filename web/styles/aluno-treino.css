@@ -210,6 +210,35 @@
   width: 100%;
 }
 
+/* O texto das alternativas, só quando o enunciado cai da imagem para o texto.
+   Pilha de linhas de largura inteira, ao contrário das teclas logo abaixo: aqui
+   é leitura, e uma alternativa de fórmula longa precisa da linha toda. A letra
+   fica fora do `Markdown` porque ele devolve bloco (`div`/`p`), e a letra tem de
+   ficar ao lado do texto, não em cima. */
+.alu-treino__texto-alternativas {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.alu-treino__texto-alternativas > li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.alu-treino__texto-alternativas .md {
+  min-width: 0;
+}
+
+.alu-treino__texto-letra {
+  flex: none;
+  font-weight: 800;
+  color: var(--alu-texto-2);
+}
+
 /* ── As alternativas ──────────────────────────────────────────────────── */
 
 /* UMA FILEIRA, não uma pilha. Desde que a linha passou a ser só a letra, cinco

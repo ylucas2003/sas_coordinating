@@ -21,7 +21,12 @@ import type {
   RespostaNoTreino,
   TaxonomiaMateria,
 } from '../../dados/aluno';
-import { ehDissertativa, letrasDaQuestao, temGabarito } from '../../dominio/banco';
+import {
+  alternativasTranscritas,
+  ehDissertativa,
+  letrasDaQuestao,
+  temGabarito,
+} from '../../dominio/banco';
 import { Icone } from './pecas/Icone';
 import { TarjaFonte } from './pecas/TarjaFonte';
 import { MATERIAS_COM_TAXONOMIA } from './pecas/formato';
@@ -740,12 +745,35 @@ function AvisoDeClassificacao({ questao }: { questao: QuestaoVestibular }) {
  *  360px. Quem garante isso é `.alu-questao__imagem` (docs/28 §6). */
 function Enunciado({ questao }: { questao: QuestaoVestibular }) {
   const [falhou, setFalhou] = useState(false);
-  // 'visao' é página escaneada lida por um agente: ali o TEXTO é o principal.
-  const mostrarImagem =
-    questao.extraidoPor !== 'visao' && questao.usaImagemNoRender && !!questao.imagemUrl && !falhou;
+  // Quem decide é `usaImagemNoRender`, que é curadoria por questão (docs/23
+  // §12.1): ligada onde o recorte presta, desligada onde ele quebrou ou é página
+  // escaneada (ITA 1971–73). Esta guarda já olhou `extraidoPor === 'visao'`,
+  // mas 'visao' é COMO a questão entrou, não a qualidade da imagem — e 438
+  // questões de ITA 2000–07 e IME com recorte limpo caíam no texto cru, com o
+  // LaTeX aparecendo como `$r = n^2 a_0$`.
+  const mostrarImagem = questao.usaImagemNoRender && !!questao.imagemUrl && !falhou;
 
   if (!mostrarImagem) {
-    return <p className="alu-questao__texto">{questao.enunciadoMd}</p>;
+    // As teclas A–E embaixo são só a letra (a imagem traz o texto impresso), então
+    // aqui o texto das alternativas TEM de vir junto — sem ele a questão não se
+    // responde. Por `Markdown`, que renderiza a fórmula em vez de mostrar o
+    // `$\varepsilon_0$` cru.
+    const alternativas = alternativasTranscritas(questao);
+    return (
+      <div className="alu-questao__texto">
+        <Markdown texto={questao.enunciadoMd} />
+        {alternativas.length > 0 && (
+          <ul className="alu-treino__texto-alternativas">
+            {alternativas.map(({ letra, texto }) => (
+              <li key={letra}>
+                <span className="alu-treino__texto-letra">{letra}</span>
+                <Markdown texto={texto} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
   }
 
   return (
