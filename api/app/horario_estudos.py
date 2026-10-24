@@ -43,7 +43,7 @@ TAMANHO_MAXIMO_DO_ROTULO = 80
 TETO_DE_BLOCOS = 60
 MINUTOS_NO_DIA = 24 * 60
 
-_NOME_DO_DIA = {
+NOME_DO_DIA = {
     1: "Segunda-feira",
     2: "Terça-feira",
     3: "Quarta-feira",
@@ -132,7 +132,7 @@ def _recusar_se_cruzar(
         if sobrepoe(inicio, duracao, inicio_outro, outro.duracaoMinutos):
             fim_outro = inicio_outro + outro.duracaoMinutos
             raise ConflitoDeHorario(
-                f"{_NOME_DO_DIA[dia]} já tem “{outro.rotulo}” das "
+                f"{NOME_DO_DIA[dia]} já tem “{outro.rotulo}” das "
                 f"{hora_de(inicio_outro)} às {hora_de(fim_outro)}. "
                 "Escolha outro horário."
             )

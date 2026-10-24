@@ -28,11 +28,22 @@ export async function baixarDaApi(caminho: string, nomeReserva: string): Promise
     throw new Error(detalhe || `Não deu para gerar o arquivo (${resposta.status}).`);
   }
 
-  const blob = await resposta.blob();
+  baixarBlob(
+    await resposta.blob(),
+    nomeDoArquivo(resposta.headers.get('Content-Disposition')) ?? nomeReserva,
+  );
+}
+
+/**
+ * Entrega ao navegador um arquivo que já está na memória. É o fim do `baixarDaApi` —
+ * e o caminho de quem gera o arquivo no próprio navegador (o PDF e o PNG do horário
+ * de estudos), que não passa pela API e não tem token a mandar.
+ */
+export function baixarBlob(blob: Blob, nome: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = nomeDoArquivo(resposta.headers.get('Content-Disposition')) ?? nomeReserva;
+  a.download = nome;
   document.body.appendChild(a);
   a.click();
   a.remove();

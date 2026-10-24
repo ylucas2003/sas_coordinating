@@ -584,3 +584,65 @@
   outline: 2px solid var(--alu-dado);
   outline-offset: 2px;
 }
+
+/* ── Levar o horário: PDF, imagem e Excel ─────────────────────────────────
+   Vive dentro do `.alu-bloco` padrão do site (superfície, borda, raio), com o
+   seletor Dia/Noite do casco (`.alu-tema`, aluno-casco.css) — o mesmo CSS, e não
+   uma cópia. Os três botões são vazados, como os chips da folha: quem é AÇÃO nesta
+   tela é só o "Adicionar bloco", e a tecla de 4px é de uma coisa por vez. */
+
+.alu-hor-saidas {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.alu-hor-saidas__botoes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.alu-hor-saida {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--alu-toque);
+  padding: 0 8px;
+  border: 1px solid var(--alu-borda);
+  border-radius: var(--alu-raio-pequeno);
+  background: var(--alu-fundo);
+  color: var(--alu-magnitude);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.alu-hor-saida > svg {
+  color: var(--alu-dado);
+}
+
+.alu-hor-saida:hover:not(:disabled) {
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}
+
+.alu-hor-saida:focus-visible {
+  outline: 2px solid var(--alu-dado);
+  outline-offset: 2px;
+}
+
+/* "Gerando…" não pode parecer um botão morto: o que está trabalhando fica à vista,
+   e só os outros esmaecem. */
+.alu-hor-saida:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.alu-hor-saida[aria-busy='true'] {
+  opacity: 1;
+  border-color: var(--alu-dado);
+  color: var(--alu-dado);
+}

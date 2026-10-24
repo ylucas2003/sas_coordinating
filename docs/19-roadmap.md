@@ -704,19 +704,23 @@ raspada e cruzada: **33.066 conquistas, 26.521 candidatos, 178 deles com
 medalha nos 4 anos seguidos**. O documento completo, com o fluxo que se repete
 a cada prova nova e as próximas fontes em ordem, está no [41](41-plano-captacao-externa.md).
 
-### 🔨 Horário de estudos · o quarto campo da aba Estudar *(24/10, em PR, sem deploy)* — [42](42-plano-horario-de-estudos.md)
+### ✅ Horário de estudos · o quarto campo da aba Estudar *(24/10, em produção)* — [42](42-plano-horario-de-estudos.md)
 
 O aluno monta a própria semana de estudo: blocos de dia, hora, duração e rótulo
 livre, privados (a coordenação não vê). Ferramenta de planejamento, **sem XP,
 sem sequência e sem "cumpri"** — tempo de estudo não é verificável
-([26](26-mecanicas-do-jogo.md)). **Implementado e verificado no browser (360, 390
-e 1440px, dia e noite) contra um banco descartável; falta o deploy** — migration
-`0069`, com `./infra/vps/deploy.sh --migrar`. A estrutura da tela é a semana
+([26](26-mecanicas-do-jogo.md)). **Em produção desde 24/10** (PR #112; migration `0069`,
+deploy com `--migrar`), verificado no browser a 360, 390 e 1440px, dia e noite. A estrutura da tela é a semana
 empilhada (os sete dias numa lista só), escolhida entre quatro exploradas em
 [prompts-design-horario-de-estudos.md](prompts-design-horario-de-estudos.md). A aba
 Estudar passou de três cartões lado a lado para uma grade 2×2 no desktop, e a Hoje
 ganhou uma linha. **Não verificado: Safari do iPhone** — ver o §9 do 42. Fora da
 v1, de propósito: lembrete por e-mail, assunto sugerido e aderência.
+
+**Exportar em PDF, PNG e Excel, no tema claro ou escuro, com a cara do site** — feito em
+24/10 numa branch à parte (`feat/horario-de-estudos-exportar`), **ainda sem PR nem deploy**.
+O PDF sai numa página A4 só (verificado até com 60 blocos) e o Excel vem da API
+(`GET /me/horario-estudos/planilha`). Decisões, o que foi e o que NÃO foi verificado: §10 do 42.
 
 ---
 

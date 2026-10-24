@@ -18,12 +18,16 @@ aluno — a rota não confirma que o uuid existe.
 
 from __future__ import annotations
 
+import asyncio
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from .. import horario_estudos as regras
 from ..auth import get_current_aluno
+from ..horario_estudos_planilha import TemaDaPlanilha, planilha_do_horario
+from ..lembretes.motor import FUSO_BRASIL
 from ..schemas.horario_estudos import (
     AtualizarBloco,
     BlocoDeEstudo,
@@ -51,6 +55,48 @@ _ERROS = (regras.BlocoInvalido, regras.ConflitoDeHorario, regras.BlocoInexistent
 async def obter_horario(user: dict = Depends(get_current_aluno)) -> HorarioDeEstudos:
     """A semana inteira do aluno. Vazia (`blocos: []`) é o estado mais comum."""
     return HorarioDeEstudos(blocos=regras.listar(get_supabase(), user["aluno_id"]))
+
+
+_TIPO_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+@router.get("/planilha")
+async def baixar_planilha(
+    user: dict = Depends(get_current_aluno), tema: TemaDaPlanilha = "dia"
+) -> Response:
+    """A semana do aluno em Excel: a grade e a lista (`horario_estudos_planilha.py`).
+
+    Só o horário DO PRÓPRIO aluno — o `aluno_id` sai do token, como em todas as
+    rotas daqui. Horário vazio é 409, e não uma planilha em branco: a tela só
+    oferece exportar com ao menos um bloco, e um arquivo sem nada seria o
+    resultado de uma chamada fora do desenho.
+
+    `?tema=dia|noite` — os dois temas do site, à escolha de quem exporta; qualquer outro
+    valor é 422 (o `Literal` do FastAPI). Sem o parâmetro, é o dia.
+
+    O nome do arquivo é ASCII de propósito: ele vai num cabeçalho HTTP, e um
+    acento do nome do aluno o quebraria — por isso leva o tema e o dia, mas não o
+    nome (o PDF e o PNG, que saem do navegador, levam os três).
+
+    `asyncio.to_thread`: montar a planilha é CPU síncrona num processo de UM event
+    loop (`UVICORN_WORKERS=1`), e travá-lo congelaria a API para todo mundo.
+    """
+    blocos = regras.listar(get_supabase(), user["aluno_id"])
+    if not blocos:
+        raise HTTPException(
+            status_code=409,
+            detail="O horário está vazio: crie ao menos um bloco antes de exportar.",
+        )
+    hoje = datetime.now(FUSO_BRASIL).date()
+    conteudo = await asyncio.to_thread(planilha_do_horario, blocos, user.get("nome"), hoje, tema)
+    # Tema e dia no nome, como no PDF e no PNG: o claro e o escuro do mesmo dia não
+    # podem se sobrescrever na pasta de downloads. Sem o NOME do aluno — o PDF e o PNG o
+    # levam, mas aqui o nome vai num cabeçalho HTTP, e o acento o quebraria.
+    return Response(
+        content=conteudo,
+        media_type=_TIPO_XLSX,
+        headers={"Content-Disposition": f'attachment; filename="horario-de-estudos-{tema}-{hoje:%Y-%m-%d}.xlsx"'},
+    )
 
 
 @router.post("", response_model=list[BlocoDeEstudo], status_code=201)

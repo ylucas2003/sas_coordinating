@@ -1,10 +1,10 @@
 # 42 — Horário de estudos · o aluno monta a própria semana
 
-> Decidido em **24/10/2026**, numa conversa de produto, e **implementado no
-> mesmo dia — ainda sem deploy** (a migration `0069` não foi aplicada em produção;
-> ver o §9, que diz o que foi e o que NÃO foi verificado). O estado é o
-> [19](19-roadmap.md); a área do aluno, fonte por fonte, é o
-> [30](30-estado-da-implementacao.md).
+> Decidido em **24/10/2026**, numa conversa de produto, e **implementado e em
+> produção no mesmo dia** (PR #112; deploy com `--migrar`, migration `0069`). A
+> exportação em PDF, PNG e Excel (§10) veio em seguida. O §9 diz o que foi e o que
+> NÃO foi verificado. O estado é o [19](19-roadmap.md); a área do aluno, fonte por
+> fonte, é o [30](30-estado-da-implementacao.md).
 >
 > A pergunta que a aba Estudar não respondia era **"quando"**. Os três campos
 > dizem *o quê* (Banco), *o mundo* (Estatísticas) e *você* (Meu progresso);
@@ -308,8 +308,9 @@ Chrome headless — nunca contra o stack de dev nem contra produção:**
   Em particular o `<input type="time">` — no iOS ele abre um seletor próprio —, o
   `position: sticky` do botão da base com a barra de endereço que encolhe, e o
   teclado sobre a folha. A verificação foi em Chrome.
-- **Produção.** A migration não foi aplicada lá. O `deploy.sh --migrar` aplica e já
-  reinicia o PostgREST (cache de schema, armadilha 1 do CLAUDE.md).
+- **Produção** — verificada só de fora, depois do deploy: as rotas novas respondem 401
+  sem login, o bundle traz a tela, a migration consta como aplicada. Ninguém usou a tela
+  autenticado lá (não há conta de teste, e não se grava dado de aluno em produção).
 - **Aparelho de verdade e leitor de tela.** Há `aria-label`, `aria-pressed`,
   `role="alert"` e foco visível, mas ninguém navegou com VoiceOver.
 - **Muitos blocos.** O teto é 60, e a tela foi vista com 8. Sete seções com doze
@@ -323,3 +324,93 @@ transborda 6px na horizontal. É o ponto da tarja "sem rota" (`.alu-tarja--ponto
 `right: -6px`) do elo "Revisar os 34 erros dos seus simulados" — medido na árvore
 **sem** estas mudanças, com o mesmo culpado. A seta desse elo também cai para a
 segunda linha no desktop.
+
+---
+
+## 10 · Exportar o horário — PDF, PNG e Excel, no tema claro ou escuro
+
+Pedido em 24/10, logo depois do deploy: levar o horário para fora do app, **o PDF em
+uma página só**, **à escolha do tema (dia ou noite)** e **com o mesmo design do site do
+aluno**. Mora no fim da lista, em "Levar o horário" (`pecas/ExportarHorario.tsx`), com o
+**mesmo seletor Dia/Noite do casco** (`.alu-tema`, o mesmo CSS) e três botões.
+
+O tema do arquivo **começa no tema que o aluno está usando** e é escolha SÓ do arquivo:
+trocar para "Noite" ali não escurece o app (verificado — o `data-tema` da página não muda).
+
+| Saída | Como sai | De onde |
+|---|---|---|
+| **PNG** | canvas 2D a 2× (1684 × 1190 px) | navegador — nenhuma requisição |
+| **PDF** | o **mesmo canvas** a 3× (A4 a ~216 ppi), como JPEG, dentro de **uma** página A4 deitada | navegador — nenhuma requisição |
+| **Excel** | `GET /me/horario-estudos/planilha?tema=dia\|noite` | API (openpyxl), com o token do aluno |
+
+### As decisões, e o porquê
+
+1. **A cara do site, nos dois temas, vem de `paleta.css`.** As cores de
+   `dominio/horarioEstudosFolha.ts` e de `horario_estudos_planilha.py` são as de
+   `--dia-*` e `--noite-*`, e **dois testes leem `paleta.css` e falham** se uma divergir
+   (um em TypeScript, outro em Python). Do site vêm também a fonte (Plus Jakarta Sans), a
+   logo (o mesmo glifo branco que o casco pinta por máscara: azul-marinho no dia, branca
+   na noite), a grade quadrada de fundo, o cartão com borda e raio, a legenda em azul
+   (`.alu-olho`) e o número grande em extra-negrito. O cabeçalho do Excel usa a cor de
+   AÇÃO — azul-marinho no dia, ouro na noite —, a mesma troca do botão do site.
+2. **O documento é uma grade, a tela é uma lista.** A tela não tem tabela
+   ([24 §7](24-jornada-do-aluno.md)); um horário que se cola na parede é uma grade
+   — dias nas colunas, tempo nas linhas, o bloco com a altura que dura —, porque é o único
+   jeito de o buraco entre dois blocos aparecer como buraco, e de a página ficar cheia. O
+   recorte de horas é o do dia do aluno (`faixaDeHoras`: a folga se divide dos dois lados,
+   mínimo de 6h), **o mesmo no PDF e no Excel**.
+3. **O PDF é uma imagem.** Texto de verdade exigiria embutir a Plus Jakarta Sans, que o
+   projeto só serve como WOFF2 (Brotli, que o navegador não descomprime sem biblioteca); em
+   Helvetica a cara do site iria embora. Com a imagem o PDF é o PNG, pixel por pixel, e a
+   **página única vem de graça** — não há texto para refluir. **O custo, aceito:** o texto
+   não é selecionável nem pesquisável, e o arquivo é maior (~280 KB). `exportacao/pdf.ts`
+   escreve os seis objetos à mão (JPEG cru com `/DCTDecode`), sem biblioteca.
+4. **O Excel sai do servidor** porque XLSX não se faz no navegador sem uma biblioteca de
+   ~1 MB ([cantina_relatorio.py](../api/app/cantina_relatorio.py)). Duas abas: **Semana**,
+   a grade, com os blocos como células mescladas em linhas de 15 minutos, **já configurada
+   para imprimir em uma página deitada**; e **Lista**, uma linha por bloco com a duração em
+   **número** (é o que se ordena, filtra e soma) e o total fora do filtro. Texto do aluno
+   nunca vira fórmula (`=1+1` abre como texto).
+5. **Tamanho do texto no bloco.** O rótulo vai ao maior corpo legível (até 11pt) em que
+   cabe INTEIRO — sem reticências e sem partir palavra no meio —; se nenhum comportar, a 7,5pt
+   com reticências; só então 6,5 e 5,5pt. Bloco de 15 minutos numa grade longa fica sem texto
+   (a hora está no eixo; o nome, na planilha).
+
+### Verificado (24/10, banco descartável + Chrome headless + poppler + Quick Look)
+
+- **PDF:** `pdfinfo` diz **1 página, 842 × 595 pt (A4)**, nos dois temas e **também com 60
+  blocos** (o teto, com rótulos de 80 letras); `pdfimages` confirma o JPEG de 2526 × 1785;
+  `pdftoppm` renderiza igual ao PNG; o título com acento sai certo.
+- **PNG e PDF nos dois temas**, a 390 e a 1440px, com a **semana de exemplo** e com **60
+  blocos** — vistos, não só gerados.
+- **Excel nos dois temas**, relido com o openpyxl e **renderizado pelo Quick Look**, o que
+  achou um defeito real (o título do Excel noturno saía como "o de estudos": célula com
+  fonte própria não herda o fundo da coluna) — corrigido, com teste.
+- **A CSP de produção.** Build de produção servido com a CSP **lida do `nginx.conf`**
+  (`style-src 'self'`, `font-src 'self'`, `connect-src 'self'`, `img-src … blob:`): os seis
+  arquivos saem e o PNG é idêntico ao do dev. É o aviso do LEIA-ME de `src/exportacao/`.
+- **O defeito que a verificação achou no nome do Excel:** os dois temas se chamavam
+  `horario-de-estudos.xlsx` e o segundo sobrescrevia o primeiro. Agora levam tema e dia
+  (`horario-de-estudos-noite-2026-10-24.xlsx`), como o PDF e o PNG.
+- **Testes:** 819 → 822 no front e 844 → 895 no backend, incluindo os que leem `paleta.css`.
+
+### NÃO verificado
+
+- ⚠️ **Safari do iPhone** — o Simulator não existe nesta máquina. O que merece olho: o
+  download de um `Blob` de ~300 KB, o canvas de 2526 × 1785 px (cabe no limite do iOS, mas
+  não foi medido lá) e o `<a download>` abrindo o visualizador.
+- ⚠️ **Impressão em papel.** O tema escuro vai de borda a borda, e a maioria das impressoras
+  não imprime sem margem; é o que o pedido de "modo escuro" implica, e ninguém imprimiu.
+- ⚠️ **O Excel no Microsoft Excel.** Vi pelo openpyxl e pelo Quick Look do macOS, e não no
+  Excel nem no Numbers de verdade — em particular o fundo escuro por coluna e a impressão em
+  uma página.
+- **Produção** — a exportação ainda não foi para o ar.
+- **O texto do PDF não é selecionável** (decisão 3) — leitor de tela não o lê.
+
+### Achado fora do escopo, já em produção
+
+`KaTeX_Size3`, uma fonte do KaTeX que o Vite embute como `data:font/woff2` (é pequena), é
+**bloqueada pela `font-src 'self'` do nginx**: um erro de console em **toda** tela do app,
+medido em `/`, `/estudar` e `/provas` sem clicar em nada. Não é da exportação, e o efeito
+prático é só um delimitador de matemática gigante caindo em outra fonte. A saída é tirar a
+fonte do embutimento do Vite — ou, a contragosto, pôr `data:` na `font-src`.

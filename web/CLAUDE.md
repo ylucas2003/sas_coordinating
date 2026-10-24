@@ -97,7 +97,8 @@ CSV), não UI reativa — o nó é construído offscreen, consumido e descartado
 layout de impressão é sensível a estrutura, então converter para JSX seria
 risco sem ganho.
 
-Não "modernize" essa pasta.
+Não "modernize" essa pasta. (`pdf.ts` e `desenharFolha.ts`, de 24/10, são
+TypeScript de propósito: não montam DOM — ver o LEIA-ME de lá.)
 
 ## Onde cada coisa mora
 

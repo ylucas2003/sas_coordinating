@@ -13,6 +13,7 @@ import type { ProximoBloco, SecaoDoDia } from '../../dominio/horarioEstudos';
 import { useAgora, useHorarioDeEstudos } from '../../hooks/horarioEstudos';
 import type { BlocoDeEstudo } from '../../tipos/horarioEstudos';
 import { CabecaDoCampo } from './pecas/CabecaDoCampo';
+import { ExportarHorario } from './pecas/ExportarHorario';
 import { FolhaDoBloco } from './pecas/FolhaDoBloco';
 import { Icone } from './pecas/Icone';
 import { diasAte } from './pecas/formato';
@@ -123,6 +124,11 @@ function Semana({
           />
         ))}
       </div>
+
+      {/* Depois da semana e antes do "Adicionar bloco": quem terminou de montar rola
+          até o fim da lista, e é ali que "levar para fora" faz sentido. Só existe com
+          ao menos um bloco — `Semana` só é renderizada nesse caso. */}
+      <ExportarHorario blocos={blocos} />
 
       {/* Colado na base da coluna: com sete seções a página é comprida, e o gesto
           mais frequente — criar um bloco — não pode ficar a seis telas de distância. */}
