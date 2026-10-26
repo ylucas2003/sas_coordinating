@@ -494,9 +494,15 @@ function TiraDaUltimaNota() {
     );
   }
 
+  // A posição vem `null` abaixo do PISO DE ANONIMATO do servidor
+  // (`DetalheSimuladoAluno`, tipos/aluno.ts): "2º de 2" diria que o colega
+  // tirou mais. A tira diz por que não há posição, em vez de "nullº de 2".
   const leitura = [
     fmtDataCurta(ultimo.dataAplicacao),
-    detalhe && `${detalhe.posicao}º de ${detalhe.total}`,
+    detalhe &&
+      (detalhe.posicao != null
+        ? `${detalhe.posicao}º de ${detalhe.total}`
+        : 'turma pequena demais para comparar'),
   ]
     .filter(Boolean)
     .join(' · ');

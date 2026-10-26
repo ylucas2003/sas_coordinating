@@ -65,6 +65,11 @@ export function ProvaFicha() {
 
   const s = detalhe.data;
   const nome = s.rotulo || s.nome || s.id;
+  // Posição e percentil vêm `null` abaixo do PISO DE ANONIMATO do servidor
+  // (`DetalheSimuladoAluno`, tipos/aluno.ts): com duas notas, "2º de 2" diz
+  // que o colega tirou mais. O traço sozinho pareceria tela quebrada — o aviso
+  // abaixo das leituras diz por que o número não está lá.
+  const semPosicao = s.posicao == null || s.percentil == null;
 
   return (
     <div className="alu-provas">
@@ -95,14 +100,24 @@ export function ProvaFicha() {
           <div className="alu-provas__leitura">
             <dt className="alu-olho alu-olho--quieto">Posição</dt>
             <dd className="alu-provas__leitura-valor">
-              {fmtInteiro(s.posicao)}º de {fmtInteiro(s.total)}
+              {semPosicao ? '—' : `${fmtInteiro(s.posicao)}º de ${fmtInteiro(s.total)}`}
             </dd>
           </div>
           <div className="alu-provas__leitura">
             <dt className="alu-olho alu-olho--quieto">Percentil</dt>
-            <dd className="alu-provas__leitura-valor">acima de {fmtInteiro(s.percentil)}%</dd>
+            <dd className="alu-provas__leitura-valor">
+              {semPosicao ? '—' : `acima de ${fmtInteiro(s.percentil)}%`}
+            </dd>
           </div>
         </dl>
+
+        {semPosicao && (
+          <p className="alu-provas__aviso">
+            {`A turma ainda é pequena demais para comparar: com ${fmtInteiro(s.total)} ${
+              s.total === 1 ? 'nota' : 'notas'
+            } nesta prova, posição e percentil diriam quem tirou mais que você. Eles aparecem quando mais gente tiver nota.`}
+          </p>
+        )}
 
         {/* Uma ação só desde 04/09, e a barra continua sendo barra: o extrato
             é o caminho para "de onde veio esta nota", e era ele que dividia
@@ -138,17 +153,26 @@ function VoltarParaProvas() {
  * SVG escrito à mão, como todo gráfico do projeto. A sua barra é preenchida na
  * cor DADO; as três referências são VAZADAS, porque não são conquista sua — são
  * a régua contra a qual você se lê.
+ *
+ * ⚠️ Os números da turma podem vir `null` pelo PISO DE ANONIMATO do servidor
+ * (`GruposComparacao`, tipos/aluno.ts): com pouca gente na prova, a média de
+ * um grupo é a nota de um colega. Barra que falta é dita, nunca some calada —
+ * o aluno concluiria que o top 15% não existe, ou que a tela quebrou.
  */
 function Comparacao({ grupos, minhaNota }: { grupos: GruposComparacao | null; minhaNota: number }) {
   if (!grupos || grupos.geral == null) {
     return (
       <Bloco fonte="simulado" olho="Contra a turma">
         <p className="alu-vazio">
-          Ainda não há gente suficiente com nota neste simulado para comparar sem enganar.
+          Ainda há pouca gente com nota neste simulado. Com tão poucas notas, a média da turma
+          seria a nota de colegas — por isso a comparação só aparece quando mais gente tiver feito a
+          prova.
         </p>
       </Bloco>
     );
   }
+
+  const semOsGrupos = grupos.top15 == null || grupos.bottom15 == null;
 
   const linhas: Array<{ rotulo: string; valor: number | null; eu: boolean }> = [
     { rotulo: 'Top 15%', valor: grupos.top15, eu: false },
@@ -210,6 +234,13 @@ function Comparacao({ grupos, minhaNota }: { grupos: GruposComparacao | null; mi
           );
         })}
       </svg>
+
+      {semOsGrupos && (
+        <p className="alu-provas__aviso">
+          O top 15% e o inferior 15% ficam de fora nesta prova: com tão pouca gente, cada grupo
+          teria uma ou duas pessoas, e a média dele entregaria a nota de alguém.
+        </p>
+      )}
     </Bloco>
   );
 }
