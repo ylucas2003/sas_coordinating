@@ -119,6 +119,20 @@ function HeroUltimoSimulado({ simulado }: { simulado: SimuladoDoAluno }) {
   // simulado inteiro.
   const detalhe = useSimulado(simulado.id);
   const nome = simulado.rotulo || simulado.nome || simulado.id;
+  // Posição e percentil `null` são o PISO DE ANONIMATO do servidor, não dado
+  // faltando (`DetalheSimuladoAluno`, tipos/aluno.ts) — e o aviso abaixo das
+  // leituras diz isso, em vez de deixar um traço que parece tela quebrada.
+  const ficha = detalhe.data;
+  const semPosicao = ficha != null && (ficha.posicao == null || ficha.percentil == null);
+  let posicao = detalhe.isError ? 'indisponível' : '—';
+  let percentil = posicao;
+  if (ficha && !semPosicao) {
+    posicao = `${fmtInteiro(ficha.posicao)}º de ${fmtInteiro(ficha.total)}`;
+    percentil = `acima de ${fmtInteiro(ficha.percentil)}%`;
+  } else if (semPosicao) {
+    posicao = '—';
+    percentil = '—';
+  }
 
   return (
     <Bloco fonte="simulado" olho="Último simulado" className="alu-provas__hero">
@@ -143,25 +157,20 @@ function HeroUltimoSimulado({ simulado }: { simulado: SimuladoDoAluno }) {
         </div>
         <div className="alu-provas__leitura">
           <dt className="alu-olho alu-olho--quieto">Posição</dt>
-          <dd className="alu-provas__leitura-valor">
-            {detalhe.data
-              ? `${fmtInteiro(detalhe.data.posicao)}º de ${fmtInteiro(detalhe.data.total)}`
-              : detalhe.isError
-                ? 'indisponível'
-                : '—'}
-          </dd>
+          <dd className="alu-provas__leitura-valor">{posicao}</dd>
         </div>
         <div className="alu-provas__leitura">
           <dt className="alu-olho alu-olho--quieto">Percentil</dt>
-          <dd className="alu-provas__leitura-valor">
-            {detalhe.data
-              ? `acima de ${fmtInteiro(detalhe.data.percentil)}%`
-              : detalhe.isError
-                ? 'indisponível'
-                : '—'}
-          </dd>
+          <dd className="alu-provas__leitura-valor">{percentil}</dd>
         </div>
       </dl>
+
+      {semPosicao && (
+        <p className="alu-provas__aviso">
+          A turma ainda é pequena demais para comparar: posição e percentil aparecem quando mais
+          gente tiver nota nesta prova.
+        </p>
+      )}
 
       {/* O extrato é o momento mais forte do produto (brief §Extrato) e não
           pode ficar atrás de dois toques. Tecla de VALOR porque o que se

@@ -25,6 +25,43 @@ from supabase import Client
 from .metricas import mapa_metrica_geral_por_simulado
 from .utils import como_float, filtro_nota_valida, nota_real, simulado_entra_no_agregado
 
+# ─── O piso de anonimato (docs/27 §9, regra 4) ────────────────────────────
+
+#: Abaixo de tantas notas numa prova, nenhum número sobre a TURMA sai para o
+#: aluno: nem média, nem grupo de 15%, nem posição, nem percentil, nem o tempo
+#: médio da prova. Com duas pessoas na prova, "a média da turma" é a nota da
+#: colega a uma conta de distância — 2 × média − a sua nota —, e "2º de 2" diz
+#: que ela tirou mais. "Comparações só com agregados" (docs/27 §9, regra 4)
+#: deixa de ser verdade sem erro nenhum na tela.
+#:
+#: ⚠️ O piso mora AQUI, nas funções de domínio, e não na rota nem na tool: as
+#: rotas /me (routes/me.py) e as tools do chat do aluno (chat/tools_aluno.py)
+#: leem estas mesmas funções, e o payload do insight vai também à OpenAI. Até
+#: 26/10 não havia piso nenhum, e a média de uma prova com duas notas saía por
+#: GET /me/simulados, /me/simulado/{id}, /me/evolucao e /me/insight. Piso posto
+#: numa porta só deixa a mesma média sair inteira pelas outras.
+#:
+#: ⚠️ O LIMITE, conhecido: o piso protege UMA leitura, e não a diferença entre
+#: duas. Quem lê a mesma prova com 10 e depois com 11 notas tira a 11ª de
+#: 11·média₂ − 10·média₁ (com a média em duas casas, o erro fica perto de 0,1).
+#: Esconder a contagem não basta, e arredondar a média mais grosso só alarga o
+#: erro. O conserto de verdade é publicar a comparação só com a prova FECHADA —
+#: o que pede decidir quando uma prova fecha, e é decisão de produto, não desta
+#: camada.
+PISO_DE_ANONIMATO = 10
+
+#: O top 15% e o inferior 15% só saem quando o GRUPO tem pelo menos isto. Com a
+#: turma acima do piso o grupo ainda pode ser uma pessoa — `max(1, int(n·0,15))`
+#: é 1 até 13 notas — e a "média do top 15%" é a nota exata do melhor da sala.
+#: Três e não dois: o aluno pode estar no grupo, e tirando a nota dele sobram
+#: duas, cuja média não devolve a nota de ninguém.
+MINIMO_DO_GRUPO_DE_15 = 3
+
+
+def turma_acima_do_piso(n: int | None) -> bool:
+    """`n` notas bastam para um número da turma ser agregado, e não a nota de alguém?"""
+    return n is not None and n >= PISO_DE_ANONIMATO
+
 
 def simulados_do_aluno(
     cliente: Client, aluno_id: str, *, incluir_faltas: bool = False
@@ -41,6 +78,10 @@ def simulados_do_aluno(
     esta função e calculam média e delta sobre a lista que ela devolve; ligar a
     falta por default mudaria número em tela sem ninguém ter pedido. Quem quer
     a ausência pede por ela.
+
+    `mediaGeral` passa pelo piso de anonimato (`turma_acima_do_piso`): `None`
+    com menos de `PISO_DE_ANONIMATO` notas na prova. `nPresentes` fica — é
+    contagem, e é ela que deixa a tela dizer por que a média não está lá.
     """
     consulta = (
         cliente.table("nota")
@@ -80,6 +121,10 @@ def simulados_do_aluno(
             continue
         ciclo = sim.get("ciclo") or {}
         met = metricas.get(sim["id"]) or {}
+        # O piso de anonimato, prova a prova, contado pela mesma métrica que
+        # deu a média: com poucas notas, "a média da turma" é a nota de colega
+        # a uma conta de distância.
+        media_turma = met.get("media") if turma_acima_do_piso(met.get("n_presentes")) else None
         itens.append(
             {
                 "id": sim["id"],
@@ -91,7 +136,7 @@ def simulados_do_aluno(
                 "nota": round(nota, 2) if presente and nota is not None else None,
                 "presente": presente,
                 "deltaSelf": None,
-                "mediaGeral": round(met["media"], 2) if met.get("media") is not None else None,
+                "mediaGeral": round(media_turma, 2) if media_turma is not None else None,
                 "nPresentes": met.get("n_presentes", 0),
                 "cicloId": ciclo.get("id"),
                 "cicloOrdem": ciclo.get("ordem"),
@@ -131,6 +176,9 @@ def _ciclos_acima_da_media_da_turma(itens: list[dict[str, Any]]) -> int:
     turma, não progresso (docs/24 §1.1). Sobrou só como um número entre outros
     no payload que o insight manda ao LLM, e o nome da chave diz o que ela é
     justamente para o modelo não a ler como sequência.
+
+    `mediaGeral` já chega pelo piso de anonimato de `simulados_do_aluno`: a
+    prova pequena não entra no lado da turma.
     """
     por_ciclo: dict[int, dict[str, list[float]]] = {}
     for item in itens:
@@ -154,11 +202,40 @@ def _ciclos_acima_da_media_da_turma(itens: list[dict[str, Any]]) -> int:
     return streak
 
 
+def _notas_da_prova(cliente: Client, simulado_id: str, nota_maxima: float) -> list[tuple[str, float]]:
+    """(aluno_id, nota 0–10) de quem tem nota que conta nesta prova.
+
+    É a contagem do piso de anonimato da prova, e por isso uma só: a ficha
+    (`detalhe_simulado_do_aluno`) e o tempo médio das questões
+    (`questoes_do_aluno_no_simulado`) saem na mesma tela (ProvaFicha.tsx), e um
+    piso contado de dois jeitos deixaria um número da turma de pé ao lado dos
+    que ele tirou.
+    """
+    resp = (
+        filtro_nota_valida(
+            cliente.table("nota")
+            .select("aluno_id, pontuacao")
+            .eq("simulado_id", simulado_id)
+        )
+        .execute()
+    )
+    notas: list[tuple[str, float]] = []
+    for linha in resp.data or []:
+        n = nota_real(como_float(linha.get("pontuacao")), nota_maxima)
+        if n is not None:
+            notas.append((linha["aluno_id"], n))
+    return notas
+
+
 def detalhe_simulado_do_aluno(
     cliente: Client, aluno_id: str, simulado_id: str
 ) -> dict[str, Any]:
     """Detalhe de um simulado: nota, ranking e comparação com grupos —
-    mesma resposta de GET /me/simulado/{id}."""
+    mesma resposta de GET /me/simulado/{id}.
+
+    Posição, percentil e os três números da turma passam pelo piso de
+    anonimato e vêm `None` abaixo dele; `total` fica sempre.
+    """
     sim_resp = (
         cliente.table("simulado")
         .select(
@@ -178,24 +255,9 @@ def detalhe_simulado_do_aluno(
     mats_resp = cliente.table("materia").select("id, nome").execute()
     nome_mat = {m["id"]: m["nome"] for m in (mats_resp.data or [])}
 
-    notas_resp = (
-        filtro_nota_valida(
-            cliente.table("nota")
-            .select("aluno_id, pontuacao")
-            .eq("simulado_id", simulado_id)
-        )
-        .execute()
-    )
-
-    todas_notas: list[float] = []
-    minha_nota: float | None = None
-    for linha in notas_resp.data or []:
-        n = nota_real(como_float(linha.get("pontuacao")), nota_maxima)
-        if n is None:
-            continue
-        todas_notas.append(n)
-        if linha["aluno_id"] == aluno_id:
-            minha_nota = n
+    notas = _notas_da_prova(cliente, simulado_id, nota_maxima)
+    todas_notas = [n for _, n in notas]
+    minha_nota = dict(notas).get(aluno_id)
 
     if minha_nota is None:
         return {"erro": "Nota não encontrada para este simulado"}
@@ -210,6 +272,16 @@ def detalhe_simulado_do_aluno(
     geral = st.mean(todas_notas)
     top15 = st.mean(sorted(todas_notas)[-n15:])
     bottom15 = st.mean(sorted(todas_notas)[:n15])
+    # O piso de anonimato: abaixo dele a "comparação com a turma" é a nota de
+    # colegas, e os três números saem `None` — a ficha da prova já diz que
+    # ainda não há gente suficiente para comparar quando `geral` vem nulo
+    # (ProvaFicha.tsx). Os grupos de 15% têm, além disso, o piso próprio.
+    # Posição e percentil saem junto: com duas notas, "2º de 2" diz que o
+    # colega tirou mais — é comparação com uma pessoa, não com agregado.
+    # `total` fica: é contagem, e é ela que deixa a tela dizer POR QUE não há
+    # comparação.
+    turma_ok = turma_acima_do_piso(total)
+    grupos_ok = turma_ok and n15 >= MINIMO_DO_GRUPO_DE_15
 
     # Delta vs média de todos os outros simulados do aluno
     outras_resp = (
@@ -244,20 +316,28 @@ def detalhe_simulado_do_aluno(
         "vestibularAlvo": (sim.get("ciclo") or {}).get("vestibular_alvo"),
         "nota": round(minha_nota, 2),
         "deltaSelf": delta_self,
-        "posicao": posicao,
+        "posicao": posicao if turma_ok else None,
         "total": total,
-        "percentil": percentil,
+        "percentil": percentil if turma_ok else None,
         "grupos": {
             "voce": round(minha_nota, 2),
-            "geral": round(geral, 2),
-            "top15": round(top15, 2),
-            "bottom15": round(bottom15, 2),
+            "geral": round(geral, 2) if turma_ok else None,
+            "top15": round(top15, 2) if grupos_ok else None,
+            "bottom15": round(bottom15, 2) if grupos_ok else None,
         },
     }
 
 
 def evolucao_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any]:
-    """Séries aluno × turma por matéria/ciclo — mesma resposta de GET /me/evolucao."""
+    """Séries aluno × turma por matéria/ciclo — mesma resposta de GET /me/evolucao.
+
+    O lado da turma passa pelo piso de anonimato prova a prova: a média de uma
+    prova com menos de `PISO_DE_ANONIMATO` notas não entra. Num ciclo em que a
+    única prova da matéria era pequena, `turma` fica `None` ali com `aluno`
+    preenchido — com duas notas na prova, a média da turma menos a do aluno
+    era a nota da colega. Num ciclo com uma prova grande e uma pequena, a
+    série usa só a grande.
+    """
     resp = (
         filtro_nota_valida(
             cliente.table("nota")
@@ -296,9 +376,9 @@ def evolucao_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any]:
         if nota is None:
             continue
         dados[ordem][materia]["aluno"].append(nota)
-        media_turma = (metricas.get(sim["id"]) or {}).get("media")
-        if media_turma is not None:
-            dados[ordem][materia]["turma"].append(media_turma)
+        met = metricas.get(sim["id"]) or {}
+        if met.get("media") is not None and turma_acima_do_piso(met.get("n_presentes")):
+            dados[ordem][materia]["turma"].append(met["media"])
 
     if not dados:
         return {"ciclos": [], "materias": {}}
@@ -360,7 +440,7 @@ def questoes_do_aluno_no_simulado(
 
     sim_resp = (
         cliente.table("simulado")
-        .select("id, quiz_id, duracao_media_segundos")
+        .select("id, quiz_id, duracao_media_segundos, nota_maxima")
         .eq("id", simulado_id)
         .limit(1)
         .execute()
@@ -369,10 +449,24 @@ def questoes_do_aluno_no_simulado(
         return {"erro": "Simulado não encontrado"}
     sim = sim_resp.data[0]
 
+    # O tempo médio é número da TURMA (o `duration_average` das Quiz
+    # Statistics do Canvas, gravado por canvas_sync/questoes.py na coluna da
+    # migration 0010): com duas pessoas na prova, é o tempo da colega a uma
+    # conta de distância — o aluno sabe o próprio. Passa
+    # pelo mesmo piso da ficha desta prova, contado do mesmo jeito
+    # (`_notas_da_prova`), porque os dois saem na mesma tela (ProvaFicha.tsx):
+    # média, posição e percentil nulos ao lado de um tempo da turma era a
+    # comparação que o piso tira. A consulta extra só roda quando há tempo.
+    duracao = como_float(sim.get("duracao_media_segundos"))
+    if duracao is not None:
+        nota_maxima = como_float(sim.get("nota_maxima")) or 10.0
+        if not turma_acima_do_piso(len(_notas_da_prova(cliente, simulado_id, nota_maxima))):
+            duracao = None
+
     vazio = {
         "temGabarito": False,
         "temMinhasRespostas": False,
-        "duracaoMediaSegundos": como_float(sim.get("duracao_media_segundos")),
+        "duracaoMediaSegundos": duracao,
         "totalQuestoes": 0,
         "acertos": 0,
         "erros": 0,
@@ -450,7 +544,7 @@ def questoes_do_aluno_no_simulado(
     return {
         "temGabarito": True,
         "temMinhasRespostas": bool(resposta_por_questao),
-        "duracaoMediaSegundos": como_float(sim.get("duracao_media_segundos")),
+        "duracaoMediaSegundos": duracao,
         "totalQuestoes": len(questoes),
         "acertos": acertos,
         "erros": erros,
@@ -466,6 +560,13 @@ def payload_insight_ciclo(
     aluno — a entrada (e a chave de cache, via hash) do insight de IA.
 
     Devolve (ciclo, payload); None se o aluno não tem notas em ciclo nenhum.
+
+    `mediaTurma` (geral e por matéria) já vem pelo piso de anonimato de
+    `simulados_do_aluno`: este payload vai à OpenAI, e com duas notas na prova
+    a média da turma era a nota da colega a uma conta de distância. Como o
+    payload é a chave do cache (`insight_aluno.gerar_para_aluno_ciclo` faz hash
+    dele), os bullets gerados com a média vazada não voltam mais do cache: o
+    hash mudou junto com o número.
     """
     itens = simulados_do_aluno(cliente, aluno_id)
     com_ciclo = [i for i in itens if i.get("cicloOrdem") is not None and i.get("cicloId")]

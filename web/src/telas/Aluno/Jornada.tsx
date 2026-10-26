@@ -70,6 +70,7 @@ export function Jornada() {
             pontos={trajetoria.data}
             corte={corteMajoritario(cortes.data)}
             turma={mediaDaTurmaPorCiclo(evolucao.data)}
+            turmaDeFora={haCicloSemMediaDaTurma(evolucao.data)}
           />
         )}
       </Bloco>
@@ -551,10 +552,13 @@ function Trajetoria({
   pontos,
   corte,
   turma,
+  turmaDeFora,
 }: {
   pontos: PontoDaTrajetoria[];
   corte: number | null;
   turma: Array<number | null> | null;
+  /** Há ciclo com nota sua e sem a média da turma — o piso de anonimato. */
+  turmaDeFora: boolean;
 }) {
   const L = 320;
   const A = 176;
@@ -729,6 +733,13 @@ function Trajetoria({
             média da turma · por ciclo
           </li>
         )}
+        {/* O PISO DE ANONIMATO do servidor (`EvolucaoAluno`, tipos/aluno.ts):
+            prova com pouca gente não entra no lado da turma. Sem esta linha, o
+            buraco na linha tracejada — ou a linha inteira sumindo — pareceria
+            defeito, ou "a turma não fez a prova". */}
+        {turmaDeFora && (
+          <li>sem a média da turma onde a turma era pequena demais para comparar</li>
+        )}
       </ul>
     </div>
   );
@@ -786,6 +797,21 @@ function mediaDaTurmaPorCiclo(
   });
 
   return media.some((v) => v != null) ? media : null;
+}
+
+/**
+ * Algum ciclo tem nota do aluno e nenhuma média da turma?
+ *
+ * É o `null` do piso de anonimato do servidor (`EvolucaoAluno`, tipos/aluno.ts)
+ * — e não "o aluno não fez prova ali", que zera os dois lados juntos. Mesma
+ * granularidade de `mediaDaTurmaPorCiclo`: o ciclo, achatando as matérias.
+ */
+function haCicloSemMediaDaTurma(evolucao: EvolucaoAluno | null | undefined): boolean {
+  if (!evolucao?.ciclos.length) return false;
+  const series = Object.values(evolucao.materias);
+  return evolucao.ciclos.some(
+    (_, i) => series.some((m) => m.aluno[i] != null) && series.every((m) => m.turma[i] == null),
+  );
 }
 
 /**
