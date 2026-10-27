@@ -141,6 +141,13 @@ services:
       - /opt/sas/dados/downloads:/srv/downloads:ro
     environment:
       TZ: ${TZ:-America/Fortaleza}
+    # `default` para alcançar a api; `borda_mcp` para alcançar o mcp, que não
+    # está na rede da API (docs/43 §10). Com o MCP desligado a rede fica vazia
+    # e o nginx responde 503 em /mcp: ele resolve o nome a cada requisição,
+    # então sobe sem o mcp (nginx.conf).
+    networks:
+      - default
+      - borda_mcp
 
   # One-shot, não sobe com `up`. Mesma imagem da API (precisa de psycopg e de
   # migrations/), mas conecta como dono do schema, não como o papel do PostgREST.
@@ -164,5 +171,122 @@ services:
     entrypoint: ["python", "-m", "scripts.migrate"]
     command: ["status"]
 
+  # ─── MCP da coordenação (docs/43 §5 e §10) — DESLIGADO ────────────────
+  #
+  # Os dois serviços ficam no profile `mcp` e NÃO sobem com o `up -d` do
+  # deploy enquanto o .env não tiver COMPOSE_PROFILES=mcp. Ligar é o portão de
+  # LGPD (docs/43 §5.4): só acrescentar as linhas ao .env e rodar o deploy — o
+  # passo a passo está na §10. Desligado, nada aqui existe em produção: nem
+  # container, nem senha no login (o autenticador_mcp segue com a PASSWORD
+  # NULL da 0071).
+  #
+  # ⚠️ NENHUM `${X:?}` nestes dois serviços. O compose interpola o arquivo
+  # INTEIRO antes de aplicar os profiles: um `:?` aqui, com a variável fora do
+  # .env, quebra todo `docker compose` da stack — deploy, cron, `ps` — com o
+  # MCP desligado (provado no Compose v5.2.0 em 27/10, docs/43 §10). Por isso
+  # o padrão é o que falha fechado na hora de subir: senha vazia, que o login
+  # recusa, e MCP_HABILITADO=false, que o guard de boot do mcp recusa.
+  #
+  # Nenhum dos dois tem `ports:` (armadilha 4): o anônimo do postgrest_mcp lê
+  # a lista branca sem token, e o mcp devolve dado de menor.
+  postgrest_mcp:
+    image: postgrest/postgrest:v12.2.3
+    profiles: ["mcp"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Login PRÓPRIO (0071), nunca o `authenticator` da API: ele é membro do
+      # sas_service, e com ele um SET ROLE numa requisição do MCP, ou um
+      # `pgrst.*` gravado no papel de login, levava ao acesso total (docs/43
+      # §5.2). A senha nunca é escrita aqui: é a POSTGREST_MCP_PASSWORD do
+      # .env, que o deploy.sh grava no login a cada deploy com o MCP ligado.
+      # Sem ela, a URI vai sem senha e o Postgres recusa — o PostgREST sai e o
+      # `restart` tenta de novo, sem entrar nunca.
+      PGRST_DB_URI: postgres://autenticador_mcp:${POSTGREST_MCP_PASSWORD:-}@db:5432/sas
+      PGRST_DB_SCHEMAS: public
+      # sas_mcp (0071 e 0072): SELECT só na lista branca, por coluna; INSERT só
+      # na auditoria; EXECUTE só em mcp_conferir_token.
+      PGRST_DB_ANON_ROLE: sas_mcp
+      # SEM PGRST_JWT_SECRET, de propósito: sem segredo, todo Bearer vira
+      # PGRST300 e nenhum JWT, nem forjado, troca o papel. E sem a config
+      # guardada no banco, que valeria POR CIMA deste env (segunda camada,
+      # docs/43 §5.2). Não acrescente.
+      PGRST_DB_CONFIG: "false"
+      # Pool próprio e pequeno: o tráfego de uma IA de fora não disputa as 10
+      # conexões do PostgREST da API. Com a do LISTEN são 4, abaixo do
+      # CONNECTION LIMIT 10 do autenticador_mcp (0071).
+      PGRST_DB_POOL: "3"
+      PGRST_SERVER_PORT: "3000"
+      TZ: ${TZ:-America/Fortaleza}
+      # SEM PGRST_DB_MAX_ROWS, pelo mesmo motivo do `postgrest` (armadilha 2).
+    networks:
+      # `default` para alcançar o db; `dados_mcp` para o mcp alcançá-lo.
+      - default
+      - dados_mcp
+
+  mcp:
+    # A MESMA imagem da API, outro processo (docs/43 §5.1): `sas-api` é o nome
+    # que o compose dá ao build do serviço `api` (`name: sas` + serviço). Sem
+    # `build:` próprio de propósito. Com um, o `build` do deploy.sh — que roda
+    # com `--profile tools`, e o `--profile` da linha de comando SUBSTITUI o
+    # COMPOSE_PROFILES do .env — não o reconstruiria, e o `up -d` seguiria
+    # subindo o código do primeiro deploy (o tropeço da 0021, docs/15 §Etapa
+    # 7). Assim, imagem nova do `api` é imagem nova do `mcp`, e o `up -d`
+    # recria os dois. `pull_policy: never`: este nome não existe em registro
+    # nenhum, e o compose nunca deve sair perguntando por ele.
+    image: sas-api
+    pull_policy: never
+    profiles: ["mcp"]
+    restart: unless-stopped
+    # O CMD da imagem é o uvicorn da API (api/Dockerfile). O HEALTHCHECK
+    # herdado de lá chama 127.0.0.1:8000/health, e o app.mcp responde ali.
+    command: ["python", "-m", "app.mcp"]
+    depends_on:
+      - postgrest_mcp
+    # SEM env_file: o .env daqui é o da API (JWT_SECRET_KEY, OpenAI, Canvas,
+    # AWS), e o guard de boot do mcp recusa subir com qualquer um deles. As
+    # MCP_* vêm do MESMO .env por interpolação — a API lê as mesmas linhas
+    # pelo env_file dela, e os dois processos ficam com o mesmo valor. Os
+    # outros MCP_* do processo (limite por minuto, teto de linhas…) ficam no
+    # padrão do código; mudar um deles pede a linha aqui, não só no .env.
+    environment:
+      APP_ENV: production
+      TZ: ${TZ:-America/Fortaleza}
+      # O PostgREST DELE. http://postgrest:3000 nem resolve daqui: o mcp não
+      # está na rede default (ver `networks`).
+      POSTGREST_URL: http://postgrest_mcp:3000
+      # O portão de LGPD (docs/43 §5.4): fora do .env vale `false`, e o guard
+      # recusa subir — o profile ativo sem a decisão não põe o MCP no ar.
+      MCP_HABILITADO: ${MCP_HABILITADO:-false}
+      # Vazias, o guard recusa a primeira e o OAuth fica desligado sem a
+      # segunda; a §10 diz os valores.
+      MCP_URL_PUBLICA: ${MCP_URL_PUBLICA:-}
+      MCP_EMISSOR_OAUTH: ${MCP_EMISSOR_OAUTH:-}
+      # Administrador E coordenador (decisão do dono, 26/10); `true` volta ao
+      # só-administrador — e a API precisa do MESMO valor, que ela lê da mesma
+      # linha do .env. Um `:-true` aqui desfaria a decisão no deploy.
+      MCP_EMISSAO_SO_ADMINISTRADOR: ${MCP_EMISSAO_SO_ADMINISTRADOR:-false}
+      # O nome real do aluno (decisão do dono, 26/10; pede a base legal do
+      # art. 14 da LGPD). `false` volta ao pseudônimo. Só o mcp lê.
+      MCP_MOSTRAR_NOME_DO_ALUNO: ${MCP_MOSTRAR_NOME_DO_ALUNO:-true}
+      # Só o nginx alcança o mcp, e ele SOBRESCREVE o X-Forwarded-For
+      # (nginx.conf, `location = /mcp`): é dele que saem o IP da auditoria e o
+      # teto por IP.
+      MCP_IPS_DO_PROXY: "*"
+    networks:
+      # Fora da rede default: daqui não se alcança o db, o `postgrest` da API
+      # (anônimo = sas_service) nem a api. `borda_mcp` é por onde o nginx
+      # chega; `dados_mcp`, por onde ele chega ao postgrest_mcp.
+      - borda_mcp
+      - dados_mcp
+
 volumes:
   db-dados:
+
+networks:
+  # As duas do MCP (docs/43 §5.2 e §10). A `default` segue implícita, como
+  # sempre foi: declará-la aqui não muda nada e só abre espaço para mudar.
+  borda_mcp: {}   # nginx ↔ mcp
+  dados_mcp: {}   # mcp ↔ postgrest_mcp

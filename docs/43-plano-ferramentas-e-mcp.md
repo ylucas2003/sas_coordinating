@@ -1391,112 +1391,303 @@ novo.
 
 ---
 
-## 10 · Para produção — o que entra no `infra/vps` *(NÃO aplicado)*
+## 10 · Para produção — o `infra/vps` do MCP *(preparado em 27/10, DESLIGADO)*
 
-Nada abaixo está no `infra/vps` em 26/10. É o que entra quando o portão da §5.4
-abrir, na ordem da §9.
+> ⚠️ **Reescrita em 27/10.** Até aqui esta seção era a proposta para o MCP
+> **ligado**, sem nada aplicado. Desde o branch `feat/infra-mcp-desligado` o
+> `infra/vps` tem o MCP **desligado por padrão**: os serviços estão no compose,
+> as locations no nginx e o passo da senha no `deploy.sh`, mas nada do MCP sobe
+> enquanto o `.env` não o ligar. O que a proposta dizia e deixou de valer está
+> em §10.6. Onde a §9 (segundo passo) divergir desta seção, vale esta.
 
-**`infra/vps/docker-compose.yml`**: dois serviços, duas redes e dois
-acréscimos. Nenhum deles com `ports:` — o Docker passa por cima do ufw, e o
-anônimo do `postgrest_mcp` lê a lista branca sem token (armadilha 4).
+### 10.1 · O que foi aplicado em 27/10
 
-```yaml
-services:
-  db:
-    environment:
-      # (acrescentar) o passo da senha do deploy.sh a lê com o \getenv do psql
-      POSTGREST_MCP_PASSWORD: ${POSTGREST_MCP_PASSWORD:?defina no .env}
+O primeiro passo da §9: o `main` em `ca4c68f` (merge do PR #115) foi a produção
+com as migrations 0070 a 0073. Desde então o cluster tem os papéis
+`sas_leitura` e `sas_mcp` e o login `autenticador_mcp`, **com `PASSWORD
+NULL`** — ninguém entra com ele —, e o banco tem `token_mcp` e as seis tabelas
+do OAuth. A API serve as rotas de Conexões de IA (`/mcp/tokens`,
+`/mcp/emails-ia`) e as do OAuth, que dão 404 sem as variáveis (§9, primeiro
+passo). O `infra/vps` não mudou nesse deploy: nenhum serviço do MCP, nenhuma
+location no nginx, nenhuma senha no login.
 
-  postgrest_mcp:
-    image: postgrest/postgrest:v12.2.3
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      # Login PRÓPRIO (0071), nunca o `authenticator` da API.
-      PGRST_DB_URI: postgres://autenticador_mcp:${POSTGREST_MCP_PASSWORD:?defina no .env}@db:5432/sas
-      PGRST_DB_SCHEMAS: public
-      PGRST_DB_ANON_ROLE: sas_mcp
-      PGRST_DB_CONFIG: "false"
-      PGRST_DB_POOL: "3"            # mais o LISTEN, 4: abaixo do CONNECTION LIMIT 10
-      PGRST_SERVER_PORT: "3000"
-      TZ: ${TZ:-America/Fortaleza}
-      # SEM PGRST_JWT_SECRET: todo Bearer vira PGRST300 e nenhum JWT troca o papel.
-      # SEM PGRST_DB_MAX_ROWS (armadilha 2).
-    networks: [default, dados_mcp]
+### 10.2 · O que entra no `infra/vps`, e o que o próximo deploy muda
 
-  mcp:
-    build:
-      context: ../../api
-      target: prod
-    restart: unless-stopped
-    command: ["python", "-m", "app.mcp"]
-    depends_on:
-      - postgrest_mcp
-    # SEM env_file: o .env daqui é o da API (JWT_SECRET_KEY, OpenAI, Canvas,
-    # AWS), e o guard de boot do MCP recusa subir com qualquer um deles.
-    # As MCP_* vêm do MESMO .env por interpolação — a API lê as mesmas linhas
-    # pelo env_file dela, e os dois processos ficam com o mesmo valor.
-    environment:
-      APP_ENV: production
-      TZ: ${TZ:-America/Fortaleza}
-      POSTGREST_URL: http://postgrest_mcp:3000
-      MCP_HABILITADO: ${MCP_HABILITADO:?o portão de LGPD — docs/43 §5.4}
-      MCP_URL_PUBLICA: ${MCP_URL_PUBLICA:?defina no .env}
-      MCP_EMISSOR_OAUTH: ${MCP_EMISSOR_OAUTH:?defina no .env}
-      # Administrador E coordenador (decisão do dono, 26/10); `true` volta ao
-      # só-administrador — e a API precisa do MESMO valor.
-      MCP_EMISSAO_SO_ADMINISTRADOR: ${MCP_EMISSAO_SO_ADMINISTRADOR:-false}
-      # O nome real do aluno (decisão do dono, 26/10; pede a base legal do
-      # art. 14 da LGPD). `false` volta ao pseudônimo. Só o mcp lê.
-      MCP_MOSTRAR_NOME_DO_ALUNO: ${MCP_MOSTRAR_NOME_DO_ALUNO:-true}
-      # Só o nginx alcança o mcp, e ele SOBRESCREVE o X-Forwarded-For.
-      MCP_IPS_DO_PROXY: "*"
-    networks: [borda_mcp, dados_mcp]
+Três arquivos — cada decisão está comentada no próprio arquivo, com o porquê:
 
-  web:
-    # (acrescentar) o nginx alcança o mcp pela borda_mcp
-    networks: [default, borda_mcp]
+- **`docker-compose.yml`**: `postgrest_mcp` e `mcp` no profile `mcp`, que só
+  fica ativo com `COMPOSE_PROFILES=mcp` no `.env`; as redes `borda_mcp` (nginx
+  ↔ mcp) e `dados_mcp` (mcp ↔ postgrest_mcp); e o `web` também na
+  `borda_mcp`. O `mcp` roda a imagem `sas-api` — a que o build do `api` produz —,
+  sem build próprio. Nenhum dos dois tem `ports:` (armadilha 4).
+- **`nginx.conf`**: `location = /mcp` e os quatro `/.well-known` do OAuth, com
+  `proxy_pass` por variável e o resolver do Docker (`127.0.0.11`), para o nginx
+  subir com o mcp parado. Com ele fora do ar, `/mcp` e os dois do RFC 9728 dão
+  **503** com uma linha de texto ("O MCP da coordenação não está no ar neste
+  servidor."), pela location `@mcp_fora_do_ar`, em vez do `index.html` do SPA
+  com 200. Os dois do RFC 8414 vão à API, que responde 404 em JSON enquanto o
+  OAuth estiver desligado. Nenhum `add_header` nas locations novas, e o `/mcp`
+  SOBRESCREVE o `X-Forwarded-For` com `$remote_addr`.
+- **`deploy.sh`**: pergunta ao compose se o MCP está ligado (`config
+  --services`); só com ele ligado grava a senha do login, reinicia o
+  `postgrest_mcp` e espera o 401 do `/mcp`; num `.env` novo, sorteia também a
+  `POSTGREST_MCP_PASSWORD`. O `--verificar` ganha os smokes do MCP nos dois
+  modos (§10.5).
 
-networks:
-  default: {}
-  borda_mcp: {}   # nginx ↔ mcp
-  dados_mcp: {}   # mcp ↔ postgrest_mcp. Daqui o mcp não enxerga o db, a api
-                  # nem o postgrest da API
-```
+**O próximo deploy, com o MCP desligado, muda só a borda:**
 
-**`infra/vps/.env`** — as linhas novas. A API lê todas pelo `env_file`; o `mcp`
-recebe as cinco primeiras `MCP_*` pelo bloco acima:
+- o container `web` é **recriado** — ganhou a rede `borda_mcp` — e sobe com o
+  `nginx.conf` novo. (Um deploy que não recriasse o `web` deixaria o nginx com o
+  arquivo velho na memória.)
+- `/mcp` e `/.well-known/oauth-protected-resource[/mcp]` deixam de dar 200 com o
+  SPA e passam a dar 503 com texto; `/.well-known/oauth-authorization-server[/api]`
+  deixam o SPA pelo 404 da API. O resto da borda é o mesmo — SPA,
+  `/conectar-ia`, `/api/`, `/assets/` e os headers de segurança (§10.7).
+- nasce a rede `sas_borda_mcp`, só com o `web`; a `sas_dados_mcp` só nasce com
+  o MCP ligado.
+- `db`, `postgrest`, `api` e `migrate` têm o MESMO hash de serviço de `ca4c68f`,
+  e o `db` não é recriado (provado com `up -d`, §10.7). O `api` é recriado assim
+  mesmo, **com o mesmo código**: este branch mexeu em
+  `api/tests/test_migrations_do_mcp.py`, e `api/tests/` entra na imagem pelo
+  `COPY . .` (não está no `api/.dockerignore`) — imagem nova, container novo.
+- o `deploy.sh` diz "MCP da coordenação desligado", não toca no login e
+  reinicia só o `postgrest`, como antes. Nada pede `--migrar`.
 
-```sh
-POSTGREST_MCP_PASSWORD=          # openssl rand -hex 32
-MCP_HABILITADO=true              # SÓ quando o portão abrir: com false o mcp não sobe
-MCP_URL_PUBLICA=https://portalsas.online/mcp
-MCP_EMISSOR_OAUTH=https://portalsas.online/api
-MCP_EMISSAO_SO_ADMINISTRADOR=false         # o padrão desde 26/10; o MESMO na API e no mcp
-MCP_MOSTRAR_NOME_DO_ALUNO=true             # o padrão desde 26/10; só o mcp lê
-MCP_URL_DO_APP=https://portalsas.online    # só a API: para onde o /oauth/authorize manda
+### 10.3 · Como ligar
 
-# Só a API — o SES do motor de lembretes, por onde sai o código que aprova a
-# conexão OAuth (decisão de 26/10, §9). Podem já existir no .env, preenchidas
-# ou não: o de produção não foi lido. O mcp NÃO pode ter estas: o guard dele
-# recusa subir com a chave do SES no ambiente.
-AWS_SES_ACCESS_KEY_ID=
-AWS_SES_SECRET_ACCESS_KEY=
-EMAIL_REMETENTE=
-EMAIL_DESTINATARIO_TESTE=        # VAZIO: preenchido, o código vai para a caixa de teste
-```
+Antes, nesta ordem: o portão de LGPD (§5.4 — a base legal do art. 14
+registrada e a conta do provedor, §6) e o SES para o código do e-mail da conta
+de IA, com os três cuidados da §9 (segundo passo, item 2). Depois, **só
+acrescentar linhas ao `.env` e rodar o deploy**:
+
+1. No servidor, como `sas`, em `/opt/sas/infra/vps`, acrescentar ao `.env` —
+   sem aspas, cada chave uma vez:
+
+   ```sh
+   COMPOSE_PROFILES=mcp                          # liga o postgrest_mcp e o mcp
+   POSTGREST_MCP_PASSWORD=                       # openssl rand -hex 32 (ver abaixo)
+   MCP_HABILITADO=true                           # o portão: sem ele o mcp não sobe
+   MCP_URL_PUBLICA=https://portalsas.online/mcp
+   MCP_EMISSOR_OAUTH=https://portalsas.online/api
+   MCP_URL_DO_APP=https://portalsas.online       # só a API: para onde o /oauth/authorize manda
+   # As decisões de 26/10 já são o padrão nos dois processos. Só para mudar —
+   # e então vale para a API e para o mcp de uma vez, porque é a mesma linha:
+   # MCP_EMISSAO_SO_ADMINISTRADOR=false
+   # MCP_MOSTRAR_NOME_DO_ALUNO=true
+   # O SES, só da API, se ainda não estiver no .env:
+   AWS_SES_ACCESS_KEY_ID=
+   AWS_SES_SECRET_ACCESS_KEY=
+   EMAIL_REMETENTE=
+   EMAIL_DESTINATARIO_TESTE=                     # VAZIO: preenchido, o código vai para a caixa de teste
+   ```
+
+   A senha, sem passar pela tela nem pelo argv de processo nenhum (`printf` é
+   builtin do bash): `printf 'POSTGREST_MCP_PASSWORD=%s\n' "$(openssl rand -hex
+   32)" >> .env`. Um `.env` que o `deploy.sh` gerou depois deste branch já tem
+   a linha — confira antes com `grep -c '^POSTGREST_MCP_PASSWORD=' .env`. Com a
+   chave duplicada, o compose e o deploy usam os dois a ÚLTIMA (conferido no
+   Compose v5.2.0), mas uma só é o certo.
+2. `./infra/vps/deploy.sh` — com o `--rapido` do passo 0 da §9 enquanto aquele
+   portão estiver vermelho, e sem `--migrar`: as migrations do MCP estão
+   aplicadas desde 27/10. Em ordem, o deploy: constrói `sas-api`, que é também
+   a imagem do mcp → confere as migrations → **grava a senha no
+   `autenticador_mcp`** → `up -d`, que cria o `postgrest_mcp` e o `mcp` e
+   recria o `api` (o `.env` mudou, e ele o lê pelo `env_file`) → reinicia
+   `postgrest` e `postgrest_mcp` → espera o `/api/health` e o 401 do `/mcp` →
+   smoke. O `web` não é recriado: o nginx acha o mcp pelo resolver, em até
+   30 s (`valid=30s`).
+3. O smoke do fim tem de dizer "MCP ligado: POST /mcp sem token → 401 com
+   resource_metadata" e os quatro metadados em JSON.
+4. A prova de papéis, de dentro da rede (§9, segundo passo, item 7): `docker
+   compose exec -T api python -m scripts.verificar_papeis_do_mcp --mcp
+   http://postgrest_mcp:3000 --api http://postgrest:3000 --ferramentas
+   </dev/null`.
+5. No log, as linhas de `MCP_EMISSAO_SO_ADMINISTRADOR` e
+   `MCP_MOSTRAR_NOME_DO_ALUNO` da API e do mcp têm de ser iguais
+   (`registrar_no_log`, §5.6). Depois, conectar uma IA (§5.3).
+
+Faltando uma linha, nada abre por engano — cada falta falha fechado:
+
+| Faltou | O que acontece |
+|---|---|
+| `COMPOSE_PROFILES=mcp` | o MCP segue desligado: nenhum container, e o smoke diz "desligado" |
+| `POSTGREST_MCP_PASSWORD` | o deploy avisa e segue; o `postgrest_mcp` vai sem senha, o Postgres recusa, e ele reinicia em laço; o smoke reprova (profile ativo, `/mcp` → 503) |
+| senha fora do formato | o deploy para antes do `up -d`, e os containers seguem na versão anterior |
+| `MCP_HABILITADO=true` ou `MCP_URL_PUBLICA` | o guard do mcp recusa subir; o smoke reprova |
+| `MCP_EMISSOR_OAUTH` | o mcp sobe sem OAuth, só com token pessoal; o smoke reprova o 401 sem `resource_metadata` |
+| `MCP_URL_DO_APP` | a API deixa o OAuth desligado (404); o smoke reprova os metadados do RFC 8414 |
+
+### 10.4 · Como desligar
+
+1. Tirar `mcp` do `COMPOSE_PROFILES` e pôr `MCP_HABILITADO=false` (a tela de
+   Conexões de IA volta a dizer que o servidor está desligado).
+2. `docker compose stop mcp postgrest_mcp && docker compose rm -f mcp
+   postgrest_mcp`. **O `up -d` não para serviço de profile inativo**, e o
+   `docker compose down` com o profile já fora do `.env` também não o remove
+   (provado em 27/10): sem este passo, o MCP segue no ar. Nomeado, o serviço
+   responde ao `stop` mesmo com o profile inativo.
+3. `./infra/vps/deploy.sh`: recria o `api` com o `.env` novo, e o smoke diz
+   "desligado" — ou reprova com "sobrou o mcp de pé", se o passo 2 faltou.
+4. Opcional, para voltar ao estado de 27/10: `echo "ALTER ROLE
+   autenticador_mcp PASSWORD NULL;" | docker compose exec -T db psql -U
+   postgres -d sas`. Os tokens emitidos seguem no banco, e nada os aceita.
+
+### 10.5 · O que o `deploy.sh --verificar` confere
+
+Quem diz se o MCP está ligado é o servidor — o profile `mcp` ativo no compose,
+perguntado por ssh —, e não a resposta: com o profile ativo, um 503 é o mcp
+fora do ar, e não "desligado"; sem o profile, um 401 é container que sobrou de
+pé. Antes de tudo, `GET /mcp` com o `index.html` do SPA reprova nos dois modos:
+é o `nginx.conf` sem estas locations.
+
+| `POST /mcp` sem token | profile `mcp` no servidor | Resultado |
+|---|---|---|
+| o `index.html` do SPA | qualquer | FALHA — o nginx sem as locations do MCP |
+| 401 com `resource_metadata` | ativo | ok, e os quatro metadados têm de vir em JSON, com 200 |
+| 401 com `resource_metadata` | inativo | FALHA — sobrou o mcp de pé |
+| 401 sem `resource_metadata` | qualquer | FALHA — o mcp sem `MCP_EMISSOR_OAUTH` |
+| 503 | inativo | ok, "desligado" — e nenhum metadado pode ser o SPA |
+| 503 | ativo | FALHA — o mcp não está atendendo |
+| 503 | sem ssh | aviso — desligado ou fora do ar, sem saber qual |
+| outro (o 405 do nginx velho, por exemplo) | qualquer | FALHA |
+
+O "só o web publica porta" segue igual: nenhum dos dois serviços novos tem
+`ports:`.
+
+### 10.6 · O que a proposta anterior dizia e não vale mais
+
+- **A senha no `environment:` do `db`, para o `\getenv` do psql.** Mudaria o
+  hash do `db`, e o `up -d` recriaria o container do banco de produção. Agora a
+  senha sai do `.env` pelo `grep`, é conferida contra `^[0-9a-f]{64}$` (o
+  formato do `openssl rand -hex 32`) e chega ao psql pelo PIPE, como `\set` —
+  nenhum argv a leva, nem no servidor. E a sessão desliga `log_statement`,
+  `log_min_error_statement` e `log_min_duration_statement` antes do `ALTER
+  ROLE`: sem isso, num erro ou com `log_statement` ligado, o Postgres poria o
+  comando, com a senha em claro, no log do container (§10.7).
+- **`${X:?}` nos serviços do MCP** — a senha, `MCP_HABILITADO`,
+  `MCP_URL_PUBLICA`, `MCP_EMISSOR_OAUTH`. O compose interpola o arquivo INTEIRO
+  antes de aplicar os profiles: com `:?`, faltar uma delas quebraria todo
+  `docker compose` da stack com o MCP desligado — deploy, cron, `ps` (provado
+  no Compose v5.2.0). Os padrões agora falham fechado na hora de subir: senha
+  vazia, que o login recusa, e `MCP_HABILITADO=false`, que o guard recusa. A
+  trava de `api/tests/test_migrations_do_mcp.py` que exigia `:?` em produção
+  passou a aceitar o padrão vazio, com o porquê escrito no teste.
+- **`build:` próprio no `mcp`.** O build do deploy roda com `--profile tools`,
+  e o `--profile` da linha de comando SUBSTITUI o `COMPOSE_PROFILES` do `.env`
+  (conferido): o `mcp` nunca seria reconstruído e subiria o código do primeiro
+  deploy. Agora é `image: sas-api`, com `pull_policy: never`.
+- **Exigir a `POSTGREST_MCP_PASSWORD` num `.env` existente, com o `grep -qE`
+  das obrigatórias, e acrescentá-la à mão.** Exigir quebraria o deploy de quem
+  não ligou o MCP. O deploy não acrescenta nada a um `.env` que já existe; com
+  o MCP ligado e sem a senha, avisa e segue — o `postgrest_mcp` falha fechado,
+  e o smoke reprova.
+- **O restart incondicional `restart postgrest postgrest_mcp`.** Com o profile
+  inativo o serviço não existe; o `postgrest_mcp` só entra no restart com o MCP
+  ligado.
+- **"O container `web` precisa recarregar o `nginx.conf`"** (§9, segundo
+  passo, item 6). Quem o faz é o próximo deploy, que recria o `web`; ligar o
+  MCP depois não mexe no `web`.
+- **O mcp parado dando o 502 cru do nginx.** A proposta não tinha resposta para
+  ele; agora é o 503 do `@mcp_fora_do_ar`, com `resolver_timeout 5s` (desligado,
+  o DNS do Docker repassa a pergunta para fora, e o padrão de 30 s seguraria a
+  requisição). Os dois do RFC 9728 também sobrescrevem o `X-Forwarded-For`,
+  porque o mcp confia nele.
+- **"Os smokes do `--verificar` ganham os três da §9, passo 8."** Ganharam,
+  adaptativos (§10.5).
+
+### 10.7 · Como foi provado *(27/10, na máquina local)*
+
+Em stacks descartáveis — containers e redes com o prefixo `sas-infra-teste-`,
+portas altas só em `127.0.0.1`, `.env` falso —, com Docker 29.6.1 e Compose
+v5.2.0. Nada rodou contra o servidor.
+
+- **A interpolação.** Um compose mínimo com `${X:?}` num serviço de profile
+  inativo: `docker compose config` falha ("required variable … is missing a
+  value") com o profile ligado ou não. E `--profile tools`, com
+  `COMPOSE_PROFILES=mcp` no `.env`, deixa os serviços do `mcp` de fora.
+- **O `config`** do `infra/vps/docker-compose.yml` (cópia num diretório
+  temporário, com `.env` falso): desligado, `db postgrest api web`; ligado,
+  mais `postgrest_mcp` e `mcp`, este com a imagem `sas-api`; ligado sem
+  nenhuma `MCP_*`, a URI do `postgrest_mcp` sai sem senha e `MCP_HABILITADO`,
+  `false`.
+- **O hash.** `config --hash '*'` do compose de `ca4c68f` e do deste branch,
+  no mesmo diretório: só o `web` muda. O `config --hash` do Compose v5 não
+  inclui o conteúdo do `env_file` — o `api` dá o mesmo hash com e sem
+  `MCP_HABILITADO` no `.env` —, e por isso a prova do `db` é a de baixo.
+- **O `db` não é recriado.** O compose de produção de `ca4c68f`, `up -d db
+  postgrest` num projeto `-p sas-infra-teste-recriar`; trocado pelo deste
+  branch, `up -d` com o MCP desligado e depois ligado: o MESMO container do
+  `db` e do `postgrest` nas três vezes.
+- **O `env_file` e a imagem compartilhada**, num projeto mínimo com o desenho
+  do `mcp`: acrescentar `MCP_HABILITADO=true` ao `.env` recria quem o lê (o
+  `api` pelo `env_file`, o `mcp` pela interpolação); mudar o código do `api` e
+  rodar o build do deploy recria os dois com a mesma imagem nova; sem imagem
+  nenhuma, o `up -d` constrói o `api` e sobe o `mcp` sem tentar pull. E nem
+  `docker compose down` nem `docker compose --profile tools down` removeram o
+  `mcp` com o profile dele inativo.
+- **O passo da senha**, extraído do bloco remoto do `deploy.sh` e rodado como
+  está contra o `db` do compose de produção, com papéis que imitam a 0071 e
+  `log_statement = 'all'` no servidor. Desligado, não toca no banco. Ligado sem
+  senha, avisa e segue. Maiúsculas, 63 caracteres ou aspas: para antes do psql.
+  Com a senha, o login entra com ela e recusa outra, e o `postgrest_mcp` do
+  compose de produção, com a URI do mesmo `.env`, serve as colunas da lista
+  branca e recusa a de fora (42501). De novo: idempotente. Depois de `PASSWORD
+  NULL` (o `down` + `up` da 0071), o `postgrest_mcp` reinicia em laço até o
+  passo seguinte, que o devolve. Sem o login, para com erro. Em todos os casos
+  a senha não apareceu no argv de processo nenhum (`docker`, `grep`, `tail` e
+  `cut` registrados) nem no log do Postgres; o controle — o mesmo `ALTER ROLE`
+  sem os `SET` — apareceu lá, em claro.
+- **O nginx**, na imagem do `web/Dockerfile` (`nginxinc/nginx-unprivileged:1.27-alpine`,
+  nginx 1.27.5), com este `nginx.conf`, certificado autoassinado e upstreams
+  falsos `api` e `mcp` que ecoam caminho e cabeçalhos. Sem o `mcp`: sobe, e
+  `/mcp` e os dois do RFC 9728 dão o 503, com os headers de segurança. Com ele:
+  `/mcp` chega com `X-Forwarded-For`, `X-Real-IP` e `X-Forwarded-Proto` forjados
+  SOBRESCRITOS, e o nginx o achou sem ser reiniciado. Nos dois modos:
+  `/api/alunos?x=1` chega como `/alunos?x=1`; `/`, `/conectar-ia` e rota
+  profunda seguem com CSP `frame-ancestors 'none'` e `X-Frame-Options: DENY`;
+  cada `.well-known` vai para quem deve, com o caminho inteiro.
+- **O `--verificar`**: a seção de smoke do `deploy.sh`, rodada como está
+  contra essa stack, com o `ssh` respondendo pelo compose dela. Ligado e certo,
+  e desligado (no bash 3.2 do macOS e no 5 do Homebrew): zero falhas. Profile
+  ativo com o mcp parado, mcp sobrando com o profile inativo, 401 sem
+  `resource_metadata`, e o `nginx.conf` de `ca4c68f` nos dois modos: reprovam.
+  Sem ssh: aviso.
+- `bash -n` e `shellcheck` 0.10.0 (pela imagem oficial, sem rede) no
+  `deploy.sh` e no bloco remoto extraído: os mesmos achados de antes, nenhum
+  novo. A suíte do backend: 2627 passando, 27 pulados e os 3 de
+  `test_canvas_publicacao.py` falhando — os 4 testes de produção do compose em
+  `test_migrations_do_mcp.py`, antes pulados, passaram a rodar.
+
+**O que não foi verificado:**
+
+- nada no servidor: nem o `deploy.sh`, nem o `--verificar`, nem a versão do
+  Compose de lá;
+- o `web` em duas redes no Linux do VPS, com o ufw e o iptables do Docker — a
+  porta publicada e a rota de saída; a prova foi no Docker Desktop;
+- o processo `app.mcp` de verdade atrás deste nginx, e a API de verdade nos
+  `.well-known` do RFC 8414: os upstreams eram ecos;
+- o `verificar_papeis_do_mcp` de dentro do container (§9, segundo passo, item
+  7);
+- a versão de correção do nginx de produção: `1.27-alpine` é tag móvel, e a
+  prova usou 1.27.5;
+- o pior caso do `valid=30s`: na prova, o nginx achou o mcp em ~1 s.
+
+`/mcp/`, com barra, cai no SPA como qualquer caminho desconhecido: a location é
+exata, como o endereço que a IA configura.
+
+### 10.8 · O que segue valendo da proposta
 
 **Uma chave, dois processos.** `MCP_EMISSAO_SO_ADMINISTRADOR` é UMA linha do
-`.env`, lida pela API (pelo `env_file`) e pelo `mcp` (pela interpolação do
-bloco de cima), as duas com o padrão `false` da decisão 2 — um `:-true` na
+`.env`, lida pela API (pelo `env_file`) e pelo `mcp` (pela interpolação no
+compose), as duas com o padrão `false` da decisão 2 — um `:-true` na
 interpolação desfaria a decisão no deploy. Cada processo lê a do seu ambiente,
 e nada os obriga a concordar: religada só na API, a tela diz "só o
 administrador" e o `mcp` segue aceitando os tokens dos coordenadores; só no
 `mcp`, a tela emite e aprova o que o MCP recusa (§5.6, lente 2). Por isso ela
 nunca vai para o `environment:` de um só dos dois. `MCP_MOSTRAR_NOME_DO_ALUNO`
-(padrão `true`, decisão 1) só o `mcp` lê.
+(padrão `true`, decisão 1) só o `mcp` lê. Os outros `MCP_*` do processo do mcp
+(limite por minuto, teto de linhas…) ficam no padrão do código: ele não tem
+`env_file`, e mudar um deles pede a linha no `environment:` dele.
 
 Os tetos do código de aprovar, todos com padrão no código e só no `.env` para
 mudar (`mcp/configuracao.py`; só a API os lê):
@@ -1510,99 +1701,26 @@ mudar (`mcp/configuracao.py`; só a API os lê):
 Os do código de confirmação do card (20 por hora por conta, 5 por dia por
 e-mail) são constantes de `routes/mcp_emails_ia.py`, sem variável.
 
-**O `api/.env.example` precisa ganhar essas linhas**: as `MCP_*` do bloco de
-cima, com os padrões novos `MCP_EMISSAO_SO_ADMINISTRADOR=false` e
-`MCP_MOSTRAR_NOME_DO_ALUNO=true`, e os três tetos, comentados. O
-`infra/vps/.env.example` também, com o `POSTGREST_MCP_PASSWORD`. Este branch não
-os mexe e não os leu (a regra de nunca ler `.env*`): fica para quem abrir o PR.
-
 **Sem SES configurado em produção, o código não sai.** Nem o de aprovar, nem o
 de confirmação: nada é enviado, e só fica um ERROR `[AÇÃO NECESSÁRIA]` no log.
 O `/codigo` responde 202 como sempre, e o card, 503. Sem SES, nenhum e-mail se
-confirma e nenhuma conexão OAuth se aprova; o token pessoal segue (§9).
+confirma e nenhuma conexão OAuth se aprova; o token pessoal segue (§9). O
+`mcp` não pode ter as chaves do SES: o guard dele recusa subir com elas no
+ambiente — e não as tem, porque não tem `env_file`.
 
 O `MCP_EMISSOR_OAUTH` tem de ser IDÊNTICO nos dois processos: o cliente
 compara o `issuer` do RFC 8414 com o `authorization_servers` do RFC 9728 letra
 por letra, e uma barra a mais o faz descartar o metadado. E ele supõe que a API
-continue sob `/api`, com o nginx tirando o prefixo.
+continue sob `/api`, com o nginx tirando o prefixo. `/api/oauth/*` já passa
+pelo `location /api/`, que tira o `/api`. Opcional, e não feito: `limit_req` em
+`/mcp`, `/api/oauth/token` e `/api/oauth/register`, como teto por IP real na
+borda — os tetos do processo dependem do IP certo.
 
-**`infra/vps/deploy.sh`**
-
-- Pôr `POSTGREST_MCP_PASSWORD` na lista que o `openssl rand -hex 32` sorteia
-  para um `.env` novo, e num `.env` que já existe acrescentá-la à mão e
-  exigi-la com o mesmo `grep -qE` das outras obrigatórias.
-- Depois do `migrate up`, em TODO deploy (é idempotente), a senha do login,
-  sem ela passar por linha de comando nenhuma e lendo do pipe, e não do stdin
-  do script (armadilha 6):
-
-  ```sh
-  printf '%s\n' '\getenv senha POSTGREST_MCP_PASSWORD' \
-      "ALTER ROLE autenticador_mcp PASSWORD :'senha';" \
-    | docker compose exec -T db psql -U postgres -d sas -v ON_ERROR_STOP=1
-  ```
-
-- O restart incondicional passa a ser `docker compose restart postgrest
-  postgrest_mcp </dev/null`.
-- Os smokes do `--verificar` ganham os três da §9, passo 8.
-
-**`infra/vps/nginx.conf`**, dentro do `server { listen 8443 ssl; … }` e ANTES
-do `location /`, que hoje devolve o `index.html` com 200 para `/mcp` e para os
-`.well-known`:
-
-```nginx
-# Sem `add_header` em nenhuma destas: um add_header dentro de location anula os
-# do server — o CSP com frame-ancestors 'none' e o X-Frame-Options DENY, que
-# protegem a tela de consentimento /conectar-ia de clickjacking.
-#
-# proxy_pass por VARIÁVEL, com o resolver do Docker: o nome se resolve na hora
-# da requisição, não no boot, e o nginx sobe mesmo com o mcp parado. Sem URI no
-# proxy_pass, a URI original passa inteira, como as rotas esperam.
-resolver 127.0.0.11 valid=30s ipv6=off;
-
-location = /mcp {
-    set $mcp http://mcp:8000;
-    proxy_pass $mcp;
-    proxy_http_version 1.1;
-    proxy_set_header Host              $host;
-    # SOBRESCREVE, não acrescenta: com MCP_IPS_DO_PROXY='*' o uvicorn confia na
-    # entrada mais à esquerda, e é dela que saem o IP da trilha e o teto por IP.
-    # Os proxy_set_header do `location /api/` não são herdados aqui.
-    proxy_set_header X-Forwarded-For   $remote_addr;
-    proxy_set_header X-Real-IP         $remote_addr;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_buffering off;
-    proxy_cache off;
-    proxy_read_timeout 300s;
-    proxy_send_timeout 300s;
-}
-
-# RFC 9728 — o MCP publica nos dois caminhos.
-location = /.well-known/oauth-protected-resource {
-    set $mcp http://mcp:8000;
-    proxy_pass $mcp;
-    proxy_set_header Host $host;
-}
-location = /.well-known/oauth-protected-resource/mcp {
-    set $mcp http://mcp:8000;
-    proxy_pass $mcp;
-    proxy_set_header Host $host;
-}
-
-# RFC 8414 — a API publica na raiz e com o caminho do emissor (/api).
-location = /.well-known/oauth-authorization-server {
-    set $api http://api:8000;
-    proxy_pass $api;
-    proxy_set_header Host            $host;
-    proxy_set_header X-Forwarded-For $remote_addr;
-}
-location = /.well-known/oauth-authorization-server/api {
-    set $api http://api:8000;
-    proxy_pass $api;
-    proxy_set_header Host            $host;
-    proxy_set_header X-Forwarded-For $remote_addr;
-}
-```
-
-`/api/oauth/*` já passa pelo `location /api/` de hoje, que tira o `/api`.
-Opcional: `limit_req` em `/mcp`, `/api/oauth/token` e `/api/oauth/register`,
-como teto por IP real na borda — os tetos do processo dependem do IP certo.
+**Os `.env.example` precisam ganhar as linhas**, e este branch não os mexe nem
+os leu (a regra de nunca ler `.env*`): fica para quem abrir o PR.
+`infra/vps/.env.example`: `POSTGREST_MCP_PASSWORD=` vazia (o `deploy.sh` a
+sorteia num `.env` novo — e a acrescenta mesmo se o exemplo não tiver a linha)
+e o bloco de §10.3 **comentado**, com `# COMPOSE_PROFILES=mcp`: descomentado,
+todo servidor novo nasceria com o MCP ligado. `api/.env.example`: as `MCP_*`
+de §10.3, com os padrões `MCP_EMISSAO_SO_ADMINISTRADOR=false` e
+`MCP_MOSTRAR_NOME_DO_ALUNO=true`, e os três tetos, comentados.
