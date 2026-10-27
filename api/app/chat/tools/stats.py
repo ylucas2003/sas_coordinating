@@ -11,8 +11,13 @@ from typing import Any
 
 from supabase import Client
 
-from ...stats import ciclo_estatisticas, criterios, criterios_repo
+from ...stats import aluno_dados, ciclo_estatisticas, criterios, criterios_repo
 from ...stats.utils import como_float, nota_real
+
+#: Tetos da saída. O despacho não confere `maximum` (ferramentas.py), e as
+#: duas listas são dado de aluno: quem limita é o handler (LGPD art. 6º, III).
+TETO_DA_TRAJETORIA = 100
+TETO_DE_NOTAS = 100
 
 # ─── estatisticas_ciclo ───────────────────────────────────────────────────
 
@@ -137,55 +142,29 @@ _SCHEMA_EST_CICLO = {
 # ─── trajetoria_aluno ─────────────────────────────────────────────────────
 
 def trajetoria_aluno(cliente: Client, *, aluno_id: str, limite: int = 40) -> dict:
-    """Histórico cronológico de notas do aluno (escala 0–10)."""
-    resp = (
-        cliente.table("nota")
-        .select(
-            "pontuacao, presente, simulado("
-            "id, nome, rotulo_curto, data_aplicacao, anulado, e_agregado, "
-            "nota_confiavel, materia_id, nota_maxima, tipo, ciclo_id)"
-        )
-        .eq("aluno_id", aluno_id)
-        # Mesma régua da trajetória de /alunos: o zero sem resposta sai da
-        # série, a prova não confiável fica.
-        .eq("computavel", True)
-        .execute()
-    )
+    """Histórico cronológico de notas do aluno (escala 0–10).
 
-    materias_resp = cliente.table("materia").select("id, codigo, nome").execute()
-    nome_mat = {m["id"]: m["nome"] for m in (materias_resp.data or [])}
+    Quem entra na série é `aluno_dados.trajetoria_do_aluno`, a mesma leitura de
+    `/alunos/{id}/trajetoria`; aqui só se escolhem os campos. `total` conta o
+    que volta, depois do corte nas `limite` mais recentes.
 
-    linhas: list[dict] = []
-    for linha in resp.data or []:
-        sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
-            continue
-        if not linha.get("presente"):
-            continue
-        nota = nota_real(
-            como_float(linha.get("pontuacao")),
-            como_float(sim.get("nota_maxima")),
-        )
-        if nota is None:
-            continue
-        linhas.append(
-            {
-                "simuladoId": sim.get("id"),
-                "simulado": sim.get("nome"),
-                "rotuloCurto": sim.get("rotulo_curto"),
-                "dataAplicacao": sim.get("data_aplicacao"),
-                "materia": nome_mat.get(sim.get("materia_id")) if sim.get("materia_id") else None,
-                "tipo": sim.get("tipo"),
-                "cicloId": sim.get("ciclo_id"),
-                "nota": round(nota, 2),
-            }
-        )
-    linhas.sort(key=lambda r: r["dataAplicacao"] or "")
-
-    # Aplica limite ao final, mantendo as mais recentes
-    if len(linhas) > limite:
-        linhas = linhas[-limite:]
-
+    O piso é daqui porque o domínio avisa: com zero ou negativo o corte dele
+    não faz o que o nome promete, e o despacho não confere `minimum`.
+    """
+    limite = min(max(1, limite), TETO_DA_TRAJETORIA)
+    linhas = [
+        {
+            "simuladoId": p["simuladoId"],
+            "simulado": p["simulado"],
+            "rotuloCurto": p["rotuloCurto"],
+            "dataAplicacao": p["dataAplicacao"],
+            "materia": p["materia"],
+            "tipo": p["tipo"],
+            "cicloId": p["cicloId"],
+            "nota": p["nota"],
+        }
+        for p in aluno_dados.trajetoria_do_aluno(cliente, aluno_id, limite)
+    ]
     return {"total": len(linhas), "trajetoria": linhas}
 
 
@@ -199,7 +178,11 @@ _SCHEMA_TRAJETORIA = {
         "type": "object",
         "properties": {
             "aluno_id": {"type": "string", "description": "UUID do aluno."},
-            "limite": {"type": "integer", "default": 40, "description": "Máx. notas retornadas (mais recentes)."},
+            "limite": {
+                "type": "integer",
+                "default": 40,
+                "description": f"Máx. notas retornadas (as mais recentes), até {TETO_DA_TRAJETORIA}.",
+            },
         },
         "required": ["aluno_id"],
     },
@@ -255,8 +238,11 @@ _SCHEMA_HIST_SIMULADO = {
 def notas_simulado(cliente: Client, *, simulado_id: str, limite: int = 50) -> dict:
     """Tabela completa de notas de um simulado (aluno × nota normalizada).
 
-    Para listas grandes, prefira `ranking_simulado` ou `exportar_csv`.
+    Para listas grandes, prefira `exportar_csv`. O teto é minimização (LGPD
+    art. 6º, III; mapa de LGPD de 24/10): é a nota da turma inteira, e o
+    despacho não confere `maximum`. `total` continua contando todos.
     """
+    limite = min(max(1, limite), TETO_DE_NOTAS)
     base = (
         cliente.table("simulado")
         .select("nota_maxima")
@@ -302,7 +288,7 @@ _SCHEMA_NOTAS_SIMULADO = {
         "type": "object",
         "properties": {
             "simulado_id": {"type": "string", "description": "UUID do simulado."},
-            "limite": {"type": "integer", "default": 50},
+            "limite": {"type": "integer", "default": 50, "description": f"Quantas notas listar, até {TETO_DE_NOTAS}."},
         },
         "required": ["simulado_id"],
     },
@@ -328,3 +314,13 @@ TOOLS: list[tuple[dict, callable]] = [
     (_SCHEMA_HIST_SIMULADO, histograma_simulado),
     (_SCHEMA_NOTAS_SIMULADO, notas_simulado),
 ]
+
+#: Todas ao MCP (docs/43 §5.4, mapa de LGPD de 24/10). As de ciclo e de
+#: simulado são agregado sem pessoa; trajetória e notas são dado de aluno com
+#: o id no mesmo dict, e o MCP troca o nome por "Aluno <matrícula>".
+METADADOS: dict[str, dict] = {
+    "estatisticas_ciclo": {"expor_no_mcp": True},
+    "trajetoria_aluno": {"expor_no_mcp": True},
+    "histograma_simulado": {"expor_no_mcp": True},
+    "notas_simulado": {"expor_no_mcp": True},
+}

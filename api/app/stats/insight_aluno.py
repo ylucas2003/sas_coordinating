@@ -5,6 +5,12 @@ Espelha o padrão de insights.py (insight de ciclo da coordenação): cache em
 números mudam → hash muda → regenera. Falha graciosamente para [] sem
 OPENAI_API_KEY ou sem o SDK.
 
+⚠️ O TEXTO que vai ao modelo também entra no hash (`_chave_do_cache`), e não só
+os números. Até 25/10 a chave era `{stats, ctx}`: o prompt foi corrigido — sem
+corte cravado, sem a "streak" de ciclos acima da média — e os bullets velhos
+continuavam saindo do cache enquanto os números do ciclo não mudassem, o que,
+num ciclo fechado, é para sempre.
+
 Modelo: gpt-4o-mini (settings.openai_modelo_insights), Structured Outputs strict.
 """
 
@@ -36,7 +42,7 @@ PROMPT_ALUNO = """Você é um mentor de estudos do Colégio Ari de Sá falando D
 - Fale em 2ª pessoa ("você subiu", "priorize"), tom encorajador e concreto — sem falsa positividade.
 - TRADUZA números em ação:
   · SIM: "Matemática subiu 0,7 desde o ciclo passado — continue no ritmo."
-  · SIM: "Inglês está 0,8 abaixo do corte eliminatório de 5,0 — priorize esta semana."
+  · SIM: "Química ficou 0,8 abaixo da média da turma neste ciclo — priorize esta semana."
   · NÃO: jargão estatístico de qualquer tipo.
 - Compare apenas com AGREGADOS da turma (média da turma) — NUNCA cite ou estime colegas.
 - Se houver dados do ciclo anterior, faça pelo menos um bullet comparativo.
@@ -44,10 +50,36 @@ PROMPT_ALUNO = """Você é um mentor de estudos do Colégio Ari de Sá falando D
 
 # Contexto do domínio
 
-Notas 0–10. Cortes: 4,0 por matéria; 5,0 só para Inglês na Fase 1 do ITA (única eliminatória).
-Streak = ciclos consecutivos com a média do aluno acima da média da turma.
+Notas 0–10.
+Cortes: NÃO estão nestas estatísticas e mudam com a régua do aluno (o vestibular-alvo). Não cite número de corte nem diga que alguma matéria está acima ou abaixo do corte, nem que é eliminatória.
+Sequência = quantos simulados SEGUIDOS o aluno fez sem faltar — é presença, não nota. Ela não está nestas estatísticas: não fale de sequência.
+`ciclosAcimaDaMediaDaTurma` NÃO é a sequência: é quantos ciclos seguidos a média do aluno ficou acima da média da turma. Se usar, diga exatamente isso.
+`mediaTurma` null = a turma era pequena demais para comparar sem expor colegas. Não compare essa matéria com a turma nem estime a média dela.
 
 Devolva exclusivamente JSON no schema."""
+
+#: O pedido da mensagem do usuário, antes do JSON. Constante, e não literal
+#: dentro de `_chamar_llm`, para entrar na chave do cache junto do prompt.
+PEDIDO_AO_MODELO = (
+    "Gere os bullets para o aluno abaixo. Compare com o ciclo anterior quando houver dados."
+)
+
+
+def _chave_do_cache(stats_payload: dict[str, Any], contexto: dict[str, Any]) -> str:
+    """O hash de tudo que decide o texto: os números, o contexto e as instruções.
+
+    O prompt vai INTEIRO no hash, e não um número de versão: versão à mão é a
+    que alguém esquece de subir, e o defeito voltaria calado. O custo de mexer
+    numa vírgula do prompt é regenerar os bullets de quem abrir a tela — uma
+    chamada do gpt-4o-mini por aluno × ciclo.
+    """
+    return hash_payload_estavel(
+        {
+            "prompt": {"sistema": PROMPT_ALUNO, "pedido": PEDIDO_AO_MODELO},
+            "stats": stats_payload,
+            "ctx": contexto,
+        }
+    )
 
 
 def gerar_para_aluno_ciclo(
@@ -59,7 +91,7 @@ def gerar_para_aluno_ciclo(
     contexto: dict[str, Any],
 ) -> list[str]:
     """Devolve bullets do insight individual (aluno × ciclo), com cache."""
-    hash_p = hash_payload_estavel({"stats": stats_payload, "ctx": contexto})
+    hash_p = _chave_do_cache(stats_payload, contexto)
 
     cache = _consultar_cache(cliente_db, aluno_id, ciclo_id, hash_p)
     if cache is not None:
@@ -110,14 +142,7 @@ def _chamar_llm(
         max_tokens=MAX_TOKENS,
         messages=[
             {"role": "system", "content": PROMPT_ALUNO},
-            {
-                "role": "user",
-                "content": (
-                    "Gere os bullets para o aluno abaixo. Compare com o ciclo "
-                    "anterior quando houver dados.\n\n"
-                    f"{user_payload}"
-                ),
-            },
+            {"role": "user", "content": f"{PEDIDO_AO_MODELO}\n\n{user_payload}"},
         ],
         response_format={
             "type": "json_schema",

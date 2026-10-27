@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import time
 import uuid
@@ -28,9 +29,28 @@ from fastapi.responses import JSONResponse
 # requisições compartilham a mesma thread.
 _request_id: ContextVar[str] = ContextVar("request_id", default="-")
 
+#: O X-Request-Id que o cliente manda só é herdado nesta forma; fora dela, o
+#: id é nosso. O header é texto de quem chama, sem teto, e ia cru para a
+#: resposta, para toda linha de log e para `evento_auditoria.request_id`. No
+#: MCP isso apagava a trilha: o gatilho da 0072 recusa (42501) INSERT do
+#: sas_mcp com request_id acima de 128 caracteres, `registrar_chamada` engole
+#: a falha, e um header de 129 fazia o tools/call devolver o dado sem linha
+#: nenhuma na auditoria (revisão final de 26/10). Há proxy que manda id longo
+#: sem má-fé — o do Heroku vai a 200 —, e o nginx da VPS não o sobrescreve.
+#: 64 cabe num uuid com hífens e num traceparent; o primeiro caractere
+#: alfanumérico deixa de fora o "-", que é o "sem requisição" do ContextVar.
+_REQUEST_ID_ACEITO = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+
 
 def request_id_atual() -> str:
     return _request_id.get()
+
+
+def request_id_aceito(valor: str | None) -> str | None:
+    """O id de requisição de FORA, se ele tem a forma que a casa aceita; senão None."""
+    if valor and _REQUEST_ID_ACEITO.fullmatch(valor):
+        return valor
+    return None
 
 
 class _FormatadorJSON(logging.Formatter):
@@ -48,7 +68,13 @@ class _FormatadorJSON(logging.Formatter):
             "msg": record.getMessage(),
             "request_id": getattr(record, "request_id", None) or request_id_atual(),
         }
-        for chave in ("rota", "metodo", "status", "usuario", "duracao_ms"):
+        # As três últimas são da linha que `chat/ferramentas.py` grava a cada
+        # chamada de tool: sem elas o campo some do JSON em silêncio, e a
+        # duração por tool que o docs/43 §8 quer medir vira só texto.
+        for chave in (
+            "rota", "metodo", "status", "usuario", "duracao_ms",
+            "ferramenta", "escopo", "desfecho",
+        ):
             if (valor := getattr(record, chave, None)) is not None:
                 evento[chave] = valor
         if record.exc_info:
@@ -87,8 +113,13 @@ def configurar_logging() -> None:
 
 
 async def middleware_request_id(request: Request, call_next):
-    """Gera (ou herda) o id, mede a duração e registra o fim da requisição."""
-    rid = request.headers.get("X-Request-Id") or uuid.uuid4().hex[:12]
+    """Gera (ou herda) o id, mede a duração e registra o fim da requisição.
+
+    Herda só o id na forma de `request_id_aceito`; o resto é trocado por um
+    nosso, que volta no header da resposta — é por ele que quem chamou acha a
+    linha de log.
+    """
+    rid = request_id_aceito(request.headers.get("X-Request-Id")) or uuid.uuid4().hex[:12]
     _request_id.set(rid)
     inicio = time.perf_counter()
 

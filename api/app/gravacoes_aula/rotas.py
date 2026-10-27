@@ -50,6 +50,14 @@ from . import (
     titulo,
 )
 
+# As regras de retomada moram em regras_da_rodada.py, porque a tool do
+# assistente que acompanha as gravações também as lê. Os apelidos privados
+# deixam este módulo como era.
+from .regras_da_rodada import HORAS_ATE_ORFAO as _HORAS_ATE_ORFAO
+from .regras_da_rodada import MAX_TENTATIVAS as _MAX_TENTATIVAS
+from .regras_da_rodada import STATUS_INTERMEDIARIOS as _STATUS_INTERMEDIARIOS
+from .regras_da_rodada import mais_velho_que as _mais_velho_que
+
 _log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/gravacoes-aula", tags=["gravacoes-aula"])
@@ -61,7 +69,6 @@ _trava_processamento = threading.Lock()
 # subir pro YouTube leva de 45 a 90 min. Com o cron de hora em hora e a trava,
 # a fila drena sozinha com folga dentro da janela de ~7 dias de retenção.
 _MAX_POR_RODADA = 1
-_MAX_TENTATIVAS = 3
 
 # Quantas linhas a consulta traz antes do corte por esfriamento (ver
 # _rodada_em_background). Folgado: são linhas pequenas, e o custo de trazer
@@ -84,16 +91,8 @@ _TETO_ESPERA_PERSISTIR = 30
 # já está no canal, e reprocessar geraria uma segunda cópia de menores.
 _STATUS_INICIAIS = ("pendente", "erro")
 
-# 'publicando' está de fora DE PROPÓSITO. Ele significa "pode existir vídeo no
-# canal": o upload já começou e ninguém sabe se completou. Retomar às cegas
-# publicaria a segunda cópia de menores que este módulo existe para evitar —
-# quem recupera essa linha é a consulta ao canal em `_id_ja_publicado`, não o
-# relógio. Os demais intermediários são seguros de refazer.
-_STATUS_INTERMEDIARIOS = ("baixando", "baixado", "compondo", "composto")
+# Por que 'publicando' fica fora dos intermediários: regras_da_rodada.py.
 _STATUS_RETENTAVEIS = [*_STATUS_INICIAIS, *_STATUS_INTERMEDIARIOS, "publicando"]
-
-# Folga acima do pior caso de uma rodada (baixar ~500 MB + recodificar 93 min).
-_HORAS_ATE_ORFAO = 3
 
 # Conferência SEM gravação só é registrada se ainda puder ganhar uma. A
 # retenção do BigBlueButton é de ~7 dias; passou disso, a gravação não volta
@@ -145,17 +144,6 @@ def _varrer_trabalhos_orfaos() -> int:
             removidos,
         )
     return removidos
-
-
-def _mais_velho_que(carimbo: str | None, corte: datetime) -> bool:
-    """Sem carimbo legível, trata como órfão: linha sem `atualizado_em` só
-    aparece se algo já saiu do script, e ficar presa para sempre é pior."""
-    if not carimbo:
-        return True
-    try:
-        return datetime.fromisoformat(carimbo.replace("Z", "+00:00")) < corte
-    except ValueError:
-        return True
 
 
 def _pode_ainda_gravar(conf: dict[str, Any]) -> bool:

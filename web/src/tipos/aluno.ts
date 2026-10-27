@@ -11,7 +11,14 @@ export interface SimuladoDoAluno {
   nota: number;
   /** Sempre `true` aqui — `GET /me/simulados` só devolve o que o aluno fez. */
   presente: true;
-  /** Diferença para a própria média histórica até aquele momento. */
+  /**
+   * Diferença para a própria média histórica até aquele momento.
+   *
+   * `null` também na nota que NÃO conta como desempenho (`computavel: false` ou
+   * `notaConfiavel: false`), desde 25/10 — e essa nota deixou de entrar na base
+   * do delta das outras: o zero de provável ausência inflava o delta de toda
+   * prova seguinte (`aluno_dados.conta_como_desempenho`).
+   */
   deltaSelf: number | null;
   /**
    * A média da turma nesta prova. `null` sem métrica e, desde 26/10, com menos
@@ -22,8 +29,21 @@ export interface SimuladoDoAluno {
   mediaGeral: number | null;
   /** Quantas notas a prova tem. Fica mesmo abaixo do piso: é ela que explica o `null`. */
   nPresentes: number;
+  /**
+   * `false` = o SAS tem evidência de que esta nota não é desempenho (o quiz
+   * aberto sem nenhuma alternativa marcada, ou o zero lançado para quem
+   * faltou — docs/32 §1.4). A nota continua na lista; não entra em delta nem
+   * em média.
+   */
+  computavel: boolean;
+  /** `todas_em_branco` · `zero_por_falta_lancada` · `null` (api/app/stats/computavel.py). */
+  motivoNaoComputavel: string | null;
+  /** `false` = a prova inteira foi marcada como não confiável pela coordenação. */
+  notaConfiavel: boolean;
   cicloId: string | null;
   cicloOrdem: number | null;
+  /** O ano letivo do ciclo — a ordem do ciclo se repete entre anos. */
+  anoLetivoId: string | null;
   vestibularAlvo: string | null;
   /** Marca o simulado mais recente. */
   novo: boolean;

@@ -8,6 +8,10 @@ from pydantic import BaseModel, Field
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
 from ..canvas_sync import escrita
+from ..canvas_sync.pendencias import (
+    TETO_NOTAS_POR_LOTE as TETO_NOTAS_POR_LOTE,  # test_envio_lote_canvas lê daqui
+)
+from ..canvas_sync.pendencias import pendencias_do_ciclo
 from ..schemas.domain import Ciclo, VestibularAlvo
 from ..stats import (
     ciclo_estatisticas,
@@ -173,110 +177,13 @@ async def enviar_ciclo_ao_canvas(
     return resultado
 
 
-#: Teto de notas por lote. `enviar_nota` é UMA requisição por aluno, e um
-#: ciclo pode ter centenas de notas divergentes — sem teto, a rota estoura o
-#: timeout do gateway no meio, deixando metade enviada e nenhum relatório.
-#:
-#: O Canvas tem `POST .../submissions/update_grades`, que faria isso numa
-#: chamada assíncrona por assignment, e o `ClienteCanvas` não o tem. Entra como
-#: melhoria medida, não como aposta (docs/32 §4.2, item 4).
-TETO_NOTAS_POR_LOTE = 80
-
-
-def _pendencias_do_ciclo(cliente, ciclo_id: str) -> dict:
-    """O que deste ciclo não está refletido no Canvas, por tipo.
-
-    Leitura pura, sem efeito: é ela que alimenta o diálogo de confirmação. A
-    regra de 21/08 — "nada sobe ao Canvas sem alguém clicar" — aplicada ao
-    lote quer dizer que o coordenador vê a lista ANTES de mandar.
-    """
-    ciclo = (
-        cliente.table("ciclo")
-        .select("id, nome, canvas_estado, canvas_erro")
-        .eq("id", ciclo_id)
-        .limit(1)
-        .execute()
-    ).data
-    if not ciclo:
+def _pendencias_ou_404(cliente, ciclo_id: str) -> dict:
+    """A leitura é do domínio (`canvas_sync/pendencias.py`, que a tool do
+    assistente também chama); o 404 do ciclo inexistente é daqui."""
+    pendencias = pendencias_do_ciclo(cliente, ciclo_id)
+    if pendencias is None:
         raise HTTPException(status_code=404, detail=f"ciclo {ciclo_id} não encontrado")
-    ciclo = ciclo[0]
-
-    # 1 · o grupo do ciclo
-    grupo_pendente = ciclo.get("canvas_estado") in (escrita.DIVERGENTE, "falhou")
-
-    # 2 · os simulados nascidos no SAS que ainda não refletem lá
-    simulados = (
-        cliente.table("simulado")
-        .select("id, nome, rotulo_curto, origem, canvas_estado, canvas_erro")
-        .eq("ciclo_id", ciclo_id)
-        .eq("origem", "sas")
-        .in_("canvas_estado", [escrita.DIVERGENTE, "falhou"])
-        .execute()
-    ).data or []
-
-    # 3 · as notas editadas no SAS que o Canvas ainda não tem.
-    #
-    # A divergência de nota é DERIVADA (docs/18 §2.4), não um estado guardado:
-    # é `pontuacao_sas` diferente de `pontuacao_canvas`. Por isso ela não dá
-    # para filtrar no PostgREST — a comparação é entre duas colunas —, e a
-    # peneira acontece aqui.
-    ids_do_ciclo = [
-        linha["id"]
-        for linha in (
-            cliente.table("simulado").select("id").eq("ciclo_id", ciclo_id).execute().data or []
-        )
-    ]
-    notas_divergentes: list[dict] = []
-    if ids_do_ciclo:
-        linhas = (
-            cliente.table("nota")
-            .select(
-                "aluno_id, simulado_id, pontuacao_sas, pontuacao_canvas, "
-                "aluno:aluno_id(nome), simulado:simulado_id(nome, rotulo_curto)"
-            )
-            .in_("simulado_id", ids_do_ciclo)
-            .not_.is_("pontuacao_sas", "null")
-            .execute()
-        ).data or []
-        for linha in linhas:
-            if linha.get("pontuacao_sas") == linha.get("pontuacao_canvas"):
-                continue
-            notas_divergentes.append(
-                {
-                    "alunoId": linha["aluno_id"],
-                    "simuladoId": linha["simulado_id"],
-                    "aluno": (linha.get("aluno") or {}).get("nome", ""),
-                    "simulado": (linha.get("simulado") or {}).get("rotulo_curto")
-                    or (linha.get("simulado") or {}).get("nome", ""),
-                    "noSas": linha.get("pontuacao_sas"),
-                    "noCanvas": linha.get("pontuacao_canvas"),
-                }
-            )
-
-    return {
-        "cicloId": ciclo_id,
-        "nome": ciclo.get("nome"),
-        "grupo": {
-            "pendente": grupo_pendente,
-            "estado": ciclo.get("canvas_estado"),
-            "erro": ciclo.get("canvas_erro"),
-        },
-        "simulados": [
-            {
-                "id": s["id"],
-                "nome": s.get("rotulo_curto") or s.get("nome", ""),
-                "estado": s.get("canvas_estado"),
-                "erro": s.get("canvas_erro"),
-            }
-            for s in simulados
-        ],
-        "notas": notas_divergentes[:TETO_NOTAS_POR_LOTE],
-        # Truncar em silêncio é o que esta rota existe para evitar.
-        "notasAlemDoTeto": max(0, len(notas_divergentes) - TETO_NOTAS_POR_LOTE),
-        "total": (1 if grupo_pendente else 0)
-        + len(simulados)
-        + min(len(notas_divergentes), TETO_NOTAS_POR_LOTE),
-    }
+    return pendencias
 
 
 @router.get("/{ciclo_id}/pendencias-canvas", response_model=dict)
@@ -285,7 +192,7 @@ def pendencias_canvas(
     _: dict = Depends(get_current_coordenador),
 ) -> dict:
     """O que subiria se o coordenador mandasse o ciclo inteiro. Não escreve."""
-    return _pendencias_do_ciclo(get_supabase(), ciclo_id)
+    return _pendencias_ou_404(get_supabase(), ciclo_id)
 
 
 @router.post("/{ciclo_id}/enviar-canvas-lote", response_model=dict)
@@ -313,7 +220,7 @@ async def enviar_ciclo_ao_canvas_em_lote(
        "escolheu não mandar" de "mandou e falhou" daqui a três meses.
     """
     cliente = get_supabase()
-    pendencias = _pendencias_do_ciclo(cliente, ciclo_id)
+    pendencias = _pendencias_ou_404(cliente, ciclo_id)
     ip = request.client.host if request.client else None
     ator = coordenador.get("sub")
     itens: list[dict] = []
@@ -451,7 +358,7 @@ def classificacao_do_ciclo(
         cliente, ciclo_id=ciclo_id, criterio=regua, fase=fase
     )
     return {
-        "criterio": _descrever_criterio(regua),
+        "criterio": criterios.descrever_criterio(regua),
         "fase": fase if fase is not None else regua.fase,
         "total": len(linhas),
         "cortados": sum(1 for l in linhas if not l["aprovado"]),
@@ -459,66 +366,14 @@ def classificacao_do_ciclo(
     }
 
 
-#: As matérias do `materia` (carga inicial da 0001). Enumerar aqui é o que
-#: permite entregar o corte de cada uma resolvido: o predicado `*` da régua do
-#: colégio não sabe listar as disciplinas que ele cobre.
-_MATERIAS_CONHECIDAS = ("matematica", "fisica", "quimica", "portugues", "ingles", "redacao")
-
-
 @router.get("/criterios/disponiveis")
 def criterios_disponiveis() -> list[dict]:
     """Os critérios que o seletor do painel oferece — embutidos e criados."""
     cliente = get_supabase()
     return [
-        {**_descrever_criterio(c), "embutido": c.slug in criterios.CRITERIOS}
+        {**criterios.descrever_criterio(c), "embutido": c.slug in criterios.CRITERIOS}
         for c in criterios_repo.listar(cliente)
     ]
-
-
-def _descrever_criterio(c: criterios.Criterio) -> dict:
-    """Forma serializável de um critério — legenda, tooltip e cortes prontos.
-
-    `cortes`, `corteGenerico` e `corteMedia` existem para o front **não**
-    precisar reimplementar `corte_da_materia`. Sem eles, desenhar a linha do
-    corte num gráfico obriga a percorrer `predicados` procurando a matéria e
-    caindo no `*` — que é a regra de corte outra vez, em TypeScript, que é
-    exatamente o que a Sprint 2 proibiu (docs/18 §1.2).
-    """
-    return {
-        "slug": c.slug,
-        "nome": c.nome,
-        "descricao": c.descricao,
-        "fase": c.fase,
-        "combinador": c.combinador,
-        "desempate": list(c.desempate),
-        # Mínimo por matéria já resolvido, incluindo o que vem do `*`.
-        "cortes": {
-            codigo: criterios.corte_da_materia(c, codigo)
-            for codigo in _MATERIAS_CONHECIDAS
-            if criterios.corte_da_materia(c, codigo) is not None
-        },
-        "corteGenerico": criterios.corte_da_materia(c, "__qualquer__"),
-        "corteMedia": criterios.corte_da_media(c),
-        "eliminatorias": [
-            codigo for codigo in _MATERIAS_CONHECIDAS if criterios.e_eliminatoria(c, codigo)
-        ],
-        "predicados": [
-            {
-                "materia": p.materia,
-                "operador": p.operador,
-                "minimo": (
-                    {"acertos": p.valor.acertos, "de": p.valor.de}
-                    if isinstance(p.valor, criterios.Acertos)
-                    else p.valor
-                ),
-                "eliminatorio": p.eliminatorio,
-                "entraNaMedia": p.entra_na_media,
-                "peso": p.peso,
-                "fonte": p.fonte,
-            }
-            for p in c.predicados
-        ],
-    }
 
 
 @router.get("/{ciclo_id}/estatisticas")
@@ -558,7 +413,7 @@ def estatisticas_do_ciclo(
     if payload is None:
         raise HTTPException(status_code=404, detail=f"ciclo {ciclo_id} não encontrado")
 
-    payload["criterio"] = _descrever_criterio(regua)
+    payload["criterio"] = criterios.descrever_criterio(regua)
     if com_insights:
         # `_anexar_insights` faz até QUATRO chamadas síncronas de LLM em série.
         # Este handler é `def` (threadpool do FastAPI), então a espera não trava

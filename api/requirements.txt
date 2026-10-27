@@ -1,5 +1,10 @@
 fastapi==0.115.0
-uvicorn[standard]==0.30.6
+# 0.31.1 e não mais a 0.30.6: toda mcp>=1.13 declara uvicorn>=0.31.1 (o MCP
+# da coordenação, abaixo). Sobe também para a API — mesma imagem; o
+# ProxyHeadersMiddleware foi reescrito na 0.31.0 e saiu igual com as opções
+# de produção (--proxy-headers --forwarded-allow-ips='*'), mas a suíte não
+# exercita o uvicorn: confira com `./infra/vps/deploy.sh --verificar`.
+uvicorn[standard]==0.31.1
 pydantic==2.11.5
 pydantic-settings==2.7.0
 supabase==2.7.4
@@ -25,6 +30,21 @@ openai==1.55.0
 
 # Sincronização com o Canvas (api/app/canvas_sync/) — cliente HTTP async.
 httpx==0.27.2
+
+# MCP da coordenação (docs/42 §5, app/mcp/) — SDK oficial, servidor de BAIXO
+# NÍVEL (mcp.server.lowlevel). A 1.30.0 é a mais nova que cabe em
+# fastapi==0.115.0 + pydantic==2.11.5 (a 2.x exige pydantic>=2.12 e httpx2) e
+# a primeira da 1.x sem aviso aberto no OSV em 24/10/2026 — a 1.12.4, que
+# resolvia sem mexer em nada, tem quatro (sessões sem limite, credencial de
+# outro principal, DNS rebinding desligado, WebSocket sem Origin). Sem o
+# extra [cli]: o CLI só aceita FastMCP.
+mcp==1.30.0
+# Vem com o mcp, e é fixada porque escorrega calada: a 3.0.4+ exige
+# starlette>=0.49.1, e o fastapi==0.115.0 prende starlette<0.39. Instalar o mcp
+# fora da resolução do fastapi levou o starlette a 1.9.0 SEM ERRO — só o
+# `pip check` acusou — e o fastapi ficou quebrado. A 3.0.3 é a última sem esse
+# piso.
+sse-starlette==3.0.3
 
 # E-mail via AWS SES (api/app/lembretes/) — motor de lembretes (P2).
 # Também usado pelo S3 em api/app/gravacoes_aula/ (vídeo de aula publicado).

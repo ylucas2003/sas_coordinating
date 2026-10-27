@@ -19,6 +19,10 @@ import type {
 } from '../tipos/cantina';
 import { normalizarContagem } from '../dominio/cantina';
 import type {
+  CodigoDeConfirmacaoEnviado, CodigoDoPedidoPedido, ConexaoDeIa, ConexaoDeIaCriada,
+  DisponibilidadeDoMcp, EmailDaIa, EmailDaIaRemovido, PedidoDeConexao, RespostaAoPedidoDeConexao,
+} from '../tipos/dominio';
+import type {
   BlocoDeEstudo, HorarioDeEstudos, NovoBloco, RemendoDeBloco,
 } from '../tipos/horarioEstudos';
 
@@ -387,6 +391,74 @@ export const redefinirSenhaCoordenador = (id: string, senha: string | null = nul
 export const acessosDeAlunos = () => get<PainelAcessos>('/administracao/alunos-acesso');
 export const fotoDeCoordenador = (id: string) =>
   get<RespostaFoto>(`/administracao/coordenadores/${enc(id)}/foto`);
+
+// ─── Conexões de IA · o MCP da coordenação (docs/43 §5.3) ────────────────
+//
+// Sob a sessão da COORDENAÇÃO, menos o consentimento (abaixo). O token do MCP
+// nunca passa por aqui na volta: ele é opaco, o servidor guarda só o sha256, e
+// a única resposta que o traz é a da criação.
+//
+// ⚠️ Revogar é `POST …/revogar`, e não `DELETE`, pelo mesmo motivo de
+// `resolverAlerta`: `requisitar()` sempre faz `res.json()`, e um 204 sem corpo
+// viraria falha numa revogação que deu certo (`servicos/http.ts`). E a linha
+// revogada FICA — é ela que diz, depois, quem tinha acesso e até quando. Remover
+// um e-mail da IA segue a mesma regra.
+
+/** Se o servidor está ligado, quem pode emitir, e o endereço que a IA configura. */
+export const disponibilidadeDoMcp = () => get<DisponibilidadeDoMcp>('/mcp/disponibilidade');
+/** O administrador recebe todas; o coordenador, só as que estão em nome dele. */
+export const listarConexoesDeIa = () => get<ConexaoDeIa[]>('/mcp/tokens');
+/** 403 quando a emissão é só do administrador (por configuração) e a sessão não é. */
+export const criarConexaoDeIa = (corpo: { nome: string }) =>
+  post<ConexaoDeIaCriada>('/mcp/tokens', corpo);
+export const revogarConexaoDeIa = (id: string) =>
+  post<ConexaoDeIa>(`/mcp/tokens/${enc(id)}/revogar`, {});
+
+// Os E-MAILS DA IA (decisão do dono de 26/10): o endereço da conta em que a
+// pessoa usa o claude.ai ou o ChatGPT. É para ele que o consentimento manda o
+// código que aprova a conexão. A lista é só a da própria conta, inclusive para o
+// administrador.
+export const listarEmailsDaIa = () => get<EmailDaIa[]>('/mcp/emails-ia');
+/**
+ * Cadastra AGUARDANDO e manda ao e-mail o código que o confirma. 409 quando ele
+ * já está confirmado em outra conta, ou ativo nesta; 400 no teto da conta; 429
+ * no de códigos; 503 quando o código não saiu (o e-mail fica na lista).
+ */
+export const cadastrarEmailDaIa = (corpo: { email: string }) =>
+  post<EmailDaIa>('/mcp/emails-ia', corpo);
+/** O código que chegou ao e-mail: daqui em diante ele aprova. 400 = código recusado. */
+export const confirmarEmailDaIa = (id: string, corpo: { codigo: string }) =>
+  post<EmailDaIa>(`/mcp/emails-ia/${enc(id)}/confirmar`, corpo);
+/** Outro código de confirmação; o anterior morre. 409 = já confirmado. */
+export const reenviarCodigoDoEmailDaIa = (id: string) =>
+  post<CodigoDeConfirmacaoEnviado>(`/mcp/emails-ia/${enc(id)}/reenviar`, {});
+export const removerEmailDaIa = (id: string) =>
+  post<EmailDaIaRemovido>(`/mcp/emails-ia/${enc(id)}/remover`, {});
+
+// O CONSENTIMENTO do OAuth (Fase 3), PÚBLICO desde 26/10: nenhuma destas exige
+// sessão do SAS. O claude.ai e o ChatGPT não dizem qual é o e-mail da conta, e
+// a aba que eles abrem chega sem sessão (o `sessionStorage` é por aba) — a prova
+// de quem aprova é a posse do e-mail da IA, pelo código.
+//
+// O authorization server mora na API e manda o browser para
+// `/conectar-ia?pedido=<id>`; a tela lê o pedido, e a resposta devolve para
+// onde o browser segue — a tela não monta URL nenhuma.
+/** 404 = o pedido não existe, expirou ou já foi respondido. */
+export const obterPedidoDeConexao = (id: string) =>
+  get<PedidoDeConexao>(`/oauth/pedidos/${enc(id)}`);
+/**
+ * Pede o código para o e-mail. 202 com `{enviado: true}` SEMPRE — cadastrado
+ * ou não, a resposta e o tempo são os mesmos —, e com teto por endereço, por
+ * pedido e por e-mail.
+ */
+export const pedirCodigoDoPedido = (id: string, corpo: { email: string }) =>
+  post<CodigoDoPedidoPedido>(`/oauth/pedidos/${enc(id)}/codigo`, corpo);
+/** 400 com mensagem única para código errado, vencido ou sem tentativas. */
+export const aprovarPedidoDeConexao = (id: string, corpo: { email: string; codigo: string }) =>
+  post<RespostaAoPedidoDeConexao>(`/oauth/pedidos/${enc(id)}/aprovar`, corpo);
+/** Recusar não pede e-mail nem código: tirar acesso nunca depende de poder dar. */
+export const recusarPedidoDeConexao = (id: string) =>
+  post<RespostaAoPedidoDeConexao>(`/oauth/pedidos/${enc(id)}/recusar`, {});
 
 // ─── Cantina (docs/38) ───────────────────────────────────────────────────
 //

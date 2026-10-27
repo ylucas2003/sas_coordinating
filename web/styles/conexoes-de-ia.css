@@ -1,0 +1,758 @@
+/* ─── Conexões de IA — o MCP da coordenação (docs/43 §5.3) ───────────────
+   As duas telas: a lista de tokens e os e-mails da IA
+   (`/administracao/conexoes-de-ia`), e o consentimento do OAuth
+   (`/conectar-ia`) — que desde 26/10 é página PÚBLICA, fora do casco, com a
+   moldura própria (`.ia-avulsa`).
+
+   Importado pelas duas telas, e não por `main.tsx`, no mesmo padrão de
+   `captacao.css` e `troca-de-telas.css`: folha que só a coordenação usa não
+   tem por que descer no pedaço de ENTRADA, que é o que o tablet do balcão e o
+   celular do aluno baixam (docs/40 §12.1.4).
+
+   Só papéis `--sas-*` e os raios de `forma.css`. Nenhuma cor nova, nenhuma
+   sombra além da tecla do `.btn-primary`, e nenhum verde (docs/37). "Ativa"
+   não é semáforo: é texto forte, e quem a separa das encerradas é a ORDEM da
+   lista e o tom apagado da linha encerrada (R6 do
+   docs/brief-claude-design-coordenacao.md: a ordenação faz o trabalho que a
+   cor fazia).
+
+   O vermelho aparece em DOIS lugares, `.ia-erro` e a borda do campo que a
+   frase dele corrige (`.ia-campo[aria-invalid]`), e só para falha — o copiar
+   que não copiou, a criação que o servidor recusou, o código que não serviu.
+   Revogar NÃO é erro, e o botão dele não é vermelho: quem diz o efeito é o
+   `confirm`.
+
+   ⚠️ O bloco de celular vem no FIM, depois de toda regra que ele
+   sobrescreve: `@media` não soma especificidade (web/CLAUDE.md).
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Só para leitor de tela — a mesma técnica de `.alu-so-leitor` e
+   `.cant-so-leitor`, com o prefixo desta folha. */
+.ia-so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* O código de máquina — token, prefixo, endereço, comando — numa família só,
+   do sistema: nenhuma fonte de fora (CLAUDE.md, armadilha 7). */
+.ia-token__valor,
+.ia-config code,
+.ia-comando,
+.ia-prefixo,
+.ia-endereco code,
+.ia-pedido__host {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ─── A explicação ───────────────────────────────────────────────────────
+   Largura de leitura, e não a da tela: são quatro frases que precisam ser
+   lidas antes do primeiro clique, e uma linha de 200 caracteres ninguém lê. */
+
+.ia-explicacao {
+  max-width: 78ch;
+  padding: 18px 22px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+.ia-explicacao__titulo {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--sas-magnitude);
+}
+
+.ia-explicacao__lista,
+.ia-pedido__lista {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+.ia-explicacao__lista b,
+.ia-pedido__lista b {
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+/* ─── Avisos ─────────────────────────────────────────────────────────────
+   `.ia-aviso` é NEUTRO: "o servidor está desligado", "só o administrador
+   emite" e "confira de onde veio o pedido" não são falha — são o estado das
+   coisas, e pintá-los de alerta gastaria o vermelho que a falha precisa. */
+
+.ia-aviso,
+.ia-erro {
+  margin: 0;
+  max-width: 78ch;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sas-texto);
+}
+
+.ia-aviso {
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-borda);
+}
+
+/* O único vermelho da folha. Ver o topo. */
+.ia-erro {
+  background: color-mix(in srgb, var(--sas-alerta) 14%, transparent);
+}
+
+.ia-endereco {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+  overflow-wrap: anywhere;
+}
+
+.ia-endereco code {
+  color: var(--sas-texto);
+}
+
+/* ─── Nova conexão ───────────────────────────────────────────────────────
+   No fluxo da tela, e não num diálogo: é o mesmo lugar onde o token aparece
+   em seguida, e a pessoa não perde o fio entre pedir e receber. */
+
+.ia-nova {
+  display: grid;
+  gap: 8px;
+  max-width: 560px;
+  padding: 18px 20px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+.ia-nova__titulo {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--sas-magnitude);
+}
+
+/* `.ia-campo*` é o mesmo campo fora do formulário de Nova conexão: o e-mail da
+   IA e o código do consentimento. Um desenho só para os três. */
+.ia-nova__rotulo,
+.ia-campo__rotulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.ia-nova__ajuda,
+.ia-campo__ajuda {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sas-texto-2);
+}
+
+/* 16px SEMPRE, e não só no celular: abaixo disso o Safari do iOS dá zoom ao
+   focar o campo e não desfaz (`base.css`). A classe vence o `input` de lá por
+   especificidade, então o tamanho tem de ser repetido aqui. */
+.ia-nova__campo,
+.ia-campo {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: var(--sas-fundo);
+  color: var(--sas-texto);
+  font-family: var(--font-family);
+  font-size: 16px;
+  outline: none;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+
+.ia-nova__campo:focus,
+.ia-campo:focus {
+  border-color: var(--sas-dado);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sas-dado) 16%, transparent);
+}
+
+/* O campo recusado ganha a borda do erro, e não só a frase embaixo: é o que
+   diz, de relance, QUAL campo a frase quer corrigir. */
+.ia-campo[aria-invalid='true'] {
+  border-color: var(--sas-alerta);
+}
+
+/* O código: seis dígitos em fonte de máquina, espaçados para ler e conferir
+   contra o e-mail. A largura é a do código, e não a da linha. */
+.ia-campo--codigo {
+  max-width: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3em;
+}
+
+.ia-nova__acoes,
+.ia-token__acoes,
+.ia-pedido__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.ia-nova__acoes {
+  margin-top: 6px;
+}
+
+/* A falha do copiar desce para a linha de baixo, embaixo dos botões — ao lado
+   deles ela espremeria o "Já guardei" e passaria por legenda de botão. */
+.ia-token__acoes .ia-erro {
+  flex: 1 1 100%;
+}
+
+/* ─── O token, uma vez ───────────────────────────────────────────────────
+   O momento mais frágil da tela: quem fechar sem copiar tem uma conexão que
+   ninguém consegue usar. A borda em AÇÃO é o que o separa do resto da tela —
+   o mesmo desenho da senha revelada da cantina, com classe própria. */
+
+.ia-token {
+  display: grid;
+  /* `minmax(0, 1fr)`, e não o `auto` implícito: sem ele o `<pre>` do comando
+     daria ao painel a largura da própria linha mais longa, e a tela inteira
+     transbordaria em vez de o comando rolar dentro da caixa dele. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  max-width: 720px;
+  padding: 18px 20px;
+  background: var(--sas-superficie);
+  border: 1.5px solid var(--sas-acao);
+  border-radius: var(--radius-lg);
+}
+
+/* O foco chega aqui por programa, quando o painel nasce, para o leitor de
+   tela anunciar o token. O anel só aparece quando o navegador decide que o
+   foco é de teclado. */
+.ia-token:focus {
+  outline: none;
+}
+
+.ia-token:focus-visible {
+  outline: 2px solid var(--sas-acao);
+  outline-offset: 3px;
+}
+
+.ia-token__olho,
+.ia-pedido__olho {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+.ia-token__titulo {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--sas-magnitude);
+  overflow-wrap: anywhere;
+}
+
+.ia-token__valor {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: var(--sas-fundo);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  color: var(--sas-magnitude);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.ia-token__subtitulo {
+  margin: 10px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.ia-token__nota {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+.ia-config {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ia-config dt {
+  color: var(--sas-texto-2);
+}
+
+.ia-config dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--sas-texto);
+  overflow-wrap: anywhere;
+}
+
+/* O `<pre>` rola em vez de embrulhar (`base.css`): linha de comando quebrada
+   em espaço deixa de ser a mesma linha de comando. */
+.ia-comando {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  background: var(--sas-fundo);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sas-texto);
+}
+
+/* ─── A lista ─────────────────────────────────────────────────────────── */
+
+.ia-lista {
+  display: grid;
+  gap: 10px;
+}
+
+.ia-lista .section__title {
+  margin: 0;
+}
+
+.ia-prefixo {
+  font-size: 13px;
+  color: var(--sas-texto);
+  white-space: nowrap;
+}
+
+/* A conexão que AINDA LÊ o SAS é o dado desta tabela; as encerradas ficam
+   para a história e descem de tom junto com a linha inteira.
+
+   ⚠️ `--sas-texto`, e NÃO `--sas-dado-texto-forte` nem `--sas-dado`.
+   `--sas-dado-texto-forte` é a letra EM CIMA do preenchimento `--sas-dado`
+   (`.nota-badge--acima-forte`, `.importar__log-nivel`), e vale #fff nos dois
+   temas. Aqui não há preenchimento: era branco sobre `--sas-superficie`, 1,07:1
+   no tema claro, e a Situação de toda conexão ativa ficava invisível.
+   `--sas-dado` como letra também reprova: 4,48:1 no claro, 4,00:1 no escuro,
+   e menos ainda no hover da linha. É o problema que `papeis.css` descreve,
+   cor de traço não passa como letra. `--sas-texto` com peso dá 14,6:1 e
+   15,3:1. */
+.ia-situacao--ativa {
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+/* O foco chega aqui por programa, depois de revogar (e ao título da lista,
+   depois de fechar o painel do token). O anel só aparece quando o navegador
+   decide que o foco é de teclado, como no `.ia-token`. */
+.ia-situacao:focus,
+.ia-lista .section__title:focus {
+  outline: none;
+}
+
+.ia-situacao:focus-visible,
+.ia-lista .section__title:focus-visible {
+  outline: 2px solid var(--sas-acao);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.ia-linha--encerrada td {
+  color: var(--sas-texto-2);
+}
+
+.ia-voce {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
+/* A falha do revogar mora na célula de ações, embaixo do botão. É `<span>`
+   porque a célula é de tabela, e um `<span>` com fundo e padding quebraria em
+   linha junto do botão — por isso o bloco. A largura é a da célula: 78ch
+   numa coluna de ações empurraria a tabela inteira. */
+.acoes-da-linha .ia-erro {
+  display: block;
+  max-width: 32ch;
+  margin-top: 6px;
+  white-space: normal;
+}
+
+/* ─── O consentimento do OAuth ───────────────────────────────────────────
+   Uma folha, uma pergunta: quem pede, o que ganha, e os dois botões. */
+
+.ia-pedido {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  max-width: 660px;
+  padding: 24px 26px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+.ia-pedido__titulo {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--sas-magnitude);
+  overflow-wrap: anywhere;
+}
+
+.ia-pedido__volta,
+.ia-pedido__prazo,
+.ia-pedido__estado {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+/* O host é a parte do pedido que o SAS CONFERE — o nome do app é declarado
+   pelo próprio app. Por isso é ele que ganha peso, e não o nome. */
+.ia-pedido__host {
+  font-weight: 600;
+  color: var(--sas-texto);
+  overflow-wrap: anywhere;
+}
+
+/* A conta em nome de quem a conexão nasce: o outro dado que a pessoa confere
+   antes de aprovar, com o mesmo peso do host. */
+.ia-pedido__volta b {
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.ia-pedido__subtitulo {
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.ia-pedido__acoes {
+  margin-top: 4px;
+}
+
+/* A etapa do e-mail e a do código: rótulo, ajuda, campo, frase e botões em
+   coluna, separados do texto do pedido por um fio — é a parte da tela em que
+   se AGE, depois da que se lê. */
+.ia-pedido__etapa {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sas-borda);
+}
+
+.ia-pedido__etapa .ia-pedido__subtitulo {
+  margin: 0 0 2px;
+}
+
+/* "Não chegou?" e "Usar outro e-mail": as saídas de quem travou na etapa do
+   código, em tom de rodapé, abaixo dos botões que decidem. */
+.ia-pedido__mais {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sas-texto-2);
+}
+
+.ia-pedido__mais .link-botao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── A página pública do consentimento ──────────────────────────────────
+   Fora do casco (`App.tsx`): sem rail, sem topbar, sem chat. A grade de 24px
+   é a do `.casco` — é ela que diz, antes de qualquer leitura, que isto é o
+   SAS, para quem chegou de outro site numa aba nova. */
+
+.ia-avulsa {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 40px 24px 56px;
+  background-color: var(--sas-fundo);
+  background-image:
+    linear-gradient(to right, var(--sas-grade) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--sas-grade) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.ia-avulsa__marca,
+.ia-avulsa__corpo {
+  width: 100%;
+  max-width: 660px;
+}
+
+.ia-avulsa__marca {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ia-avulsa__nome {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+/* ─── Os e-mails da IA ───────────────────────────────────────────────────
+   Uma caixa como a da explicação: é configuração de quem conecta, e não dado
+   da tabela. */
+
+.ia-emails {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  max-width: 78ch;
+  padding: 18px 22px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+.ia-emails__titulo {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--sas-magnitude);
+}
+
+/* O foco chega aqui por programa, depois de remover um e-mail. */
+.ia-emails__titulo:focus {
+  outline: none;
+}
+
+.ia-emails__titulo:focus-visible {
+  outline: 2px solid var(--sas-acao);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.ia-emails__explicacao,
+.ia-emails__vazio {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+.ia-emails__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ia-emails__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--sas-borda);
+}
+
+.ia-emails__item:last-child {
+  border-bottom: 1px solid var(--sas-borda);
+}
+
+.ia-emails__dados {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ia-emails__endereco {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  color: var(--sas-texto);
+  overflow-wrap: anywhere;
+}
+
+.ia-emails__uso {
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
+/* A falha do remover desce para uma linha própria, embaixo do e-mail. */
+.ia-emails__item .ia-erro {
+  flex: 1 1 100%;
+}
+
+/* "aguardando o código" em texto forte, e não em cor: aguardar não é falha,
+   e o vermelho é só dela (ver o topo). */
+.ia-emails__uso b {
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+/* O foco chega aqui por programa, depois de confirmar. */
+.ia-emails__uso:focus {
+  outline: none;
+}
+
+.ia-emails__uso:focus-visible {
+  outline: 2px solid var(--sas-acao);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* O e-mail que aguarda (revisão de segurança de 26/10): o código mora na
+   própria linha, embaixo do endereço, com a largura da linha inteira. */
+.ia-emails__confirmacao {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.ia-emails__codigo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.ia-emails__mais {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sas-texto-2);
+}
+
+.ia-emails__mais .link-botao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Rótulo em cima; campo e botão na mesma linha; avisos embaixo. */
+.ia-emails__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  max-width: 560px;
+  margin-top: 4px;
+}
+
+.ia-emails__form .ia-campo__rotulo,
+.ia-emails__form .ia-erro {
+  grid-column: 1 / -1;
+}
+
+/* ─── Celular ────────────────────────────────────────────────────────────
+   A tabela vira cartão pelo `.data-table--cartoes` global (`layout.css`);
+   aqui é só o que é desta folha. `screen and`, pelo mesmo motivo de lá: a
+   impressão também casa media query de largura. */
+@media screen and (max-width: 760px) {
+  .ia-explicacao,
+  .ia-nova,
+  .ia-token,
+  .ia-pedido,
+  .ia-emails {
+    padding: 16px;
+  }
+
+  .ia-pedido__titulo {
+    font-size: 21px;
+  }
+
+  /* A moldura da página pública cede o respiro: o gutter de 16px do resto do
+     produto, e a caixa do pedido ocupa a largura. */
+  .ia-avulsa {
+    gap: 16px;
+    padding: 20px 16px 40px;
+  }
+
+  .ia-campo--codigo {
+    max-width: none;
+  }
+
+  /* As saídas da etapa do código são botões sem caixa, e no dedo precisam da
+     altura de toque que a caixa daria. */
+  .ia-pedido__mais .link-botao,
+  .ia-emails__mais .link-botao {
+    min-height: 44px;
+  }
+
+  /* O código do e-mail que aguarda: campo e "Confirmar" um embaixo do outro,
+     na largura toda, como o formulário do cadastro logo abaixo. */
+  .ia-emails__codigo .btn {
+    width: 100%;
+  }
+
+  .ia-emails__form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ia-emails__form .btn {
+    width: 100%;
+  }
+
+  /* Rótulo em cima do valor: a 390px a coluna do rótulo comeria metade da
+     largura que o endereço e o cabeçalho precisam. */
+  .ia-config {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .ia-config dd {
+    margin-bottom: 8px;
+  }
+
+  /* Botões de largura inteira, um por linha: são as decisões da tela, e o
+     dedo não pode errar "Aprovar" por "Recusar". */
+  .ia-nova__acoes .btn,
+  .ia-token__acoes .btn,
+  .ia-pedido__acoes .btn {
+    flex: 1 1 100%;
+  }
+
+  /* No cartão a célula de ações vira faixa flexível (`edicao.css`), e a falha
+     do revogar desce para uma linha própria em vez de espremer o botão. */
+  .acoes-da-linha .ia-erro {
+    flex: 1 1 100%;
+    max-width: none;
+    margin-top: 0;
+  }
+}

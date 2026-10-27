@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import { destinoInterno } from '../../dominio/voltaDoLogin';
 import * as api from '../../servicos/api';
 import * as sessao from '../../servicos/sessao';
 import { FormularioSenha } from './FormularioSenha';
@@ -65,11 +66,23 @@ export function Login() {
       + 'aqui. Se a sua já está lá, fale com a coordenação.',
   }[params.get('canvas') ?? ''] ?? null;
 
+  // A VOLTA: `RotaProtegida` manda para cá quem chegou sem sessão, com o
+  // caminho em `?proximo=` — todo link aberto numa aba nova chega assim, porque
+  // a sessão mora no `sessionStorage`. O valor vem da URL, então passa pela
+  // regra de `dominio/voltaDoLogin.ts` — só caminho interno; `//`, `\` e URL
+  // absoluta viram `null`, e `null` é a volta para `/` de sempre.
+  //
+  // ⚠️ Só a porta da COORDENAÇÃO honra a volta. O aluno entra pelo Canvas, cujo
+  // link manda `proximo=/` fixo (`Porta.tsx`), e a cantina tem endereço próprio.
+  // E o consentimento do OAuth, que fez a volta nascer, não passa mais por
+  // aqui: desde 26/10 ele é página pública, aprovada por código no e-mail da IA
+  // (`telas/ConectarIa`).
+  const destino = destinoInterno(params.get('proximo'));
   const [modo, setModo] = useState<Modo>('aluno');
 
   function entrar(dados: api.RespostaAutenticacao) {
     sessao.iniciar(dados);
-    navegar('/', { replace: true });
+    navegar(destino ?? '/', { replace: true });
   }
 
   return (

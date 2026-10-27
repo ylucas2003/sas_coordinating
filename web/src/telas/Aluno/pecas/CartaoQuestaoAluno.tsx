@@ -39,7 +39,7 @@ interface Props {
   enxuto?: boolean;
   naLista?: boolean;
   onAlternarNaLista?: (questaoId: string) => void;
-  /** Some com o link "abrir em tela cheia" quando já se está nela. */
+  /** Some com o link para a tela da questão (`/questao/:id`) quando já se está nela. */
   semLinkParaFicha?: boolean;
   /** Reabre a explicação da página inteira. A tela é dona da folha; o cartão só
    *  pede — senão cada cartão da lista teria a sua, e abrir uma abriria trinta. */
@@ -89,10 +89,24 @@ export function CartaoQuestaoAluno({
           {`${questao.vestibular} · ${questao.ano} · Fase ${questao.fase} · Q${questao.numero}`}
         </span>
         {dissertativa && <span className="alu-questao__selo">Dissertativa</span>}
+        {/* O nome diz o DESTINO: a questão sozinha, na tela dela
+            (`QuestaoTelaCheia`), fora da lista ou da conversa de onde se veio.
+            Era "Abrir em tela cheia", e no Tio Léo o cartão em volta tem um
+            botão que amplia o próprio cartão — os dois saíam com o mesmo nome
+            (verificação no browser de 26/10). "Página" ficou de fora de
+            propósito: no modo página a tarja logo abaixo chama de página a
+            folha da prova, e o "Ampliar" dela abre essa folha.
+
+            E diz QUAL questão: no Estudar a lista tem dezenas de cartões, e
+            quem navega pela lista de links ouvia o mesmo nome em todos. O
+            número sozinho não basta — a mesma lista mistura provas, anos e
+            fases —, por isso vão os quatro, como no olho do cartão. */}
         {!semLinkParaFicha && (
           <Link className="alu-questao__abrir" to={`/questao/${questao.id}`}>
             <Icone nome="externo" tamanho={16} />
-            <span className="alu-so-leitor">Abrir em tela cheia</span>
+            <span className="alu-so-leitor">
+              {`Abrir a questão ${questao.numero} (${questao.vestibular} ${questao.ano}, fase ${questao.fase}) numa tela só dela`}
+            </span>
           </Link>
         )}
       </header>

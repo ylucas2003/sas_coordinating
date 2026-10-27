@@ -28,6 +28,7 @@ import { TrocaDeTelas } from '../telas/Administracao/TrocaDeTelas';
 import { Captacao } from '../telas/Administracao/Captacao';
 import { CaptacaoPerfil } from '../telas/Administracao/CaptacaoPerfil';
 import { CaptacaoConquistas } from '../telas/Administracao/CaptacaoConquistas';
+import { ConexoesDeIa } from '../telas/Administracao/ConexoesDeIa';
 import { Integracoes } from '../telas/Integracoes/Integracoes';
 import { SincronizacaoAulas } from '../telas/Integracoes/SincronizacaoAulas';
 import {
@@ -109,6 +110,19 @@ export default function AppCoordenacao() {
         <Route path="/administracao/contas" element={<Contas />} />
         <Route path="/administracao/captacao" element={<Captacao />} />
         <Route path="/administracao/troca-de-telas" element={<TrocaDeTelas />} />
+        {/* CONEXÕES DE IA — os tokens do MCP da coordenação e os e-mails da IA
+            (docs/43 §5.3).
+
+            Sem `SoAdministrador`, de propósito: desde 26/10 coordenador e
+            administrador conectam (decisão do dono), e cada um vê e revoga as
+            conexões em nome dele. Se o servidor for configurado para só o
+            administrador emitir (`emissaoSoAdministrador`), a tela esconde o
+            botão sozinha e diz por quê.
+
+            O CONSENTIMENTO do OAuth (`/conectar-ia`) NÃO mora aqui: desde
+            26/10 é rota pública, em `App.tsx`, fora da `RotaProtegida` — a
+            aprovação é por código no e-mail da IA, sem login. */}
+        <Route path="/administracao/conexoes-de-ia" element={<ConexoesDeIa />} />
         {/* Uma rota só pra qualquer nome — sem fila de fusão, sem ficha
             separada (simplificação de 25/09/2026): CaptacaoPerfil.tsx abre
             pra qualquer nome, fragmentado ou não. */}

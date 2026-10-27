@@ -1,4 +1,6 @@
 import type { MateriaContraCorte } from '../../../dados/aluno';
+import { LEGENDA_DAS_NOTAS } from '../../../dominio/notaContraCorte';
+import type { NotasDaBarra } from '../../../dominio/notaContraCorte';
 import { abreviarMateria, fmt } from './formato';
 
 // "Onde você está" — as matérias contra a linha de corte.
@@ -26,14 +28,25 @@ interface Props {
   materias: MateriaContraCorte[];
   /** Compacto: some com os números no topo, para caber num artefato do chat. */
   compacto?: boolean;
+  /**
+   * QUE notas são estas — a do último simulado ou a que conta na régua
+   * (`dominio/notaContraCorte.ts`, decisão do dono de 26/10). Com ela o
+   * gráfico ganha o nome em cima e no rótulo acessível, e as duas notas da
+   * mesma matéria deixam de parecer uma contradição. Opcional porque a ficha do
+   * aluno na COORDENAÇÃO usa a mesma peça e já diz a régua ao lado
+   * (`AlunoFicha.tsx`).
+   */
+  notas?: NotasDaBarra;
 }
 
 const NOTA_MAXIMA = 10;
 
-export function BarraCorte({ materias, compacto = false }: Props) {
+export function BarraCorte({ materias, compacto = false, notas }: Props) {
   if (!materias.length) {
     return <p className="alu-vazio">Ainda não há nota para comparar com o corte.</p>;
   }
+
+  const legenda = notas ? LEGENDA_DAS_NOTAS[notas] : null;
 
   // O corte majoritário é o que ganha a linha contínua e o rótulo "CORTE"; um
   // corte diferente vira um traço curto sobre a própria barra, para o Inglês
@@ -63,12 +76,15 @@ export function BarraCorte({ materias, compacto = false }: Props) {
 
   return (
     <div className="alu-corte">
+      {/* EM CIMA do gráfico, e não embaixo: é o que diz o que as barras são, e
+          se lê antes delas. */}
+      {legenda && <p className="alu-corte__legenda">{legenda}</p>}
       <svg
         viewBox={`0 0 ${largura} ${altura}`}
         width="100%"
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label={`Suas notas contra o corte: ${materias
+        aria-label={`${legenda ? `${legenda}, contra o corte` : 'Suas notas contra o corte'}: ${materias
           .map((m) => `${m.materia} ${fmt(m.nota)}, corte ${fmt(m.corte)}`)
           .join('; ')}`}
         style={{ display: 'block', overflow: 'visible' }}

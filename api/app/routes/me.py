@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ..auth import get_current_aluno
+from ..chat import contexto_do_turno
 from ..stats.aluno_dados import (
     detalhe_simulado_do_aluno,
     evolucao_do_aluno,
@@ -31,7 +32,7 @@ from ..stats.aluno_jornada import (
     proximo_simulado_do_aluno,
     sequencia_do_aluno,
 )
-from ..stats.aluno_zona import vestibulares_alvo, zona_do_aluno
+from ..stats.aluno_zona import onboarding_completo, vestibulares_alvo, zona_do_aluno
 from ..stats.insight_aluno import gerar_para_aluno_ciclo
 from ..supabase_client import get_supabase
 from .alunos import heatmap_aluno, obter_aluno, trajetoria_aluno
@@ -136,7 +137,7 @@ class DefinirVestibulares(BaseModel):
 async def me_vestibulares(user: dict = Depends(get_current_aluno)):
     """Os vestibulares alvo do aluno. `completo` é o portão do onboarding."""
     alvos = vestibulares_alvo(get_supabase(), user["aluno_id"])
-    return {"vestibulares": alvos, "completo": bool(alvos)}
+    return {"vestibulares": alvos, "completo": onboarding_completo(alvos)}
 
 
 @router.put("/vestibulares")
@@ -164,7 +165,15 @@ async def me_definir_vestibulares(
     cliente.table("vestibular_alvo_aluno").insert(
         [{"aluno_id": aluno_id, "vestibular": v} for v in escolhidos]
     ).execute()
-    return {"vestibulares": escolhidos, "completo": True}
+    # O preâmbulo do Tio Léo guarda alvo, régua e zona por aluno
+    # (`contexto_do_turno`). Sem esquecer, a mensagem seguinte ainda afirmaria
+    # o alvo antigo, enquanto `minha_zona`, na mesma resposta, já usaria a
+    # régua nova — duas réguas para o mesmo aluno. Depois da escrita, e não
+    # antes: esquecer antes deixaria uma mensagem que chegasse no meio regravar
+    # o alvo velho. A leitura que já estava em voo e grava depois daqui ainda
+    # escapa — essa, o TTL curto do cache limita (`TTL_DO_CACHE_S`).
+    contexto_do_turno.esquecer(aluno_id)
+    return {"vestibulares": escolhidos, "completo": onboarding_completo(escolhidos)}
 
 
 @router.get("/simulados")

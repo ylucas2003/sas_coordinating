@@ -60,6 +60,18 @@ def vestibulares_alvo(cliente: Client, aluno_id: str) -> list[str]:
     return sorted({linha["vestibular"] for linha in (resp.data or [])})
 
 
+def onboarding_completo(alvos: list[str]) -> bool:
+    """O portão do onboarding: o aluno já declarou ao menos um vestibular-alvo.
+
+    Num lugar só porque são duas portas para a mesma pergunta — o `completo`
+    de GET/PUT /me/vestibulares, que a tela usa para abrir o onboarding, e o
+    `onboardingCompleto` da tool `minha_zona`. Duas cópias de `bool(alvos)`
+    divergiriam no primeiro portão novo (a escolha da fase, por exemplo), e o
+    Tio Léo diria "você já escolheu" enquanto a tela pede a escolha.
+    """
+    return bool(alvos)
+
+
 def _criterio_do_alvo(cliente: Client, vestibular: str, *, tem_fase2: bool):
     slugs = _REGUA_POR_VESTIBULAR.get(vestibular)
     if not slugs:
@@ -180,6 +192,13 @@ def zona_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any] | None:
     faltando = [
         (m["corte"] - m["nota"], m["materia"]) for m in materias if m["nota"] < m["corte"]
     ]
+    # A matéria mais perto do próprio corte entre as que já passaram dele.
+    # Conta, não regra — a mesma subtração de `faltando`, do outro lado. É ela
+    # que segura em `cinzenta` quem está numa régua sem exigência de média
+    # (`ime-f2`, Art. 37, III): ali não há distância na média para dizer, e sem
+    # este número o modelo teria de fazer a conta ou inventá-la.
+    acima = [(m["nota"] - m["corte"], m["materia"]) for m in materias if m["nota"] >= m["corte"]]
+    menor_folga = min(acima) if acima else None
 
     return {
         "zona": zona,
@@ -190,6 +209,27 @@ def zona_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any] | None:
         "materiaMaisCurta": min(faltando)[1] if faltando else None,
         "regua": criterio.nome,
         "materias": materias,
+        # Acréscimos de 24/10 (docs/43 §4.3), para o Tio Léo explicar a régua
+        # sem reconstruir qual foi escolhida: o slug diz se é a do colégio —
+        # "Tio Leo" solto parece um vestibular a mais —, a descrição diz o que
+        # ela cobra, e os alvos são os que decidiram a régua. As telas ignoram.
+        "reguaSlug": criterio.slug,
+        "reguaDescricao": criterio.descricao,
+        "vestibularesAlvo": alvos,
+        # Acréscimos de 25/10, pela mesma razão. `reguaDoColegio` é a
+        # identificação da régua da casa num lugar só, pelo SLUG — o preâmbulo
+        # do turno comparava o NOME, e uma régua criada com o mesmo nome virava
+        # "a do colégio" só lá. `reguaCobraMedia` falso é a régua que só tem
+        # mínimo por matéria: `distancia` e `corteProximaZona` vêm sempre
+        # `None` nela, e quem fala com o aluno precisa saber que é de
+        # propósito, e não dado faltando.
+        "reguaDoColegio": criterio.slug == criterios.CRITERIO_DA_CASA,
+        "reguaCobraMedia": criterios.corte_da_media(criterio) is not None,
+        "materiaComMenosFolga": (
+            {"materia": menor_folga[1], "folga": round(menor_folga[0], 2)}
+            if menor_folga is not None
+            else None
+        ),
     }
 
 

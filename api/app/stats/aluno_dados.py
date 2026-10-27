@@ -41,6 +41,9 @@ from .utils import como_float, filtro_nota_valida, nota_real, simulado_entra_no_
 #: GET /me/simulados, /me/simulado/{id}, /me/evolucao e /me/insight. Piso posto
 #: numa porta só deixa a mesma média sair inteira pelas outras.
 #:
+#: O histograma do Tio Léo (`distribuicao_do_simulado`, chat/tools_aluno_situacao.py)
+#: usa este mesmo piso, importado daqui: abaixo dele, a distribuição não sai.
+#:
 #: ⚠️ O LIMITE, conhecido: o piso protege UMA leitura, e não a diferença entre
 #: duas. Quem lê a mesma prova com 10 e depois com 11 notas tira a 11ª de
 #: 11·média₂ − 10·média₁ (com a média em duas casas, o erro fica perto de 0,1).
@@ -48,6 +51,11 @@ from .utils import como_float, filtro_nota_valida, nota_real, simulado_entra_no_
 #: erro. O conserto de verdade é publicar a comparação só com a prova FECHADA —
 #: o que pede decidir quando uma prova fecha, e é decisão de produto, não desta
 #: camada.
+#:
+#: O histograma alarga esse limite: as duas leituras entregam também a faixa de
+#: 0,5 de quem entrou, e por isso esconder a contagem exata não bastaria — o
+#: histograma sozinho já dá a faixa. Até a prova fechar, o risco é de quem tem a
+#: nota lançada DEPOIS do piso, e só diante de quem acompanha a prova sync a sync.
 PISO_DE_ANONIMATO = 10
 
 #: O top 15% e o inferior 15% só saem quando o GRUPO tem pelo menos isto. Com a
@@ -61,6 +69,36 @@ MINIMO_DO_GRUPO_DE_15 = 3
 def turma_acima_do_piso(n: int | None) -> bool:
     """`n` notas bastam para um número da turma ser agregado, e não a nota de alguém?"""
     return n is not None and n >= PISO_DE_ANONIMATO
+
+
+def conta_como_desempenho(item: dict[str, Any]) -> bool:
+    """Esta prova, um item de `simulados_do_aluno`, conta como desempenho do aluno?
+
+    É a pergunta de `utils.filtro_nota_valida` com `utils.simulado_entra_no_agregado`,
+    feita a uma linha já lida — o filtro é de CONSULTA e não serve a um item na
+    mão, e esta lista não pode usá-lo, porque mostra também o que não conta.
+    Não conta:
+
+      * a falta, e a nota que não se calcula (`nota` None);
+      * a nota `computavel = false` — a evidência de `stats/computavel.py` de
+        que o número não é desempenho: o quiz aberto sem nenhuma alternativa
+        marcada, ou o zero que aquela prova lançou para quem faltou (docs/32
+        §1.4). É a "provável ausência": lida como nota, ela vira "você zerou
+        Química" na boca do Tio Léo;
+      * a prova com `nota_confiavel = false`, cuja coluna inteira não
+        representa desempenho.
+
+    Quem não conta continua NA LISTA, com a marca: é o histórico do aluno, e um
+    número que o produto decidiu ignorar tem de dizer que ignorou (docs/32
+    §1.5). O que esta função decide é que ele não entra em delta, em média nem
+    em comparação, e que o modelo não o lê como nota.
+    """
+    return (
+        bool(item.get("presente"))
+        and item.get("nota") is not None
+        and item.get("computavel", True) is not False
+        and item.get("notaConfiavel", True) is not False
+    )
 
 
 def simulados_do_aluno(
@@ -79,17 +117,26 @@ def simulados_do_aluno(
     falta por default mudaria número em tela sem ninguém ter pedido. Quem quer
     a ausência pede por ela.
 
+    Cada item leva as duas marcas do SAS sobre a nota — `computavel` (com
+    `motivoNaoComputavel`) e `notaConfiavel`, da prova — e quem pergunta se ele
+    conta é `conta_como_desempenho`. A nota que não conta fica na lista, mas
+    sem `deltaSelf` e fora da base do delta das outras: o zero de provável
+    ausência puxaria para cima o delta de toda prova seguinte.
+
     `mediaGeral` passa pelo piso de anonimato (`turma_acima_do_piso`): `None`
     com menos de `PISO_DE_ANONIMATO` notas na prova. `nPresentes` fica — é
     contagem, e é ela que deixa a tela dizer por que a média não está lá.
+
+    `anoLetivoId` é o do ciclo — a ordem do ciclo se repete entre anos (ver
+    `aluno_jornada._ciclo_corrente`).
     """
     consulta = (
         cliente.table("nota")
         .select(
-            "pontuacao, presente, simulado("
+            "pontuacao, presente, computavel, motivo_nao_computavel, simulado("
             "id, nome, rotulo_curto, data_aplicacao, nota_maxima, materia_id, tipo, anulado, e_agregado, "
             "nota_confiavel, motivo_nota_nao_confiavel, "
-            "ciclo:ciclo_id(id, ordem, vestibular_alvo)"
+            "ciclo:ciclo_id(id, ordem, vestibular_alvo, ano_letivo_id)"
             ")"
         )
         .eq("aluno_id", aluno_id)
@@ -135,11 +182,17 @@ def simulados_do_aluno(
                 "materia": nome_mat.get(sim.get("materia_id")),
                 "nota": round(nota, 2) if presente and nota is not None else None,
                 "presente": presente,
+                # Ausente = true, como em `simulado_entra_no_agregado`: é o
+                # default do banco, e presumir o contrário esvaziaria a lista.
+                "computavel": linha.get("computavel", True) is not False,
+                "motivoNaoComputavel": linha.get("motivo_nao_computavel"),
+                "notaConfiavel": sim.get("nota_confiavel", True) is not False,
                 "deltaSelf": None,
                 "mediaGeral": round(media_turma, 2) if media_turma is not None else None,
                 "nPresentes": met.get("n_presentes", 0),
                 "cicloId": ciclo.get("id"),
                 "cicloOrdem": ciclo.get("ordem"),
+                "anoLetivoId": ciclo.get("ano_letivo_id"),
                 "vestibularAlvo": ciclo.get("vestibular_alvo"),
                 "novo": False,
             }
@@ -148,10 +201,12 @@ def simulados_do_aluno(
     # Ordena ASC para calcular delta acumulativo. A falta não entra no
     # "próprio padrão" nem recebe delta: ausência não é desempenho, e somá-la
     # como zero puxaria a régua do aluno para baixo por não ter feito a prova.
+    # A nota que não conta como desempenho (`conta_como_desempenho`) também
+    # não: é a provável ausência escrita como zero.
     itens.sort(key=lambda s: s.get("dataAplicacao") or "")
     notas_ant: list[float] = []
     for item in itens:
-        if item["nota"] is None:
+        if not conta_como_desempenho(item):
             continue
         if notas_ant:
             item["deltaSelf"] = round(item["nota"] - sum(notas_ant) / len(notas_ant), 2)
@@ -177,6 +232,7 @@ def _ciclos_acima_da_media_da_turma(itens: list[dict[str, Any]]) -> int:
     no payload que o insight manda ao LLM, e o nome da chave diz o que ela é
     justamente para o modelo não a ler como sequência.
 
+    `itens` são só os que contam como desempenho (`conta_como_desempenho`).
     `mediaGeral` já chega pelo piso de anonimato de `simulados_do_aluno`: a
     prova pequena não entra no lado da turma.
     """
@@ -326,6 +382,77 @@ def detalhe_simulado_do_aluno(
             "bottom15": round(bottom15, 2) if grupos_ok else None,
         },
     }
+
+
+def trajetoria_do_aluno(
+    cliente: Client, aluno_id: str, limite: int | None = None
+) -> list[dict[str, Any]]:
+    """As notas do aluno em ordem cronológica, em escala 0–10 — a trajetória.
+
+    Esta leitura existia em TRÊS cópias — `GET /alunos/{id}/trajetoria` (que
+    `/me/trajetoria` reaproveita), a tool `trajetoria_aluno` da coordenação e o
+    gráfico `linha_temporal` de aluno do assistente — e se juntou aqui antes de
+    nascer a quarta (docs/43 §4.3). Cada consumidor escolhe os campos e os
+    nomes que devolve; quem entra na série é decidido aqui, e só aqui:
+
+      * só nota `computavel` — o zero sem resposta não é desempenho, e
+        afundaria a série de quem não fez a prova;
+      * a prova não confiável FICA: quem a perde é a estatística, não o
+        histórico da pessoa (`utils.simulado_entra_no_agregado`);
+      * sai simulado anulado, simulado agregado, falta e nota que não se
+        calcula (`nota_real` devolve None).
+
+    `limite` corta depois de ordenar e guarda as MAIS RECENTES; `None` traz
+    todas. ⚠️ O corte é o de sempre (`pontos[-limite:]` quando passa do
+    limite), e com zero ou negativo ele não faz o que o nome promete: quem
+    expõe `limite` ao modelo o valida antes — o despacho não confere `minimum`.
+
+    Cada ponto: `{simuladoId, simulado, rotuloCurto, dataAplicacao, materiaId,
+    materia, tipo, cicloId, nota}`. `simulado` é o nome completo; `materia` é o
+    nome da matéria, None na prova multi-matéria; `nota` vem com duas casas.
+    Uma ida ao PostgREST: o nome da matéria vem embutido no simulado.
+    """
+    resp = (
+        cliente.table("nota")
+        .select(
+            "pontuacao, presente, simulado("
+            "id, nome, rotulo_curto, data_aplicacao, anulado, e_agregado, "
+            "nota_maxima, materia_id, tipo, ciclo_id, materia:materia_id(nome)"
+            ")"
+        )
+        .eq("aluno_id", aluno_id)
+        .eq("computavel", True)
+        .execute()
+    )
+
+    pontos: list[dict[str, Any]] = []
+    for linha in resp.data or []:
+        sim = linha.get("simulado") or {}
+        if sim.get("anulado") or sim.get("e_agregado"):
+            continue
+        if not linha.get("presente"):
+            continue
+        nota = nota_real(como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima")))
+        if nota is None:
+            continue
+        pontos.append(
+            {
+                "simuladoId": sim.get("id"),
+                "simulado": sim.get("nome"),
+                "rotuloCurto": sim.get("rotulo_curto"),
+                "dataAplicacao": sim.get("data_aplicacao"),
+                "materiaId": sim.get("materia_id"),
+                "materia": (sim.get("materia") or {}).get("nome") if sim.get("materia_id") else None,
+                "tipo": sim.get("tipo"),
+                "cicloId": sim.get("ciclo_id"),
+                "nota": round(nota, 2),
+            }
+        )
+    pontos.sort(key=lambda p: p["dataAplicacao"] or "")
+
+    if limite is not None and len(pontos) > limite:
+        pontos = pontos[-limite:]
+    return pontos
 
 
 def evolucao_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any]:
@@ -567,8 +694,20 @@ def payload_insight_ciclo(
     payload é a chave do cache (`insight_aluno.gerar_para_aluno_ciclo` faz hash
     dele), os bullets gerados com a média vazada não voltam mais do cache: o
     hash mudou junto com o número.
+
+    Mais dois recortes, e os dois são regra de outro lugar, aplicada aqui:
+
+      * só entra o que conta como desempenho (`conta_como_desempenho`): o zero
+        de provável ausência viraria "você caiu em Química" no texto do modelo;
+      * o ciclo é do ano letivo da prova mais recente: a ordem do ciclo se
+        repete entre anos (`aluno_jornada._ciclo_corrente`), e o maior número
+        de todos podia ser o ciclo 30 do ano passado.
     """
-    itens = simulados_do_aluno(cliente, aluno_id)
+    itens = [i for i in simulados_do_aluno(cliente, aluno_id) if conta_como_desempenho(i)]
+    # A lista vem do mais recente para o mais antigo.
+    ano = next((i["anoLetivoId"] for i in itens if i.get("anoLetivoId")), None)
+    if ano is not None:
+        itens = [i for i in itens if i.get("anoLetivoId") == ano]
     com_ciclo = [i for i in itens if i.get("cicloOrdem") is not None and i.get("cicloId")]
     if not com_ciclo:
         return None

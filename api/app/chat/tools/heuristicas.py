@@ -14,12 +14,34 @@ Critérios atuais (calibráveis em stats/thresholds.py):
 from __future__ import annotations
 
 import statistics as st
+import uuid
 from collections import defaultdict
+from typing import Any
 
 from supabase import Client
 
 from ...stats import criterios
 from ...stats.utils import como_float, nota_real, simulado_entra_no_agregado
+
+#: Lista de menores marcados "em risco" (ou "destaque") com zona e média: o
+#: teto é minimização (LGPD art. 6º, III; mapa de LGPD de 24/10), e quem o
+#: aplica é o handler — o despacho não confere `maximum`. `total` e
+#: `truncado` continuam dizendo quantos são.
+TETO_POR_ZONA = 50
+
+
+def _uuid(valor: Any, campo: str, onde_achar: str) -> tuple[str | None, dict[str, str] | None]:
+    """O id normalizado, ou o erro de argumento que o modelo lê.
+
+    Id torto numa coluna uuid é 22P02 no PostgREST, e o despacho responde a
+    qualquer exceção com "falhou do nosso lado, não repita": o modelo diria
+    "indisponível" quando quem errou foi o id. O mesmo das tools das rotinas e
+    da régua (revisão paralela de 25/10)."""
+    try:
+        return str(uuid.UUID(str(valor).strip())), None
+    except ValueError:
+        return None, {"erro": f"{campo} deve ser um UUID; {onde_achar}"}
+
 
 # ─── alunos_em_risco ──────────────────────────────────────────────────────
 
@@ -45,7 +67,9 @@ _SCHEMA_RISCO = {
     ),
     "parameters": {
         "type": "object",
-        "properties": {"limite": {"type": "integer", "default": 30}},
+        "properties": {
+            "limite": {"type": "integer", "default": 30, "description": f"Quantos listar, até {TETO_POR_ZONA}."},
+        },
         "required": [],
     },
 }
@@ -66,7 +90,9 @@ _SCHEMA_DESTAQUE = {
     ),
     "parameters": {
         "type": "object",
-        "properties": {"limite": {"type": "integer", "default": 20}},
+        "properties": {
+            "limite": {"type": "integer", "default": 20, "description": f"Quantos listar, até {TETO_POR_ZONA}."},
+        },
         "required": [],
     },
 }
@@ -76,6 +102,10 @@ _SCHEMA_DESTAQUE = {
 
 def tendencia_aluno(cliente: Client, *, aluno_id: str) -> dict:
     """Resumo do movimento recente do aluno: slope, classificação, last vs. anterior."""
+    # A dica não nomeia `buscar_aluno_por_nome`: ela não vai ao MCP, e esta vai.
+    aluno_id, erro = _uuid(aluno_id, "aluno_id", "descubra-o com a tool de busca de aluno")
+    if erro:
+        return erro
     classif_resp = (
         cliente.table("classificacao_aluno")
         .select("perfil, tendencia, zona, media_recente, desvio_recente, coef_tendencia, p_valor_tendencia, janela_simulados")
@@ -123,12 +153,17 @@ def materias_problematicas(cliente: Client, *, ciclo_id: str) -> dict:
     Calcula direto das notas do ciclo (sem cache adicional). Útil pra
     "quais matérias precisam de mais atenção neste ciclo?"
     """
-    # Simulados do ciclo, F2 apenas, não anulados.
+    ciclo_id, erro = _uuid(ciclo_id, "ciclo_id", "descubra-o com listar_ciclos")
+    if erro:
+        return erro
+    # Simulados do ciclo, F2 apenas, não anulados. A fase é `simulado.tipo`
+    # ('fase_1' | 'fase_2'): a coluna `fase` saiu na 0003, e pedi-la fazia o
+    # PostgREST responder 42703 — a tool falhava SEMPRE (revisão paralela de
+    # 25/10). tests/test_chat_tools_coordenacao.py confere cada coluna pedida
+    # contra o schema das migrations.
     sim_resp = (
         cliente.table("simulado")
-        .select(
-            "id, materia_id, tipo, fase, nota_maxima, anulado, e_agregado, nota_confiavel"
-        )
+        .select("id, materia_id, tipo, nota_maxima, anulado, e_agregado, nota_confiavel")
         .eq("ciclo_id", ciclo_id)
         .execute()
     )
@@ -230,6 +265,7 @@ def _alunos_por_zona(
 
     `ordenacao`: 'asc_media' (piores primeiro) | 'desc_media' (melhores primeiro)
     """
+    limite = min(max(1, limite), TETO_POR_ZONA)
     resp = (
         cliente.table("classificacao_aluno")
         .select("aluno_id, perfil, tendencia, zona, media_recente")
@@ -276,3 +312,13 @@ TOOLS: list[tuple[dict, callable]] = [
     (_SCHEMA_TENDENCIA, tendencia_aluno),
     (_SCHEMA_MATERIAS_PROB, materias_problematicas),
 ]
+
+#: Todas ao MCP (docs/43 §5.4, mapa de LGPD de 24/10): `materias_problematicas`
+#: é agregado por matéria; as outras são dado de aluno com `alunoId` no mesmo
+#: dict, e o MCP troca o nome por "Aluno <matrícula>".
+METADADOS: dict[str, dict] = {
+    "alunos_em_risco": {"expor_no_mcp": True},
+    "alunos_destaque": {"expor_no_mcp": True},
+    "tendencia_aluno": {"expor_no_mcp": True},
+    "materias_problematicas": {"expor_no_mcp": True},
+}

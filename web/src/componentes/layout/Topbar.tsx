@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
+import { degrauSomeNoCelular } from '../../dominio/trilhaNoCelular';
 import * as sessao from '../../servicos/sessao';
 import { useTema } from '../../servicos/tema';
 import { Avatar } from '../ui/Avatar';
@@ -87,22 +88,40 @@ export function Topbar() {
   return (
     <header className="topbar">
       <nav className="topbar__migalhas" aria-label="Trilha de navegação">
-        {migalhas.map((m, i) => (
-          <Fragment key={`${m.texto}-${i}`}>
-            {i > 0 && <span className="topbar__separador" aria-hidden="true">›</span>}
-            {m.para ? (
-              <Link className="topbar__migalha topbar__migalha--link" to={m.para}>
-                {m.texto}
-              </Link>
-            ) : (
-              // O último degrau é o TÍTULO da tela, e por isso pesa o triplo
-              // dos outros. `useMigalhas` garante que só ele vem sem `para`.
-              <span className="topbar__migalha topbar__migalha--atual" aria-current="page">
-                {m.texto}
-              </span>
-            )}
-          </Fragment>
-        ))}
+        {migalhas.map((m, i) => {
+          // No celular saem os degraus de antes do penúltimo
+          // (`dominio/trilhaNoCelular.ts`), e cada um leva junto a seta que
+          // vem DEPOIS dele — por isso a seta é desenhada depois do degrau, e
+          // não antes do próximo. A ordem no DOM é a mesma de antes, e a
+          // trilha que sobra não começa com "›".
+          const some = degrauSomeNoCelular(i, migalhas.length);
+          return (
+            <Fragment key={`${m.texto}-${i}`}>
+              {m.para ? (
+                <Link
+                  className={`topbar__migalha topbar__migalha--link${some ? ' topbar__migalha--some-no-celular' : ''}`}
+                  to={m.para}
+                >
+                  {m.texto}
+                </Link>
+              ) : (
+                // O último degrau é o TÍTULO da tela, e por isso pesa o triplo
+                // dos outros. `useMigalhas` garante que só ele vem sem `para`.
+                <span className="topbar__migalha topbar__migalha--atual" aria-current="page">
+                  {m.texto}
+                </span>
+              )}
+              {i < migalhas.length - 1 && (
+                <span
+                  className={`topbar__separador${some ? ' topbar__separador--some-no-celular' : ''}`}
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+              )}
+            </Fragment>
+          );
+        })}
       </nav>
 
       <div className="topbar__acoes">

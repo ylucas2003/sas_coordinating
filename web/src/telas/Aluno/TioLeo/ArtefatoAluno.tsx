@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
+import { LimiteDeErro } from '../../../componentes/LimiteDeErro';
 import { Artefato } from '../../../componentes/chat/Artefato';
+import { LinhaTemporal } from '../../../componentes/ui/LinhaTemporal';
+import type { PontoTemporal } from '../../../componentes/ui/LinhaTemporal';
 import { useQuestaoDoBanco, useSimulado } from '../../../dados/aluno';
 import type { LinhaExtrato, MateriaContraCorte } from '../../../dados/aluno';
 import type { ArtefatoChat } from '../../../tipos/chat';
@@ -14,6 +17,7 @@ import { Markdown } from '../../../componentes/ui/Markdown';
 import {
   AVISO_DE_COBERTURA,
   MATERIAS_COM_TAXONOMIA,
+  fmt,
   fmtDataLonga,
   fmtInteiro,
 } from '../pecas/formato';
@@ -44,26 +48,49 @@ import {
 // PAYLOAD QUE NÃO BATE NÃO FALHA EM SILÊNCIO (docs/27 §7): cai em
 // `NaoDesenhavel`, que diz o que houve. Falhar visível é a regra.
 //
-// ⚠️ ESTE RENDERIZADOR AINDA NÃO ESTÁ COSTURADO À CONVERSA, e é um buraco
-// conhecido, não um esquecimento. `componentes/chat/Conversa.tsx` e
-// `Mensagem.tsx` importam `componentes/chat/Artefato` de forma fixa e não
-// aceitam um renderizador por prop — e os dois servem à COORDENAÇÃO, que este
-// sprint não edita. O que liga é uma prop opcional
-// (`renderArtefato?: (a: ArtefatoChat) => ReactNode`, com o `Artefato` de hoje
-// como padrão) nesses dois arquivos. Enquanto ela não existe, a folha do aluno
-// mostra os artefatos com o desenho da coordenação — o que na prática só
-// acontece com `histograma` e `linha_temporal`, porque as tools que produzem
-// os tipos novos ainda não existem em `tools_aluno.py` (docs/27 §7).
+// E CARTÃO QUE QUEBRA NÃO LEVA A FOLHA JUNTO: cada um mora no próprio
+// `LimiteDeErro`. O payload é dado do servidor, mas o TIPO foi escolha do
+// modelo, e um erro de render num cartão derrubava a conversa inteira — e,
+// antes de o casco isolar o Tio Léo, a área do aluno inteira.
+//
+// COSTURADO À CONVERSA PELA PROP `renderArtefato` (docs/43 §4.1, defeito 6).
+// `Conversa` e `Mensagem` desenham com o `Artefato` da coordenação quando
+// ninguém passa nada — é o caso do `ChatLauncher`, que segue igual —, e a
+// `FolhaTioLeo` passa este arquivo. Um artefato chega à folha por duas portas:
+//
+//   AO VIVO    as tools do aluno anexam `artefato: {tipo, titulo, payload}` ao
+//              resultado (docs/43 §4), e `dominio/chatStream.ts` só o deixa
+//              passar se o tipo estiver no `CATALOGO_DE_ARTEFATOS`, o espelho
+//              da allowlist com que o servidor decide o que persiste;
+//   AO REABRIR o servidor pendura o artefato na mensagem `tool`, que a conversa
+//              não desenha, e a própria `Conversa` o devolve à resposta com
+//              `artefatosNaResposta` — nos dois cascos, desde 25/10.
+//
+// `extrato_xp` e `formula` continuam desenháveis aqui, mas estão FORA do
+// catálogo: o XP ainda é mock (docs/26 §3) e fórmula é da família inline
+// (docs/27 §3). Nenhum dos dois chega a este arquivo enquanto não entrar no
+// catálogo — dos dois lados.
 
 export function ArtefatoAluno({ artefato }: { artefato: ArtefatoChat }) {
   if (!artefato?.tipo) return null;
 
-  // `histograma` e `linha_temporal` JÁ SÃO REAIS e já têm componente na
-  // coordenação. Reimplementá-los daria duas versões do mesmo gráfico para
-  // divergirem no primeiro conserto — delegar é o barato e o certo.
-  if (artefato.tipo === 'histograma' || artefato.tipo === 'linha_temporal') {
-    return <Artefato artefato={artefato} />;
-  }
+  // O limite fica AQUI, em volta de cada cartão, e não da conversa: o cartão
+  // que quebrou vira um aviso no lugar dele, e o resto da resposta continua.
+  return (
+    <LimiteDeErro fallback={() => <CartaoQuebrado />}>
+      <CartaoDoTipo artefato={artefato} />
+    </LimiteDeErro>
+  );
+}
+
+function CartaoDoTipo({ artefato }: { artefato: ArtefatoChat }) {
+  // Os dois gráficos JÁ TÊM desenho compartilhado com a coordenação
+  // (`componentes/ui/Histograma` e `LinhaTemporal`), e reimplementá-los daria
+  // duas versões do mesmo gráfico para divergirem no primeiro conserto. O que
+  // muda no aluno é a moldura: a marca dele no histograma, e na linha a
+  // legenda e o destino do clique.
+  if (artefato.tipo === 'histograma') return <HistogramaComMinhaNota artefato={artefato} />;
+  if (artefato.tipo === 'linha_temporal') return <TrajetoriaDoAluno artefato={artefato} />;
 
   if (artefato.tipo === 'barras_corte') return <BarrasCorte artefato={artefato} />;
   if (artefato.tipo === 'extrato_xp') return <ExtratoDeXp artefato={artefato} />;
@@ -89,10 +116,17 @@ export function ArtefatoAluno({ artefato }: { artefato: ArtefatoChat }) {
 function Cartao({
   olho,
   titulo,
+  fonte = 'artefatosDoTioLeo',
   children,
 }: {
   olho: string;
   titulo?: string;
+  /**
+   * A chave do registro que a tarja lê. Os cartões do catálogo são reais e não
+   * levam tarja; o do extrato passa `extratoXp`, porque o XP continua mock e o
+   * cartão não pode esconder isso só por morar no Tio Léo.
+   */
+  fonte?: string;
   children: ReactNode;
 }) {
   const [expandido, setExpandido] = useState(false);
@@ -131,9 +165,18 @@ function Cartao({
   return (
     <>
       <div className="alu-tioleo__artefato">
-        <TarjaFonte chave="artefatosDoTioLeo" />
+        <TarjaFonte chave={fonte} />
         <header className="alu-tioleo__artefato-topo">
           <span className="alu-olho alu-tioleo__artefato-olho">{olho}</span>
+          {/* "Ampliar este cartão", e não "Abrir em tela cheia": no cartão da
+              questão esse era também o nome do link para `/questao/:id`, que
+              vem de `CartaoQuestaoAluno` — duas ações com o mesmo nome e
+              efeitos diferentes, que o leitor de tela não separa (verificação
+              no browser de 26/10). Este AMPLIA, por cima da conversa, e o Esc
+              devolve; o outro SAI da conversa para a tela da questão. O olho
+              vai junto no nome porque uma resposta traz vários cartões, e
+              seis botões "Ampliar este cartão" seguidos não dizem qual é qual
+              a quem navega pela lista de botões. */}
           <button
             ref={botao}
             type="button"
@@ -141,7 +184,7 @@ function Cartao({
             onClick={() => setExpandido(true)}
           >
             <Icone nome="expandir" tamanho={15} />
-            <span className="alu-so-leitor">Abrir em tela cheia</span>
+            <span className="alu-so-leitor">{`Ampliar este cartão — ${olho}`}</span>
           </button>
         </header>
         {titulo && <p className="alu-tioleo__artefato-titulo">{titulo}</p>}
@@ -183,6 +226,23 @@ function NaoDesenhavel({ tipo }: { tipo: string }) {
       <p className="alu-vazio">
         O Tio Léo mandou um cartão de “{tipo.slice(0, 40)}” que esta versão do app ainda não sabe
         desenhar. Peça a mesma informação em texto.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * O cartão que deu erro ao desenhar — o que o `LimiteDeErro` põe no lugar dele.
+ * Mesmo casco da falha visível, e a frase não culpa a conexão: aqui o defeito é
+ * nosso, e o que vale para o aluno é saber que o resto da resposta continua.
+ */
+function CartaoQuebrado() {
+  return (
+    <div className="alu-tioleo__artefato alu-tioleo__artefato--falha">
+      <span className="alu-olho alu-olho--quieto">Cartão não abriu</span>
+      <p className="alu-vazio">
+        Este cartão deu erro ao abrir. O resto da resposta continua valendo — se precisar do que
+        ele mostrava, peça ao Tio Léo em texto.
       </p>
     </div>
   );
@@ -240,6 +300,91 @@ function numero(valor: unknown): number | null {
   return typeof valor === 'number' && Number.isFinite(valor) ? valor : null;
 }
 
+// ─── histograma ──────────────────────────────────────────────────────────
+
+/**
+ * O histograma da coordenação, com a marca do aluno logo abaixo (docs/27 §7:
+ * "distribuição do simulado, com a minha marca").
+ *
+ * A marca é LEGENDA, e não traço dentro do gráfico: o desenho é o compartilhado
+ * (`componentes/chat/Artefato` → `componentes/ui/Histograma`), e ensinar a ele
+ * uma marca de aluno seria mexer no gráfico que a coordenação usa todo dia.
+ *
+ * ⚠️ Só `minhaNota`, a do PRÓPRIO aluno — o servidor a tira do `aluno_id` do
+ * JWT, nunca de argumento (docs/27 §7). Nota de colega não vira texto aqui por
+ * nenhum caminho (docs/27 §9, regra 4): a turma aparece só como distribuição.
+ */
+function HistogramaComMinhaNota({ artefato }: { artefato: ArtefatoChat }) {
+  const p = artefato.payload;
+  const minhaNota = ehObjeto(p) ? numero(p.minhaNota) : null;
+
+  return (
+    <>
+      <Artefato artefato={artefato} />
+      {minhaNota != null && (
+        <p className="chat-artefato__rodape">
+          Sua nota: <strong>{fmt(minhaNota)}</strong>
+        </p>
+      )}
+    </>
+  );
+}
+
+// ─── linha_temporal ──────────────────────────────────────────────────────
+
+/**
+ * A trajetória do aluno (`minha_trajetoria`), no gráfico de linha da
+ * coordenação — com a legenda e o destino DO ALUNO.
+ *
+ * Não delega ao `Artefato`, como o histograma, por dois motivos que só valem
+ * aqui: lá a série se chama "Ciclo atual" e o valor "Média", e o aluno lia
+ * "Média" sobre a própria nota; e o clique levava a `/simulados/:id`, que no
+ * casco do aluno é só o redirecionamento de link antigo. O desenho continua um
+ * só (`LinhaTemporal`, que aceita os rótulos para isso); muda a legenda, e o
+ * ponto abre a ficha da prova em `/provas/:id`.
+ *
+ * No eixo vai a DATA, e o nome da prova fica no tooltip: o rótulo das provas
+ * não cabe em oito posições de uma folha de 390px.
+ */
+function TrajetoriaDoAluno({ artefato }: { artefato: ArtefatoChat }) {
+  const navegar = useNavigate();
+  const p = artefato.payload;
+  if (!ehObjeto(p) || !Array.isArray(p.pontos)) return <NaoDesenhavel tipo={artefato.tipo} />;
+
+  const pontos: PontoTemporal[] = p.pontos.filter(ehObjeto).flatMap((ponto) => {
+    const nota = numero(ponto.nota);
+    if (nota == null) return [];
+    return [
+      {
+        simuladoId: texto(ponto.simuladoId) ?? undefined,
+        nome: texto(ponto.rotulo) ?? 'Simulado',
+        rotuloCurto: null,
+        data: texto(ponto.data),
+        media: nota,
+        materia: texto(ponto.materia) ?? undefined,
+      },
+    ];
+  });
+
+  if (!pontos.length) return <NaoDesenhavel tipo={artefato.tipo} />;
+
+  return (
+    <div className="chat-artefato chat-artefato--grafico">
+      {artefato.titulo && <div className="chat-artefato__titulo">{artefato.titulo}</div>}
+      <LinhaTemporal
+        pontos={pontos}
+        largura={360}
+        altura={200}
+        rotuloSerie="Suas notas"
+        rotuloValor="Sua nota"
+        onPontoClick={(ponto) => {
+          if (ponto.simuladoId) navegar(`/provas/${encodeURIComponent(ponto.simuladoId)}`);
+        }}
+      />
+    </div>
+  );
+}
+
 // ─── barras_corte ────────────────────────────────────────────────────────
 
 function BarrasCorte({ artefato }: { artefato: ArtefatoChat }) {
@@ -256,14 +401,31 @@ function BarrasCorte({ artefato }: { artefato: ArtefatoChat }) {
 
   if (!materias.length) return <NaoDesenhavel tipo={artefato.tipo} />;
 
+  // ⚠️ O NOME DA RÉGUA vem do payload (`regua`, que as tools do aluno põem) e
+  // é ele que vira o título, na frase da Jornada: "sob o critério Tio Leo"
+  // (docs/24 §2). A linha de corte sem o nome de quem a traçou é veredito sem
+  // régua — a etiqueta de distância sozinha vira só a má notícia. O título da
+  // tool ("Régua Tio Leo") diz o mesmo, e só vale quando o payload não traz o
+  // nome: assim a régua aparece uma vez, e não depende de a tool lembrar de
+  // escrevê-la no título.
+  const regua = texto(p.regua);
+
   return (
-    // O olho NOMEIA A RÉGUA (docs/24 §2): `compacto` esconde o rótulo "CORTE
-    // 4,0" de dentro do gráfico, e uma linha de ouro sem nome é veredito sem
-    // régua — a etiqueta de distância sozinha vira só a má notícia.
-    <Cartao olho="Suas notas contra o corte" titulo={artefato.titulo}>
+    // O olho NOMEIA A LINHA: o `BarraCorte` não escreve "CORTE 4,0" dentro do
+    // gráfico (o valor desceu para a etiqueta de distância).
+    <Cartao
+      olho="Suas notas contra o corte"
+      titulo={regua ? `Sob o critério ${regua}` : artefato.titulo}
+    >
       {/* `compacto` some com os números de topo: dentro de uma folha de 390px
-          o rótulo por cima da barra vira ruído (docs/27 §8). */}
-      <BarraCorte materias={materias} compacto />
+          o rótulo por cima da barra vira ruído (docs/27 §8).
+
+          `notas="regua"`: o payload vem das tools `minha_zona` e
+          `meu_panorama`, calculado pela mesma `zona_do_aluno` de `/me/zona` —
+          é a nota que CONTA NA RÉGUA, e não a do último simulado que as barras
+          da Hoje mostram. As duas existem e diferem; cada gráfico diz qual é
+          (decisão do dono de 26/10, `dominio/notaContraCorte.ts`). */}
+      <BarraCorte materias={materias} compacto notas="regua" />
     </Cartao>
   );
 }
@@ -289,7 +451,11 @@ function ExtratoDeXp({ artefato }: { artefato: ArtefatoChat }) {
   const total = numero(p.total) ?? linhas.reduce((soma, l) => soma + l.xp, 0);
 
   return (
-    <Cartao olho="Extrato de XP" titulo={artefato.titulo ?? texto(p.simuladoNome) ?? undefined}>
+    <Cartao
+      olho="Extrato de XP"
+      titulo={artefato.titulo ?? texto(p.simuladoNome) ?? undefined}
+      fonte="extratoXp"
+    >
       <ul className="alu-tioleo__extrato">
         {linhas.map((linha) => (
           // ⚠️ As linhas que NÃO pontuaram continuam aparecendo, vazadas e com
@@ -414,7 +580,14 @@ function ListaDeQuestoes({ artefato }: { artefato: ArtefatoChat }) {
               {item.assunto}
               {(item.materia || item.quantidade != null) && (
                 <em className="alu-tioleo__lista-sub">
-                  {[item.materia, item.quantidade != null && `${fmtInteiro(item.quantidade)} questões`]
+                  {/* "1 questões" saía na folha com o tópico que caiu uma vez só
+                      (visto no browser em 26/10); o singular é o mesmo de
+                      EstudarBanco e FolhaFiltros. */}
+                  {[
+                    item.materia,
+                    item.quantidade != null &&
+                      `${fmtInteiro(item.quantidade)} ${item.quantidade === 1 ? 'questão' : 'questões'}`,
+                  ]
                     .filter(Boolean)
                     .join(' · ')}
                 </em>
@@ -426,7 +599,10 @@ function ListaDeQuestoes({ artefato }: { artefato: ArtefatoChat }) {
                 "Conjuntos e Lógica" em Matemática e "Estrutura Atômica" em
                 Química (docs/28 §6). Sem a matéria no payload, o "Treinar" daria
                 numa fila que o `Treino` não consegue montar — então ele vira o
-                caminho de escolher o assunto, que é onde a matéria existe. */}
+                caminho de escolher o assunto, que é onde a matéria existe.
+                Estatísticas, e não `/estudar/assuntos`: aquela tela saiu, e o
+                caminho só ficou como redirecionamento para link salvo
+                (`CascoAluno`). */}
             {item.materia && item.codigo ? (
               <Link
                 className="alu-tecla alu-tecla--pequena"
@@ -435,7 +611,7 @@ function ListaDeQuestoes({ artefato }: { artefato: ArtefatoChat }) {
                 Treinar
               </Link>
             ) : (
-              <Link className="alu-tecla alu-tecla--pequena" to="/estudar/assuntos">
+              <Link className="alu-tecla alu-tecla--pequena" to="/estudar/estatisticas">
                 Ver em Estudar
               </Link>
             )}
@@ -492,12 +668,15 @@ function Prova({ artefato }: { artefato: ArtefatoChat }) {
       {ficha.data.dataAplicacao && (
         <p className="alu-tioleo__prova-data">{fmtDataLonga(ficha.data.dataAplicacao)}</p>
       )}
-      {/* ⚠️ NUNCA o PDF embutido (docs/27 §6): `pdf.js` pesa ~1 MB e num celular
-          entrega pior que o visualizador nativo. E o botão leva à FICHA do
-          simulado, não à URL do arquivo — a URL de `/me/simulado/{id}/arquivo`
-          é assinada, expira, e endereço visível é proibido (docs/27 §9). */}
+      {/* O botão leva à FICHA do simulado — nota, comparação com a turma e
+          questão por questão —, e nunca ao arquivo da prova: o acesso do aluno
+          ao PDF saiu em 04/09 junto com a rota que o servia (docs/35 §8b;
+          ProvaFicha.tsx conta a história). Nada de PDF embutido, nem de
+          endereço de arquivo no cartão (docs/27 §6 e §9). E o rótulo é o da
+          tela Provas para o mesmo destino: "Abrir a prova" prometia o arquivo
+          que não existe mais. */}
       <Link className="alu-tecla alu-tecla--pequena" to={`/provas/${encodeURIComponent(id)}`}>
-        Abrir a prova
+        Abrir a ficha
       </Link>
     </Cartao>
   );

@@ -648,6 +648,17 @@
   font-weight: 700;
 }
 
+/* O NOME das notas, em cima das barras: "no último simulado" na Hoje, "que
+   contam na régua" no Tio Léo (`BarraCorte.tsx::NotasDaBarra`, decisão do dono
+   de 26/10). Tom de legenda, e não de olho: o olho do bloco já é o título. */
+.alu-corte__legenda {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--alu-texto-2);
+}
+
 /* ── A folha ──────────────────────────────────────────────────────────── */
 
 .alu-folha-fundo {

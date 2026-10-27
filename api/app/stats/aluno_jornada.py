@@ -27,6 +27,7 @@ from typing import Any
 
 from supabase import Client
 
+from ..banco.missao import hoje_na_escola
 from .aluno_dados import simulados_do_aluno
 
 #: O contrato do front (`ProximoSimulado.fase`) é numérico; o banco guarda
@@ -81,12 +82,34 @@ def aplicar_regra_da_falta(
     return sorted(itens, key=lambda i: i.get("dataAplicacao") or "")
 
 
+def _do_ano_letivo_corrente(itens: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Os itens do ano letivo do simulado mais recente, na mesma ordem.
+
+    O ano é o do CICLO (`anoLetivoId`, de `simulados_do_aluno`), e não o da
+    data: o ano letivo é o que a escola diz que é. Mais recente e não "hoje"
+    pela mesma razão de `_ciclo_corrente`: é a corrente que o aluno vê, e ela
+    não se esvazia em fevereiro antes da primeira prova do ano novo.
+
+    Item sem `anoLetivoId` — lista montada à mão, sem o embed do ciclo — deixa
+    a lista inteira: sem como saber o ano, cortar seria inventar o recorte.
+    """
+    ano = next((i["anoLetivoId"] for i in reversed(itens) if i.get("anoLetivoId")), None)
+    if ano is None:
+        return itens
+    return [i for i in itens if i.get("anoLetivoId") == ano]
+
+
 def contar_sequencia(itens: list[dict[str, Any]]) -> tuple[int, int]:
     """(corrente, recorde) sobre itens já em ordem cronológica.
 
     Os dois cobrem o ANO INTEIRO, não o ciclo (docs/36 §1.3): recorde que zera
-    na virada de ciclo não é recorde.
+    na virada de ciclo não é recorde. E o ano é o ano LETIVO do simulado mais
+    recente (`_do_ano_letivo_corrente`): até 25/10 a contagem corria o
+    histórico inteiro, e quem tem nota de 2025 e de 2026 recebia um recorde de
+    dois anos que o prompt do Tio Léo e o preâmbulo do turno chamam de
+    "recorde do ano".
     """
+    itens = _do_ano_letivo_corrente(itens)
     atual = 0
     for item in reversed(itens):
         if not item.get("presente"):
@@ -100,12 +123,19 @@ def contar_sequencia(itens: list[dict[str, Any]]) -> tuple[int, int]:
     return atual, melhor
 
 
-def historico_com_presenca(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
-    """Os simulados do aluno com a falta junto, já sob a regra de docs/36 §1.1."""
-    return aplicar_regra_da_falta(
-        simulados_do_aluno(cliente, aluno_id, incluir_faltas=True),
-        _matriculas_ativas(cliente, aluno_id),
-    )
+def historico_com_presenca(
+    cliente: Client, aluno_id: str, *, itens: list[dict[str, Any]] | None = None
+) -> list[dict[str, Any]]:
+    """Os simulados do aluno com a falta junto, já sob a regra de docs/36 §1.1.
+
+    `itens` é `simulados_do_aluno(..., incluir_faltas=True)` já lido, para quem
+    compõe várias leituras do aluno (`aluno_panorama.py`) não pagar a mesma
+    leitura duas vezes. A regra é a mesma nos dois caminhos: `aplicar_regra_da_falta`
+    não altera os itens, só filtra e ordena.
+    """
+    if itens is None:
+        itens = simulados_do_aluno(cliente, aluno_id, incluir_faltas=True)
+    return aplicar_regra_da_falta(itens, _matriculas_ativas(cliente, aluno_id))
 
 
 # ─── Sequência (GET /me/jogo) ─────────────────────────────────────────────
@@ -135,6 +165,21 @@ def sequencia_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any]:
     recorde.
     """
     itens = historico_com_presenca(cliente, aluno_id)
+    # O histórico já lido vai junto: sem ele, o próximo simulado o relia
+    # inteiro só para achar a data da última prova feita.
+    proximo = proximo_simulado_do_aluno(cliente, aluno_id, historico=itens)
+    return sequencia_do_historico(itens, proximo)
+
+
+def sequencia_do_historico(
+    itens: list[dict[str, Any]], proximo: dict[str, Any] | None
+) -> dict[str, Any]:
+    """A resposta de `sequencia_do_aluno` a partir do que já foi lido — pura.
+
+    `itens` é `historico_com_presenca`, em ordem cronológica; `proximo` é
+    `proximo_simulado_do_aluno`. Separada para quem já tem as duas leituras
+    (`aluno_panorama.py`) montar a mesma fita sem relê-las.
+    """
     atual, melhor = contar_sequencia(itens)
     ciclo_id = _ciclo_corrente(itens)
     fita = [
@@ -150,7 +195,6 @@ def sequencia_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any]:
 
     # O elo anelado: o simulado que ainda vai acontecer. `presente: null` é
     # "ainda não aconteceu", que a tela desenha diferente de falta.
-    proximo = proximo_simulado_do_aluno(cliente, aluno_id)
     if proximo:
         fita.append(
             {
@@ -177,7 +221,13 @@ def _anos_letivos_do_aluno(cliente: Client, aluno_id: str) -> set[str]:
     return {t["ano_letivo_id"] for t in (resp.data or []) if t.get("ano_letivo_id")}
 
 
-def proximo_simulado_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any] | None:
+def proximo_simulado_do_aluno(
+    cliente: Client,
+    aluno_id: str,
+    *,
+    historico: list[dict[str, Any]] | None = None,
+    hoje: date | None = None,
+) -> dict[str, Any] | None:
     """Mesma resposta de GET /me/agenda — o próximo simulado, ou `None`.
 
     ⚠️ Só enxerga evento com `simulado` apontando para ele. `evento_agenda` não
@@ -186,6 +236,15 @@ def proximo_simulado_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any] 
     exatamente o caminho que o motor de lembretes já percorre para decidir a
     audiência — então a tela passa a saber o que o e-mail sabia (docs/29 §A.1),
     nem mais nem menos. Evento sem simulado não alcança ninguém nos dois.
+
+    ⚠️ "Hoje" é o dia da ESCOLA (`banco.missao.hoje_na_escola`, America/Fortaleza),
+    e não `date.today()`: este dependia do fuso do container — produção roda
+    com TZ=America/Fortaleza, o compose de desenvolvimento não —, e à noite a
+    prova de hoje sumia da agenda em UTC. `hoje` existe para quem já fixou o dia
+    (o panorama diz a data junto) e para o teste empurrar o relógio.
+
+    `historico` é `historico_com_presenca` já lido, para quem o tem não pagar a
+    mesma leitura de novo; sem ele, é lido aqui, como sempre.
     """
     anos = _anos_letivos_do_aluno(cliente, aluno_id)
     if not anos:
@@ -212,13 +271,13 @@ def proximo_simulado_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any] 
         return None
     simulado_por_evento = {s["evento_agenda_id"]: s for s in agendados}
 
-    hoje = date.today().isoformat()
+    dia = (hoje or hoje_na_escola()).isoformat()
     eventos = (
         cliente.table("evento_agenda")
         .select("id, titulo, data_evento")
         .in_("id", list(simulado_por_evento))
         .is_("cancelado_em", "null")
-        .gte("data_evento", hoje)
+        .gte("data_evento", dia)
         .order("data_evento")
         .limit(1)
         .execute()
@@ -231,7 +290,9 @@ def proximo_simulado_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any] 
 
     # A barra da contagem regressiva mede o intervalo inteiro, então precisa do
     # ponto de partida: o último simulado que o aluno FEZ.
-    feitos = [i for i in historico_com_presenca(cliente, aluno_id) if i.get("presente")]
+    if historico is None:
+        historico = historico_com_presenca(cliente, aluno_id)
+    feitos = [i for i in historico if i.get("presente")]
     anterior = feitos[-1].get("dataAplicacao") if feitos else None
 
     return {
@@ -244,17 +305,33 @@ def proximo_simulado_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any] 
     }
 
 
+def dias_ate(data: str | None, hoje: date) -> int | None:
+    """Quantos dias de `hoje` até `data` (ISO), ou `None` sem data.
+
+    Conta de calendário, e não regra: está aqui porque o modelo erra conta de
+    data, e o Tio Léo diz "daqui a N dias" a partir do mesmo `hoje` com que a
+    agenda foi lida — o dia da escola.
+    """
+    if not data:
+        return None
+    return (date.fromisoformat(str(data)[:10]) - hoje).days
+
+
 # ─── Meta do ciclo (GET /me/meta) ─────────────────────────────────────────
 
 
-def meta_do_ciclo_do_aluno(cliente: Client, aluno_id: str) -> dict[str, Any] | None:
+def meta_do_ciclo_do_aluno(
+    cliente: Client, aluno_id: str, *, historico: list[dict[str, Any]] | None = None
+) -> dict[str, Any] | None:
     """Mesma resposta de GET /me/meta — a meta é presença (docs/36 §1.5).
 
     O alvo sai do CALENDÁRIO do ciclo, não do que o aluno fez: são todos os
     simulados marcados naquele ciclo. Contar só os que ele já viu faria a meta
     andar junto com o aluno e sempre parecer cumprida.
+
+    `historico` é `historico_com_presenca` já lido (ver `proximo_simulado_do_aluno`).
     """
-    itens = historico_com_presenca(cliente, aluno_id)
+    itens = historico if historico is not None else historico_com_presenca(cliente, aluno_id)
     ciclo_id = _ciclo_corrente(itens)
     if not ciclo_id:
         return None

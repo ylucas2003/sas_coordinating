@@ -114,7 +114,9 @@ export const FONTES: Fonte[] = [
     descricao: 'Ficha de um simulado: posição, percentil e comparação com grupos',
     doc: 'api/app/routes/me.py',
     rotaFutura: 'GET /me/simulado/{id}',
-    telas: ['Hoje', 'Provas', 'Ficha do simulado'],
+    telas: ['Hoje', 'Provas', 'Ficha do simulado', 'Tio Léo (artefato)'],
+    observacao:
+      '⚠️ A comparação tem PISO DE ANONIMATO, em produção desde 26/10 pelo PR #114 (`aluno_dados.PISO_DE_ANONIMATO`, docs/27 §9): com menos de 10 notas na prova, `posicao`, `percentil`, `geral`, `top15` e `bottom15` vêm `null`; os dois grupos de 15% só saem com o grupo de pelo menos 3 pessoas, o que pede 20 notas. Com duas pessoas na prova, "a média da turma" é a nota do colega. A ficha diz por que a barra falta, em vez de sumir com ela. O cartão `prova` do Tio Léo lê esta rota pelo id e mostra só nome e data.',
   },
   {
     chave: 'questoesDoSimulado',
@@ -176,7 +178,7 @@ export const FONTES: Fonte[] = [
     descricao: 'Uma questão por id legível (`ita_2019_fase1_q01`)',
     doc: 'docs/28 §1',
     rotaFutura: 'GET /banco/questoes/{id}',
-    telas: ['Questão em tela cheia'],
+    telas: ['Questão em tela cheia', 'Tio Léo (artefato)'],
   },
   {
     chave: 'taxonomia',
@@ -247,10 +249,12 @@ export const FONTES: Fonte[] = [
   {
     chave: 'conversaTioLeo',
     estado: 'real',
-    descricao: 'Threads, streaming SSE e as 6 tools do aluno',
-    doc: 'docs/27 §2',
+    descricao: 'Threads, streaming SSE e as tools do aluno, no registro único do chat',
+    doc: 'docs/43 §4',
     rotaFutura: 'GET/POST /chat/threads…',
     telas: ['Tio Léo'],
+    observacao:
+      'As tools moram no registro único (`api/app/chat/ferramentas.py`, docs/43 §3), e o NÚMERO delas não fica aqui de propósito: "as 6 tools" envelheceu na primeira tool nova. A identidade sai do JWT e nunca de argumento — o `aluno_id` que o modelo mandar é descartado (docs/43 §3.2).',
   },
   // A entrada do ALUNO é só o SSO do Canvas desde 04/09 (docs/35 §11.5): a
   // matrícula + senha e o `/auth/primeiro-acesso` saíram, e `POST /auth/login`
@@ -312,9 +316,9 @@ export const FONTES: Fonte[] = [
     descricao: 'A nota de corte de cada matéria — 4,0, e 5,0 no Inglês eliminatório do ITA F1',
     doc: 'docs/24 §2',
     rotaFutura: 'GET /me/zona (mesma rota da zona)',
-    telas: ['Hoje', 'Provas', 'Jornada', 'Extrato de XP'],
+    telas: ['Hoje', 'Provas', 'Jornada', 'Extrato de XP', 'Tio Léo (artefato)'],
     observacao:
-      'Vem na MESMA resposta de `zonaEDistancia`, e `useMateriasContraCorte` a recorta da mesma `queryKey`. Separar as duas em chaves diferentes faria duas chamadas e — pior — abriria a porta para a tela mostrar a barra de uma régua e o rótulo de outra.',
+      'Vem na MESMA resposta de `zonaEDistancia`, e `useMateriasContraCorte` a recorta da mesma `queryKey`. Separar as duas em chaves diferentes faria duas chamadas e — pior — abriria a porta para a tela mostrar a barra de uma régua e o rótulo de outra. No Tio Léo o corte chega no payload do cartão `barras_corte` (tools `minha_zona` e `meu_panorama`), calculado pela MESMA `zona_do_aluno` da rota — não é segunda regra —, e o cartão nomeia a régua junto.',
   },
   {
     chave: 'meusErros',
@@ -335,11 +339,12 @@ export const FONTES: Fonte[] = [
     estado: 'mock',
     descricao: 'Fatia da prova ponderada por recência (meia-vida 5 anos) e a tendência ao lado',
     doc: 'docs/24 §4',
-    depende: '`/banco/estatisticas`, que já dá a incidência bruta — falta a ponderação',
-    telas: ['— nenhuma'],
+    depende:
+      'a fila de treino trocar o fixture `ASSUNTOS` pelo `importancia` que `/banco/estatisticas` já devolve — a ponderação existe no servidor (`api/app/banco/importancia.py`)',
+    telas: ['Sessão de treino (origem `assunto`)'],
     esforco: 'M',
     observacao:
-      '⚠️ ADIADA POR DECISÃO DE 02/09: a tela de Estatísticas ranqueia por INCIDÊNCIA BRUTA, sem ponderação por recência, e a tendência sai de código puro sobre a mesma série que o gráfico desenha (`dominio/serieDoAssunto.ts`). Sobrevive só como heurística interna da fila de treino (o fixture `ASSUNTOS` em `mocks.ts`, dentro de `ordenarFilaDeTreino`). Independe do Sprint 6 e continua sendo "B pode começar hoje" de docs/24 §8 — mas deixou de ser pré-requisito da missão do dia, que foi construída em 04/09 sem ela: um desafio igual para toda a turma não pondera nada por aluno (docs/35 §9).',
+      '⚠️ ADIADA POR DECISÃO DE 02/09: a tela de Estatísticas ranqueia por INCIDÊNCIA BRUTA, sem ponderação por recência, e a tendência sai de código puro sobre a mesma série que o gráfico desenha (`dominio/serieDoAssunto.ts`). Sobrevive só como heurística interna da fila de treino (o fixture `ASSUNTOS` em `mocks.ts`, dentro de `ordenarFilaDeTreino`), e é a tarja dela que aparece na sessão de treino por assunto. O ÍNDICE em si é real e já chega ao aluno por um caminho, desde 25/10: o Tio Léo — `o_que_mais_cai` ordena os assuntos por ele, e o cartão `lista_questoes` sai nessa ordem (docs/43 §4.3). O mock é só o fixture. Independe do Sprint 6 e continua sendo "B pode começar hoje" de docs/24 §8 — mas deixou de ser pré-requisito da missão do dia, que foi construída em 04/09 sem ela: um desafio igual para toda a turma não pondera nada por aluno (docs/35 §9).',
   },
   {
     chave: 'acertoPorAssunto',
@@ -393,7 +398,7 @@ export const FONTES: Fonte[] = [
     telas: ['Extrato de XP', 'Tio Léo (artefato)'],
     esforco: 'M',
     observacao:
-      'A única tela que explica a régua de corte sem parecer boletim. As linhas com +0 nunca somem.',
+      'A única tela que explica a régua de corte sem parecer boletim. As linhas com +0 nunca somem. O cartão `extrato_xp` do Tio Léo existe e leva a tarja DESTA chave, mas fica FORA do catálogo de artefatos (`CATALOGO_DE_ARTEFATOS`, docs/43 §4.1): nenhuma tool o produz enquanto o XP for mock.',
   },
   {
     chave: 'metaDoCiclo',
@@ -461,14 +466,15 @@ export const FONTES: Fonte[] = [
   },
   {
     chave: 'artefatosDoTioLeo',
-    estado: 'mock',
-    descricao: 'Os artefatos novos do catálogo: barras_corte, extrato_xp, questao, plano, prova',
-    doc: 'docs/27 §7',
-    depende: 'as tools novas em `tools_aluno.py` e as fontes que cada artefato mostra',
+    estado: 'real',
+    descricao:
+      'Os cartões do Tio Léo: barras_corte, questao, lista_questoes, prova, linha_temporal e histograma',
+    doc: 'docs/43 §4.1 · docs/27 §7',
+    rotaFutura:
+      'campo artefato no resultado da tool · end de POST /chat/threads/{id}/mensagens · chat_artefato na releitura',
     telas: ['Tio Léo'],
-    esforco: 'M',
     observacao:
-      '`histograma` e `linha_temporal` já são reais e continuam. `fonte_id` é injetado do JWT, nunca aceito como argumento.',
+      'Real desde 25/10: as tools do aluno anexam o cartão no campo ANINHADO `artefato` (nunca `tipo` no topo), e o servidor o grava em `chat_artefato` (migration 0070). O catálogo é FECHADO e tem duas pontas que precisam bater — `CATALOGO_DE_ARTEFATOS` (`dominio/chatStream.ts`) e `TIPOS_DE_ARTEFATO` (`api/app/chat/ferramentas.py`) —, conferidas por teste dos dois lados; o que o servidor não grava não aparece nem ao vivo. Questão e prova vêm por id das rotas que já existem (`questaoDoBanco`, `simulado`): do payload sai só o identificador. Resposta que termina em erro não mostra cartão, porque o servidor só grava a mensagem de erro. `extrato_xp` fica fora do catálogo enquanto o XP for mock, e o cartão dele usa a tarja de `extratoXp`.',
   },
   {
     chave: 'formulaMatematica',

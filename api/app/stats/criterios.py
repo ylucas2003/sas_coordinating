@@ -38,6 +38,13 @@ TODAS = "*"
 #: igual é o que faz os cinco 20% caírem naturalmente.
 FASE_1 = "fase_1"
 
+#: As matérias do `materia` (carga inicial da 0001). Enumerar é o que permite
+#: entregar o corte de cada uma resolvido (`descrever_criterio`): o predicado
+#: `*` da régua do colégio não sabe listar as disciplinas que ele cobre.
+#: A ordem é a de `cortes` e `eliminatorias` na resposta das rotas — reordenar
+#: aqui muda o JSON. `criterios_repo.MATERIAS_VALIDAS` deriva daqui.
+MATERIAS_CONHECIDAS = ("matematica", "fisica", "quimica", "portugues", "ingles", "redacao")
+
 
 @dataclass(frozen=True)
 class Acertos:
@@ -590,3 +597,55 @@ def por_slug(slug: str) -> Criterio:
         raise KeyError(
             f"critério {slug!r} não existe. Disponíveis: {', '.join(sorted(CRITERIOS))}"
         ) from None
+
+
+# ─── A régua como dado, para quem desenha ou explica ──────────────────────
+
+
+def descrever_criterio(c: Criterio) -> dict:
+    """Forma serializável de um critério — legenda, tooltip e cortes prontos.
+
+    `cortes`, `corteGenerico` e `corteMedia` existem para o front **não**
+    precisar reimplementar `corte_da_materia`. Sem eles, desenhar a linha do
+    corte num gráfico obriga a percorrer `predicados` procurando a matéria e
+    caindo no `*` — que é a regra de corte outra vez, em TypeScript, que é
+    exatamente o que a Sprint 2 proibiu (docs/18 §1.2).
+
+    Nasceu em `routes/ciclos.py` e desceu para cá porque deixou de ter um leitor
+    só: as rotas de ciclo e de critério e a tool do assistente que explica a
+    régua (docs/43 §4.3) descrevem o critério do mesmo jeito, e a tool não pode
+    importar de `routes/`. É pura, como o resto do módulo.
+    """
+    return {
+        "slug": c.slug,
+        "nome": c.nome,
+        "descricao": c.descricao,
+        "fase": c.fase,
+        "combinador": c.combinador,
+        "desempate": list(c.desempate),
+        # Mínimo por matéria já resolvido, incluindo o que vem do `*`.
+        "cortes": {
+            codigo: corte_da_materia(c, codigo)
+            for codigo in MATERIAS_CONHECIDAS
+            if corte_da_materia(c, codigo) is not None
+        },
+        "corteGenerico": corte_da_materia(c, "__qualquer__"),
+        "corteMedia": corte_da_media(c),
+        "eliminatorias": [codigo for codigo in MATERIAS_CONHECIDAS if e_eliminatoria(c, codigo)],
+        "predicados": [
+            {
+                "materia": p.materia,
+                "operador": p.operador,
+                "minimo": (
+                    {"acertos": p.valor.acertos, "de": p.valor.de}
+                    if isinstance(p.valor, Acertos)
+                    else p.valor
+                ),
+                "eliminatorio": p.eliminatorio,
+                "entraNaMedia": p.entra_na_media,
+                "peso": p.peso,
+                "fonte": p.fonte,
+            }
+            for p in c.predicados
+        ],
+    }

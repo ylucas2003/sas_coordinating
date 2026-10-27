@@ -88,7 +88,7 @@ Resolve na prática a dúvida em aberto sobre zeros-vs-ausência — o Canvas j�
 
 ## 4. Inventário — o que dá pra extrair sobre um aluno
 
-Testado com o aluno real id 295 ("ABEL DE MATOS OLIVEIRA MARQUES", matrícula/`sis_user_id` 20413958).
+Testado com um aluno real do curso — nome e matrícula retirados deste documento em 24/10/2026 (LGPD: dado de menor não fica versionado; ver docs/43 §5.4). Os campos abaixo valem para qualquer aluno.
 
 ### 4.1 Confirmado com dado real
 

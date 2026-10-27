@@ -140,5 +140,110 @@ services:
     entrypoint: ["python", "-m", "scripts.migrate"]
     command: ["status"]
 
+  # ─── MCP da coordenação (docs/43 §5) ──────────────────────────────────
+  #
+  # Dois serviços: um PostgREST só do MCP e o processo do MCP. O MCP NÃO usa o
+  # `postgrest` de cima — lá o papel anônimo é o sas_service, com acesso total.
+  #
+  #   docker compose run --rm migrate up             → 0071 e 0072: papéis e token
+  #   (uma vez depois do up, e de novo a cada down + up da 0071) a senha do
+  #   login do postgrest_mcp, que a migration cria sem senha:
+  #     echo "ALTER ROLE autenticador_mcp PASSWORD :'senha';" | \
+  #       docker compose exec -T db psql -U postgres -d sas -v ON_ERROR_STOP=1 \
+  #       -v senha="${POSTGREST_MCP_PASSWORD:-postgrest_mcp}"
+  #   docker compose restart postgrest postgrest_mcp → cache de schema (armadilha 1)
+  #   cd api && ./.venv/bin/python -m scripts.verificar_papeis_do_mcp \
+  #       --mcp http://127.0.0.1:3001 --api http://127.0.0.1:3000 --ferramentas
+  #
+  # O Claude Code conecta em http://localhost:8001/mcp, com o token pessoal no
+  # header Authorization.
+  postgrest_mcp:
+    image: postgrest/postgrest:v12.2.3
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Mesmo banco, login PRÓPRIO: o autenticador_mcp (0071) é NOINHERIT e
+      # membro SÓ do sas_mcp. O `authenticator` do `postgrest` é membro do
+      # sas_service, e com ele um SET ROLE dentro de uma requisição do MCP, ou
+      # um `pgrst.*` gravado no papel de login, levava ao acesso total. A
+      # senha é a de desenvolvimento por padrão; em produção vem do .env, sem
+      # padrão nenhum, e a operação a define no banco (comando lá em cima).
+      # Login recusado, o PostgREST SAI em vez de tentar de novo: depois de
+      # definir a senha, `docker compose restart postgrest_mcp`.
+      PGRST_DB_URI: postgres://autenticador_mcp:${POSTGREST_MCP_PASSWORD:-postgrest_mcp}@db:5432/sas
+      PGRST_DB_SCHEMAS: public
+      # sas_mcp (migrations 0071 e 0072): SELECT só na lista branca, por
+      # coluna; INSERT só na auditoria; EXECUTE só em mcp_conferir_token.
+      PGRST_DB_ANON_ROLE: sas_mcp
+      # SEM PGRST_JWT_SECRET, de propósito: sem segredo, o PostgREST recusa
+      # todo Bearer (PGRST300) em vez de trocar de papel. Nenhum JWT — nem um
+      # forjado com role=sas_service — tira o MCP do sas_mcp. Não acrescente.
+      #
+      # E sem a config guardada no banco. Ligada (o padrão), o PostgREST lê
+      # todo `pgrst.*` gravado no papel de login POR CIMA do env. Quando o
+      # login era o mesmo da API, um `ALTER ROLE authenticator SET
+      # pgrst.db_anon_role = 'sas_service'` dava ao MCP a senha_hash da
+      # coordenação sem token nenhum, e um `pgrst.jwt_secret` ali deixava
+      # passar um JWT com role=sas_service (provado num Postgres descartável
+      # em 24/10). Com o login próprio isso já não alcança o sas_service; isto
+      # é a segunda camada — e, desligada, também não se aplica
+      # `ALTER ROLE sas_mcp SET …`: o que o MCP é está todo neste bloco.
+      PGRST_DB_CONFIG: "false"
+      #
+      # Pool próprio e pequeno: o tráfego de uma IA de fora não disputa as 10
+      # conexões do PostgREST da API. Com a conexão do LISTEN, são 4 — abaixo
+      # do CONNECTION LIMIT 10 do autenticador_mcp (0071); passou dele, as
+      # conexões a mais são recusadas.
+      PGRST_DB_POOL: "3"
+      PGRST_SERVER_PORT: "3000"
+    networks:
+      # `default` para alcançar o db; `dados_mcp` para o mcp alcançá-lo.
+      - default
+      - dados_mcp
+    ports:
+      # Loopback, como o `postgrest`. Para o verificar_papeis_do_mcp.py e para
+      # depurar no curl:
+      #   curl 'http://localhost:3001/usuario_coordenacao?select=id'   → 42501
+      - "127.0.0.1:3001:3000"
+
+  mcp:
+    build:
+      context: ./api
+      target: dev
+    # O CMD da imagem é o uvicorn da API (api/Dockerfile). O HEALTHCHECK
+    # herdado de lá chama 127.0.0.1:8000/health: o app.mcp responde ali.
+    command: ["python", "-m", "app.mcp"]
+    depends_on:
+      - postgrest_mcp
+    # SEM env_file: o api/.env tem JWT_SECRET_KEY, chave da OpenAI, token do
+    # Canvas — nada disso é do MCP. Só o que ele precisa, explícito.
+    environment:
+      APP_ENV: dev
+      # O PostgREST DELE. http://postgrest:3000 nem resolve daqui: o mcp não
+      # está na rede default (ver `networks`).
+      POSTGREST_URL: http://postgrest_mcp:3000
+    networks:
+      # Só a rede do PostgREST dele: daqui o mcp não enxerga o db, o
+      # `postgrest` da API nem a api. Um bug de URL vira erro em dev, em vez de
+      # acesso total calado — o mesmo desenho que produção vai ter (docs/43
+      # §5.1), lá com mais uma rede para o nginx da borda.
+      - dados_mcp
+    ports:
+      # Só no loopback, ao contrário da api: o MCP devolve dado de menor.
+      - "127.0.0.1:8001:8000"
+    volumes:
+      # SÓ o código. Montar ./api inteiro, como a api faz, poria api/.env em
+      # /app/.env — e o Settings lê .env do diretório de trabalho
+      # (app/config.py; WORKDIR /app no Dockerfile): o MCP carregaria os
+      # segredos da API. A imagem em si não traz o .env: o api/.dockerignore
+      # o tira do `COPY . .` do alvo dev.
+      - ./api/app:/app/app
+
 volumes:
   db-dados:
+
+networks:
+  # A rede do MCP e do PostgREST dele (docs/43 §5.2). Nenhum outro serviço
+  # entra nela.
+  dados_mcp:

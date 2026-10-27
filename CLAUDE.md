@@ -45,6 +45,9 @@ modos e por que existem duas funções de cliente.
 ```
 sas/
 ├── api/          FastAPI · ~15.500 linhas · o cérebro (stats, LLM, Canvas, e-mail)
+│                 `api/app/mcp/` é OUTRO processo, na mesma imagem: o MCP da
+│                 coordenação (`python -m app.mcp`, docs/43 §5), com PostgREST e
+│                 login de banco próprios. Escrito, FORA de produção
 ├── web/          React 19 + TS + Vite · ~13.000 linhas
 ├── infra/
 │   ├── vps/      stack de PRODUÇÃO — autônoma, não é override do compose da raiz
@@ -78,13 +81,21 @@ sas/
 │                 as seis coisas que ficaram, com caminho; **41 é a captação
 │                 externa** (gente de fora, por resultado público de
 │                 olimpíada/vestibular) — lê-se de trás pra frente: §15–§20
-│                 são o modelo vigente, o resto é histórico
+│                 são o modelo vigente, o resto é histórico; 42 é o horário
+│                 de estudos do aluno (em produção); **43 é o das ferramentas
+│                 do assistente e do MCP da coordenação** (nasceu 42 e passou a
+│                 43 em 27/10) — Fases 0 a 3 escritas e fora de produção; o
+│                 §0.1 dele são as decisões do dono de 26/10, o §8 o que NÃO
+│                 foi verificado, o §9 a ordem do deploy e o §10 o que o
+│                 `infra/vps` precisa para o MCP
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no
 │                 Postgres desde 22/08 (docs/22 §13); `questoes_json/` é saída
 │                 local, não versionada
-└── docker-compose.yml   stack de DESENVOLVIMENTO (db + postgrest + api + web)
+└── docker-compose.yml   stack de DESENVOLVIMENTO (db + postgrest + api + web, e
+                         o `postgrest_mcp` + `mcp` do MCP, só no loopback e
+                         numa rede própria, `dados_mcp`)
 ```
 
 Contexto por camada em [api/CLAUDE.md](api/CLAUDE.md) e [web/CLAUDE.md](web/CLAUDE.md).
@@ -93,17 +104,47 @@ Contexto por camada em [api/CLAUDE.md](api/CLAUDE.md) e [web/CLAUDE.md](web/CLAU
 
 ```sh
 docker compose up                        # front :8080 · API :8000 · postgrest :3000 · db :5432
+                                         # e postgrest_mcp :3001 · mcp :8001, só no loopback
 docker compose run --rm migrate status   # ver migrations aplicadas/pendentes
 docker compose run --rm migrate up       # aplicar
 
-cd api && ./.venv/bin/python -m pytest tests/ -q   # 530 testes (+15 pulados)
+cd api && ./.venv/bin/python -m pytest tests/ -q   # 2623 testes (+31 pulados); 3 de test_canvas_publicacao.py falham também no main
 cd api && ./.venv/bin/ruff check .                 # lint
 cd web && npm test && npm run lint && npm run typecheck
 
 ./infra/vps/deploy.sh                    # deploy em produção (portões → rsync → build → smoke)
 ./infra/vps/deploy.sh --migrar           # idem, autorizando migrations pendentes
+./infra/vps/deploy.sh --rapido           # pula os portões — SÓ depois de rodar as suítes à mão
 ./infra/vps/deploy.sh --verificar        # só o smoke test em https://portalsas.online
 ```
+
+Num worktree sem `api/.env`, o `pytest` precisa de `APP_ENV=dev` na frente: o
+default é `production`, e o guard recusa (armadilha 3). ⚠️ Em 26/10 o `pytest`
+do `main` reprova em 3 testes de `api/tests/test_canvas_publicacao.py` (já
+reprovava em 24/10), e com eles o portão do `deploy.sh`: os deploys saem com
+`--rapido`, depois de rodar as suítes à mão e conferir que só esses 3 falham
+(docs/19, docs/43 §9). E o `deploy.sh` sobe a ÁRVORE DE TRABALHO: deploy de
+clone limpo no commit do merge, nunca de um worktree com trabalho por
+commitar.
+
+O MCP da coordenação, local (docs/43 §5; nada dele está em produção):
+
+```sh
+docker compose run --rm migrate up             # 0071–0073: papéis, token, OAuth
+# a senha do login do postgrest_mcp, que a 0071 cria SEM senha — o comando
+# (ALTER ROLE autenticador_mcp …) está no comentário do docker-compose.yml;
+# de novo a cada down + up da 0071
+docker compose restart postgrest postgrest_mcp # os dois cacheiam o schema
+cd api && ./.venv/bin/python -m scripts.verificar_papeis_do_mcp \
+    --mcp http://127.0.0.1:3001 --api http://127.0.0.1:3000 --ferramentas
+cd api && ./.venv/bin/python -m scripts.criar_token_mcp --email <conta> --nome "Claude Code"
+#   o token vai para um arquivo 0600 (nunca para o stdout); --listar e --revogar <id>
+#   o cliente aponta para http://localhost:8001/mcp com `Authorization: Bearer <token>`
+#   (não verificado com o Claude Code de verdade — docs/43 §8)
+```
+
+Até a 0071 e a senha existirem, o `postgrest_mcp` sai com erro no `docker
+compose up` — nada da API depende dele.
 
 O `docker` do PATH está quebrado nesta máquina (symlink para um
 `/Volumes/Docker/` que não existe); o binário real é
@@ -149,6 +190,47 @@ O `docker` do PATH está quebrado nesta máquina (symlink para um
    terceiro no front — foi por isso que as fontes saíram do Google Fonts. Vale
    para qualquer CDN, pixel ou serviço externo que alguém pense em adicionar.
 
+8. **O MCP tem PostgREST e login de banco PRÓPRIOS — nunca o `authenticator`
+   da API.** O `postgrest_mcp` entra como `autenticador_mcp` (0071: `NOINHERIT`,
+   membro só do `sas_mcp`, senha definida por fora da migration), sem
+   `PGRST_JWT_SECRET` e com `PGRST_DB_CONFIG=false`, e o `mcp` só enxerga a
+   rede `dados_mcp`. Com o login da API, um `pgrst.*` gravado no papel ou um
+   `SET ROLE` numa requisição levavam ao `sas_service` — provado num Postgres
+   descartável em 24/10 (docs/43 §5.2). Não "simplifique" apontando o MCP para
+   o `postgrest` da API: o guard de boot e a sonda de privilégio recusam subir
+   (`api/app/mcp/configuracao.py`, `dados.exigir_papel_restrito`). E a
+   armadilha 4 vale em dobro: em produção nenhum dos dois ganha `ports:`, porque
+   o anônimo do `postgrest_mcp` lê a lista branca sem token. Pelo mesmo motivo
+   o token que o MCP aceita é **OPACO** (só o sha256 em `token_mcp`), **nunca
+   JWT**: sem `PGRST_JWT_SECRET` no PostgREST e sem `JWT_SECRET_KEY` no
+   processo, nenhum JWT — nem forjado — troca o papel ou abre o MCP
+   ([api/CLAUDE.md](api/CLAUDE.md), Autenticação).
+
+9. **O MCP manda dado de menor a um provedor de IA de fora.** Desde 26/10, por
+   decisão do dono, ele devolve o NOME do aluno (`MCP_MOSTRAR_NOME_DO_ALUNO`,
+   padrão `true`; o pseudônimo virou opção): é a armadilha 7 levada ao
+   servidor. Fora de dev o processo não sobe sem `MCP_HABILITADO=true`, e esse
+   portão espera a base legal do art. 14 da LGPD (docs/43 §5.4). Tool nova da
+   coordenação nasce FORA do MCP (`expor_no_mcp` nos `METADADOS`), e
+   `api/tests/test_chat_exposicao_no_mcp.py` reprova tool sem decisão; tool
+   exposta que passar a ler coluna nova precisa de migration, porque a lista
+   branca da 0071 é por coluna.
+
+10. **Conectar o claude.ai ou o ChatGPT é provar a posse de um e-mail, e o
+    e-mail sai pelo SES.** A conexão OAuth é aprovada pelo código de 6 dígitos
+    enviado ao e-mail da conta de IA que o coordenador cadastrou e CONFIRMOU —
+    o cadastro manda outro código antes, e o e-mail que só aguarda não recebe
+    nem aprova — sem sessão do SAS (decisão do dono de 26/10, docs/43 §5.3 e
+    §5.6). Erro do SES vai ao log só com o e-mail mascarado e o tipo da
+    exceção: a mensagem do `MessageRejected` traz o endereço. O código passa por
+    `api/app/lembretes/email.py`: com `EMAIL_DESTINATARIO_TESTE` preenchido ele
+    vai para a caixa de TESTE; sem SES fora de dev, não sai nada e só o log
+    sabe; e as chaves do SES na API fazem também o despachante dos lembretes
+    (`/disparos/processar`, de hora em hora no `crontab-sas`) passar a enviar
+    o que estiver na fila de `disparo` — o e-mail de produção está adiado desde
+    21/08 (docs/15 §2). O token pessoal (Claude Code) não passa por e-mail: é
+    emitido pelo coordenador logado.
+
 ## Convenções
 
 - **Português em tudo**: nomes de arquivo, função, variável, coluna de banco.
@@ -168,7 +250,7 @@ O `docker` do PATH está quebrado nesta máquina (symlink para um
   - `chrome` — abre o site de verdade: erro de console, requisição de rede,
     trace de performance, screenshot. É como se verifica usabilidade e
     desempenho sem chutar. Configurado com `performanceCrux` e
-    `usageStatistics` **desligados**, pela mesma regra de LGPD do item 6.
+    `usageStatistics` **desligados**, pela mesma regra de LGPD da armadilha 7.
     O `--viewport 1440x900` é só o padrão de abertura: a ferramenta `emulate`
     troca para celular (`390x844x3,mobile,touch`), throttla rede e CPU.
   - `postgres` — `EXPLAIN`, índice faltando, saúde do banco. Em
