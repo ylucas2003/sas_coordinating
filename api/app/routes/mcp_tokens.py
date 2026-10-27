@@ -18,6 +18,8 @@ Quatro regras que não são detalhe:
      §5.4). Ligada ou não, "administrador" — o que vê e revoga as conexões de
      todos — é reconferido na TABELA, como em `get_current_administrador`: um
      rebaixado não emite nem revoga o de outros com o token de 8 h que tinha.
+     E a conta desativada não emite com a sessão que ainda tem: a emissão
+     relê `ativo` na tabela, com a régua do OAuth (`auth.conta_pode_conectar_ia`).
      A conexão OAuth não nasce aqui: é aprovada pelo código enviado ao e-mail
      da conta de IA (routes/oauth_mcp.py, routes/mcp_emails_ia.py).
   3. **Nunca apagar.** Revogar preenche `revogado_em`; a linha revogada é o
@@ -40,7 +42,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, field_validator
 
 from ..auditoria import registrar as auditar
-from ..auth import conta_ainda_e_administradora, get_current_coordenador, papel_da_sessao
+from ..auth import (
+    MENSAGEM_CONTA_DESATIVADA,
+    conta_ainda_e_administradora,
+    conta_pode_conectar_ia,
+    get_current_coordenador,
+    papel_da_sessao,
+)
 from ..mcp import tokens
 from ..mcp.auditoria_mcp import ACAO_CONEXAO_EMITIDA, ACAO_CONEXAO_REVOGADA, CANAL, recurso_do_token
 from ..mcp.configuracao import get_configuracao_mcp
@@ -260,6 +268,16 @@ def emitir_conexao(
     pelo OAuth. Com MCP_EMISSAO_SO_ADMINISTRADOR ligada (não é o padrão desde
     26/10), só o administrador emite."""
     config = get_configuracao_mcp()
+    cliente = get_supabase()
+    # A conta relida na TABELA, com a régua da aprovação OAuth
+    # (`auth.conta_pode_conectar_ia`): o JWT de 8 h não sabe que ela foi
+    # desativada, e com ele a conta emitia um token que nascia morto e revivia
+    # se ela fosse reativada (prova de ponta a ponta de 27/10, docs/43 §5.3).
+    # Só o `ativo` aqui, com frase própria: a regra do administrador vem logo
+    # abaixo, com a recusa que já tinha. Listar e revogar ficam abertos à conta
+    # desativada: tirar acesso nunca depende de poder dar acesso.
+    if not conta_pode_conectar_ia(cliente, user.get("sub"), so_administrador=False):
+        raise HTTPException(status_code=403, detail=MENSAGEM_CONTA_DESATIVADA)
     if config.emissao_so_administrador and not _e_administrador(user):
         raise HTTPException(
             status_code=403,
@@ -270,7 +288,6 @@ def emitir_conexao(
         )
 
     sub = str(user.get("sub"))
-    cliente = get_supabase()
     token, hash_acesso, prefixo = tokens.gerar()
     criado_em = _agora()
     expira_em = (
@@ -314,7 +331,8 @@ def revogar_conexao(
 ) -> ConexaoDeIa:
     """Revoga na hora: a próxima chamada do MCP com este token já é recusada,
     porque o MCP confere pelo banco a cada requisição. Revogar de novo
-    devolve a conexão como está, sem segundo evento."""
+    devolve a conexão como está, sem segundo evento. Aberta também à conta
+    desativada, como listar: tirar acesso nunca depende de poder dar acesso."""
     # Id torto é 404, não 500: o PostgREST recusaria o texto num uuid.
     try:
         conexao_id = str(uuid.UUID(conexao_id))

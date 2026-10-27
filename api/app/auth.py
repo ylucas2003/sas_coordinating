@@ -40,6 +40,7 @@ import hmac
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -241,6 +242,56 @@ def conta_ainda_e_administradora(usuario_id: str | None) -> bool:
     if not linhas:
         return False
     return linhas[0].get("ativo") is True and linhas[0].get("papel") == "administrador"
+
+
+#: A recusa de quem tenta criar credencial do MCP com a sessão de uma conta
+#: desativada depois do login (`conta_pode_conectar_ia`). Só o fato: quem a lê
+#: é o dono da própria conta, e nada na tela muda isso.
+MENSAGEM_CONTA_DESATIVADA = (
+    "Esta conta da coordenação está desativada e não pode conectar uma IA ao SAS."
+)
+
+
+def conta_pode_conectar_ia(cliente: Any, usuario_id: str | None, *, so_administrador: bool) -> bool:
+    """A conta pode ter uma conexão de IA com o SAS AGORA? Ativa e, com
+    `so_administrador` (MCP_EMISSAO_SO_ADMINISTRADOR ligada), administradora —
+    lido da TABELA a cada pergunta, nunca do JWT (docs/43 §5.3).
+
+    É a régua de quem conecta, e vale onde nasce credencial do MCP:
+      * no OAuth (routes/oauth_mcp.py): o /codigo (envia ou não), o /aprovar e
+        cada troca de código e de refresh. Lá não há sessão do SAS, e esta é a
+        única régua;
+      * na emissão do token pessoal (routes/mcp_tokens.py);
+      * no card dos e-mails da conta de IA (routes/mcp_emails_ia.py) —
+        cadastrar, confirmar e reenviar —, sem o portão do administrador, que o
+        cadastro não tem.
+
+    Na tabela pelo motivo de `conta_ainda_e_administradora`: o JWT vale 8 h, e
+    `get_current_coordenador` decide só por ele. Com a sessão de antes da
+    desativação, a conta emitia token pessoal, que nascia morto (a RPC
+    `mcp_conferir_token` exige `ativo`, 0072) e REVIVIA se ela fosse reativada
+    (prova de ponta a ponta de 27/10). O guard das 39 rotas fica como está, de
+    propósito: reler a tabela a cada requisição é outra conversa, e só onde
+    nasce credencial a leitura se paga.
+
+    O cliente vem de quem chama: a tarefa de fundo do /codigo tem o dela
+    (api/CLAUDE.md). Conta ausente recusa; erro de leitura SOBE, porque quem
+    pergunta está prestes a criar credencial, e a falha não pode virar "pode".
+    """
+    if not usuario_id:
+        return False
+    linhas = (
+        cliente.table("usuario_coordenacao")
+        .select("papel, ativo")
+        .eq("id", usuario_id)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if not linhas or linhas[0].get("ativo") is not True:
+        return False
+    return not so_administrador or linhas[0].get("papel") == "administrador"
 
 
 async def get_current_administrador(

@@ -47,8 +47,9 @@ coordenador conectam) vale aqui como vale no MCP (`servidor._pode_consultar`):
 ligado, o código só vai ao e-mail de administrador e só aprova em nome dele.
 Ligado ou não, cada troca (código e refresh) reconfere na TABELA que a conta
 ainda está ativa e, com a regra ligada, ainda é administradora — rebaixamento
-que só valesse no fim da conexão não seria rebaixamento
-(`auth.conta_ainda_e_administradora`).
+que só valesse no fim da conexão não seria rebaixamento. A régua é
+`auth.conta_pode_conectar_ia`, a mesma da emissão do token pessoal e do card
+dos e-mails da conta de IA.
 
 Erros no formato do RFC 6749 §5.2 — `{"error", "error_description"}`, com a
 descrição só em ASCII imprimível, porque o RFC proíbe o resto (`_ascii`). No
@@ -103,6 +104,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from pydantic import BaseModel, Field
 
 from ..auditoria import registrar as auditar
+from ..auth import conta_pode_conectar_ia
 from ..config import get_settings
 from ..lembretes import email as email_ses
 from ..mcp import emails_ia, tokens
@@ -832,21 +834,12 @@ def _conferir_recursos(recursos: list[str], config: ConfiguracaoMcp) -> str | No
 
 
 # ─── A conta em nome de quem a conexão existe ────────────────────────────
-
-
-def _conta_pode_conectar(db: Any, coordenador_id: str, config: ConfiguracaoMcp) -> bool:
-    """A conta ainda pode ter a conexão AGORA? Ativa e, com a regra do
-    administrador ligada, administradora — lido da tabela no /codigo (envia ou
-    não), no /aprovar e a cada troca de código e de refresh, não do que valia
-    na aprovação. Desde 26/10 é a ÚNICA régua de quem conecta: não há sessão
-    do SAS no consentimento para conferir."""
-    linhas = (
-        db.table("usuario_coordenacao").select("papel, ativo").eq("id", coordenador_id).limit(1).execute().data
-        or []
-    )
-    if not linhas or linhas[0].get("ativo") is not True:
-        return False
-    return not config.emissao_so_administrador or linhas[0].get("papel") == "administrador"
+#
+# Se ela ainda pode ter a conexão AGORA — ativa e, com a regra do
+# administrador ligada, administradora — é `auth.conta_pode_conectar_ia`, lida
+# da tabela no /codigo (envia ou não), no /aprovar e a cada troca de código e
+# de refresh, não do que valia na aprovação. Aqui ela é a ÚNICA régua de quem
+# conecta: não há sessão do SAS no consentimento para conferir.
 
 
 def _derrubar_conexao(
@@ -1581,7 +1574,10 @@ def _cadastro_que_aprova(db: Any, email: str, config: ConfiguracaoMcp) -> dict |
         .is_("removido_em", "null").not_.is_("confirmado_em", "null").limit(1).execute().data
         or []
     )
-    if not linhas or not _conta_pode_conectar(db, str(linhas[0]["usuario_coordenacao_id"]), config):
+    if not linhas:
+        return None
+    dono = str(linhas[0]["usuario_coordenacao_id"])
+    if not conta_pode_conectar_ia(db, dono, so_administrador=config.emissao_so_administrador):
         return None
     return linhas[0]
 
@@ -1776,7 +1772,8 @@ def _dono_do_codigo(db: Any, linha: dict, email: str, config: ConfiguracaoMcp) -
         or cadastros[0].get("email") != email
     ):
         raise RecusaDoConsentimento(400, _EMAIL_SEM_CADASTRO)
-    if not _conta_pode_conectar(db, str(cadastros[0]["usuario_coordenacao_id"]), config):
+    dono = str(cadastros[0]["usuario_coordenacao_id"])
+    if not conta_pode_conectar_ia(db, dono, so_administrador=config.emissao_so_administrador):
         raise RecusaDoConsentimento(400, _CONTA_SEM_PERMISSAO)
     return cadastros[0]
 
@@ -1981,7 +1978,9 @@ def _trocar_codigo(
         raise ErroOAuth("invalid_grant", _CODIGO_INVALIDO)
 
     coordenador_id = str(linha["usuario_coordenacao_id"])
-    if not _conta_pode_conectar(db, coordenador_id, config):
+    if not conta_pode_conectar_ia(
+        db, coordenador_id, so_administrador=config.emissao_so_administrador
+    ):
         raise ErroOAuth("invalid_grant", "A conta que aprovou não pode mais conectar uma IA ao SAS.")
 
     fim_da_conexao = agora + timedelta(days=config.validade_do_refresh_oauth_dias)
@@ -2083,7 +2082,9 @@ def _girar_refresh(
     fim_da_conexao = _ler_instante(linha.get("expira_em"))
     if fim_da_conexao is None or fim_da_conexao <= agora:
         raise ErroOAuth("invalid_grant", _REFRESH_INVALIDO)
-    if not _conta_pode_conectar(db, str(linha["usuario_coordenacao_id"]), config):
+    if not conta_pode_conectar_ia(
+        db, str(linha["usuario_coordenacao_id"]), so_administrador=config.emissao_so_administrador
+    ):
         derrubar("conta_sem_permissao")
         raise ErroOAuth("invalid_grant", "A conta desta conexão não pode mais conectar uma IA ao SAS.")
 

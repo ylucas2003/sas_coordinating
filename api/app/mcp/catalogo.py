@@ -6,12 +6,15 @@ quem decide o que sai do SAS é a política de lá, tool por tool. Este módulo 
 TRADUZ: a `Ferramenta` vira a `Tool` do SDK, e os argumentos ganham o teto de
 linhas antes do despacho.
 
-Três coisas que o MCP muda em relação ao chat do app:
+Quatro coisas que o MCP muda em relação ao chat do app:
 
   * o SCHEMA é normalizado para cliente estrito — sem `$schema`, sem
     `format`, sem `default` (vai para a descrição, onde o modelo o lê) e sem
     tupla. É o checklist de compatibilidade que o MCP da Solomon levantou para
     claude.ai e ChatGPT (docs/43 §2);
+  * a DESCRIÇÃO que manda o modelo a uma tool fora do catálogo do modo ganha
+    outro texto (`TROCAS_NOS_DOIS_MODOS`, `TROCAS_COM_PSEUDONIMO`). No chat a
+    frase fica: lá a tool citada existe;
   * toda tool vai anotada `readOnlyHint=True`. Tool que o registro não marca
     `somente_leitura` NÃO entra, mesmo com `expor_no_mcp` — o MCP só lê, e a
     anotação não pode mentir;
@@ -58,6 +61,38 @@ INTEIROS_QUE_NAO_SAO_LIMITE: frozenset[str] = frozenset()
 #: e `listar_alertas` traz o nome interpolado no título, gravado uma vez — o
 #: portão do pseudônimo (passada 3) recusaria toda chamada.
 SO_COM_NOME_DO_ALUNO: frozenset[str] = frozenset({"buscar_aluno_por_nome", "listar_alertas"})
+
+#: Os trechos da descrição do CHAT que o tools/list publica trocados, por
+#: tool: (o trecho como está no chat, o que o MCP publica no lugar). Cada um
+#: manda o modelo a uma tool que o catálogo do modo não tem — no chat ela
+#: existe, e lá a frase fica como está —, e a IA de fora, mandada a ela,
+#: recebia "tool '…' não existe" (prova de ponta a ponta de 27/10).
+#: `test_mcp_catalogo` reprova o tools/list que cite tool fora do catálogo, nos
+#: dois modos, e a troca cujo trecho saiu do chat, que não troca mais nada.
+#:
+#: Nos dois modos: `exportar_csv` é artefato de UI do app, fora do MCP sempre
+#: (o METADADOS de chat/tools/artefato.py). Aqui a lista para no teto, e o que
+#: o modelo precisa saber é que a resposta diz se cortou.
+TROCAS_NOS_DOIS_MODOS: dict[str, tuple[tuple[str, str], ...]] = {
+    "notas_simulado": (
+        (
+            "— para listas maiores use exportar_csv.",
+            "— a resposta diz o total e se a lista foi cortada (truncado); a lista inteira fica no SAS.",
+        ),
+    ),
+}
+
+#: Só com o pseudônimo, que tira `buscar_aluno_por_nome` do catálogo
+#: (`SO_COM_NOME_DO_ALUNO`): a porta de entrada é a matrícula, e o aluno aparece
+#: como "Aluno <matrícula>" (`servidor.instrucoes`). Um exemplo com nome de
+#: pessoa ensinaria o modelo a pedir o nome que esta conexão não entrega.
+TROCAS_COM_PSEUDONIMO: dict[str, tuple[tuple[str, str], ...]] = {
+    "obter_aluno": (("buscar_aluno_por_nome", "buscar_aluno_por_matricula"),),
+    "comparar_alunos": (
+        ("'compare a Ana com o Pedro'", "'compare o Aluno 2026001 com o Aluno 2026002'"),
+        ("buscar_aluno_por_nome", "buscar_aluno_por_matricula"),
+    ),
+}
 
 _INTEIRO = re.compile(r"[+-]?\d+")
 
@@ -209,7 +244,18 @@ def ferramentas_expostas(registro: Registro, *, com_nome_do_aluno: bool = True) 
     return expostas
 
 
-def _tool(f: Ferramenta, teto: int) -> types.Tool:
+def _descricao_no_mcp(f: Ferramenta, *, com_nome_do_aluno: bool) -> str:
+    """A descrição que o tools/list publica: a do chat, com as trocas do modo."""
+    trocas = TROCAS_NOS_DOIS_MODOS.get(f.nome, ())
+    if not com_nome_do_aluno:
+        trocas = (*trocas, *TROCAS_COM_PSEUDONIMO.get(f.nome, ()))
+    texto = f.descricao
+    for trecho, no_mcp in trocas:
+        texto = texto.replace(trecho, no_mcp)
+    return texto
+
+
+def _tool(f: Ferramenta, teto: int, *, com_nome_do_aluno: bool) -> types.Tool:
     schema = normalizar_schema(f.parametros)
     for nome in parametros_de_limite(f):
         esquema = schema["properties"][nome]
@@ -221,7 +267,7 @@ def _tool(f: Ferramenta, teto: int) -> types.Tool:
         esquema["description"] = f"{esquema['description'].rstrip()} {aviso}" if esquema.get("description") else aviso
     return types.Tool(
         name=f.nome,
-        description=f.descricao,
+        description=_descricao_no_mcp(f, com_nome_do_aluno=com_nome_do_aluno),
         inputSchema=schema,
         annotations=types.ToolAnnotations(
             readOnlyHint=True,
@@ -247,7 +293,10 @@ class Catalogo:
         self._por_nome = {
             f.nome: f for f in ferramentas_expostas(registro, com_nome_do_aluno=com_nome_do_aluno)
         }
-        self._tools = [_tool(f, teto_de_linhas) for f in self._por_nome.values()]
+        self._tools = [
+            _tool(f, teto_de_linhas, com_nome_do_aluno=com_nome_do_aluno)
+            for f in self._por_nome.values()
+        ]
 
     def listar(self) -> list[types.Tool]:
         return list(self._tools)
