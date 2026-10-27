@@ -722,11 +722,14 @@ v1, de propósito: lembrete por e-mail, assunto sugerido e aderência.
 O PDF sai numa página A4 só (verificado até com 60 blocos) e o Excel vem da API
 (`GET /me/horario-estudos/planilha`). Decisões, o que foi e o que NÃO foi verificado: §10 do 42.
 
-### 🔨 Ferramentas do assistente e MCP da coordenação *(24/10)* — [43](43-plano-ferramentas-e-mcp.md)
+### 🔨 Ferramentas do assistente e MCP da coordenação *(24/10; em produção desde 27/10, menos o processo do MCP)* — [43](43-plano-ferramentas-e-mcp.md)
 
-> **Fases 0 a 3 escritas e testadas, NADA delas em produção** (branch
-> `feat/ferramentas-registro-unico`, sem commit, estado de 26/10). Duas frentes
-> com uma fundação comum: o Tio Léo e o assistente da coordenação lendo a
+> **Fases 0 a 3 no `main` (PR #115, merge `ca4c68f`) e em produção desde
+> 27/10, menos o processo do MCP.** Foram ao ar o chat novo do Tio Léo e do
+> assistente, as migrations 0070 a 0073 e as telas de Conexões de IA e
+> `/conectar-ia` (43 §9, primeiro passo). O `mcp` e o `postgrest_mcp` **não
+> estão no ar**: desde o PR #117 o `infra/vps` os tem, desligados (43 §10).
+> Duas frentes com uma fundação comum: o Tio Léo e o assistente da coordenação lendo a
 > plataforma inteira, cada um no seu escopo, e um MCP para a coordenação
 > conectar a própria IA. Decidido em 24/10: quem conecta é a coordenação, e a
 > ordem é fundação → assistente → MCP. **Em 26/10 o dono decidiu mais quatro
@@ -737,9 +740,18 @@ O PDF sai numa página A4 só (verificado até com 60 blocos) e o Excel vem da A
 > **código enviado ao e-mail da conta de IA**, cadastrado — e, desde a revisão
 > de segurança da mesma tarde, confirmado — no card de Conexões de IA, sem
 > sessão do SAS; e as duas notas contra o corte da área do aluno
-> ficam, **cada uma com o nome do que é**. O MCP **não vai ao ar antes do
-> portão de LGPD** (43 §5.4), e o que a produção precisa para ele está no 43
-> §10, sem nada aplicado. ⚠️ O desenho do banco do MCP é o do 43 §5.2 reescrito
+> ficam, **cada uma com o nome do que é**. **Em 27/10 o dono decidiu o que o
+> portão de LGPD pedia** (43 §0.2):
+> - a base legal do art. 14: "os alunos já autorizaram". Falta anexar onde a
+>   autorização está e de quem ela é: para menor de 18, ela tem de vir de um
+>   dos pais ou do responsável;
+> - a conta do provedor: a **pessoal de cada coordenador**;
+> - o SES de produção: o dono confere;
+> - o piso de anonimato: fica de fora do MCP, que mostra o que as telas da
+>   coordenação já mostram.
+>
+> Para ligar o MCP falta o SES e a decisão de ligar (43 §5.4, §10). ⚠️ O
+> desenho do banco do MCP é o do 43 §5.2 reescrito
 > em 26/10 — PostgREST e login próprios, sem JWT —, não o da primeira versão do
 > plano.
 >
@@ -755,12 +767,12 @@ O PDF sai numa página A4 só (verificado até com 60 blocos) e o Excel vem da A
 > citações "docs/42 §x" do código não diriam de qual se tratava (as do horário
 > seguem no 42 dele). Detalhes e a ordem do deploy no 43 §9.
 
-| Fase | O quê | Estado em 26/10 |
+| Fase | O quê | Estado em 27/10 |
 |---|---|---|
-| 0 | Registro único de tools (`chat/ferramentas.py`), despacho com escopo, prazo, validação de argumento, erro sem texto cru e compactação; testes de isolamento aluno × coordenação | ✅ escrita e testada local |
-| 1 | Os seis defeitos da revisão do Tio Léo; contexto do turno, tools em paralelo e streaming de verdade; 10 tools novas do aluno e 11 da coordenação (59 no registro); 8 roteiros; os cartões do Tio Léo gravados (migration 0070); o piso de anonimato no domínio (já no ar pelo PR #114, abaixo); os nomes das duas notas contra o corte (decisão de 26/10) | 🔨 escrita, com teste, e **vista no browser** numa stack descartável: a folha e os seis tipos de cartão (42 §4.5). Os três achados do browser foram resolvidos à tarde. Nenhuma conversa com o modelo de verdade |
-| 2 | MCP por token pessoal: processo, `postgrest_mcp` e login `autenticador_mcp` próprios (0071, 0072), token opaco, auditoria de cada chamada, tela de Conexões de IA. Desde 26/10: **31 tools com o nome real** do aluno (29 com o pseudônimo, que virou opção) e **administrador e coordenador** conectando | 🔨 escrita e provada numa stack descartável com o cliente oficial do SDK e o verificador de papéis (42 §5.5) — na manhã de 26/10, ainda no modo matrícula e só-administrador; depois das decisões, o processo do MCP não rodou de novo. O Claude Code de verdade não conectou. Falta o portão de LGPD e o `infra/vps` |
-| 3 | OAuth para os conectores do claude.ai e do ChatGPT: authorization server na API (0073), consentimento em `/conectar-ia` — desde 26/10 **página pública**, aprovada pelo **código enviado ao e-mail da conta de IA** (as tabelas `email_conta_ia_mcp` e `oauth_codigo_por_email_mcp`, também na 0073) | 🔨 a dança provada pela rede local com o `OAuthClientProvider` do SDK (com o consentimento de então, pela sessão); o código por e-mail provado com a API contra Postgres e PostgREST de verdade e **remetente falso** — nenhum e-mail saiu pelo SES. Nenhum cliente real conectou, porque os dois pedem produção |
+| 0 | Registro único de tools (`chat/ferramentas.py`), despacho com escopo, prazo, validação de argumento, erro sem texto cru e compactação; testes de isolamento aluno × coordenação | ✅ em produção desde 27/10 |
+| 1 | Os seis defeitos da revisão do Tio Léo; contexto do turno, tools em paralelo e streaming de verdade; 10 tools novas do aluno e 11 da coordenação (59 no registro); 8 roteiros; os cartões do Tio Léo gravados (migration 0070); o piso de anonimato no domínio (já no ar pelo PR #114, abaixo); os nomes das duas notas contra o corte (decisão de 26/10) | ✅ **em produção desde 27/10**. Antes, foi vista no browser numa stack descartável: a folha e os seis tipos de cartão (43 §4.5). Ninguém observou ainda o `gpt-4o-mini` escolhendo as tools novas |
+| 2 | MCP por token pessoal: processo, `postgrest_mcp` e login `autenticador_mcp` próprios (0071, 0072), token opaco, auditoria de cada chamada, tela de Conexões de IA. Desde 26/10: **31 tools com o nome real** do aluno (29 com o pseudônimo, que virou opção) e **administrador e coordenador** conectando | 🔨 **provada de ponta a ponta em 27/10, no modo novo** (43 §8.1): pelo cliente oficial do SDK, as 31 tools saem com o nome real e um coordenador consulta com o próprio token. O banco e a tela estão em produção; o processo do MCP não está. O Claude Code de verdade não conectou |
+| 3 | OAuth para os conectores do claude.ai e do ChatGPT: authorization server na API (0073), consentimento em `/conectar-ia` — desde 26/10 **página pública**, aprovada pelo **código enviado ao e-mail da conta de IA** (as tabelas `email_conta_ia_mcp` e `oauth_codigo_por_email_mcp`, também na 0073) | 🔨 **provada de ponta a ponta em 27/10** (43 §8.1). O `OAuthClientProvider` do SDK, imitando o cliente do claude.ai, foi aprovado pelo código no e-mail, sem sessão, e consultou; a renovação e a revogação também funcionaram. O código saiu no log de dev: **nenhum e-mail saiu pelo SES**. Nenhum cliente real conectou, porque os dois pedem produção |
 
 Suítes do branch em 27/10: backend com 2623 passando e 31 pulados, e front
 com 1025 testes, lint e typecheck verdes. Só falham os 3 de `test_canvas_publicacao.py`, que
@@ -771,15 +783,35 @@ falham também no `main`.
 `deploy.sh`. Por isso os deploys de 26/10 saíram com `--rapido` (que pula lint,
 teste e typecheck), **depois de rodar as suítes à mão** e conferir que só eles
 falham. Enquanto não forem consertados, todo deploy depende dessa conferência
-manual (42 §9).
+manual (43 §9).
 
 ⚠️ **A aprovação OAuth depende do e-mail em produção.** O código sai pelo SES
 do motor de lembretes, e o [15 §2](15-plano-hospedagem-vps.md) adiou o e-mail em
 21/08. Sem SES configurado (e fora do sandbox), nenhuma conexão do claude.ai
 ou do ChatGPT se aprova; o token pessoal segue funcionando. Se o SES de
-produção está configurado hoje não foi conferido — o `.env` não se lê (42 §9).
+produção está configurado hoje, o dono confere (43 §0.2); o `.env` não se lê.
 
-**Revisão de segurança de 26/10** ([42 §5.6](43-plano-ferramentas-e-mcp.md)):
+**Prova de ponta a ponta de 27/10** ([43 §8.1](43-plano-ferramentas-e-mcp.md)),
+sobre o código de produção, numa stack descartável e com escola sintética:
+
+| Frente | Conferências |
+|---|---|
+| Token pessoal e as 31 tools | 162 de 167 |
+| OAuth por código no e-mail | 148 de 148 |
+| Pseudônimo, só-administrador e guard de boot | 169 de 171 |
+
+O verificador reexecutou as três com o mesmo placar e deu 72 de 72 nas provas
+próprias.
+
+Três defeitos baixos foram achados e **consertados no PR #116**, em produção desde 27/10:
+- uma conta desativada emitia token com o JWT de antes da desativação, e o
+  token revivia se a conta fosse reativada;
+- duas descrições de tool mandavam a IA usar uma tool que aquele MCP não tem.
+
+O piso de anonimato não vale no MCP, por desenho, e o dono decidiu manter
+assim.
+
+**Revisão de segurança de 26/10** ([43 §5.6](43-plano-ferramentas-e-mcp.md)):
 três lentes — o código por e-mail, o nome real e a exposição, a tela pública.
 Um achado alto (a recusa sem sessão deixava o pedido recusado crescer sem teto
 no banco) e três médios (o e-mail inteiro no log quando o SES recusa; o código
@@ -817,16 +849,14 @@ publicado, que traz os textos do piso. **Não verificado**: as rotas
 autenticadas não foram exercitadas em produção — não há conta de aluno de
 teste —, e não foi medido quantos simulados reais têm menos de 10 notas. O
 limite que o piso não resolve — a diferença entre duas leituras da mesma prova
-— é decisão de produto (42 §6).
+— é decisão de produto (43 §6).
 
 **⚠️ Achado de LGPD no [08](08-integracao-canvas.md)**: o §4 dele trazia o nome
 completo e a matrícula de um aluno real, usado como exemplo de inventário. Os
-dois saíram do documento em 24/10 **só no branch das fases, ainda sem commit**:
-no `main` (`fc461a2`, conferido em 26/10) o §4 do 08 ainda os traz, e é o único
-arquivo versionado que os tem. Saem do `main` quando este branch entrar (ou
-antes, num commit só do 08). **Continuam no histórico do git** desde o commit
-`feade09` (04/07/2026) de qualquer jeito: reescrever o histórico de um
-repositório já empurrado é decisão do dono.
+dois saíram do documento em 24/10, no branch das fases, e **saíram do `main`
+com o PR #115 em 27/10** (o §4 do 08 em `ca4c68f` já não os traz).
+**Continuam no histórico do git** desde o commit `feade09` (04/07/2026):
+reescrever o histórico de um repositório já empurrado é decisão do dono.
 
 ---
 
@@ -1002,7 +1032,7 @@ A fase 6 — o tour de seis passos — está sendo escrita em paralelo.
 | Regra de "zero = provável ausência" — **metade fechada em 03/09**: o Problema A (não marcou nada) está em produção, derivado de evidência direta. Falta só o aval das **8 provas de 2023** do Problema B, prova a prova ([32 §1](32-plano-sprint-4.md)) | Sprint 3 · P3 | coordenação |
 | **Busca é da tela ou global (`⌘K`)?** | Polimento | Yan + coordenação |
 | **Papéis dentro da coordenação** — *parcialmente fechada.* Existem dois papéis desde 04/09 ([35 §11](35-plano-correcoes.md)): criar conta e alterar nota pelo painel são do administrador, e desde 05/09 promover/rebaixar também. Segue aberto se **ler a auditoria** deve ser dele — hoje `/auditoria` é de qualquer coordenador | Polimento | coordenação |
-| **Servidor MCP do SAS para uso fora da plataforma?** Expõe dado de menor a cliente fora da nossa infra — *parcialmente fechada.* Em 24/10: a coordenação conecta. Em 26/10 o dono decidiu o nome real do aluno (contra a recomendação de matrícula), administrador e coordenador conectando, e a aprovação OAuth por código no e-mail da conta de IA ([42 §0.1](43-plano-ferramentas-e-mcp.md)). Segue aberto: a **base legal do art. 14 da LGPD** que o nome pede, e sob que conta do provedor, com que retenção | MCP em produção ([42 §5.4](43-plano-ferramentas-e-mcp.md)) | Yan + LGPD |
+| **Servidor MCP do SAS para uso fora da plataforma?** Expõe dado de menor a cliente fora da nossa infra — *parcialmente fechada.* Em 24/10: a coordenação conecta. Em 26/10 o dono decidiu o nome real do aluno (contra a recomendação de matrícula), administrador e coordenador conectando, e a aprovação OAuth por código no e-mail da conta de IA ([43 §0.1](43-plano-ferramentas-e-mcp.md)). Em 27/10 decidiu a base legal do art. 14 ("os alunos já autorizaram"; falta anexar onde a autorização está e de quem ela é) e a conta pessoal de cada coordenador ([43 §0.2](43-plano-ferramentas-e-mcp.md)). Segue aberto: o SES de produção, que o dono confere, e a decisão de ligar | MCP em produção ([43 §5.4](43-plano-ferramentas-e-mcp.md)) | Yan + LGPD |
 | **Parecer de LGPD sobre a Esquadrilha** — um menor compartilhando desempenho com outro, por escolha própria | Esquadrilha | Yan + LGPD |
 | **Temporada:** o que zera na virada do ano letivo (XP, liga, esquadrilha) | Sprint 7 | Yan + coordenação |
 | **Simulado anulado e nota corrigida:** estorna XP? A liga já fechada muda? | arquitetura do XP | Yan |
