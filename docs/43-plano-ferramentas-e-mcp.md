@@ -1420,19 +1420,25 @@ Três arquivos — cada decisão está comentada no próprio arquivo, com o porq
   ↔ mcp) e `dados_mcp` (mcp ↔ postgrest_mcp); e o `web` também na
   `borda_mcp`. O `mcp` roda a imagem `sas-api` — a que o build do `api` produz —,
   sem build próprio. Nenhum dos dois tem `ports:` (armadilha 4).
-- **`nginx.conf`**: `location = /mcp` e os quatro `/.well-known` do OAuth, com
-  `proxy_pass` por variável e o resolver do Docker (`127.0.0.11`), para o nginx
-  subir com o mcp parado. Com ele fora do ar, `/mcp` e os dois do RFC 9728 dão
-  **503** com uma linha de texto ("O MCP da coordenação não está no ar neste
-  servidor."), pela location `@mcp_fora_do_ar`, em vez do `index.html` do SPA
-  com 200. Os dois do RFC 8414 vão à API, que responde 404 em JSON enquanto o
-  OAuth estiver desligado. Nenhum `add_header` nas locations novas, e o `/mcp`
-  SOBRESCREVE o `X-Forwarded-For` com `$remote_addr`.
-- **`deploy.sh`**: pergunta ao compose se o MCP está ligado (`config
-  --services`); só com ele ligado grava a senha do login, reinicia o
-  `postgrest_mcp` e espera o 401 do `/mcp`; num `.env` novo, sorteia também a
-  `POSTGREST_MCP_PASSWORD`. O `--verificar` ganha os smokes do MCP nos dois
-  modos (§10.5).
+- **`nginx.conf`**: `location = /mcp` e os quatro `/.well-known` do OAuth. As
+  três do mcp têm `proxy_pass` por variável e o resolver do Docker
+  (`127.0.0.11`), para o nginx subir com o mcp parado, e `proxy_connect_timeout
+  3s`. Com o mcp fora do ar — desligado, subindo, caído ou travado: o 502 e o
+  504 que o próprio nginx gera —, `/mcp` e os dois do RFC 9728 dão **503** com
+  uma linha de texto ("O MCP da coordenação não está no ar neste servidor."),
+  pela location `@mcp_fora_do_ar`, em vez do `index.html` do SPA com 200. Os
+  dois do RFC 8414 vão à API com nome FIXO, como o `location /api/`, e a API
+  responde 404 em JSON enquanto o OAuth estiver desligado. Nenhum `add_header`
+  nas locations novas, e o `/mcp` SOBRESCREVE o `X-Forwarded-For` com
+  `$remote_addr`.
+- **`deploy.sh`**: antes do build, recusa `EMAIL_DESTINATARIO_TESTE`
+  preenchida — o guard da API recusaria subir — e avisa de toda chave vazia
+  com comentário na mesma linha (§10.3); pergunta ao compose se o MCP está
+  ligado (`config --services`); só com ele ligado grava a senha do login,
+  reinicia o `postgrest_mcp` e espera o 401 do `/mcp`; em TODO deploy, depois
+  do `up -d` e dos restarts, faz `nginx -s reload`, para o nginx resolver o
+  `api` de novo; num `.env` novo, sorteia também a `POSTGREST_MCP_PASSWORD`. O
+  `--verificar` ganha os smokes do MCP nos dois modos (§10.5).
 
 **O próximo deploy, com o MCP desligado, muda só a borda:**
 
@@ -1452,6 +1458,11 @@ Três arquivos — cada decisão está comentada no próprio arquivo, com o porq
   `COPY . .` (não está no `api/.dockerignore`) — imagem nova, container novo.
 - o `deploy.sh` diz "MCP da coordenação desligado", não toca no login e
   reinicia só o `postgrest`, como antes. Nada pede `--migrar`.
+- o deploy passa a fazer `nginx -s reload` depois do `up -d` — gracioso, sem
+  derrubar conexão — e a conferir o `.env` antes do build. A recusa do
+  `EMAIL_DESTINATARIO_TESTE` não barra o `.env` com que a API de produção
+  subiu: preenchido, o guard (`api/app/main.py`) não a deixaria de pé. O aviso
+  do comentário-como-valor pode aparecer, e só avisa.
 
 ### 10.3 · Como ligar
 
@@ -1464,38 +1475,58 @@ acrescentar linhas ao `.env` e rodar o deploy**:
    sem aspas, cada chave uma vez:
 
    ```sh
-   COMPOSE_PROFILES=mcp                          # liga o postgrest_mcp e o mcp
-   POSTGREST_MCP_PASSWORD=                       # openssl rand -hex 32 (ver abaixo)
-   MCP_HABILITADO=true                           # o portão: sem ele o mcp não sobe
+   # Liga o postgrest_mcp e o mcp.
+   COMPOSE_PROFILES=mcp
+   # O portão de LGPD: sem ele, o guard do mcp recusa subir.
+   MCP_HABILITADO=true
    MCP_URL_PUBLICA=https://portalsas.online/mcp
    MCP_EMISSOR_OAUTH=https://portalsas.online/api
-   MCP_URL_DO_APP=https://portalsas.online       # só a API: para onde o /oauth/authorize manda
+   # Só a API: para onde o /oauth/authorize manda a coordenadora.
+   MCP_URL_DO_APP=https://portalsas.online
    # As decisões de 26/10 já são o padrão nos dois processos. Só para mudar —
    # e então vale para a API e para o mcp de uma vez, porque é a mesma linha:
    # MCP_EMISSAO_SO_ADMINISTRADOR=false
    # MCP_MOSTRAR_NOME_DO_ALUNO=true
-   # O SES, só da API, se ainda não estiver no .env:
+   # O SES, só da API, se ainda não estiver no .env: as três preenchidas.
    AWS_SES_ACCESS_KEY_ID=
    AWS_SES_SECRET_ACCESS_KEY=
    EMAIL_REMETENTE=
-   EMAIL_DESTINATARIO_TESTE=                     # VAZIO: preenchido, o código vai para a caixa de teste
+   # VAZIA, e sem nada depois do "=": preenchida, todo e-mail vai para a caixa
+   # de teste, e o guard da API recusa subir em produção.
+   EMAIL_DESTINATARIO_TESTE=
    ```
 
-   A senha, sem passar pela tela nem pelo argv de processo nenhum (`printf` é
-   builtin do bash): `printf 'POSTGREST_MCP_PASSWORD=%s\n' "$(openssl rand -hex
-   32)" >> .env`. Um `.env` que o `deploy.sh` gerou depois deste branch já tem
-   a linha — confira antes com `grep -c '^POSTGREST_MCP_PASSWORD=' .env`. Com a
-   chave duplicada, o compose e o deploy usam os dois a ÚLTIMA (conferido no
-   Compose v5.2.0), mas uma só é o certo.
+   **A regra do `.env`: nunca comentário na mesma linha de uma chave vazia.**
+   Em `CHAVE=   # texto`, o compose lê o comentário como o VALOR (provado no
+   Compose v5.2.0): com o `EMAIL_DESTINATARIO_TESTE`, o guard da API recusa
+   subir, e a API inteira cairia no deploy que liga o MCP — que agora o barra
+   antes do build (§10.5). Por isso, aqui, todo comentário vai na linha de
+   cima. Se o `.env` já tiver alguma destas chaves, troque o valor em vez de
+   acrescentar a linha: com duas, o compose e o deploy usam a ÚLTIMA
+   (conferido no Compose v5.2.0), e uma linha vazia colada depois apagaria o
+   valor de antes.
+
+   A senha não está no bloco: entra sozinha, sem passar pela tela nem pelo
+   argv de processo nenhum (`printf` é builtin do bash), com `printf
+   'POSTGREST_MCP_PASSWORD=%s\n' "$(openssl rand -hex 32)" >> .env`. Um `.env`
+   que o `deploy.sh` gerou depois deste branch já tem a linha — confira antes
+   com `grep -c '^POSTGREST_MCP_PASSWORD=' .env`.
 2. `./infra/vps/deploy.sh` — com o `--rapido` do passo 0 da §9 enquanto aquele
    portão estiver vermelho, e sem `--migrar`: as migrations do MCP estão
-   aplicadas desde 27/10. Em ordem, o deploy: constrói `sas-api`, que é também
-   a imagem do mcp → confere as migrations → **grava a senha no
-   `autenticador_mcp`** → `up -d`, que cria o `postgrest_mcp` e o `mcp` e
-   recria o `api` (o `.env` mudou, e ele o lê pelo `env_file`) → reinicia
-   `postgrest` e `postgrest_mcp` → espera o `/api/health` e o 401 do `/mcp` →
-   smoke. O `web` não é recriado: o nginx acha o mcp pelo resolver, em até
-   30 s (`valid=30s`).
+   aplicadas desde 27/10. Em ordem, o deploy: confere o `.env` → constrói
+   `sas-api`, que é também a imagem do mcp → confere as migrations → **grava a
+   senha no `autenticador_mcp`** → `up -d`, que cria o `postgrest_mcp` e o
+   `mcp` e recria o `api` (o `.env` mudou, e ele o lê pelo `env_file`) →
+   reinicia `postgrest` e `postgrest_mcp` → **`nginx -s reload`** → espera o
+   `/api/health` e o 401 do `/mcp` → smoke. O `web` não é recriado: o mcp, o
+   nginx acha pelo resolver, em até 30 s (`valid=30s`). O api, não — o
+   `location /api/` resolve o nome só no boot ou num reload, e o
+   `postgrest_mcp`, que nasce no mesmo `up -d`, na mesma rede, pode tomar o IP
+   velho do api. Sem o reload, o `/api/` inteiro dava 502 com a API saudável,
+   e rodar o deploy de novo não resolvia (a revisão de 27/10 reproduziu em
+   ~10% das rodadas; §10.7). **A saída manual**, se o `/api/` der 502 com o
+   api de pé: `docker compose exec -T web nginx -s reload </dev/null`, ou
+   `docker compose restart web`.
 3. O smoke do fim tem de dizer "MCP ligado: POST /mcp sem token → 401 com
    resource_metadata" e os quatro metadados em JSON.
 4. A prova de papéis, de dentro da rede (§9, segundo passo, item 7): `docker
@@ -1517,6 +1548,10 @@ Faltando uma linha, nada abre por engano — cada falta falha fechado:
 | `MCP_EMISSOR_OAUTH` | o mcp sobe sem OAuth, só com token pessoal; o smoke reprova o 401 sem `resource_metadata` |
 | `MCP_URL_DO_APP` | a API deixa o OAuth desligado (404); o smoke reprova os metadados do RFC 8414 |
 
+E o contrário de faltar: `EMAIL_DESTINATARIO_TESTE` preenchida — inclusive com
+um comentário na mesma linha — faz o deploy parar antes do build, com os
+containers antigos no ar.
+
 ### 10.4 · Como desligar
 
 1. Tirar `mcp` do `COMPOSE_PROFILES` e pôr `MCP_HABILITADO=false` (a tela de
@@ -1532,13 +1567,29 @@ Faltando uma linha, nada abre por engano — cada falta falha fechado:
    autenticador_mcp PASSWORD NULL;" | docker compose exec -T db psql -U
    postgres -d sas`. Os tokens emitidos seguem no banco, e nada os aceita.
 
-### 10.5 · O que o `deploy.sh --verificar` confere
+### 10.5 · O que o `deploy.sh` confere
 
-Quem diz se o MCP está ligado é o servidor — o profile `mcp` ativo no compose,
-perguntado por ssh —, e não a resposta: com o profile ativo, um 503 é o mcp
-fora do ar, e não "desligado"; sem o profile, um 401 é container que sobrou de
-pé. Antes de tudo, `GET /mcp` com o `index.html` do SPA reprova nos dois modos:
-é o `nginx.conf` sem estas locations.
+**No servidor**, em ordem, antes de trocar qualquer container:
+
+- `EMAIL_DESTINATARIO_TESTE` preenchida para o compose → ERRO, e o deploy para.
+  É o espelho do guard da API, lido como o compose lê: vale a última
+  ocorrência, `export` e espaço na frente contam, e vazio é nada, só espaço,
+  ou `""` e `''` — com ou sem comentário depois. As 15 formas conferidas no
+  Compose v5.2.0 batem com a decisão do deploy (§10.7).
+- toda `CHAVE=` seguida só de espaço e `#` → AVISO, com o nome da chave e sem o
+  valor. Não bloqueia: não se sabe se o `.env` de produção tem uma linha assim
+  numa chave opcional.
+- com o MCP ligado, a senha fora do formato do `openssl rand -hex 32` → ERRO.
+
+Depois do `up -d` e dos restarts, o `nginx -s reload`, em todo deploy (§10.3,
+passo 2). Se ele falhar, o deploy avisa e segue: o laço do `/api/health`
+decide, e o log do `web` sai junto se ele reprovar.
+
+**O `--verificar`, de fora.** Quem diz se o MCP está ligado é o servidor — o
+profile `mcp` ativo no compose, perguntado por ssh —, e não a resposta: com o
+profile ativo, um 503 é o mcp fora do ar, e não "desligado"; sem o profile, um
+401 é container que sobrou de pé. Antes de tudo, `GET /mcp` com o `index.html`
+do SPA reprova nos dois modos: é o `nginx.conf` sem estas locations.
 
 | `POST /mcp` sem token | profile `mcp` no servidor | Resultado |
 |---|---|---|
@@ -1658,6 +1709,79 @@ v5.2.0. Nada rodou contra o servidor.
   `test_canvas_publicacao.py` falhando — os 4 testes de produção do compose em
   `test_migrations_do_mcp.py`, antes pulados, passaram a rodar.
 
+**A revisão adversarial de 27/10.** Ela confirmou seis achados no primeiro
+commit deste branch (`c44c806`) — quatro defeitos, dois deles vistos por duas
+lentes —, consertados no commit seguinte, com mais uma blindagem:
+
+1. *(alto)* **O bloco do `.env` da §10.3.** Com `CHAVE=   # comentário` e o
+   valor vazio, o compose lê o comentário como o valor: o
+   `EMAIL_DESTINATARIO_TESTE` colado como estava fazia o guard da API recusar
+   subir, e a API inteira caía no deploy que liga o MCP; a linha-modelo da
+   senha parava o deploy na regex. O bloco passou a ter cada comentário na
+   linha de cima, sem a linha da senha, e a regra escrita; e o `deploy.sh`
+   barra a `EMAIL_DESTINATARIO_TESTE` preenchida e avisa do
+   comentário-como-valor, antes do build (§10.5).
+2. *(alto)* **O IP velho do api.** O `location /api/` resolve o nome só no
+   boot do nginx; ao ligar, o api é recriado e o `postgrest_mcp`, que nasce no
+   mesmo `up -d`, pode tomar o IP velho dele — o /api/ inteiro dava 502, e
+   rodar o deploy de novo não resolvia. O deploy faz `nginx -s reload` depois
+   do `up -d` e dos restarts, em todo deploy, e a §10.3 dizia que bastava o
+   `web` não ser recriado.
+3. *(baixo)* **`set $api …; proxy_pass $api;` não usava o resolver**: com o
+   mesmo host:porta do `location /api/`, o nginx usava o upstream dele, no IP
+   do boot. As duas do RFC 8414 viraram `proxy_pass http://api:8000;`, de
+   nome fixo, e dependem do reload do item 2.
+4. *(baixo)* **O mcp caído com o IP no cache do resolver** deixava a
+   requisição pendurada de 14 a 60 s e às vezes devolvia o 504 em HTML, porque
+   o `error_page` só pegava o 502. As três locations do mcp ganharam
+   `proxy_connect_timeout 3s` e `error_page 502 504` (por que o 504 por
+   leitura também é seguro: o comentário do `location = /mcp`).
+5. *(blindagem)* Num `.env` novo, o `printf` da senha colaria a linha na
+   última do `.env.example`, se ele não terminasse em quebra de linha. O
+   deploy garante a quebra antes.
+
+A reprova, com o `deploy.sh` e o `nginx.conf` do conserto:
+
+- **O IP velho, forçado.** Na stack com o grafo do `infra/vps` (`api` com
+  `env_file`, `web` em duas redes, os dois do MCP no profile), o `api` parado e
+  o `postgrest_mcp` subido antes dele, que tomou o `.4` do `api`. O trecho
+  "Subida → espera da API" do `deploy.sh` de `c44c806`: o `api` voltou como
+  `.6`, o nginx seguiu mandando para o `.4`, `/api/health` → 502, e o deploy
+  saiu com "API não respondeu" (exit 1, em 63 s). O trecho novo, do mesmo
+  estado: reload, `/api/health` → 200 em 3 s, e os dois do RFC 8414 chegando à
+  API com o caminho inteiro; o `web`, não recriado.
+- **O IP velho, de verdade.** Dez transições de ligar com o trecho novo, com
+  um `api` que leva os 10 s inteiros do stop: a corrida aconteceu em duas (o
+  `postgrest_mcp` com o IP velho do `api`), e o `/api/health` deu 200 nas dez.
+- **O reload que falha** — o `api` parado, o nome sem resolver: o deploy avisa
+  com a mensagem do nginx e segue, e o site continua no ar com a configuração
+  que tinha.
+- **O 503 no caminho do 504.** `nginx -t` passa. Com o mcp parado e o IP no
+  cache, 6 de 6 `POST /mcp` deram o 503 em texto em ~3,0 s, com `(110:
+  Operation timed out) while connecting to upstream` no log; vencido o cache,
+  em 5 a 15 ms.
+- **O `.env`.** O trecho "Segredos → Imagens" do `deploy.sh`, com o build
+  fingido e registrado: o bloco ANTIGO da §10.3 colado → aviso nas duas chaves,
+  erro no `EMAIL_DESTINATARIO_TESTE`, exit 1, build não chamado; o bloco NOVO,
+  extraído do próprio docs/43, mais o `printf` da senha → passa, e o compose lê
+  `EMAIL_DESTINATARIO_TESTE=''` e nenhuma chave com valor começando por `#`;
+  `EMAIL_DESTINATARIO_TESTE=x` → para; `EMAIL_DESTINATARIO_TESTE=""` com uma
+  chave opcional comentada → passa, e o aviso diz só o nome dela. O espelho do
+  guard contra o compose, em 15 formas (vazio, só espaço, `""`, `''`, `"" #`,
+  `" "`, `#x`, `export`, espaço na frente, chave duplicada…): zero
+  discordâncias.
+- **A quebra de linha**, em GNU sed 4.9 (uma imagem Debian local, sem rede), com
+  um `.env.example` sem `\n` no fim: o `c44c806` gerou
+  `CANVAS_API_TOKEN=POSTGREST_MCP_PASSWORD=…`, duas chaves perdidas numa linha;
+  o novo, cada uma na sua.
+- **O reload não aplica um `nginx.conf` trocado por rename**: num container
+  privilegiado, sem rede, um `mount --bind` de arquivo único seguiu mostrando o
+  conteúdo antigo depois de a origem ser trocada por rename, como faz o rsync, e
+  só a remontagem — o que o restart faz — leu o novo.
+- `bash -n` e `shellcheck` 0.10.0: os mesmos achados do `c44c806` (12 no
+  script, 2 no bloco remoto), nenhum novo; `test_migrations_do_mcp.py` com 104
+  passando; a suíte, 2627 passando, 27 pulados e os mesmos 3 falhando.
+
 **O que não foi verificado:**
 
 - nada no servidor: nem o `deploy.sh`, nem o `--verificar`, nem a versão do
@@ -1670,7 +1794,17 @@ v5.2.0. Nada rodou contra o servidor.
   7);
 - a versão de correção do nginx de produção: `1.27-alpine` é tag móvel, e a
   prova usou 1.27.5;
-- o pior caso do `valid=30s`: na prova, o nginx achou o mcp em ~1 s.
+- o pior caso do `valid=30s`: na prova, o nginx achou o mcp em ~1 s;
+- o 504 por LEITURA no `/mcp` (os 300 s): só o de conexão foi exercitado — o
+  `error_page` é o mesmo;
+- se o image store do servidor gera imagem nova do `web` a cada build — aqui,
+  com o containerd e a attestation de provenance, gera, e aí o `web` seria
+  recriado a cada deploy e a corrida do IP não aconteceria. O reload vale nos
+  dois casos;
+- o `restart web` relendo o `nginx.conf` no Docker do VPS: só a semântica do
+  kernel foi provada (o `mount --bind` acima);
+- com o `api` parado, o `/api/` pendura até os 60 s do `proxy_connect_timeout`
+  padrão — o comportamento de antes, que este branch não mexe.
 
 `/mcp/`, com barra, cai no SPA como qualquer caminho desconhecido: a location é
 exata, como o endereço que a IA configura.

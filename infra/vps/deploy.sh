@@ -258,6 +258,10 @@ else
     # para o fim do arquivo, com ou sem a linha no .env.example. Gravada no
     # banco ela só é quando o MCP for ligado — até lá o login segue sem senha.
     sed -i '/^POSTGREST_MCP_PASSWORD=/d' .env
+    # Um .env.example sem quebra de linha no fim — e o sed acima a mantém
+    # ausente — faria o printf colar a senha na última linha dele, e as duas
+    # chaves virariam uma só.
+    if [[ -n "$(tail -c 1 .env)" ]]; then printf '\n' >> .env; fi
     printf 'POSTGREST_MCP_PASSWORD=%s\n' "$(openssl rand -hex 32)" >> .env
     # Senha da coordenação: legível, para alguém conseguir digitar.
     senha="$(openssl rand -base64 18 | tr -d '/+=' | head -c 20)"
@@ -273,6 +277,33 @@ for obrigatoria in JWT_SECRET_KEY COORDENADOR_SENHA; do
 done
 grep -qE '^CANVAS_API_TOKEN=.+' .env || aviso "CANVAS_API_TOKEN vazia — o sync do Canvas não roda"
 grep -qE '^OPENAI_API_KEY=.+'   .env || aviso "OPENAI_API_KEY vazia — insights e chat desligados (degrada limpo)"
+
+# Comentário na mesma linha de uma chave VAZIA vira o valor dela: o compose lê
+# `CHAVE=   # texto` como "# texto" (Compose v5.2.0; docs/43 §10.3 e §10.7).
+# Só aviso, e só com o nome da chave: não se sabe se o .env de produção já tem
+# uma linha assim numa chave opcional, e barrar quebraria um deploy que hoje
+# funciona. O caso que derruba a API é barrado logo abaixo.
+while IFS= read -r chave_com_comentario; do
+    aviso "${chave_com_comentario%%=*}: comentário na mesma linha de uma chave vazia — o compose lê o comentário como valor"
+done < <(grep -E '^[A-Z_][A-Z0-9_]*=[[:space:]]+#' .env || true)
+
+# EMAIL_DESTINATARIO_TESTE preenchida, o guard de boot da API recusa subir em
+# produção (main.py: qualquer valor não vazio reprova — todo e-mail de aluno
+# iria para uma caixa só). Barrada AQUI, antes do build e do `up -d`, o deploy
+# falha com os containers antigos no ar, em vez de derrubar a API no meio. É o
+# espelho do guard, lendo a linha como o compose lê (cada forma conferida no
+# Compose v5.2.0, docs/43 §10.7): vale a ÚLTIMA ocorrência, `export` e espaço
+# na frente contam, e vazio é nada, só espaço, ou "" e '' — com ou sem
+# comentário depois. `CHAVE=   # texto` NÃO é vazio. Assim nada que hoje sobe
+# passa a ser barrado, nem um `EMAIL_DESTINATARIO_TESTE=""`.
+vazia_para_o_compose=$'^[[:space:]]*((""|\'\')([[:space:]]+#.*)?[[:space:]]*)?$'
+linha_email="$(grep -E '^[[:space:]]*(export[[:space:]]+)?EMAIL_DESTINATARIO_TESTE=' .env | tail -n 1 || true)"
+if [[ -n "$linha_email" && ! "${linha_email#*=}" =~ $vazia_para_o_compose ]]; then
+    erro "EMAIL_DESTINATARIO_TESTE preenchida no .env — o guard da API recusa subir em produção (main.py)"
+    erro "deixe 'EMAIL_DESTINATARIO_TESTE=' sem nada depois do '=', nem comentário (docs/43 §10.3)"
+    erro "nenhum container foi trocado — a stack segue no ar com a versão anterior"
+    exit 1
+fi
 
 # ── MCP da coordenação: ligado ou desligado (docs/43 §10) ────────────────
 # Ligado = o profile `mcp` ativo, o que aqui quer dizer COMPOSE_PROFILES=mcp
@@ -409,6 +440,32 @@ else
     ok "postgrest reiniciado (cache de schema)"
 fi
 
+# ── O nginx pergunta o nome do api de novo ───────────────────────────────
+# O `location /api/` e os dois do RFC 8414 têm nome FIXO no proxy_pass: o
+# nginx resolve `api` uma vez, no boot, e de novo só num reload. O `up -d` que
+# recria o api sem recriar o web — todo deploy com código novo da API, e o de
+# ligar o MCP, que muda o .env — pode devolvê-lo com outro IP: o IPAM do
+# Docker dá o menor livre, e ao ligar o MCP o postgrest_mcp nasce no mesmo
+# `up -d`, na mesma rede, e pode tomar o IP velho do api (a revisão de 27/10
+# reproduziu em ~10% das rodadas; docs/43 §10.7). Aí o /api/ inteiro dá 502, o
+# laço abaixo reprova com a API saudável, e rodar o deploy de novo não resolve:
+# o `up -d` não mexe no web.
+#
+# O reload é gracioso — os workers velhos terminam o que atendem, SSE do chat
+# inclusive — e INCONDICIONAL, como o restart do postgrest: custa nada, e "o
+# api mudou de IP?" não tem resposta barata daqui. Não é o jeito de aplicar
+# um nginx.conf novo: o rsync troca o arquivo por rename, e o bind mount de
+# arquivo único do web segue lendo o antigo; para isso, `restart web`. E não
+# trocar por `depends_on: api: {restart: true}` no web: segura o /api/, mas
+# derruba o site inteiro durante o stop do api. Falhar aqui não interrompe —
+# o laço decide, e o log do web sai junto se ele reprovar.
+if saida_reload="$(docker compose exec -T web nginx -s reload </dev/null 2>&1)"; then
+    ok "nginx recarregado (o nome do api resolvido de novo)"
+else
+    aviso "o reload do nginx falhou — o /api/ pode seguir no IP velho do api:"
+    printf '%s\n' "$saida_reload" | tail -n 3 | sed 's/^/      /'
+fi
+
 # ── Esperar o uvicorn atender ────────────────────────────────────────────
 # Por que --resolve em vez de http://127.0.0.1: desde a Etapa 5 a porta 80
 # redireciona para HTTPS, e 3xx NÃO é erro para o `curl -f` — uma checagem em
@@ -423,7 +480,7 @@ for _ in $(seq 1 30); do
 done
 [[ "$resp" == *'"status":"ok"'* ]] \
     && ok "API responde através do nginx" \
-    || { erro "API não respondeu em /api/health"; docker compose logs --tail=40 api; exit 1; }
+    || { erro "API não respondeu em /api/health"; docker compose logs --tail=40 api web; exit 1; }
 
 # ── Esperar o MCP atender (só com ele ligado) ────────────────────────────
 # POST sem token: o mcp de pé responde 401; enquanto ele sobe, o nginx
