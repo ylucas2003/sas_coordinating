@@ -23,19 +23,20 @@ para o critério, *"o Tio Léo"* para o bot.
 
 ## 2 · O que já existe
 
-> Atualizado em 26/10. A coluna do meio é o que está no ar (o `main`, que
+> Atualizado em 26/10. A coluna do meio era o que estava no ar (o `main`, que
 > desde 26/10 inclui o piso de anonimato do PR #114). A da direita é o branch
-> `feat/ferramentas-registro-unico`, escrito e testado mas **fora de
-> produção** — o que ele entregou está no
-> [42 §4.4](43-plano-ferramentas-e-mcp.md), e as decisões do dono de 26/10 no
-> [42 §0.1](43-plano-ferramentas-e-mcp.md).
+> `feat/ferramentas-registro-unico` — o que ele entregou está no
+> [43 §4.4](43-plano-ferramentas-e-mcp.md), e as decisões do dono de 26/10 no
+> [43 §0.1](43-plano-ferramentas-e-mcp.md). ⚠️ **Desde 27/10 a coluna da
+> direita também está no ar**: o branch entrou no `main` pelo PR #115 (merge
+> `ca4c68f`) e foi implantado no mesmo dia. A do meio virou histórico.
 
 | | No ar (`main`) | No branch, fora de produção |
 |---|---|---|
 | Casca | `FolhaTioLeo.tsx` (bottom sheet no celular, cartão flutuante de 400×620 no desktop) e `FabTioLeo.tsx`, com a MESMA `Conversa.tsx` da coordenação | a mesma, e o `CascoAluno` a põe num `LimiteDeErro`: se quebrar, sobra o botão, que reinicia o Tio Léo sem recarregar a página |
 | Renderização | `Markdown.tsx` (com KaTeX), `Mensagem.tsx`, `ToolTrace.tsx` | e os cartões de `ArtefatoAluno.tsx`, passados pela prop `renderArtefato`, cada um no próprio `LimiteDeErro` e com tela cheia; o trace dá nome legível a cada tool e, no aluno, não mostra UUID nem `aluno_id` |
 | Cartões | **nenhum**: `ArtefatoAluno.tsx` existia e ninguém o importava, e nenhuma tool do aluno produzia artefato | os seis tipos do catálogo (§7), gravados em `chat_artefato` (migration 0070) e relidos ao reabrir a conversa. O de `barras_corte` diz de que nota se trata — "Notas que contam na régua" —, e as barras da Hoje dizem "Notas no último simulado" (decisão do dono de 26/10, §12) |
-| Motor | `api/app/chat/agente.py`, parametrizado por `perfis.py`; tools em série e a resposta inteira picada em pedaços de 40 caracteres | streaming de verdade e tools em paralelo, pelo registro único `chat/ferramentas.py` (42 §3) |
+| Motor | `api/app/chat/agente.py`, parametrizado por `perfis.py`; tools em série e a resposta inteira picada em pedaços de 40 caracteres | streaming de verdade e tools em paralelo, pelo registro único `chat/ferramentas.py` (43 §3) |
 | Tools do aluno | 6, em `tools_aluno.py` | **17**: as 6, mais 5 em `tools_aluno_situacao.py`, 5 em `tools_aluno_banco.py` e `roteiro_do_mentor`. Nenhum schema declara `aluno_id`: ele sai do JWT, e o do argumento é descartado |
 | Contexto do turno | nenhum: o prompt não sabia que dia era | `chat/contexto_do_turno.py`: data, alvos, régua com zona e distância, próximo simulado e sequência, montados do JWT antes de cada pergunta |
 | Roteiros | — | 4, em `api/app/chat/roteiros/aluno/`: `antes_da_prova`, `explicar_questao`, `plano_da_semana` e `revisar_simulado` |
@@ -44,7 +45,7 @@ para o critério, *"o Tio Léo"* para o bot.
 
 ⚠️ **Visto no browser em 26/10** só contra uma stack descartável, com a conversa
 semeada pelas tools reais e **sem nenhuma mensagem ao modelo**: a escolha de
-tool pelo `gpt-4o-mini` nunca foi vista (42 §4.5, §8). Os três achados daquela
+tool pelo `gpt-4o-mini` nunca foi vista (43 §4.5, §8). Os três achados daquela
 verificação foram resolvidos na mesma tarde — a migalha no celular, o nome das
 duas notas (§12) e o nome acessível dos dois controles do cartão da questão,
 que agora são "Ampliar este cartão — " seguido do olho do cartão, e "Abrir a
@@ -132,9 +133,11 @@ prova". Artefato `questao` = imagem, enunciado, gabarito e resolução.
 
 ## 7 · O catálogo de artefatos
 
-> Estado de 26/10. **No ar (`main`), nenhuma tool do aluno produz cartão.** A
-> coluna "no branch" é o `feat/ferramentas-registro-unico`, fora de produção
-> ([42 §4.4](43-plano-ferramentas-e-mcp.md), "Cartões").
+> Estado de 26/10. **No ar (`main`), nenhuma tool do aluno produzia cartão.** A
+> coluna "no branch" é o `feat/ferramentas-registro-unico`
+> ([43 §4.4](43-plano-ferramentas-e-mcp.md), "Cartões"). ⚠️ Desde 27/10 ela
+> está no ar (PR #115), com a migration 0070, que libera os cartões do aluno
+> no CHECK de `chat_artefato`.
 
 | tipo | o que mostra | no branch: quem produz | estado |
 |---|---|---|---|
@@ -247,6 +250,6 @@ a mesma dureza com que hoje manda *"nunca invente notas"*.
 | ~~**KaTeX empacotado ou MathML via Temml?**~~ **FECHADA — e já estava.** Venceu o KaTeX, empacotado, com as fontes servidas do nosso domínio. Não foi decidido em reunião: `componentes/ui/Markdown.tsx` já o usava desde 01/09, com macros pt-BR (`\sen`, `\tg`, `\cotg`) e uma medição de 58 fórmulas que falhavam, e este documento é que não sabia. O artefato de fórmula do Tio Léo passou a usar o mesmo componente em 05/09, sem dependência nova (docs/36 §3.1 e §6.1) | — |
 | **Link externo entra na gramática?** Hoje proibido | §9, regra 2 |
 | **Estruturas químicas, num sprint futuro?** Fora por ora | §5 |
-| O modelo do aluno continua `gpt-4o-mini` com respostas mais ricas? *Em parte:* no branch das fases o modelo deixou de ser constante e virou `OPENAI_MODELO_ALUNO`, com padrão `gpt-4o-mini`; trocar segue sendo decisão de custo. A escolha de tool pelo `gpt-4o-mini` com o catálogo novo não foi medida ([42 §8](43-plano-ferramentas-e-mcp.md)) | custo do chat, [14 §6.4](14-plano-producao.md) |
-| ~~**A Hoje e o Tio Léo mostram a mesma nota contra o corte?**~~ **FECHADA em 26/10 pelo dono.** Não, e cada uma diz qual é: as barras da Hoje são as "Notas no último simulado" (a nota do ciclo mais recente, de `/me/evolucao`); o cartão `barras_corte` e a zona mostram as "Notas que contam na régua" (`/me/zona`). Nada mudou no cálculo — a regra e os nomes estão em `web/src/dominio/notaContraCorte.ts`. Na verificação do browser de 26/10 a aluna via Física 4,3 na Hoje e 4,6 no Tio Léo, sem nome nenhum, e um dos dois parecia errado. A Jornada, que também mostra a média, passar a dizer que ela é "a que conta na régua" é a ponta (f) da [42 §5.6](43-plano-ferramentas-e-mcp.md) | — |
-| **Quando uma prova fecha para a comparação com a turma?** O piso de 10 notas protege uma leitura, não a diferença entre duas: quem lê a mesma prova com 10 e depois com 11 notas tira a 11ª ([42 §6](43-plano-ferramentas-e-mcp.md)) | privacidade do aluno, §9 regra 4 |
+| O modelo do aluno continua `gpt-4o-mini` com respostas mais ricas? *Em parte:* desde as fases (em produção desde 27/10, PR #115) o modelo deixou de ser constante e virou `OPENAI_MODELO_ALUNO`, com padrão `gpt-4o-mini`; trocar segue sendo decisão de custo. A escolha de tool pelo `gpt-4o-mini` com o catálogo novo não foi medida ([43 §8](43-plano-ferramentas-e-mcp.md)) | custo do chat, [14 §6.4](14-plano-producao.md) |
+| ~~**A Hoje e o Tio Léo mostram a mesma nota contra o corte?**~~ **FECHADA em 26/10 pelo dono.** Não, e cada uma diz qual é: as barras da Hoje são as "Notas no último simulado" (a nota do ciclo mais recente, de `/me/evolucao`); o cartão `barras_corte` e a zona mostram as "Notas que contam na régua" (`/me/zona`). Nada mudou no cálculo — a regra e os nomes estão em `web/src/dominio/notaContraCorte.ts`. Na verificação do browser de 26/10 a aluna via Física 4,3 na Hoje e 4,6 no Tio Léo, sem nome nenhum, e um dos dois parecia errado. A Jornada, que também mostra a média, passar a dizer que ela é "a que conta na régua" é a ponta (f) da [43 §5.6](43-plano-ferramentas-e-mcp.md) | — |
+| **Quando uma prova fecha para a comparação com a turma?** O piso de 10 notas protege uma leitura, não a diferença entre duas: quem lê a mesma prova com 10 e depois com 11 notas tira a 11ª ([43 §6](43-plano-ferramentas-e-mcp.md)) | privacidade do aluno, §9 regra 4 |

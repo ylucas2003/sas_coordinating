@@ -1,6 +1,6 @@
 # 43 — As ferramentas do assistente e o MCP da coordenação
 
-> Plano de 24/10/2026, com o **estado de 26/10**. Duas frentes que dividem uma
+> Plano de 24/10/2026, com o **estado de 27/10**. Duas frentes que dividem uma
 > fundação:
 >
 > 1. o **Tio Léo** (aluno, individual) e o **assistente da coordenação**
@@ -8,22 +8,25 @@
 >    respondem mais rápido;
 > 2. um **MCP** para a coordenação conectar a própria IA ao SAS.
 >
-> ⚠️ **Estado em 26/10: as Fases 0 a 3 estão escritas e testadas, e NADA delas
-> está em produção.** Tudo mora no branch `feat/ferramentas-registro-unico`,
-> ainda sem commit, testado local e em stacks descartáveis de Postgres 16 +
-> PostgREST v12.2.3. O MCP não vai ao ar antes do portão de LGPD (§5.4). As
-> **decisões do dono de 26/10** — nome real no MCP, administrador e
-> coordenador conectando, aprovação por código no e-mail da conta de IA e o
-> nome de cada nota contra o corte — já estão no código e moram em §0.1; a
-> **revisão de segurança** que elas passaram na mesma tarde, com o que foi
-> consertado e o que ficou de propósito, em §5.6. O que cada fase entregou
-> está em §3.4, §4.4 e §5.5; o que mudou em relação a este plano, em §7.1; o
-> que não foi verificado, em §8; a ordem do deploy, em §9; e o que a produção
-> precisa para o MCP — nada disso aplicado —, em §10.
+> ⚠️ **Estado em 27/10: as Fases 0 a 3 estão no `main` (PR #115, merge
+> `ca4c68f`) e em produção desde 27/10 — menos o processo do MCP.** O
+> primeiro passo da §9 foi implantado nesse dia: o chat novo do Tio Léo e do
+> assistente, as migrations 0070 a 0073 e as telas de Conexões de IA e
+> `/conectar-ia`. O `mcp` e o `postgrest_mcp` **não estão no ar**. Eles esperam
+> o SES de produção e a decisão de ligar (§5.4). Desde o PR #117 o
+> `infra/vps` os tem, desligados (§10). As **decisões do dono de 26/10** — nome
+> real no MCP, administrador e coordenador conectando, aprovação por código no
+> e-mail da conta de IA e o nome de cada nota contra o corte — moram em §0.1. As
+> de **27/10**, sobre o que ainda faltava para o MCP, moram em §0.2. A **revisão
+> de segurança** de 26/10 está em §5.6, e a **prova de ponta a ponta de 27/10**,
+> com o MCP de verdade no modo novo, em §8.1. O que cada fase entregou está em
+> §3.4, §4.4 e §5.5; o que mudou em relação a este plano, em §7.1; o que não foi
+> verificado, em §8; a ordem do deploy, em §9; e o que a produção precisa para
+> o MCP, em §10.
 >
-> Uma peça daqui JÁ está no ar, por fora do branch: o **piso de anonimato das
-> rotas `/me`** (§4.4, "Privacidade"), levado sozinho pelo PR #114 (merge
-> `fc461a2`) e implantado em 26/10 — o docs/19 conta como foi conferido.
+> O **piso de anonimato das rotas `/me`** (§4.4, "Privacidade") foi ao ar antes
+> do resto, sozinho, pelo PR #114 (merge `fc461a2`), implantado em 26/10. O
+> docs/19 conta como foi conferido.
 >
 > ⚠️ **Base e numeração (26/10)**: o `main` ganhou em 24/10 outra migration
 > `0069`, já em produção, e outro `docs/42` (o horário de estudos) — por isso
@@ -78,6 +81,18 @@ LGPD** (tratamento no melhor interesse do adolescente), registrada antes de o
 MCP subir em produção. O código diz isso no comentário de
 `mostrar_nome_do_aluno`, e o portão continua sendo o `MCP_HABILITADO` (§5.4):
 fora de dev/test, o processo não sobe sem ele.
+
+### 0.2 · As decisões do dono em 27/10 — o que faltava para o MCP
+
+Tomadas em 27/10, depois do deploy do primeiro passo (§9); a última, depois
+da prova de ponta a ponta do mesmo dia (§8.1). Nenhuma muda código.
+
+| # | Pergunta | Decisão | O que ainda pede |
+|---|---|---|---|
+| 1 | A **base legal do art. 14 da LGPD** para o nome e o desempenho do aluno irem a um provedor de IA de fora (§0.1, decisão 1) | **"Os alunos já autorizaram isso."** Fica registrada como afirmação do dono, de 27/10 | Anexar ao registro **onde a autorização está guardada** e **de quem ela é**. Para menor de 18 anos, o art. 14 §1 pede o consentimento de pelo menos um dos pais ou do responsável legal |
+| 2 | Sob que **conta do provedor** a coordenação conecta (§6) | **A conta pessoal de cada coordenador**, não uma conta do colégio | Desligar, em cada conta, o uso das conversas para treinar o modelo. O código não decide isso nem confere: qualquer cliente que fale MCP conecta com o token pessoal |
+| 3 | O **SES de produção**, por onde sai o código que aprova a conexão OAuth (§9, segundo passo) | **O dono confere**: a conta fora do sandbox, as chaves na API e `EMAIL_DESTINATARIO_TESTE` vazio | Sem o SES, o token pessoal funciona e nenhuma conexão do claude.ai ou do ChatGPT se aprova (§10) |
+| 4 | O **piso de anonimato** (10 notas) vale também no MCP? A prova de 27/10 mostrou que não vale (§8.1) | **Fica como está.** O piso protege a nota do colega quando quem olha é o **aluno** (§4.4). O MCP da coordenação mostra o mesmo que as telas da coordenação já mostram: numa prova com 3 notas, a média e cada nota com o nome | — |
 
 ---
 
@@ -734,20 +749,23 @@ porque as tools já existem e a validação, o prazo e o erro são os do registr
 Conectar uma IA de fora envia dado de menor a um provedor terceiro: é a mesma
 regra da armadilha 7 do CLAUDE.md, aplicada ao servidor. Em 26/10 o dono
 decidiu o que o MCP devolve — o **nome** do aluno (§0.1, decisão 1) — e quem
-conecta (decisão 2). O que falta antes de abrir:
+conecta (decisão 2). Em 27/10, o que este portão pedia (§0.2):
 
 - a **base legal do art. 14 da LGPD** para mandar nome e desempenho de
-  adolescente a um provedor de IA de fora, registrada — é o que a decisão 1
-  pede, e o que o comentário de `mostrar_nome_do_aluno`
-  (`mcp/configuracao.py`) avisa;
-- sob que **conta do provedor**, com que retenção, a coordenação conecta (§6).
-  O e-mail da conta de IA (decisão 3) prova QUEM aprova; não diz em que plano
-  do provedor o dado cai.
+  adolescente a um provedor de IA de fora: **afirmada pelo dono em 27/10**
+  ("os alunos já autorizaram"). Falta anexar ao registro onde a autorização
+  está e de quem ela é. O comentário de `mostrar_nome_do_aluno`
+  (`mcp/configuracao.py`) avisa o mesmo;
+- sob que **conta do provedor** a coordenação conecta: **a pessoal de cada
+  coordenador**, decidida em 27/10, com o uso para treino desligado em cada
+  uma. O e-mail da conta de IA (decisão 3) prova QUEM aprova; não diz em que
+  plano do provedor o dado cai;
+- e, para o OAuth, o **SES de produção** fora do sandbox, que o dono confere.
 
 O portão no código é `MCP_HABILITADO`: fora de dev/test, o processo do MCP não
-sobe sem `true` explícito. O `infra/vps` **ainda não tem** o `postgrest_mcp`
-nem o `mcp`; o que entra lá quando o portão abrir está na §10, e a ordem do
-deploy na §9.
+sobe sem `true` explícito. Desde o PR #117, o `infra/vps` tem o
+`postgrest_mcp` e o `mcp`, **desligados**. Como ligar está na §10, e a ordem do
+deploy, na §9.
 
 O que o código faz para reduzir o que sai, e o que ele não resolve:
 
@@ -1102,8 +1120,9 @@ resposta.
 
 | Decisão | Hoje no código | Trava |
 |---|---|---|
-| ~~O MCP devolve **nome** do aluno ou só **matrícula**?~~ **FECHADA em 26/10 pelo dono: o nome** (§0.1, decisão 1) | `MCP_MOSTRAR_NOME_DO_ALUNO=true`, o padrão; o pseudônimo fica como opção, e as telas já dizem que o nome vai ao provedor. Segue aberto o que a decisão pede: a **base legal do art. 14 da LGPD**, registrada | MCP em produção |
-| Sob que **conta de IA** a coordenação conecta (conta pessoal, conta do colégio com retenção desligada)? | **Em parte**: quem aprova a conexão OAuth prova a posse do e-mail da conta de IA, e a conexão nasce com o acesso do coordenador dono dele (decisão 3). Que conta do provedor é essa, e com que retenção, o código não decide: qualquer cliente que fale MCP conecta com o token pessoal | MCP em produção |
+| ~~O MCP devolve **nome** do aluno ou só **matrícula**?~~ **FECHADA em 26/10 pelo dono: o nome** (§0.1, decisão 1) | `MCP_MOSTRAR_NOME_DO_ALUNO=true`, o padrão; o pseudônimo fica como opção, e as telas já dizem que o nome vai ao provedor. A **base legal do art. 14 da LGPD** que a decisão pede foi afirmada pelo dono em 27/10 (§0.2, decisão 1); falta anexar onde a autorização está e de quem ela é | MCP em produção |
+| ~~Sob que **conta de IA** a coordenação conecta (conta pessoal, conta do colégio com retenção desligada)?~~ **FECHADA em 27/10 pelo dono: a conta pessoal de cada coordenador** (§0.2, decisão 2) | Quem aprova a conexão OAuth prova a posse do e-mail da conta de IA, e a conexão nasce com o acesso do coordenador dono dele (decisão 3). O uso para treino, desligado em cada conta, o código não confere | — |
+| ~~O **piso de anonimato** vale também no MCP?~~ **FECHADA em 27/10 pelo dono: não** (§0.2, decisão 4) | O MCP mostra o que as telas da coordenação mostram, inclusive a média e as notas com nome numa prova com menos de 10 notas. O piso segue nas rotas `/me` e nas tools do Tio Léo | — |
 | ~~Quando abre o **portão de administrador** — quem mais emite, aprova e consulta?~~ **FECHADA em 26/10 pelo dono: administrador e coordenador** (decisão 2) | `MCP_EMISSAO_SO_ADMINISTRADOR=false`, o padrão; `true` volta ao só-administrador nas três pontas, e precisa do MESMO valor na API e no `mcp` | — |
 | **Captação** (dado de gente de fora) e **cantina** entram no MCP? | Não entram, e não há tool delas nem no chat do app | — |
 | **Régua, rotinas** (sync, gravações, lembretes) e **trilha** de auditoria entram no MCP? | Estão no chat da coordenação e fora do MCP (`METADADOS` dos módulos `reguas`, `rotinas` e `trilha`) | — |
@@ -1115,12 +1134,12 @@ resposta.
 
 ## 7 · Fases
 
-| Fase | O quê | Pronto quando | Estado em 26/10 — nada em produção |
+| Fase | O quê | Pronto quando | Estado em 27/10 |
 |---|---|---|---|
-| **0** | Registro único, despacho com as oito invariantes, testes de isolamento | §3.3 | ✅ feita (§3.4) |
-| **1** | Os seis defeitos, desempenho, cobertura e playbooks | cada item com teste; o Tio Léo visto no browser, coisa que o docs/30 diz nunca ter acontecido | 🔨 escrita, com teste, e **vista no browser** numa stack descartável: a folha e os seis tipos de cartão (§4.5). Os três achados do browser foram resolvidos na tarde de 26/10. Falta uma conversa de verdade, com o `gpt-4o-mini` escolhendo as tools |
-| **2** | MCP local por token pessoal, PostgREST e login próprios (§5.2), auditoria | um Claude Code conectado lê um ciclo e não consegue ler `usuario_coordenacao` | 🔨 provado com o cliente oficial do SDK (o protocolo que o Claude Code e o `mcp-remote` falam) e com o verificador de papéis (§5.5) — na manhã de 26/10, ainda no modo matrícula e só-administrador. Depois das decisões, o processo do MCP não rodou de novo. O Claude Code de verdade não foi conectado, e o portão da §5.4 está fechado |
-| **3** | OAuth para conectores | claude.ai e ChatGPT completam `tools/call` | 🔨 o `OAuthClientProvider` do SDK completou o fluxo e um `tools/call` pela rede local, com o consentimento de então, pela sessão (§5.5). A aprovação pelo código no e-mail da conta de IA (decisão 3) foi provada com a API contra Postgres e PostgREST de verdade e remetente falso: nenhum e-mail saiu pelo SES. claude.ai e ChatGPT não conectaram: pedem URL pública em HTTPS, e isso é produção |
+| **0** | Registro único, despacho com as oito invariantes, testes de isolamento | §3.3 | ✅ feita (§3.4), em produção desde 27/10 |
+| **1** | Os seis defeitos, desempenho, cobertura e playbooks | cada item com teste; o Tio Léo visto no browser, coisa que o docs/30 diz nunca ter acontecido | ✅ **em produção desde 27/10**. Foi vista no browser numa stack descartável: a folha e os seis tipos de cartão (§4.5). Ninguém observou ainda o `gpt-4o-mini` escolhendo as tools novas (§8) |
+| **2** | MCP local por token pessoal, PostgREST e login próprios (§5.2), auditoria | um Claude Code conectado lê um ciclo e não consegue ler `usuario_coordenacao` | 🔨 **provada de ponta a ponta em 27/10, no modo novo** (§8.1): pelo cliente oficial do SDK, que fala o protocolo do Claude Code e do `mcp-remote`, as 31 tools saem com o nome real, um coordenador consulta com o próprio token e o verificador de papéis passa. A tela e o banco estão em produção; o processo do MCP não está (§5.4). O Claude Code de verdade não foi conectado |
+| **3** | OAuth para conectores | claude.ai e ChatGPT completam `tools/call` | 🔨 **provada de ponta a ponta em 27/10** (§8.1). O `OAuthClientProvider` do SDK, imitando o cliente do claude.ai, completou a aprovação pelo código no e-mail da conta de IA (decisão 3), sem sessão, e fez `tools/call`; a renovação e a revogação também funcionaram. O código saiu no log de dev, não pelo SES. claude.ai e ChatGPT não conectaram: pedem URL pública em HTTPS, e isso é produção |
 
 ### 7.1 · O que mudou em relação ao plano, e por quê
 
@@ -1140,8 +1159,8 @@ resposta.
 
 ## 8 · O que não foi verificado
 
-Atualizado em 26/10, depois das provas da §4.5 e da §5.5 — as da manhã e as
-da tarde, depois das decisões do dono.
+Atualizado em 27/10, depois da prova de ponta a ponta do MCP no modo novo
+(§8.1). As provas de 26/10 estão na §4.5 e na §5.5.
 
 **O modelo**
 
@@ -1170,9 +1189,10 @@ da tarde, depois das decisões do dono.
   a contagem de `disparo` por `atualizado_em`, que não tem índice, e o
   `listar_alunos`, que agora lê a `classificacao_aluno` inteira.
 - Os tetos do código por e-mail (20 por hora por IP, 5 por pedido, 10 por
-  e-mail por dia) não foram medidos com uso real. O "mesmo tempo" do `/codigo`
-  para e-mail cadastrado ou não é por construção — a resposta sai antes de
-  procurar o e-mail —, e não foi cronometrado.
+  e-mail por dia) foram exercitados na prova de 27/10 (§8.1), mas não medidos
+  com uso real. O "mesmo tempo" do `/codigo` para e-mail cadastrado ou não é
+  por construção, porque a resposta sai antes de procurar o e-mail. Em dev, a
+  medida deu 2 a 4 ms nos dois casos. Com o SES de verdade, não foi medido.
 
 **O banco de verdade**
 
@@ -1196,24 +1216,24 @@ da tarde, depois das decisões do dono.
   pela rede o emissor era `http://127.0.0.1:58000`, sem caminho, e a rota do
   RFC 8414 com o caminho do emissor não passou pela rede — a prova da tarde
   configurou o emissor com caminho, mas com a API em processo, sem rede nem
-  nginx. As `location`s da §10 não foram aplicadas nem testadas.
-- **Depois das decisões de 26/10, o processo do MCP não rodou de novo**: as 31
-  tools com o nome pelo cliente do SDK (inclusive `buscar_aluno_por_nome` e
-  `listar_alertas`), as `instructions` novas num `initialize` de verdade e o
-  verificador de papéis com `--ferramentas` contra um `postgrest_mcp`. A lista
-  branca nova de `alerta` foi provada por `SET ROLE sas_mcp` direto no
-  Postgres, não pelo PostgREST do MCP.
-- Um **coordenador** usando o MCP de ponta a ponta: a aprovação em nome de uma
-  coordenadora e o `/oauth/token` dela foram provados na API; um `tools/call`
-  com o token dela, não.
-- **O e-mail de verdade pelo SES**: nenhum código saiu por ele. Os testes e a
-  prova da tarde usaram remetente falso, e não se viu o e-mail chegar (prazo,
-  caixa de spam, como o cliente mostra o código). Nem o SES de produção: o
-  docs/15 §2 adiou o e-mail em 21/08 ("SES, sandbox e conta AWS saem do
-  caminho crítico"), e se hoje há credencial e saída do sandbox em produção
-  não foi conferido — o `.env` não se lê.
-- A validade de 30 dias da conexão OAuth e a de 90 dias do token pessoal: só o
-  vencimento do token pessoal foi simulado, no banco.
+  nginx. As `location`s da §10 entraram no `infra/vps` pelo PR #117 e
+  foram provadas num nginx descartável, da mesma versão, com o `nginx.conf` de
+  produção e upstreams falsos que só ecoam a requisição (§10). Não foram
+  provadas com o `app.mcp` e a API de verdade atrás dele.
+- **O e-mail de verdade pelo SES**: nenhum código saiu por ele. Os testes e as
+  provas usaram remetente falso ou o log de dev, e não se viu o e-mail chegar
+  (prazo, caixa de spam, como o cliente mostra o código). Nem o SES de
+  produção: o docs/15 §2 adiou o e-mail em 21/08 ("SES, sandbox e conta AWS
+  saem do caminho crítico"). Se hoje há credencial e saída do sandbox em
+  produção, o dono confere (§0.2, decisão 3); o `.env` não se lê.
+- Os prazos foram **simulados no banco**, nunca esperados: o vencimento do
+  token pessoal (90 dias), em 26/10, e, em 27/10, o do código de 6 dígitos, o
+  do pedido, o do código do RFC e os 30 dias da conexão OAuth (§8.1).
+- Um cliente no estilo do ChatGPT (confidencial, volta em `chatgpt.com`). A
+  prova de 27/10 imitou só o do claude.ai (público, volta em `claude.ai`).
+- O OAuth apontado para o servidor no modo pseudônimo: a stack de 27/10 tinha
+  um emissor para dois MCPs, e o `resource` do pseudônimo não era aceito. Lá
+  ele foi provado só por token pessoal.
 - O modo `--stdio`.
 - O `uvicorn` 0.31.1 sobe também na API (a mesma imagem), e a suíte não
   exercita o uvicorn: conferir com `./infra/vps/deploy.sh --verificar` depois
@@ -1237,6 +1257,95 @@ da tarde, depois das decisões do dono.
   confirmar —, o layout dela a 390 px e as frases novas do consentimento. No
   browser, nem contra a API falsa.
 - Os três achados da manhã estão no fim da §4.5, resolvidos à tarde.
+
+### 8.1 · A prova de ponta a ponta de 27/10 — o MCP no modo novo
+
+Feita depois do deploy do primeiro passo, sobre o código de produção
+(`ca4c68f`), numa stack descartável: Postgres 16 com as migrations 0001 a
+0073, os dois PostgREST v12.2.3 e cinco processos no host. Eram três MCP
+(padrão, pseudônimo e só-administrador) e duas APIs (padrão e
+só-administrador). A escola era sintética: 24 alunos com nome e sobrenomes
+inventados, e provas com 3, 14 e 24 notas, para o piso. Nada de produção, e a
+stack foi desmontada no fim.
+
+| Frente | Conferências |
+|---|---|
+| A — token pessoal e as 31 tools pelo cliente oficial do SDK (`mcp` 1.30.0) | 162 de 167 |
+| B — o OAuth como o claude.ai faz (`OAuthClientProvider` do SDK) | 148 de 148 |
+| C — pseudônimo, só-administrador e o guard de boot | 169 de 171 |
+| Verificador adversarial: reexecutou as três e escreveu provas próprias | o mesmo placar; 72 de 72 nas próprias |
+
+**O que ficou provado**
+- **As 31 tools saem com o nome real** dos 24 alunos, cada um ao lado do
+  próprio id. As `instructions` falam em nome e lembram que são adolescentes.
+  O `tools/list` é exatamente a lista de `EXPOSTAS`, e os prompts são os 4
+  roteiros da coordenação.
+- **O teto de 50 linhas** vale num limite pedido acima disso. Com 60 tópicos
+  temporários, o MCP devolveu 50 de 61, e o mesmo handler sem o MCP devolveu
+  61.
+- **A auditoria**: 64 linhas para 64 chamadas, só com ferramenta, desfecho,
+  duração e linhas, sem argumento nem nome, e com o ator certo.
+- **O coordenador** emite o próprio token, consulta, e na trilha o ator é ele.
+  Ele vê só as conexões dele. O administrador vê e revoga as de todos, e o
+  token revogado dá 401 na chamada seguinte.
+- **O card e o `/conectar-ia` inteiros**, sem sessão: o e-mail da IA nasce
+  aguardando, é confirmado por código, aprova pelo código de 6 dígitos, e a
+  conexão nasce com o acesso da dona do e-mail. Funcionam também a renovação,
+  a revogação, as recusas (todas com a mesma frase) e os três tetos do
+  `/codigo`. O `/codigo` responde igual, nos cabeçalhos inclusive, para
+  e-mail sem cadastro, confirmado, aguardando, removido e de conta
+  desativada. Nenhum e-mail inteiro nem código aparece nos cinco logs.
+- **O pseudônimo**: 29 tools, e nenhum dos 24 nomes nem dos 48 sobrenomes em
+  603 mil caracteres trafegados. Cada aluno aparece como `Aluno <matrícula>`,
+  e o insight que traz um nome é recusado inteiro.
+- **O só-administrador**: o coordenador leva 403 ao emitir, o token dele é
+  recusado pelo MCP com a mensagem exata, e o código de aprovar não chega ao
+  e-mail dele.
+- **O guard de boot**, com 13 MCPs de teste: em produção, o MCP recusa subir
+  com segredo da API no ambiente, apontado para o PostgREST da API ou sem
+  `MCP_HABILITADO`.
+- **O PostgREST certo**: com o PostgREST da API parado, o MCP segue
+  respondendo; com o `postgrest_mcp` parado, devolve 503.
+
+**Os três defeitos, todos de gravidade baixa, consertados no PR #116 (em produção desde 27/10)**
+1. **Uma conta desativada emitia token** com o JWT de sessão de antes da
+   desativação, que vale 8 h. A emissão só relia a tabela com o
+   só-administrador ligado. O token nascia morto, porque a RPC exige conta
+   ativa, mas **revivia** se a conta fosse reativada. As rotas do card que
+   criam credencial (cadastrar, confirmar e reenviar) tinham o mesmo buraco.
+   Agora as quatro releem a conta na tabela, com a régua da aprovação OAuth
+   (`auth.conta_pode_conectar_ia`), e a tela mostra o motivo certo, em vez de
+   "só do administrador".
+2. **A descrição de `notas_simulado` mandava usar `exportar_csv`**, que está
+   fora do MCP nos dois modos.
+3. **No pseudônimo, `obter_aluno` e `comparar_alunos` mandavam usar
+   `buscar_aluno_por_nome`**, que sai do catálogo nesse modo.
+
+Os defeitos 2 e 3 têm a mesma raiz: o catálogo repassava a descrição do chat
+sem adaptar.
+
+**O que a prova achou e não é defeito**
+- **O piso de anonimato não vale no MCP.** Numa prova com 3 notas, o MCP
+  entrega a média de 6,5 e as 3 notas com o nome. Isso é desenho (§4.4): a
+  rota da coordenação na API mostra o mesmo, e o `/me` aplica o piso. O dono
+  decidiu manter assim (§0.2, decisão 4).
+
+**Observações baixas que ficam abertas, com caminho**
+- O id do pedido de conexão (opaco, vale 10 min) aparece no campo `rota` da
+  linha "requisição concluída" das rotas `/oauth/pedidos/*`. Quem lê o log
+  consegue recusar um pedido aberto ou disparar códigos dentro dos tetos, mas
+  não consegue aprovar sem o código. O mesmo id já viaja na URL do
+  `/conectar-ia`. Caminho: mascarar o id nessa linha do log.
+- No só-administrador, a tela pública diz "se o e-mail estiver cadastrado e
+  confirmado, o código chegou lá" também para o e-mail de coordenador, que não
+  recebe nada. O card já avisa a conta, e o modo não é o padrão.
+- `GET /mcp/disponibilidade` não diz se o MCP mostra o nome ou o pseudônimo
+  (§5.5).
+- Os parâmetros de limite publicam juntos o teto do chat e o do MCP. Exemplo:
+  "Quantas notas listar, até 100. Padrão: 50. No máximo 50." O que vale é o
+  `maximum: 50` do schema, que o MCP impõe de qualquer jeito. Caminho: trocar
+  o "até N" do chat pelo teto do MCP no catálogo, como as trocas de descrição
+  do PR #116.
 
 ---
 
@@ -1294,7 +1403,18 @@ horário de estudos do aluno), com a migration `0069_bloco_horario_estudo.sql` �
   lados mexeram. Antes de abrir o PR, `git merge-base HEAD origin/main` tem de
   dar `fc461a2` ou um commit depois dele.
 
-**Primeiro passo — o chat e o banco, sem o MCP**
+**Primeiro passo — o chat e o banco, sem o MCP** *(✅ feito em 27/10)*
+
+Foi implantado em 27/10 de um clone limpo no merge do PR #115 (`ca4c68f`),
+com `./infra/vps/deploy.sh --migrar --rapido`, depois das suítes rodadas à mão.
+O que se conferiu:
+- as migrations 0070 a 0073, aplicadas;
+- as rotas `/api/mcp/*`, que passaram de 404 a 401;
+- no container da API, as 17 tools do aluno, as 42 da coordenação e o
+  `uvicorn` 0.31.1;
+- nenhum ERROR no log, e os pedaços novos do front publicados.
+
+Os itens abaixo são o roteiro que se seguiu.
 
 0. ⚠️ **O portão do `deploy.sh` está vermelho no `main`.** Os 3 testes de
    `api/tests/test_canvas_publicacao.py` falham também no `main`, e o `pytest`
@@ -1337,10 +1457,12 @@ horário de estudos do aluno), com a migration `0069_bloco_horario_estudo.sql` �
 
 **Segundo passo — o MCP, quando o portão abrir**
 
-1. O que a §5.4 ainda pede: a base legal do art. 14 da LGPD registrada e a
-   conta do provedor (§6). Nome × matrícula e quem conecta já foram decididos
-   pelo dono (§0.1).
-2. O `.env` de produção ganha a senha do login e as `MCP_*` (§10).
+1. O que a §5.4 pedia foi decidido pelo dono em 27/10 (§0.2): a base legal
+   do art. 14, afirmada (falta anexar onde a autorização está), e a conta
+   pessoal de cada coordenador. Nome × matrícula e quem conecta já tinham sido
+   decididos em 26/10 (§0.1).
+2. O `.env` de produção ganha `COMPOSE_PROFILES=mcp`, que liga os dois
+   serviços, a senha do login e as `MCP_*` (§10).
    - **E o SES, para o código do e-mail da conta de IA** (decisão 3). Sem ele
      nenhuma conexão OAuth se aprova fora de dev: o `/codigo` responde 202
      como sempre, nada é enviado, e o log ganha um ERROR `[AÇÃO NECESSÁRIA]`.
@@ -1359,17 +1481,19 @@ horário de estudos do aluno), com a migration `0069_bloco_horario_estudo.sql` �
      SNS continua fora (sem `SES_WEBHOOK_TOKEN`, `main.py` não o registra):
      enviar não depende dele. O docs/15 §2 adiou o e-mail em 21/08; esta é a
      primeira peça que o põe de volta no caminho crítico.
-3. O compose ganha os dois serviços e as redes, e o `deploy.sh` ganha o passo
-   da senha (§10). **A senha do `autenticador_mcp` é definida por fora da
-   migration**, depois do `migrate up`, e a cada deploy: um `down` + `up` da
-   0071 recria o login sem senha, e o PostgREST 12.2.3 sem senha sai com
-   código 1 (com `restart: unless-stopped`, fica tentando até ela existir).
-4. `docker compose restart postgrest postgrest_mcp`: os dois cacheiam o schema.
+3. Desde o PR #117, o compose já tem os dois serviços e as redes,
+   desligados, e o `deploy.sh` já tem o passo da senha (§10). **A senha do
+   `autenticador_mcp` é definida por fora da migration**, depois do `migrate
+   up` e a cada deploy: um `down` + `up` da 0071 recria o login sem senha, e o
+   PostgREST 12.2.3 sem senha sai com código 1 (com `restart:
+   unless-stopped`, fica tentando até ela existir).
+4. `docker compose restart postgrest postgrest_mcp`, porque os dois cacheiam o
+   schema. Com o MCP ligado, o `deploy.sh` já faz isso sozinho.
 5. O `mcp` sobe e pergunta ao `postgrest_mcp` com que papel fala: se lê
    `usuario_coordenacao`, recusa subir. Com o `postgrest_mcp` fora do ar por
    mais de ~18 s, sai, e volta pelo `restart`.
-6. O nginx ganha as `location`s da §10, e o container `web` precisa recarregar
-   o `nginx.conf`.
+6. O nginx já tem as `location`s da §10 desde o PR #117, e elas chegam a
+   produção no primeiro deploy depois dele, com o MCP ainda desligado.
 7. A prova, de dentro da rede (o `postgrest_mcp` não tem porta publicada):
    `docker compose exec -T api python -m scripts.verificar_papeis_do_mcp --mcp
    http://postgrest_mcp:3000 --api http://postgrest:3000 --ferramentas
@@ -1380,7 +1504,9 @@ horário de estudos do aluno), com a migration `0069_bloco_horario_estudo.sql` �
    `resource_metadata` no `WWW-Authenticate`; `GET
    /.well-known/oauth-protected-resource/mcp` e `GET
    /.well-known/oauth-authorization-server/api` devolvem JSON, e não o
-   `index.html` do SPA, que é o que o nginx de hoje devolve.
+   `index.html` do SPA, que é o que o nginx de `ca4c68f` devolve. Desde o PR
+   #117 eles estão no `--verificar`, que se adapta ao modo: com o MCP
+   desligado, o `/mcp` tem de dar o 503 do nginx.
 
 **Para desfazer**: pare o `postgrest_mcp` antes do `down` da 0071 (o DROP ROLE
 com ele conectado deixa sessão órfã). O `down` da 0072 apaga todos os tokens,

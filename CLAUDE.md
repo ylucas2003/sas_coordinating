@@ -84,10 +84,11 @@ sas/
 │                 são o modelo vigente, o resto é histórico; 42 é o horário
 │                 de estudos do aluno (em produção); **43 é o das ferramentas
 │                 do assistente e do MCP da coordenação** (nasceu 42 e passou a
-│                 43 em 27/10) — Fases 0 a 3 escritas e fora de produção; o
-│                 §0.1 dele são as decisões do dono de 26/10, o §8 o que NÃO
-│                 foi verificado, o §9 a ordem do deploy e o §10 o que o
-│                 `infra/vps` precisa para o MCP
+│                 43 em 27/10) — Fases 0 a 3 em produção desde 27/10, menos
+│                 o processo do MCP; o §0.1 e o §0.2 dele são as decisões do
+│                 dono de 26 e 27/10, o §8 o que NÃO foi verificado (o §8.1,
+│                 a prova de ponta a ponta de 27/10), o §9 a ordem do deploy
+│                 e o §10 o MCP no `infra/vps` e como ligá-lo
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no
@@ -127,7 +128,8 @@ reprovava em 24/10), e com eles o portão do `deploy.sh`: os deploys saem com
 clone limpo no commit do merge, nunca de um worktree com trabalho por
 commitar.
 
-O MCP da coordenação, local (docs/43 §5; nada dele está em produção):
+O MCP da coordenação, local (docs/43 §5). Em produção estão as tabelas e a
+tela de Conexões de IA; o processo do MCP, não (docs/43 §10):
 
 ```sh
 docker compose run --rm migrate up             # 0071–0073: papéis, token, OAuth
