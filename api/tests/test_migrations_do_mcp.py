@@ -895,9 +895,18 @@ def test_postgrest_do_mcp_entra_com_o_login_proprio(compose):
     senha = re.fullmatch(r"\$\{POSTGREST_MCP_PASSWORD(?P<padrao>[^}]*)\}", do_mcp["senha"])
     assert senha, do_mcp["senha"]
     if compose == "producao":
-        # Sem padrão: faltou no .env, o compose para — em vez de subir com a
-        # senha de desenvolvimento.
-        assert senha["padrao"].startswith(":?"), senha["padrao"]
+        # Sem senha CONHECIDA: faltou no .env, o postgrest_mcp não entra — em
+        # vez de subir com a senha de desenvolvimento. Até 27/10 a trava era
+        # `:?` (o compose parava). Mudou quando o MCP entrou em produção
+        # DESLIGADO, no profile `mcp` (docs/43 §10): o compose interpola o
+        # arquivo inteiro antes de aplicar os profiles, e com `:?` a senha
+        # fora do .env quebrava todo `docker compose` da stack — deploy, cron,
+        # `ps` — com o MCP desligado (provado no Compose v5.2.0). O padrão
+        # VAZIO guarda a mesma intenção: a URI vai sem senha, o login (que a
+        # 0071 cria com PASSWORD NULL) a recusa, e com o MCP ligado o
+        # deploy.sh avisa e o smoke reprova. `:?` segue aceito, se um dia o
+        # MCP de produção deixar de ser opcional.
+        assert senha["padrao"] == ":-" or senha["padrao"].startswith(":?"), senha["padrao"]
 
 
 @pytest.mark.parametrize("compose", sorted(_COMPOSES))
