@@ -532,3 +532,30 @@ def test_toda_troca_ainda_acha_o_trecho_que_troca():
             assert nome in chat, nome
             for trecho, _no_mcp in pares:
                 assert trecho in chat[nome], (nome, trecho)
+
+
+#: Um identificador em snake_case — é como toda tool se chama (`obter_aluno`).
+_IDENTIFICADOR = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
+
+
+def test_o_texto_novo_de_cada_troca_so_cita_tool_do_catalogo_do_modo():
+    """O guarda do tools/list, acima, só enxerga nome de tool REGISTRADA. Uma
+    troca que aponte para uma tool que não existe — renomeada no chat, ou
+    digitada errado — passaria por ele, e a IA voltaria a receber "tool '…'
+    não existe" (revisão de 27/10). Aqui o lado do MCP de cada troca é lido
+    por identificador: todo nome em snake_case tem de ser tool do catálogo do
+    modo em que a troca vale."""
+    from app.mcp.catalogo import TROCAS_COM_PSEUDONIMO, TROCAS_NOS_DOIS_MODOS
+
+    com_nome = {t.name for t in _tools_list(True)}
+    pseudonimo = {t.name for t in _tools_list(False)}
+    casos = [(TROCAS_NOS_DOIS_MODOS, com_nome & pseudonimo), (TROCAS_COM_PSEUDONIMO, pseudonimo)]
+    fora = [
+        (nome, citado)
+        for trocas, catalogo in casos
+        for nome, pares in trocas.items()
+        for _trecho, no_mcp in pares
+        for citado in _IDENTIFICADOR.findall(no_mcp)
+        if citado not in catalogo
+    ]
+    assert fora == []

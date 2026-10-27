@@ -15,6 +15,7 @@ Rodar:  cd api && APP_ENV=dev ./.venv/bin/python -m pytest tests/test_mcp_rotas.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -204,11 +205,18 @@ def test_a_tela_conhece_a_frase_da_conta_desativada_letra_por_letra():
     frase: a do só-administrador ela troca pela dela, que diz a quem recorrer,
     e a da conta desativada ela mostra (`fraseDoProibido`, em
     web/src/dominio/conexoesDeIa.ts). Com as duas cópias separadas, a conta
-    desativada voltava a ler "só do administrador", o motivo errado."""
+    desativada voltava a ler "só do administrador", o motivo errado.
+
+    IGUAL, e não só contida: um sufixo concatenado no .ts (`'…' + '…'`)
+    passaria por um `in` e separaria as duas (revisão de 27/10). Como o
+    CATALOGO_DE_ARTEFATOS de test_chat_ferramentas, a constante é lida pela
+    forma — uma string só, entre aspas simples —, e mudar a forma reprova."""
     dominio = Path(__file__).resolve().parents[2] / "web" / "src" / "dominio" / "conexoesDeIa.ts"
     if not dominio.exists():
         pytest.skip("web/ fora deste checkout (container da API)")
-    assert f"'{auth.MENSAGEM_CONTA_DESATIVADA}'" in dominio.read_text(encoding="utf-8")
+    achado = re.search(r"export const MENSAGEM_CONTA_DESATIVADA =\s*'([^']*)';", dominio.read_text(encoding="utf-8"))
+    assert achado, "MENSAGEM_CONTA_DESATIVADA sumiu do .ts ou mudou de forma (uma string só, entre aspas simples)"
+    assert achado.group(1) == auth.MENSAGEM_CONTA_DESATIVADA
 
 
 def test_conta_desativada_ainda_lista_e_revoga_as_suas(banco, config):
