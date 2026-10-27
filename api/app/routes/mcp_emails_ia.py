@@ -28,7 +28,7 @@ Quatro regras que não são detalhe:
      e-mail ativo duas vezes também é 409. Os dois índices parciais da 0073 são
      o que vale quando dois cadastros, ou duas confirmações, chegam juntos.
      O dono que é uma conta DESATIVADA não conta: o e-mail dela não aprova
-     mais nada (`oauth_mcp._conta_pode_conectar`), e ninguém o liberava — o
+     mais nada (`auth.conta_pode_conectar_ia`), e ninguém o liberava — o
      administrador só remove os próprios (regra 3). Quem cadastra, ou
      confirma, o libera: `removido_em` na linha velha, nunca apagar (regra 2),
      e a trilha com o e-mail mascarado (`_liberar_de_conta_desativada`). O
@@ -45,7 +45,8 @@ Quatro regras que não são detalhe:
 Cadastrar não passa pelo portão do administrador (MCP_EMISSAO_SO_ADMINISTRADOR):
 um e-mail cadastrado sozinho não dá acesso a nada. Com a regra ligada, quem a
 aplica é o /codigo (não envia código ao e-mail de quem não é administrador) e
-o /aprovar (não aprova em nome dele).
+o /aprovar (não aprova em nome dele). Passa, sim, pela conta ATIVA, relida na
+tabela (`_exigir_conta_ativa`): o JWT de 8 h não sabe que ela foi desativada.
 
 Cada código de confirmação é um e-mail que a escola manda a um endereço que
 alguém digitou: os tetos, em memória como os do /codigo (a API é um processo
@@ -72,7 +73,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 
 from ..auditoria import registrar as auditar
-from ..auth import get_current_coordenador
+from ..auth import MENSAGEM_CONTA_DESATIVADA, conta_pode_conectar_ia, get_current_coordenador
 from ..config import get_settings
 from ..lembretes import email as email_ses
 from ..mcp.auditoria_mcp import CANAL
@@ -244,6 +245,29 @@ def _id_ou_404(email_id: str) -> str:
         raise HTTPException(status_code=404, detail=_NAO_ENCONTRADO) from None
 
 
+def _exigir_conta_ativa(cliente: Any, user: dict) -> None:
+    """403 para a conta desativada, relida na TABELA com a régua do OAuth
+    (`auth.conta_pode_conectar_ia`), nas três rotas que dão ao e-mail o poder
+    de aprovar conexão: cadastrar e reenviar, que mandam o código de
+    confirmação, e confirmar, que é o que faz o e-mail aprovar.
+
+    É a classe do defeito da emissão do token pessoal (prova de ponta a ponta
+    de 27/10, docs/43 §5.3): `get_current_coordenador` decide só pelo JWT de
+    8 h, e com ele a conta desativada cadastrava e confirmava. O e-mail
+    confirmado assim não aprova nada enquanto ela está desativada (o /codigo e
+    o /aprovar releem a conta), mas passaria a aprovar se ela fosse reativada:
+    poder de aprovar dado por uma conta que já não podia dá-lo.
+    `so_administrador=False` não é esquecimento — o cadastro não passa pelo
+    portão do administrador (o topo do módulo).
+
+    Listar e remover NÃO passam por aqui: só reduzem acesso, e tirar acesso
+    nunca depende de poder dar acesso. É com a lista que a conta vê o que
+    remover, como revogar em routes/mcp_tokens.py.
+    """
+    if not conta_pode_conectar_ia(cliente, user.get("sub"), so_administrador=False):
+        raise HTTPException(status_code=403, detail=MENSAGEM_CONTA_DESATIVADA)
+
+
 def _ativo_da_conta(cliente: Any, email_id: str, sub: str) -> dict:
     """O cadastro ATIVO desta conta, com o código de confirmação — ou 404. O de
     outra conta também é 404, como em `remover_email` (regra 3)."""
@@ -267,7 +291,7 @@ def _donos_do_confirmado(cliente: Any, email: str, *, exceto: str | None = None)
     confirmado por outra aba da mesma conta, ele não é "de outro dono". Há no
     máximo um (o índice da 0073), então dois bastam.
 
-    Ativa é `ativo IS TRUE` na tabela, a régua de `oauth_mcp._conta_pode_conectar`:
+    Ativa é `ativo IS TRUE` na tabela, a régua de `auth.conta_pode_conectar_ia`:
     a conta que não está lá também não aprova nada."""
     linhas = [
         linha for linha in (
@@ -399,7 +423,8 @@ def listar_emails(user: dict = Depends(get_current_coordenador)) -> list[EmailDa
     """Os e-mails ATIVOS da própria conta, do mais antigo ao mais novo — os
     confirmados e os que aguardam o código (`confirmadoEm` nulo), que o card
     mostra com o campo do código. Os removidos ficam no banco (regra 2), fora
-    da lista: não aprovam mais nada."""
+    da lista: não aprovam mais nada. Aberta também à conta desativada, como
+    remover: só mostra o que se pode tirar (`_exigir_conta_ativa`)."""
     linhas = (
         get_supabase()
         .table("email_conta_ia_mcp")
@@ -432,6 +457,7 @@ def cadastrar_email(
     """
     sub = str(user.get("sub"))
     cliente = get_supabase()
+    _exigir_conta_ativa(cliente, user)
     tabela = "email_conta_ia_mcp"
     if _ativo_na_conta(cliente, sub, body.email):
         raise HTTPException(status_code=409, detail=_JA_CADASTRADO)
@@ -500,6 +526,7 @@ def confirmar_email(
     email_id = _id_ou_404(email_id)
     sub = str(user.get("sub"))
     cliente = get_supabase()
+    _exigir_conta_ativa(cliente, user)
     tabela = "email_conta_ia_mcp"
     linha = _ativo_da_conta(cliente, email_id, sub)
     if linha.get("confirmado_em") is not None:
@@ -587,6 +614,7 @@ def reenviar_codigo(
     email_id = _id_ou_404(email_id)
     sub = str(user.get("sub"))
     cliente = get_supabase()
+    _exigir_conta_ativa(cliente, user)
     linha = _ativo_da_conta(cliente, email_id, sub)
     if linha.get("confirmado_em") is not None:
         raise HTTPException(status_code=409, detail=_JA_CONFIRMADO)
@@ -621,7 +649,8 @@ def remover_email(
 ) -> EmailDaIaRemovido:
     """Remove na hora: o próximo /codigo para este e-mail não envia nada, e o
     código que já tinha saído não aprova (regra 2). Remover de novo devolve o
-    mesmo instante, sem segundo evento."""
+    mesmo instante, sem segundo evento. Aberta também à conta desativada: só
+    tira acesso (`_exigir_conta_ativa`)."""
     # Id torto é 404, não 500: o PostgREST recusaria o texto num uuid.
     try:
         email_id = str(uuid.UUID(email_id))

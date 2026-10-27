@@ -569,6 +569,41 @@ def test_conta_desativada_depois_do_cadastro_e_liberada_na_confirmacao(banco, re
     assert evento["detalhe"]["motivo"] == mcp_emails_ia.MOTIVO_CONTA_DESATIVADA
 
 
+def test_conta_desativada_nao_cadastra_confirma_nem_reenvia_mas_lista_e_remove(banco, remetente):
+    """A classe do defeito da emissão (prova de ponta a ponta de 27/10), no
+    card: com o JWT de 8 h que tinha, a conta desativada cadastrava, confirmava
+    e pedia outro código. O e-mail confirmado assim não aprova nada enquanto a
+    conta está desativada (o /codigo e o /aprovar releem a conta), mas passaria
+    a aprovar se ela fosse reativada. As três rotas que dão ao e-mail o poder de
+    aprovar releem a conta na tabela: 403, sem gravar nem enviar nada. Listar e
+    remover só tiram acesso, e ficam abertas."""
+    aguardando = _cadastrar("coord.ia@gmail.com")
+    certo = remetente.ultimo_codigo("coord.ia@gmail.com")
+    banco["usuario_coordenacao"][COORD_ID]["ativo"] = False
+    enviados = len(remetente.enviados)
+
+    for chamada in (
+        lambda: _cadastrar("outro.ia@gmail.com"),
+        lambda: _confirmar_com(aguardando.id, certo),
+        lambda: _reenviar(aguardando.id),
+    ):
+        with pytest.raises(HTTPException) as erro:
+            chamada()
+        assert erro.value.status_code == 403
+        assert erro.value.detail == auth.MENSAGEM_CONTA_DESATIVADA
+    assert len(remetente.enviados) == enviados
+    emails = [linha["email"] for linha in banco["email_conta_ia_mcp"].values()]
+    assert emails == ["coord.ia@gmail.com"]
+    linha = banco["email_conta_ia_mcp"][aguardando.id]
+    assert linha.get("confirmado_em") is None and linha["tentativas_de_confirmacao"] == 0
+    acoes = [evento["acao"] for evento in banco["evento_auditoria"].values()]
+    assert acoes == [mcp_emails_ia.ACAO_EMAIL_CADASTRADO]
+
+    # Tirar acesso nunca depende de poder dar acesso.
+    assert [e.id for e in mcp_emails_ia.listar_emails(COORDENADOR)] == [aguardando.id]
+    assert _remover(aguardando.id).removidoEm is not None
+
+
 def test_email_removido_pode_voltar_por_qualquer_conta(banco):
     antigo = _cadastrar("coord.ia@gmail.com")
     _remover(antigo.id)

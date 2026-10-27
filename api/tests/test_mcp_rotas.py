@@ -152,6 +152,61 @@ def test_administrador_rebaixado_na_tabela_nao_emite_com_o_token_velho(banco, co
     assert erro.value.status_code == 403
 
 
+#: A recusa do modo só-administrador, letra por letra: a prova de ponta a ponta
+#: de 27/10 compara o texto.
+FRASE_SO_ADMINISTRADOR = (
+    "Conectar uma IA ao SAS está, neste ambiente, restrito ao administrador "
+    "(MCP_EMISSAO_SO_ADMINISTRADOR, docs/43 §5.4)."
+)
+
+
+@pytest.mark.parametrize(
+    "sessao", [COORDENADOR, ADMINISTRADOR], ids=["coordenador", "administrador"]
+)
+def test_conta_desativada_nao_emite_com_o_jwt_que_ja_tinha(banco, config, sessao):
+    """O defeito da prova de ponta a ponta de 27/10. `get_current_coordenador`
+    decide só pelo JWT, que vale 8 h, e a conta desativada no meio dele emitia
+    token pessoal (201). O token nascia morto — a RPC da 0072 exige a conta
+    ativa —, mas REVIVIA se a conta fosse reativada. A emissão relê a conta na
+    tabela, com a régua da aprovação OAuth: 403 com frase própria, e nada
+    gravado, nem a linha nem a auditoria."""
+    banco["usuario_coordenacao"][sessao["sub"]]["ativo"] = False
+    with pytest.raises(HTTPException) as erro:
+        _emitir(sessao)
+    assert erro.value.status_code == 403
+    assert erro.value.detail == auth.MENSAGEM_CONTA_DESATIVADA
+    assert banco["token_mcp"] == {} and banco["evento_auditoria"] == {}
+    # A releitura é a cada pedido: reativada, a conta volta a emitir.
+    banco["usuario_coordenacao"][sessao["sub"]]["ativo"] = True
+    assert _emitir(sessao).dono.id == sessao["sub"]
+
+
+def test_com_so_o_administrador_ligado_cada_recusa_tem_a_sua_frase(banco, config):
+    """A do só-administrador fica como era; a da conta desativada é outra, e
+    vale também para o administrador: desativado, ninguém conecta, e dizer a
+    ele que a emissão é "restrita ao administrador" daria o motivo errado."""
+    config(emissao_so_administrador=True)
+    with pytest.raises(HTTPException) as erro:
+        _emitir(COORDENADOR)
+    assert (erro.value.status_code, erro.value.detail) == (403, FRASE_SO_ADMINISTRADOR)
+
+    banco["usuario_coordenacao"][ADMIN_ID]["ativo"] = False
+    with pytest.raises(HTTPException) as erro:
+        _emitir(ADMINISTRADOR)
+    assert erro.value.status_code == 403 and erro.value.detail != FRASE_SO_ADMINISTRADOR
+    assert erro.value.detail == auth.MENSAGEM_CONTA_DESATIVADA
+    assert banco["token_mcp"] == {}
+
+
+def test_conta_desativada_ainda_lista_e_revoga_as_suas(banco, config):
+    """Só a emissão recusa a conta desativada. Listar e revogar só tiram
+    acesso, e tirar acesso nunca depende de poder dar acesso."""
+    criada = _emitir(COORDENADOR)
+    banco["usuario_coordenacao"][COORD_ID]["ativo"] = False
+    assert [c.id for c in mcp_tokens.listar_conexoes(COORDENADOR)] == [criada.id]
+    assert _revogar(criada.id, COORDENADOR).revogadaEm is not None
+
+
 @pytest.mark.parametrize("nome", ["", "   ", "x" * 81])
 def test_nome_da_conexao_tem_de_1_a_80(nome):
     with pytest.raises(ValidationError):

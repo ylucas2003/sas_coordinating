@@ -4,18 +4,22 @@ Quase tudo contra um registro de MENTIRA, montado aqui: quem decide quais
 tools reais saem do SAS é a política de `app/chat/ferramentas.py`
 (`expor_no_mcp`), e o catálogo tem de seguir a política, seja ela qual for.
 Contra o registro de VERDADE ficam só as higienes que valem para qualquer
-política — nome, schema e teto de toda tool que estiver exposta.
+política — nome, schema e teto de toda tool que estiver exposta, e nenhuma
+descrição do tools/list mandando a uma tool fora do catálogo, nos dois modos —
+e as trocas de texto que o MCP faz hoje (`TROCAS_*`).
 
 Rodar:  cd api && APP_ENV=dev ./.venv/bin/python -m pytest tests/test_mcp_catalogo.py -q
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 
 import jsonschema
 import pytest
+from mcp.shared.memory import create_connected_server_and_client_session
 
 from app.chat.ferramentas import REGISTRO, Ferramenta, Registro
 from app.mcp.catalogo import (
@@ -26,6 +30,9 @@ from app.mcp.catalogo import (
     aplicar_teto,
     normalizar_schema,
 )
+from app.mcp.configuracao import ConfiguracaoMcp
+from app.mcp.servidor import montar_servidor
+from app.mcp.tokens import Identidade
 
 
 def _h(cliente, **kw):
@@ -416,3 +423,112 @@ def test_tool_exposta_e_somente_leitura(f):
     """A anotação readOnlyHint=True não pode mentir — e o catálogo exclui a
     que não é. Este teste avisa ANTES de ela sumir do MCP em silêncio."""
     assert f.somente_leitura
+
+
+# ─── O texto que o tools/list publica, nos DOIS modos ────────────────────
+
+#: Toda tool do registro, dos dois escopos. A que o catálogo de um modo não
+#: tem é uma que a IA de fora não acha.
+REGISTRADAS = frozenset(
+    f.nome for escopo in ("coordenacao", "aluno") for f in REGISTRO.catalogo(escopo)
+)
+
+
+def _tools_list(com_nome_do_aluno: bool) -> list:
+    """O tools/list de verdade: o servidor do MCP com o REGISTRO do SAS e a
+    configuração do modo, pelo cliente em memória do SDK — o que a IA de fora
+    recebe, e não o que o catálogo diz que monta."""
+
+    async def administradora(_pedido):
+        return Identidade(token_id="t", coordenador_id="c", nome="Admin", papel="administrador")
+
+    def sem_banco():
+        raise AssertionError("o tools/list não abre cliente PostgREST")
+
+    servidor = montar_servidor(
+        config=ConfiguracaoMcp(_env_file=None, mostrar_nome_do_aluno=com_nome_do_aluno),
+        registro=REGISTRO,
+        identificar=administradora,
+        criar_cliente=sem_banco,
+    )
+
+    async def listar():
+        async with create_connected_server_and_client_session(servidor) as sessao:
+            return (await sessao.list_tools()).tools
+
+    return asyncio.run(listar())
+
+
+def _descricoes(tool) -> list[tuple[str, str]]:
+    """(onde, texto) de cada descrição publicada de uma tool: a dela e a de
+    cada nó do inputSchema que tem uma — parâmetro, item de lista, o que for."""
+    achadas = [("description", tool.description or "")]
+    pilha: list[tuple[str, object]] = [("inputSchema", tool.inputSchema)]
+    while pilha:
+        caminho, no = pilha.pop()
+        if isinstance(no, dict):
+            for chave, valor in no.items():
+                if chave == "description" and isinstance(valor, str):
+                    achadas.append((f"{caminho}.description", valor))
+                else:
+                    pilha.append((f"{caminho}.{chave}", valor))
+        elif isinstance(no, list):
+            pilha.extend((f"{caminho}[{i}]", item) for i, item in enumerate(no))
+    return achadas
+
+
+@pytest.mark.parametrize("com_nome_do_aluno", [True, False], ids=["nome-real", "pseudonimo"])
+def test_o_tools_list_nao_manda_usar_tool_que_nao_esta_nele(com_nome_do_aluno):
+    """As descrições nascem no chat, onde toda tool citada existe. No MCP, não:
+    `exportar_csv` fica fora nos dois modos, e o pseudônimo tira
+    `buscar_aluno_por_nome` — e a IA de fora, mandada à tool citada, recebia
+    "tool '…' não existe" (prova de ponta a ponta de 27/10). Vale para a
+    descrição da tool e para a de cada parâmetro, com o nome como palavra
+    inteira. Os roteiros (prompts) ficam de fora: eles já mandam seguir com as
+    tools que a conexão tiver."""
+    tools = _tools_list(com_nome_do_aluno)
+    fora = REGISTRADAS - {t.name for t in tools}
+    assert {"exportar_csv", "gerar_grafico", "navegar_para"} <= fora
+    assert ("buscar_aluno_por_nome" in fora) == (not com_nome_do_aluno)
+    citacao = re.compile(r"\b(" + "|".join(sorted(map(re.escape, fora))) + r")\b")
+    citadas = [
+        f"{tool.name} → {onde} cita {achado.group(1)}"
+        for tool in tools
+        for onde, texto in _descricoes(tool)
+        for achado in citacao.finditer(texto)
+    ]
+    assert citadas == []
+
+
+def test_a_troca_e_so_no_mcp_e_aponta_para_a_tool_que_ele_tem():
+    """No chat as frases ficam, porque lá `exportar_csv` e
+    `buscar_aluno_por_nome` existem. No MCP, `notas_simulado` diz como a lista
+    vem cortada, e, com o pseudônimo, a porta de entrada é a matrícula — na
+    instrução e no exemplo, que com nome de pessoa ensinaria o modelo a pedir
+    nome. Com o nome real, `obter_aluno` e `comparar_alunos` saem como no chat."""
+    chat = {f.nome: f.descricao for f in REGISTRO.catalogo("coordenacao")}
+    com_nome = {t.name: t.description for t in _tools_list(True)}
+    pseudonimo = {t.name: t.description for t in _tools_list(False)}
+
+    assert "exportar_csv" in chat["notas_simulado"]
+    assert "truncado" in com_nome["notas_simulado"] and "truncado" in pseudonimo["notas_simulado"]
+    for nome in ("obter_aluno", "comparar_alunos"):
+        assert "buscar_aluno_por_nome" in chat[nome]
+        assert com_nome[nome] == chat[nome]
+        assert "buscar_aluno_por_matricula" in pseudonimo[nome]
+    assert "Ana" not in pseudonimo["comparar_alunos"]
+    assert "Aluno 2026001" in pseudonimo["comparar_alunos"]
+
+
+def test_toda_troca_ainda_acha_o_trecho_que_troca():
+    """A troca cujo trecho saiu da descrição do chat não troca mais nada —
+    sobra como configuração morta. Se a frase nova voltar a citar a tool
+    ausente, quem reprova é o teste do tools/list, acima."""
+    from app.mcp.catalogo import TROCAS_COM_PSEUDONIMO, TROCAS_NOS_DOIS_MODOS
+
+    chat = {f.nome: f.descricao for f in REGISTRO.catalogo("coordenacao")}
+    for trocas in (TROCAS_NOS_DOIS_MODOS, TROCAS_COM_PSEUDONIMO):
+        for nome, pares in trocas.items():
+            assert nome in chat, nome
+            for trecho, _no_mcp in pares:
+                assert trecho in chat[nome], (nome, trecho)
