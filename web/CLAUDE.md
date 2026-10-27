@@ -32,6 +32,23 @@ coordenação por um link no rodapé; `/login-cantina` é URL própria e não te
 travessia. O formulário de e-mail e senha é um só (`Login/FormularioSenha.tsx`),
 usado pelas duas portas com senha.
 
+⚠️ **E há uma rota pública fora dos três cascos: `/conectar-ia`**, o
+consentimento do OAuth do MCP (`telas/ConectarIa/ConectarIa.tsx`, docs/43
+§5.3). Mora em `App.tsx`, FORA da `RotaProtegida`, carregada por `lazy()` e
+com moldura própria. Desde 26/10 quem aprova uma conexão do claude.ai ou do
+ChatGPT prova a posse do e-mail da conta de IA com um código de 6 dígitos — não
+com login: a aba que a IA abre chega sem sessão, porque a sessão mora no
+`sessionStorage`, que é por aba. Por isso a página **não lê a sessão e não chama
+rota nenhuma que exija uma** (nem `/mcp/disponibilidade`): um 401 ali derrubaria
+a pessoa no login. Os e-mails que aprovam se cadastram na tela de Conexões de
+IA (`telas/Administracao/ConexoesDeIa.tsx`, seção "E-mails da sua IA"), que é
+da coordenação logada, e só aprovam depois de confirmados ali, com o código que
+chega a eles (docs/43 §5.6). Nos 400 e 429 o consentimento mostra a frase do
+servidor (`fraseDoServidor`): não enumerar e-mail depende de o backend não
+variar essas frases com o e-mail — não troque por texto que dependa dele. A volta genérica do login (`dominio/voltaDoLogin.ts`,
+`/login?proximo=…`) continua valendo para qualquer rota protegida aberta em
+aba nova.
+
 ## O casco: rail de rótulos, não topbar de abas
 
 `componentes/layout/` monta rail (5 destinos) + topbar + `<main>`. O que se
@@ -88,6 +105,38 @@ Migalha de ficha: a rota dá a trilha, a tela dá o nome da coisa aberta via
 `useTituloDaTela(...)`. Ele é hook — chame **antes** de qualquer `return`
 antecipado de carregamento ou erro.
 
+## O chat: os cartões passam por três peças
+
+O chat é um só para os dois cascos (`componentes/chat/Conversa.tsx`); o que
+muda por casco é QUEM DESENHA o cartão. Três peças, e as três precisam andar
+juntas (docs/43 §4.4, docs/27 §7):
+
+- **`CATALOGO_DE_ARTEFATOS`** (`dominio/chatStream.ts`) — o catálogo FECHADO
+  dos tipos que qualquer tool pode anexar no campo `artefato: {tipo, titulo?,
+  payload}`: `barras_corte`, `questao`, `lista_questoes`, `prova`,
+  `linha_temporal` e `histograma`. Espelha `TIPOS_DE_ARTEFATO` de
+  `api/app/chat/ferramentas.py` (o escopo `aluno`), e
+  `api/tests/test_chat_ferramentas.py` lê esta constante e reprova se as duas
+  divergirem. Tipo fora dele é descartado JÁ AO VIVO, porque o servidor também
+  não o grava — mostrar um cartão que some ao reabrir é pior do que não
+  mostrar. Tipo novo é mudança nos dois lados E migration no CHECK de
+  `chat_artefato` (como a 0070). `csv` e `navegacao` ficam fora de propósito:
+  só nascem das tools próprias (`exportar_csv`, `navegar_para`), senão qualquer
+  tool fabricaria um link.
+- **`artefatosNaResposta`** (`dominio/chatStream.ts`) — o servidor pendura o
+  artefato na mensagem `tool` que o produziu, e `Mensagem` não desenha mensagem
+  `tool`: sem esta passagem, nenhum cartão aparece ao REABRIR a conversa. Quem a
+  aplica é a própria `Conversa`, nos dois cascos (até 25/10 só a folha do aluno
+  fazia, e o coordenador perdia o link do `navegar_para` a cada thread
+  reaberta). Não reaplique em quem usa a `Conversa`.
+- **A prop `renderArtefato`** de `Conversa` e `Mensagem` — quem desenha. O
+  padrão é `renderArtefatoPadrao` (o `Artefato.tsx` da coordenação); a
+  `FolhaTioLeo` passa `desenharArtefatoDoAluno`, que usa
+  `telas/Aluno/TioLeo/ArtefatoAluno.tsx`, com cada cartão no próprio
+  `LimiteDeErro` e com tela cheia. Payload que não bate aparece como falha,
+  nunca some: `ArtefatoNaoRenderizavel` na coordenação, "Cartão não desenhado"
+  no aluno (e "Cartão não abriu" quando o cartão quebra).
+
 ## `src/exportacao/` é JavaScript de propósito
 
 Três arquivos `.js` montando DOM à mão no meio de um front todo em TSX. É
@@ -119,6 +168,13 @@ TypeScript de propósito: não montam DOM — ver o LEIA-ME de lá.)
     do docs/39 §6 juntou tudo. Toda tela sem seletor de régua chama
     `reguaDaCasa` — inclusive o resto honesto (`criterios[0]`) para quando o
     servidor renomear o slug.
+  - **A área do aluno tem DUAS notas contra o corte, e as duas estão certas**
+    (decisão do dono de 26/10): a do último simulado (`/me/evolucao`, as barras
+    da Hoje) e a que conta na régua (`/me/zona`, o cartão `barras_corte` do Tio
+    Léo e a zona). `dominio/notaContraCorte.ts` decide qual o gráfico mostra e
+    com que nome (`LEGENDA_DAS_NOTAS`, a prop `notas` de `BarraCorte`). Barra
+    contra o corte sem nome volta a parecer contradição — e nunca misture as
+    duas no mesmo gráfico.
 - **Nenhum `fetch` em componente.** Leitura por hook de `hooks/consultas.ts`,
   escrita por `hooks/mutacoes.ts`.
 - **Classes compartilhadas ficam globais** (`.card`, `.tone-*`, `.nota-badge`,

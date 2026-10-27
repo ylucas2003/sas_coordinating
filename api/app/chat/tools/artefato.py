@@ -20,6 +20,7 @@ import io
 
 from supabase import Client
 
+from ...stats import aluno_dados
 from ...stats.utils import como_float, nota_real
 
 # ─── gerar_grafico ────────────────────────────────────────────────────────
@@ -190,36 +191,20 @@ def _hist_simulado(cliente: Client, simulado_id: str, titulo: str | None) -> dic
 
 
 def _linha_aluno(cliente: Client, aluno_id: str, titulo: str | None) -> dict:
-    resp = (
-        cliente.table("nota")
-        .select(
-            "pontuacao, presente, simulado("
-            "id, nome, rotulo_curto, data_aplicacao, anulado, e_agregado, "
-            "nota_confiavel, nota_maxima)"
-        )
-        .eq("aluno_id", aluno_id)
-        # Mesma régua da trajetória: o zero sem resposta sai da série.
-        .eq("computavel", True)
-        .execute()
-    )
+    # A série é a trajetória (`aluno_dados.trajetoria_do_aluno`), a mesma da
+    # tool `trajetoria_aluno` e de /alunos/{id}/trajetoria: o gráfico e o texto
+    # do assistente não podem discordar sobre quais provas entram.
+    pontos = [
+        {
+            "data": p["dataAplicacao"],
+            "rotulo": p["rotuloCurto"] or p["simulado"],
+            "nota": p["nota"],
+            "simuladoId": p["simuladoId"],
+        }
+        for p in aluno_dados.trajetoria_do_aluno(cliente, aluno_id)
+    ]
     aluno_resp = cliente.table("aluno").select("nome").eq("id", aluno_id).limit(1).execute()
     aluno_nome = (aluno_resp.data or [{}])[0].get("nome", aluno_id)
-
-    pontos = []
-    for linha in resp.data or []:
-        sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado") or not linha.get("presente"):
-            continue
-        nota = nota_real(como_float(linha.get("pontuacao")), como_float(sim.get("nota_maxima")))
-        if nota is None:
-            continue
-        pontos.append({
-            "data": sim.get("data_aplicacao"),
-            "rotulo": sim.get("rotulo_curto") or sim.get("nome"),
-            "nota": round(nota, 2),
-            "simuladoId": sim.get("id"),
-        })
-    pontos.sort(key=lambda p: p["data"] or "")
 
     return {
         "tipo": "linha_temporal",
@@ -402,3 +387,14 @@ TOOLS: list[tuple[dict, callable]] = [
     (_SCHEMA_GERAR_GRAFICO, gerar_grafico),
     (_SCHEMA_EXPORTAR_CSV, exportar_csv),
 ]
+
+#: As duas são artefato de UI e ficam FORA do MCP (docs/43 §5.4, mapa de LGPD
+#: de 24/10): fora do app não há renderizador nem botão de download — o
+#: claude.ai e o ChatGPT desenham o próprio gráfico com os dados de
+#: `histograma_simulado` e `trajetoria_aluno` —, e o nome do aluno vai em
+#: texto livre (o título "Evolução — <nome>", a coluna do CSV), onde nenhuma
+#: regra sobre campo estruturado o alcança.
+METADADOS: dict[str, dict] = {
+    "gerar_grafico": {"expor_no_mcp": False},
+    "exportar_csv": {"expor_no_mcp": False},
+}

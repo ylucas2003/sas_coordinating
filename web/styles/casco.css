@@ -474,10 +474,7 @@
     gap: 10px;
   }
 
-  .topbar__migalha--atual {
-    font-size: 17px;
-    max-width: 180px;
-  }
+  /* A migalha no celular tem bloco próprio, no fim do arquivo. */
 
   /* Sobra o avatar: o papel escrito por extenso comeria a migalha. */
   .topbar__identidade {
@@ -486,5 +483,59 @@
 
   .topbar__identidade-papel {
     display: none;
+  }
+}
+
+/* ─── Celular: a trilha cede o caminho, nunca o destino ─────────────────────
+   Em 390px a nav da topbar tem 258px, e "Administração › Conexões de IA ›"
+   gastava 260: o item atual nascia fora dela e o `overflow: hidden` o
+   recortava inteiro (verificação no browser de 26/10, `/conectar-ia`). Não
+   era daquela tela — toda trilha de três degraus perdia o atual, e a de
+   quatro, do dia da cantina, também; o consentimento saiu do casco no mesmo
+   dia (virou página pública), e a regra ficou pelas outras. As duas causas
+   estavam nas regras-base: os degraus do caminho são `flex: none` e não
+   encolhem nunca, e o atual herdava o mesmo `flex: none` de
+   `.topbar__migalha` — o `min-width: 0` dele, que existe para deixá-lo
+   encolher, não fazia nada.
+
+   A resposta, em três passos:
+   1. saem os degraus de antes do penúltimo. QUAIS saem é regra, e mora em
+      `dominio/trilhaNoCelular.ts`; aqui só se esconde o que ela marcou, e a
+      seta de cada um sai junto;
+   2. o penúltimo — de onde se veio — é quem encolhe, com reticências;
+   3. o atual guarda até 180px, mas nunca mais que a nav menos 68px: a seta
+      (5px), os dois vãos dela (18px) e umas três letras do penúltimo. É esse
+      teto que garante as duas coisas de uma vez — o atual nunca é empurrado
+      para fora, e o penúltimo nunca some.
+
+   O atual continua `flex: none` DE PROPÓSITO. Encolhível, ele dividiria a
+   falta de espaço com o penúltimo na proporção do texto inteiro, e um título
+   comprido cederia antes do caminho — o contrário do que se quer. Quem o faz
+   caber é o teto, que acompanha a largura da nav.
+
+   Bloco próprio, com `screen and`: media query de largura casa na impressão
+   (web/CLAUDE.md). E DEPOIS das regras-base da topbar, porque `@media` não
+   soma especificidade. Nada aqui vale acima de 760px: o desktop fica como
+   estava. */
+@media screen and (max-width: 760px) {
+  .topbar__migalha--some-no-celular,
+  .topbar__separador--some-no-celular {
+    display: none;
+  }
+
+  .topbar__migalha--link {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar__migalha--atual {
+    font-size: 17px;
+    max-width: min(180px, 100%);
+  }
+
+  .topbar__separador + .topbar__migalha--atual {
+    max-width: min(180px, calc(100% - 68px));
   }
 }

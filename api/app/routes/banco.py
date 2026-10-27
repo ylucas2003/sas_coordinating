@@ -97,17 +97,12 @@ def _com_estudo_do_aluno(
 ) -> list[QuestaoVestibular]:
     """Anexa `resolvida`/`anotacao` quando quem pede é aluno (docs/22 §P6).
 
-    Uma leitura do estudo por resposta, não uma por questão: a página inteira é
-    resolvida com a mesma consulta.
-
-    Não vale para as rotas de lista, e é decisão do domínio: a lista serve os
-    dois perfis e o estudo é de UM aluno, então quem quer o estado pede
-    `GET /banco/estudo` (`listas._questoes_por_id`).
+    Aqui só se decide, pela sessão, SE o estudo vale; a leitura e a junção são
+    `consultas.anexar_estudo_do_aluno`, a mesma que a tool do aluno chama.
     """
     if user.get("tipo") != "aluno" or not questoes:
         return list(questoes)
-    estudo = {item.questaoId: item for item in listas.listar_estudo(cliente, user["aluno_id"])}
-    return consultas.anexar_estudo(questoes, estudo)
+    return consultas.anexar_estudo_do_aluno(cliente, questoes, user["aluno_id"])
 
 
 # ─── Leitura: vale para os dois perfis (docs/22 §2.3) ────────────────────
@@ -177,31 +172,26 @@ async def listar_questoes(
     (docs/22 §2.2). Quem agrega — `/banco/estatisticas` — nunca pagina. Não
     "conserte" tirando a paginação daqui nem pondo teto lá.
     """
-    if topico and topico != consultas.TOPICO_SEM_CLASSIFICACAO and not materia:
-        # '1.1' existe nas três matérias e significa coisa diferente em cada uma
-        # — "Fundamentos", "Conjuntos e Lógica", "Estrutura Atômica" (0028).
-        # Sem `materia` o filtro juntaria as três em silêncio, e o aluno leria
-        # um recorte errado sem erro nenhum na tela.
-        raise HTTPException(
-            status_code=400,
-            detail="Filtrar por tópico exige `materia`: o mesmo código existe nas três matérias",
-        )
+    filtros = consultas.FiltrosQuestoes(
+        materia=materia,
+        vestibular=vestibular,
+        anos=anos,
+        fase=fase,
+        topico=topico,
+        colecao=colecao,
+        busca=busca,
+        pagina=pagina,
+        por_pagina=por_pagina,
+    )
+    # A guarda "tópico exige matéria" é do domínio (`consultas.validar_filtros`),
+    # porque a tool do assistente monta o mesmo filtro. Aqui ela só vira 400.
+    try:
+        consultas.validar_filtros(filtros)
+    except consultas.FiltroInvalido as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     cliente = get_supabase()
-    pagina_de_questoes = consultas.listar_questoes(
-        cliente,
-        consultas.FiltrosQuestoes(
-            materia=materia,
-            vestibular=vestibular,
-            anos=anos,
-            fase=fase,
-            topico=topico,
-            colecao=colecao,
-            busca=busca,
-            pagina=pagina,
-            por_pagina=por_pagina,
-        ),
-    )
+    pagina_de_questoes = consultas.listar_questoes(cliente, filtros)
     pagina_de_questoes.questoes = _com_estudo_do_aluno(
         cliente, user, pagina_de_questoes.questoes
     )

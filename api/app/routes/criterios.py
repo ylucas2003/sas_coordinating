@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
-from ..stats import classificacao_ciclo, criterios_repo
+from ..stats import classificacao_ciclo, criterios, criterios_repo
 from ..supabase_client import get_supabase
 
 router = APIRouter(
@@ -85,26 +85,20 @@ def _422(exc: criterios_repo.CriterioInvalido) -> HTTPException:
 @router.get("")
 async def listar_criterios() -> list[dict]:
     """As réguas disponíveis, embutidas e criadas, com os cortes resolvidos."""
-    from .ciclos import _descrever_criterio
-
     cliente = get_supabase()
     return [
-        {**_descrever_criterio(c), "embutido": c.slug in _slugs_embutidos()}
+        {**criterios.descrever_criterio(c), "embutido": c.slug in _slugs_embutidos()}
         for c in criterios_repo.listar(cliente)
     ]
 
 
 def _slugs_embutidos() -> frozenset[str]:
-    from ..stats import criterios as mod
-
-    return frozenset(mod.CRITERIOS)
+    return frozenset(criterios.CRITERIOS)
 
 
 @router.get("/{slug}")
 async def obter_criterio(slug: str) -> dict:
     """Uma régua, com o histórico de versões quando foi criada pela coordenação."""
-    from .ciclos import _descrever_criterio
-
     cliente = get_supabase()
     try:
         regua = criterios_repo.resolver(cliente, slug)
@@ -121,7 +115,7 @@ async def obter_criterio(slug: str) -> dict:
         }
         for l in criterios_repo.versoes(cliente, slug)
     ]
-    return {**_descrever_criterio(regua), "embutido": embutido, "versoes": historico}
+    return {**criterios.descrever_criterio(regua), "embutido": embutido, "versoes": historico}
 
 
 @router.post("/previa")

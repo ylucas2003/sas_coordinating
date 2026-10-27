@@ -17,6 +17,7 @@ import {
   useTrajetoria,
   useZona,
 } from '../../dados/aluno';
+import { NOME_DA_MEDIA_DA_ZONA } from '../../dominio/notaContraCorte';
 import { Bloco } from './pecas/Bloco';
 import { Corrente } from './pecas/Corrente';
 import { Icone } from './pecas/Icone';
@@ -277,7 +278,9 @@ const NOME_DA_ZONA: Record<string, string> = {
   risco: 'Zona de risco',
 };
 
-function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
+// Exportada para o teste (`Jornada.test.ts`), que a desenha nos quatro casos da
+// leitura sem passar pelas consultas.
+export function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
   const L = 320;
   const A = 200;
   const faixaX = 4;
@@ -320,14 +323,19 @@ function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
   const corDaEtiqueta = noTopo ? 'var(--alu-dado)' : 'var(--alu-alerta)';
 
   const nome = NOME_DA_ZONA[zona.zona] ?? zona.zona;
+  // QUAL média é, na frase e no rótulo (decisão do dono de 26/10): a de
+  // `/me/zona` é a que conta na régua (`dominio/notaContraCorte.ts`). As barras
+  // da Hoje mostram a nota do último simulado, e um "Sua média é" sem nome
+  // parecia desmenti-las.
+  const suaMedia = `Sua ${NOME_DA_MEDIA_DA_ZONA} é`;
 
   // ⚠️ Régua sem exigência de MÉDIA não tem cota nem fronteira a desenhar, e
   // `ime-f2` é exatamente esse caso: os mínimos do IME na 2ª fase são todos
   // POR MATÉRIA (Art. 37, III) — não há um número de média no edital. Desenhar
   // "CORTE 0,0" e "−0,0" seria inventar régua, que é o pecado que a migration
   // 0037 corrigiu. Sem o número, o veredito continua honesto: o nome do
-  // critério fica no cabeçalho (docs/24 §2) e a distância que existe é a das
-  // barras por matéria, logo abaixo no mesmo bloco.
+  // critério fica no cabeçalho (docs/24 §2), e a frase logo abaixo da escada
+  // diz que quem segura é matéria, e qual.
   // Duas condições, não uma. A FRONTEIRA é a borda da faixa e existe sempre que
   // a régua tiver corte de média — ela é geometria da escada. A COTA é uma
   // medição sobre o aluno, e some quando não há o que medir: régua sem corte de
@@ -355,14 +363,14 @@ function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
           !temCota
             ? // Sem corte de média não há distância a narrar, e narrar uma
               // seria inventá-la para quem não vê a tela.
-              `${nome}, sob o critério ${zona.regua}. Sua média é ${fmt(zona.media)}. Este critério não exige nota mínima de média: os cortes dele são por matéria, e estão nas barras abaixo.`
+              `${nome}, sob o critério ${zona.regua}. ${suaMedia} ${fmt(zona.media)}. Este critério não exige nota mínima de média: os cortes dele são por matéria, e estão nas barras abaixo.`
             : noTopo
-              ? `${nome}, sob o critério ${zona.regua}. Sua média é ${fmt(
+              ? `${nome}, sob o critério ${zona.regua}. ${suaMedia} ${fmt(
                   zona.media,
                 )} e o corte que você já cruzou é ${fmt(
                   zona.corteAtual,
                 )}: você está ${fmt(distancia)} acima dele.`
-              : `${nome}, sob o critério ${zona.regua}. Sua média é ${fmt(
+              : `${nome}, sob o critério ${zona.regua}. ${suaMedia} ${fmt(
                   zona.media,
                 )} e a fronteira da próxima zona é ${fmt(
                   zona.corteProximaZona,
@@ -495,7 +503,7 @@ function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
           // segura é uma matéria. "Faltam 0,0 para subir de zona" seria uma
           // frase sem sentido escrita com um número inventado.
           <>
-            Sua média é <strong>{fmt(zona.media)}</strong>
+            {suaMedia} <strong>{fmt(zona.media)}</strong>
             {corteDaFronteira != null && (
               <>
                 {' '}
@@ -512,13 +520,13 @@ function HeroDaZona({ zona }: { zona: ZonaEDistancia }) {
           </>
         ) : noTopo ? (
           <>
-            Sua média é <strong>{fmt(zona.media)}</strong> e você está{' '}
+            {suaMedia} <strong>{fmt(zona.media)}</strong> e você está{' '}
             <strong>{fmt(distancia)}</strong> acima do corte de{' '}
             <strong>{fmt(zona.corteAtual)}</strong>.
           </>
         ) : (
           <>
-            Sua média é <strong>{fmt(zona.media)}</strong>. Faltam{' '}
+            {suaMedia} <strong>{fmt(zona.media)}</strong>. Faltam{' '}
             <strong>{fmt(distancia)}</strong> para chegar a{' '}
             <strong>{fmt(zona.corteProximaZona)}</strong> e subir de zona
             {zona.materiaMaisCurta && (

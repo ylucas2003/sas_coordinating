@@ -14,6 +14,10 @@ Convenções:
 Registry exporta:
   - SCHEMAS  : lista de schemas no formato OpenAI ([{type:"function", function:{...}}])
   - HANDLERS : dict {nome_tool: callable(cliente, **args) -> dict}
+
+Quem DESPACHA não é este módulo: é `chat/ferramentas.py` (docs/43 §3), o
+registro único que recolhe estas tools e as do aluno e aplica as guardas
+(escopo, argumentos, prazo, erro) num lugar só.
 """
 
 from __future__ import annotations
@@ -21,11 +25,28 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from . import artefato, comparar, contexto, heuristicas, lookup, relatorios, stats
+from . import (
+    artefato,
+    banco_questoes,
+    comparar,
+    contexto,
+    heuristicas,
+    lookup,
+    reguas,
+    relatorios,
+    rotinas,
+    stats,
+    trilha,
+)
 
 # ─── Registry ─────────────────────────────────────────────────────────────
 
-_MODULOS = (lookup, stats, comparar, heuristicas, relatorios, artefato, contexto)
+# Os quatro do fim são a cobertura do docs/43 §4.3: banco de questões, régua
+# como objeto, rotinas automáticas (sync, gravações, lembretes) e auditoria.
+_MODULOS = (
+    lookup, stats, comparar, heuristicas, relatorios, artefato, contexto,
+    banco_questoes, reguas, rotinas, trilha,
+)
 
 SCHEMAS: list[dict[str, Any]] = []
 HANDLERS: dict[str, Callable] = {}
@@ -34,17 +55,3 @@ for mod in _MODULOS:
     for schema, handler in mod.TOOLS:
         SCHEMAS.append({"type": "function", "function": schema})
         HANDLERS[schema["name"]] = handler
-
-
-def executar(nome: str, cliente, args: dict) -> dict:
-    """Despacha uma chamada de tool. Devolve sempre um dict serializável."""
-    fn = HANDLERS.get(nome)
-    if fn is None:
-        return {"erro": f"tool '{nome}' não existe"}
-    try:
-        return fn(cliente, **(args or {}))
-    except TypeError as e:
-        # Argumentos inválidos (LLM passou kwargs errados).
-        return {"erro": f"argumentos inválidos para '{nome}': {e}"}
-    except Exception as e:
-        return {"erro": f"erro ao executar '{nome}': {type(e).__name__}: {e}"}

@@ -234,6 +234,71 @@ export function useAcessosDeAlunos() {
   return useQuery({ queryKey: ['administracao', 'alunos-acesso'], queryFn: api.acessosDeAlunos });
 }
 
+// ─── Conexões de IA · o MCP da coordenação (docs/43 §5.3) ────────────────
+
+/**
+ * As conexões que a sessão enxerga — todas para o administrador, as próprias
+ * para o coordenador.
+ *
+ * A chave mora sob `['administracao']` de propósito: é ela que
+ * `invalidarAdministracao` alcança, e criar ou revogar uma conexão tem de
+ * redesenhar esta lista e o card do hub sem que ninguém lembre de pedir.
+ *
+ * ⚠️ O token NÃO está aqui e nunca estará: a lista não o traz. Ele aparece só
+ * na resposta da criação, que é mutação, não consulta (`useCriarConexaoDeIa`).
+ */
+export function useConexoesDeIa() {
+  return useQuery({ queryKey: ['administracao', 'conexoes-ia'], queryFn: api.listarConexoesDeIa });
+}
+
+/**
+ * Se o servidor MCP está ligado, quem pode emitir e o endereço que a IA usa.
+ *
+ * FORA de `['administracao']`: muda por configuração do servidor, não por
+ * nada que se faça na tela — revogar uma conexão não tem por que reconsultar
+ * isto.
+ */
+export function useDisponibilidadeDoMcp() {
+  return useQuery({
+    queryKey: ['mcp', 'disponibilidade'],
+    queryFn: api.disponibilidadeDoMcp,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * Os e-mails da IA da PRÓPRIA conta — os endereços para onde o consentimento
+ * manda o código que aprova uma conexão do claude.ai ou do ChatGPT.
+ *
+ * Sob `['administracao']` pelo mesmo motivo de `useConexoesDeIa`: cadastrar e
+ * remover redesenham a lista sem que ninguém lembre de pedir, e a auditoria
+ * vai junto.
+ */
+export function useEmailsDaIa() {
+  return useQuery({ queryKey: ['administracao', 'emails-ia'], queryFn: api.listarEmailsDaIa });
+}
+
+/**
+ * O pedido de conexão que um app de IA mandou (`/conectar-ia?pedido=<id>`).
+ *
+ * Rota PÚBLICA desde 26/10: a tela que usa isto não tem sessão, e nada aqui
+ * pode depender de uma. ⚠️ Pela mesma razão, a tela do consentimento não chama
+ * NENHUMA rota de sessão — nem a disponibilidade: um 401 derruba para o login
+ * (`servicos/http.ts::seNaoAutorizado`), e o pedido se perderia no caminho.
+ *
+ * `retry: false` porque a resposta que importa aqui é o 404 — pedido que não
+ * existe, expirou ou já foi respondido —, e tentar de novo só atrasaria a
+ * explicação. Falha de rede tem botão de tentar de novo na própria tela.
+ */
+export function usePedidoDeConexao(id: string | null) {
+  return useQuery({
+    queryKey: ['conectar-ia', 'pedido', id ?? ''],
+    queryFn: () => api.obterPedidoDeConexao(id ?? ''),
+    enabled: !!id,
+    retry: false,
+  });
+}
+
 // ─── Ficha do aluno ──────────────────────────────────────────────────────
 
 export function useAluno(id: string) {

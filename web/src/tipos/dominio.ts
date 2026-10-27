@@ -451,7 +451,9 @@ export interface ClassificacaoCiclo {
 
 // ─── Auditoria ───────────────────────────────────────────────────────────
 
-export type CanalAuditoria = 'acesso' | 'nota' | 'simulado' | 'ciclo' | 'canvas' | 'criterio';
+// `mcp`: as conexões de IA (docs/43 §5.3). A leitura de cada tool fica fora
+// da linha do tempo padrão, como os logins (app/auditoria.py).
+export type CanalAuditoria = 'acesso' | 'nota' | 'simulado' | 'ciclo' | 'canvas' | 'criterio' | 'mcp';
 
 export interface EventoAuditoria {
   id: number;
@@ -516,6 +518,143 @@ export interface PainelAcessos {
   /** Fóssil do tempo da senha de aluno — ver `AcessoAluno.primeiroAcessoFeito`. */
   comAcesso: number;
   alunos: AcessoAluno[];
+}
+
+// ─── Conexões de IA · o MCP da coordenação (docs/43 §5.3) ────────────────
+//
+// Espelham as rotas `/mcp/*` e `/oauth/pedidos/*` da API. A forma é a do
+// contrato de 24/10, escrito antes do backend, e a do de 26/10 (os e-mails da
+// IA e a aprovação por código): mudou lá, mude aqui.
+
+/**
+ * `pessoal` é o token que a tela de Conexões de IA emite (Fase 2); `oauth` é a
+ * conexão que um conector (claude.ai, ChatGPT) abre pelo consentimento
+ * (Fase 3). As duas moram na mesma lista porque as duas leem o SAS do mesmo
+ * jeito, e se revogam pela mesma rota. No OAuth, o refresh mora em outra
+ * tabela, e quem corta a RENOVAÇÃO de uma conexão revogada é o `/oauth/token`.
+ * Ver `dominio/conexoesDeIa.ts::REVOGACAO_OAUTH_CORTA_RENOVACAO`.
+ */
+export type OrigemDaConexaoDeIa = 'pessoal' | 'oauth';
+
+export interface ConexaoDeIa {
+  id: string;
+  nome: string;
+  /** O começo do token, para reconhecer qual é qual. O token inteiro NUNCA volta. */
+  prefixo: string;
+  origem: OrigemDaConexaoDeIa;
+  /**
+   * O nome do app, quando a origem é `oauth`; `null` no token pessoal. É o que
+   * o PRÓPRIO app declarou no cadastro dinâmico: não é conferido, e a tela o
+   * passa por `dominio/conexoesDeIa.ts::nomeDoApp` antes de mostrar.
+   */
+  cliente: string | null;
+  criadaEm: string;
+  ultimoUsoEm: string | null;
+  /**
+   * Quando a conexão acaba sozinha, e `null` quando não acaba. No token
+   * pessoal, é a validade dele. Na conexão OAuth, é o fim da CONCESSÃO: 30 dias
+   * contados da aprovação, herdados por cada refresh. Não é a validade de 1 h
+   * do acesso em uso, que o app renova sozinho até essa data (contrato de
+   * 26/10, `dominio/conexoesDeIa.ts::situacaoDaConexao`).
+   */
+  expiraEm: string | null;
+  revogadaEm: string | null;
+  dono: { id: string; nome: string };
+}
+
+/**
+ * A resposta da criação — a ÚNICA em que o token aparece. O servidor guarda só
+ * o sha256 dele; quem perder, revoga e cria outro.
+ */
+export interface ConexaoDeIaCriada extends ConexaoDeIa {
+  token: string;
+}
+
+export interface DisponibilidadeDoMcp {
+  /** O servidor MCP está ligado neste ambiente. */
+  habilitado: boolean;
+  /**
+   * Emitir token e aprovar conexão OAuth é só do administrador. Desde 26/10 o
+   * padrão é `false` — coordenador e administrador conectam (decisão do dono,
+   * docs/43) —, e `true` virou opção de configuração do servidor
+   * (`MCP_EMISSAO_SO_ADMINISTRADOR`).
+   */
+  emissaoSoAdministrador: boolean;
+  /** O endereço que a IA configura. `null` quando não há servidor para apontar. */
+  urlDoServidor: string | null;
+}
+
+/**
+ * Um e-mail da conta de IA de quem está na sessão (`GET /mcp/emails-ia`).
+ *
+ * É por ele que uma conexão do claude.ai ou do ChatGPT é aprovada: o
+ * consentimento manda um código para este endereço, e quem o digita aprova
+ * com o acesso da conta DONA do e-mail (decisão do dono de 26/10). Pode ser
+ * outro que não o e-mail do SAS, e uma conta pode ter mais de um. O servidor
+ * guarda em minúsculas e recusa com 409 o que outra conta já confirmou, ou o
+ * que esta já tem.
+ */
+export interface EmailDaIa {
+  id: string;
+  email: string;
+  criadoEm: string;
+  /**
+   * Quando quem cadastrou digitou, no card, o código que chegou ao e-mail.
+   * `null` = aguardando: o e-mail ainda não recebe o código de aprovar nem
+   * aprova nada (revisão de segurança de 26/10, `POST …/confirmar`).
+   */
+  confirmadoEm: string | null;
+  /** A última aprovação feita por este e-mail; `null` se nenhuma ainda. */
+  ultimoUsoEm: string | null;
+}
+
+/**
+ * `POST /mcp/emails-ia/{id}/reenviar` — 202. Só volta `true`: o código que
+ * não saiu é 503, e o e-mail continua aguardando.
+ */
+export interface CodigoDeConfirmacaoEnviado {
+  enviado: boolean;
+}
+
+/** `POST /mcp/emails-ia/{id}/remover`. Nada é apagado: a linha ganha a data. */
+export interface EmailDaIaRemovido {
+  id: string;
+  removidoEm: string;
+}
+
+/**
+ * `POST /oauth/pedidos/{id}/codigo` — 202, e SEMPRE esta mesma resposta, com
+ * e-mail cadastrado ou não: a tela não tem como saber, e não deve (nada de
+ * enumerar e-mail pelo consentimento, que é rota pública).
+ */
+export interface CodigoDoPedidoPedido {
+  enviado: boolean;
+}
+
+/**
+ * O pedido de um app de IA que chegou pelo authorization server da API.
+ *
+ * Lido SEM sessão do SAS (`GET /oauth/pedidos/{id}`, rota pública desde
+ * 26/10): quem aprova prova a posse do e-mail da IA, não um login.
+ */
+export interface PedidoDeConexao {
+  id: string;
+  cliente: {
+    /** O nome que o PRÓPRIO app declarou no cadastro dinâmico — não é conferido. */
+    nome: string;
+    /** O host para onde o browser volta depois da resposta. */
+    redirectHost: string;
+  };
+  expiraEm: string;
+}
+
+/**
+ * Aprovar e recusar devolvem o mesmo: para onde mandar o browser. A aprovação
+ * com código errado, vencido ou já sem tentativas volta 400, com uma
+ * mensagem só — a tela não diz qual dos três foi.
+ */
+export interface RespostaAoPedidoDeConexao {
+  redirecionarPara: string;
 }
 
 // ─── Integrações · gravação de aula (Canvas → YouTube → Canvas) ──────────

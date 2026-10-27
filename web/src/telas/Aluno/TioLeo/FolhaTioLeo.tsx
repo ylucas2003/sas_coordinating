@@ -4,10 +4,11 @@ import { Conversa } from '../../../componentes/chat/Conversa';
 import { CAPACIDADES_ALUNO, SUGESTOES_ALUNO } from '../../../dados/perfisSugestoes';
 import * as api from '../../../servicos/api';
 import * as sessao from '../../../servicos/sessao';
-import type { ChatThreadDetalhe, ChatThreadResumo } from '../../../tipos/chat';
+import type { ArtefatoChat, ChatThreadDetalhe, ChatThreadResumo } from '../../../tipos/chat';
 import { Folha } from '../pecas/Folha';
 import { Icone } from '../pecas/Icone';
 import { fmtDataCurta } from '../pecas/formato';
+import { ArtefatoAluno } from './ArtefatoAluno';
 
 // A folha do Tio Léo — bottom sheet no celular, cartão flutuante de 400×620 no
 // desktop (a geometria do artboard; o CSS está em aluno-tioleo.css).
@@ -29,6 +30,14 @@ interface Props {
   onFechar: () => void;
 }
 
+/**
+ * Os artefatos no desenho do aluno (docs/27 §7). A `Conversa` desenha com o da
+ * coordenação quando ninguém passa nada, e é assim que o `ChatLauncher` segue.
+ */
+function desenharArtefatoDoAluno(artefato: ArtefatoChat) {
+  return <ArtefatoAluno artefato={artefato} />;
+}
+
 export function FolhaTioLeo({ aberta, onFechar }: Props) {
   const [threads, setThreads] = useState<ChatThreadResumo[]>([]);
   const [detalhe, setDetalhe] = useState<ChatThreadDetalhe | null>(null);
@@ -45,6 +54,10 @@ export function FolhaTioLeo({ aberta, onFechar }: Props) {
   const jaCarregou = useRef(false);
   const estavaAberta = useRef(false);
 
+  // A thread entra crua: quem devolve à resposta o cartão que o servidor
+  // pendurou na mensagem `tool` é a própria `Conversa` (`artefatosNaResposta`,
+  // docs/43 §4.1), para os dois cascos. Até 25/10 a passagem era feita aqui, e
+  // só aqui.
   const aplicar = useCallback((thread: ChatThreadDetalhe) => {
     idAtual.current = thread.id;
     setDetalhe(thread);
@@ -73,7 +86,10 @@ export function FolhaTioLeo({ aberta, onFechar }: Props) {
     const id = idAtual.current;
     if (!id) return;
     try {
-      aplicar((await api.obterChatThread(id)) as ChatThreadDetalhe);
+      const relida = (await api.obterChatThread(id)) as ChatThreadDetalhe;
+      // O aluno pode ter escolhido outra conversa enquanto a releitura voava:
+      // aplicá-la agora o devolveria à conversa que ele acabou de deixar.
+      if (idAtual.current === id) aplicar(relida);
     } catch {
       // Silêncio de propósito: a releitura não foi pedida pelo aluno, e o que
       // já está na tela continua valendo. Errar aqui não é notícia para ele.
@@ -168,6 +184,9 @@ export function FolhaTioLeo({ aberta, onFechar }: Props) {
               <Icone nome="faisca" tamanho={44} />
             </span>
             <p className="alu-tioleo__saudacao">Oi{primeiro ? `, ${primeiro}` : ''}</p>
+            {/* Cada parte da frase tem tool por trás — `minhas_notas`,
+                `minhas_questoes_erradas` e `o_que_mais_cai`. A última era a
+                promessa sem dado do docs/43 §1 (defeito 3) até a tool existir. */}
             <p className="alu-tioleo__pitch">
               Eu vejo suas notas, seus erros e o que mais cai nas provas.
             </p>
@@ -179,6 +198,8 @@ export function FolhaTioLeo({ aberta, onFechar }: Props) {
             onTituloAtualizado={renomear}
             sugestoes={SUGESTOES_ALUNO}
             capacidades={CAPACIDADES_ALUNO}
+            renderArtefato={desenharArtefatoDoAluno}
+            escopo="aluno"
           />
         </>
       )}

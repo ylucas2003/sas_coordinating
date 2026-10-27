@@ -128,8 +128,12 @@ export function useMigalhas(): Migalha[] {
         const campo = partes[1];
         if (campo === 'troca-de-telas') return [ADMIN, { texto: 'Troca de Telas Automática' }];
         if (campo === 'captacao') return [ADMIN, { texto: 'Captação' }];
+        if (campo === 'conexoes-de-ia') return [ADMIN, { texto: 'Conexões de IA' }];
         return temId ? [ADMIN, { texto: 'Quem tem acesso' }] : [{ texto: 'Administração' }];
       }
+      // `/conectar-ia` (o consentimento do OAuth) não tem caso aqui, e não é
+      // esquecimento: desde 26/10 é página pública, desenhada fora do casco
+      // (`App.tsx`), sem topbar e sem trilha.
       case 'auditoria':
         return [ADMIN, { texto: 'Auditoria' }];
       case 'calibracao':

@@ -1,13 +1,17 @@
 import { useMemo } from 'react';
 
 import { CartaoDeCampo, EloQuieto } from '../../componentes/ui/Campo';
-import { useAlunos, useAuditoria, useCoordenadores, usePainelGravacoes } from '../../hooks/consultas';
+import {
+  useAlunos, useAuditoria, useConexoesDeIa, useCoordenadores, useDisponibilidadeDoMcp,
+  usePainelGravacoes,
+} from '../../hooks/consultas';
 import { useCandidatos } from '../../hooks/captacao';
 import { useCalendarioNaCoordenacao } from '../../hooks/cantina';
 import { isoDoDia } from '../../dominio/cantina';
 import { useParametroDeImportancia } from '../../hooks/banco';
 import * as sessao from '../../servicos/sessao';
 import { resumoAndamento, situacaoDe } from '../../dominio/gravacoes';
+import { resumoDasConexoes, vazioDasConexoes } from '../../dominio/conexoesDeIa';
 
 // ADMINISTRAÇÃO — quatro campos, e nada além deles.
 //
@@ -213,6 +217,31 @@ function useResumoDeCaptacao() {
   };
 }
 
+/**
+ * "2 ativas · última usada hoje" — e "servidor desligado" na frente, quando
+ * for o caso (docs/43 §5.3).
+ *
+ * A frase é de `dominio/conexoesDeIa.ts::resumoDasConexoes`, com teste. Aqui só
+ * se decide o que entra nela: `habilitado` nulo é "não sei" (a disponibilidade
+ * falhou ou não chegou), e aí o card não afirma que o servidor está desligado.
+ *
+ * Espera as DUAS consultas no esqueleto: "servidor desligado" chega por outra
+ * consulta, e uma frase que ganha o prefixo meio segundo depois de aparecer
+ * faz o card pular. Sem `useMemo`: a conta é de dezenas de linhas, e "hoje"
+ * depende da hora em que se olha.
+ */
+function useResumoDeConexoesDeIa() {
+  const conexoes = useConexoesDeIa();
+  const disponibilidade = useDisponibilidadeDoMcp();
+  const habilitado = disponibilidade.data?.habilitado ?? null;
+  return {
+    // Falha de consulta NÃO vira "nenhuma conectada" — ver `vazioDasConexoes`.
+    texto: conexoes.isError ? null : resumoDasConexoes(conexoes.data, habilitado, new Date()),
+    carregando: conexoes.isLoading || disponibilidade.isLoading,
+    falhou: conexoes.isError,
+  };
+}
+
 export function HubAdministracao() {
   const cantina = useResumoDaCantina();
   const contas = useResumoDeContas();
@@ -220,6 +249,7 @@ export function HubAdministracao() {
   const integracoes = useResumoDeIntegracoes();
   const calibracao = useResumoDeCalibracao();
   const captacao = useResumoDeCaptacao();
+  const conexoesDeIa = useResumoDeConexoesDeIa();
 
   return (
     <div className="tela">
@@ -265,6 +295,27 @@ export function HubAdministracao() {
               <circle cx="27" cy="24" r="9" />
               <path d="M12 54c0-8.3 6.7-15 15-15s15 6.7 15 15" />
               <path d="M46 26h12M52 20v12" />
+            </>
+          }
+        />
+
+        {/* CONEXÕES DE IA — o MCP da coordenação (docs/43 §5.3). Logo depois
+            de "Quem tem acesso" porque é a mesma pergunta feita de fora: que
+            IA lê o SAS, em nome de quem. O card é de TODA a coordenação —
+            cada um vê e revoga as conexões em nome dele, e o administrador vê
+            todas; quem pode criar, a tela de destino diz. */}
+        <CartaoDeCampo
+          olho="Conexões de IA"
+          titulo="Que IA lê o SAS?"
+          para="/administracao/conexoes-de-ia"
+          carregando={conexoesDeIa.carregando}
+          subtitulo={conexoesDeIa.texto}
+          vazio={vazioDasConexoes(conexoesDeIa.falhou, sessao.ehAdministrador())}
+          glifo={
+            <>
+              <path d="M27 12v12M43 12v12" />
+              <path d="M19 24h32v9a16 16 0 0 1-32 0z" />
+              <path d="M35 49v9" />
             </>
           }
         />

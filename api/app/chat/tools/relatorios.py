@@ -487,10 +487,13 @@ def relatorio_ciclo(cliente: Client, *, ciclo_id: str) -> dict:
     )
 
     def _enriquecer_com_nomes(rows: list[dict]) -> list[dict]:
+        # `alunoId` e `matricula` ao lado do nome: sem chave de identidade no
+        # mesmo dict, o pseudonimizador do MCP não tem de onde tirar um rótulo
+        # estável e recusa o relatório inteiro (mapa de LGPD de 24/10).
         ids = [r["aluno_id"] for r in rows]
         if not ids:
             return []
-        nomes_r = cliente.table("aluno").select("id, nome, ativo").in_("id", ids).execute()
+        nomes_r = cliente.table("aluno").select("id, nome, matricula, ativo").in_("id", ids).execute()
         nomes = {a["id"]: a for a in (nomes_r.data or [])}
         saida = []
         for r in rows:
@@ -498,7 +501,9 @@ def relatorio_ciclo(cliente: Client, *, ciclo_id: str) -> dict:
             if not a.get("ativo", True):
                 continue
             saida.append({
+                "alunoId": r["aluno_id"],
                 "nome": a.get("nome"),
+                "matricula": a.get("matricula"),
                 "zona": r.get("zona"),
                 "tendencia": r.get("tendencia"),
                 "perfil": r.get("perfil"),
@@ -550,3 +555,12 @@ TOOLS: list[tuple[dict, callable]] = [
     (_SCHEMA_HISTORICO_ALUNO, historico_aluno),
     (_SCHEMA_RELATORIO_CICLO, relatorio_ciclo),
 ]
+
+#: Todas ao MCP (docs/43 §5.4, mapa de LGPD de 24/10). O aluno vem com id e
+#: matrícula no mesmo dict do nome; `relatorio_ciclo` entrou quando
+#: `alunosRisco` e `alunosDestaque` ganharam `alunoId` e `matricula`.
+METADADOS: dict[str, dict] = {
+    "relatorio_aluno": {"expor_no_mcp": True},
+    "historico_aluno": {"expor_no_mcp": True},
+    "relatorio_ciclo": {"expor_no_mcp": True},
+}

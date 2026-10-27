@@ -6,18 +6,20 @@ Rodar localmente:
 OpenAPI: http://localhost:8000/docs
 """
 
-import os
-from datetime import UTC, datetime, timedelta
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .canvas_sync import estado as estado_do_sync
 from .canvas_sync import rotas as canvas_sync_rotas
 from .chat import rotas as chat_rotas
 from .config import get_settings
 from .gravacoes_aula import consulta as gravacoes_consulta
 from .gravacoes_aula import rotas as gravacoes_rotas
+from .mcp.configuracao import get_configuracao_mcp
+from .mcp.configuracao import registrar_no_log as registrar_configuracao_do_mcp
 from .observabilidade import (
     configurar_logging,
     handler_erro_nao_tratado,
@@ -41,9 +43,12 @@ from .routes import (
     email_eventos,
     foto_perfil,
     horario_estudos,
+    mcp_emails_ia,
+    mcp_tokens,
     me,
     missao,
     notas,
+    oauth_mcp,
     simulados,
     uploads,
 )
@@ -119,6 +124,18 @@ def create_app() -> FastAPI:
     settings = get_settings()
     _validar_configuracao(settings)
     configurar_logging()
+    # A tela de Conexões de IA e o OAuth leem MCP_* do ambiente DESTE
+    # processo, e o MCP do dele: o valor que valeu vai ao log, para comparar
+    # com a linha que o MCP escreve ao subir (app/mcp/configuracao.py). MCP_*
+    # torto não derruba a API — a cantina e o resto não dependem dele (o
+    # mesmo raciocínio de `configuracao.problemas_do_oauth`); as rotas do MCP
+    # é que falham, como antes.
+    try:
+        registrar_configuracao_do_mcp(get_configuracao_mcp(), "api")
+    except Exception as erro:
+        logging.getLogger("sas.mcp.configuracao").error(
+            "[AÇÃO NECESSÁRIA] configuração MCP_* inválida no ambiente da API (%s)", type(erro).__name__
+        )
     # Fora de dev, a superfície da API não é publicada: /docs e /openapi.json
     # entregam as ~50 rotas e os schemas de corpo a qualquer visitante
     # (docs/14 §5). O nginx de produção também bloqueia esses caminhos — as
@@ -159,6 +176,18 @@ def create_app() -> FastAPI:
     app.include_router(banco.router)
     app.include_router(missao.router)
     app.include_router(administracao.router)
+    # Conexões de IA: emitir e revogar o token do MCP da coordenação. O MCP
+    # em si é outro processo (`python -m app.mcp`, docs/43 §5.1).
+    app.include_router(mcp_tokens.router)
+    # Os e-mails das contas de IA (decisão de 26/10): quem os cadastra é o
+    # coordenador logado; é por eles que a conexão OAuth é aprovada.
+    app.include_router(mcp_emails_ia.router)
+    # O OAuth dos conectores do claude.ai e do ChatGPT (docs/43 §5.3, Fase 3):
+    # as portas do protocolo são públicas, como o RFC manda, e o consentimento
+    # também, desde 26/10 — aprovar pede o código enviado ao e-mail da conta
+    # de IA, não a sessão do SAS. Sem MCP_EMISSOR_OAUTH, tudo dá 404.
+    app.include_router(oauth_mcp.router)
+    app.include_router(oauth_mcp.router_consentimento)
     # Três routers num módulo só: a cantina, o aluno e a coordenação têm guards
     # diferentes, e cada um carrega o seu no piso (docs/38 §3).
     app.include_router(cantina.router)
@@ -223,39 +252,28 @@ def create_app() -> FastAPI:
             detalhe["banco"] = "falhou"
             problemas.append(f"banco inacessível: {type(exc).__name__}")
 
-        # 30 min = 6x o intervalo do sync incremental (5 min). Tolera uma
-        # rodada longa ou uma indisponibilidade curta do Canvas sem alarme
-        # falso, e ainda detecta cron parado no mesmo turno de trabalho.
-        limite_min = int(os.environ.get("SYNC_ALERTA_MINUTOS", "30"))
+        # A regra do "sync atrasado" e o SYNC_ALERTA_MINUTOS moram em
+        # canvas_sync/estado.py, que a tool do assistente também lê (docs/43
+        # §4.3). O limite é lido aqui, fora do `try`, no ponto em que sempre
+        # foi: variável inválida é erro de configuração e derruba a rota, em vez
+        # de virar "não consegui ler o histórico".
+        limite_min = estado_do_sync.limite_em_minutos()
         if "banco" in detalhe and detalhe["banco"] == "ok":
             try:
-                resp = (
-                    get_supabase()
-                    .table("canvas_sync_execucao")
-                    .select("finalizado_em, status")
-                    .eq("status", "sucesso")
-                    .order("finalizado_em", desc=True)
-                    .limit(1)
-                    .execute()
-                )
-                linhas = resp.data or []
-                if not linhas:
-                    problemas.append("nenhuma sincronização com sucesso registrada")
-                    detalhe["ultimo_sync"] = None
-                else:
-                    quando = datetime.fromisoformat(
-                        str(linhas[0]["finalizado_em"]).replace("Z", "+00:00")
-                    )
-                    idade = datetime.now(UTC) - quando
-                    detalhe["ultimo_sync"] = quando.isoformat()
-                    detalhe["ha_minutos"] = int(idade.total_seconds() // 60)
-                    if idade > timedelta(minutes=limite_min):
-                        problemas.append(
-                            f"sem sync bem-sucedido há {detalhe['ha_minutos']} min "
-                            f"(limite {limite_min})"
-                        )
+                sync = estado_do_sync.ultimo_sync(cliente, limite_minutos=limite_min)
             except Exception as exc:
                 problemas.append(f"não consegui ler o histórico de sync: {type(exc).__name__}")
+            else:
+                detalhe["ultimo_sync"] = sync["ultimoSync"]
+                if sync["ultimoSync"] is None:
+                    problemas.append("nenhuma sincronização com sucesso registrada")
+                else:
+                    detalhe["ha_minutos"] = sync["haMinutos"]
+                    if sync["atrasado"]:
+                        problemas.append(
+                            f"sem sync bem-sucedido há {sync['haMinutos']} min "
+                            f"(limite {limite_min})"
+                        )
 
         if problemas:
             return JSONResponse(

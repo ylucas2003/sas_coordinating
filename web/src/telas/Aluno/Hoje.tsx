@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-import type { EvolucaoAluno, MateriaContraCorte, Zona } from '../../dados/aluno';
+import type { Zona } from '../../dados/aluno';
 import {
   useEvolucao,
   useInsight,
@@ -13,6 +13,7 @@ import {
   useZona,
 } from '../../dados/aluno';
 import { proximoBloco, quandoDoProximo } from '../../dominio/horarioEstudos';
+import { notasContraCorte } from '../../dominio/notaContraCorte';
 import { useAgora, useHorarioDeEstudos } from '../../hooks/horarioEstudos';
 import { BlocoDaCantina } from './Cantina';
 import { BarraCorte } from './pecas/BarraCorte';
@@ -247,12 +248,19 @@ function BlocoDaContagem() {
  * vestibular alvo do aluno junto com a zona, na mesma resposta (docs/36 §2.5).
  * A NOTA de cada matéria já vinha de `GET /me/evolucao`, aluno contra turma —
  * o bloco era metade real desde sempre, e agora é inteiro.
+ *
+ * ⚠️ DUAS NOTAS NO MESMO BLOCO, cada uma com o seu nome (decisão do dono de
+ * 26/10): as barras mostram a nota do ÚLTIMO SIMULADO, e a zona logo abaixo
+ * fala da média que CONTA NA RÉGUA — a mesma conta que dá as notas do cartão
+ * de corte do Tio Léo.
+ * Quem decide qual nota as barras levam, e o nome junto, é
+ * `dominio/notaContraCorte.ts`.
  */
 function OndeVoceEsta() {
   const { data: cortes, isPending: cortesPendentes } = useMateriasContraCorte();
   const { data: evolucao, isPending: evolucaoPendente } = useEvolucao();
 
-  const materias = notasContraCorte(cortes, evolucao);
+  const { materias, notas } = notasContraCorte(cortes, evolucao);
 
   return (
     <Bloco fonte="cortePorMateria" olho="Onde você está">
@@ -261,36 +269,11 @@ function OndeVoceEsta() {
           <span className="alu-hoje__osso alu-hoje__osso--grafico" />
         </div>
       ) : (
-        <BarraCorte materias={materias} />
+        <BarraCorte materias={materias} notas={notas} />
       )}
       <LeituraDaZona />
     </Bloco>
   );
-}
-
-/**
- * Junta o corte (sem-rota) com a nota real da evolução.
- *
- * Uma matéria sem nota na evolução SAI da lista em vez de cair no valor
- * sem-rota: mostrar ao aluno uma nota que ele não tirou é pior que mostrar uma
- * barra a menos. Quando a evolução inteira não veio — carregando, erro, ou
- * aluno sem nota nenhuma — o bloco volta para a lista sem-rota completa, que a
- * tarja já marca como tal.
- */
-function notasContraCorte(
-  cortes: MateriaContraCorte[] | undefined,
-  evolucao: EvolucaoAluno | null | undefined,
-): MateriaContraCorte[] {
-  if (!cortes) return [];
-  if (!evolucao) return cortes;
-
-  return cortes.flatMap((materia) => {
-    // A série é paralela a `ciclos` e traz `null` no ciclo em que não houve
-    // prova daquela matéria; a nota que vale é a do ciclo mais recente que tem.
-    const serie = evolucao.materias[materia.materia]?.aluno ?? [];
-    const ultima = serie.reduce<number | null>((achada, n) => (n == null ? achada : n), null);
-    return ultima == null ? [] : [{ ...materia, nota: ultima }];
-  });
 }
 
 // Os rótulos de zona e o alvo da distância. É vocabulário de interface, e mora
@@ -359,9 +342,14 @@ function LeituraDaZona() {
         </span>
       </p>
 
+      {/* "A média que conta" (decisão do dono de 26/10): as barras logo acima
+          são do último simulado, e esta é a média que a régua usa para dar a
+          zona — a mesma conta (`zona_do_aluno`) que dá as notas do cartão do
+          Tio Léo. A régua vem primeiro na frase porque é ela que dá o sentido
+          do número. */}
       <p className="alu-hoje__zona-frase">
-        Sua média é <strong>{fmt(zona.media)}</strong> e o corte {alvo ? `para ${alvo}` : 'da zona'}{' '}
-        é <strong>{fmt(zona.corteProximaZona)}</strong>, na régua <strong>{zona.regua}</strong>.
+        Na régua <strong>{zona.regua}</strong>, a média que conta é <strong>{fmt(zona.media)}</strong>,
+        e o corte {alvo ? `para ${alvo}` : 'da zona'} é <strong>{fmt(zona.corteProximaZona)}</strong>.
       </p>
 
       {zona.materiaMaisCurta && (

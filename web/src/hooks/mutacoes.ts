@@ -155,6 +155,130 @@ export function useRedefinirSenhaCoordenador() {
   });
 }
 
+// ─── Conexões de IA · o MCP da coordenação (docs/43 §5.3) ────────────────
+// `invalidarAdministracao` nas que mudam lista: as conexões e os e-mails da IA
+// moram sob `['administracao']`, e a auditoria registra a emissão, a revogação,
+// os e-mails e a resposta ao pedido.
+
+/**
+ * Emite um token pessoal. A resposta é a ÚNICA que traz o token.
+ *
+ * ⚠️ `gcTime: 0`, e quem chama faz `reset()` assim que copia o token para o
+ * painel. A resposta de uma mutação não vai para o cache de CONSULTAS, mas
+ * fica guardada no cache de MUTAÇÕES até ser coletada — cinco minutos, no
+ * padrão. Com os dois juntos, o token sai da memória do react-query no tique
+ * seguinte ao `reset()`, e mora só no estado da tela enquanto ela o mostra.
+ */
+export function useCriarConexaoDeIa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (corpo: { nome: string }) => api.criarConexaoDeIa(corpo),
+    gcTime: 0,
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+/** Revoga na hora: a próxima chamada da IA com este token já é recusada. */
+export function useRevogarConexaoDeIa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.revogarConexaoDeIa(id),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+/**
+ * Cadastra um e-mail da IA na própria conta, AGUARDANDO o código que chegou a
+ * ele. 409 se ele já está no SAS.
+ *
+ * `onSettled`, e não `onSuccess`: o 503 (o código não saiu) é falha com o
+ * e-mail JÁ na lista, aguardando — a lista tem de voltar para mostrá-lo com o
+ * "enviar outro código".
+ */
+export function useCadastrarEmailDaIa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (corpo: { email: string }) => api.cadastrarEmailDaIa(corpo),
+    onSettled: () => invalidarAdministracao(queryClient),
+  });
+}
+
+/**
+ * Confirma o e-mail com o código que chegou a ele: daí em diante ele aprova
+ * conexões. `gcTime: 0` pelo mesmo motivo de `useAprovarPedidoDeConexao` — o
+ * código é segredo de uso único, e a mutação guarda as variáveis enquanto vive
+ * no cache. `onSettled`: o 409 (confirmado em outra conta) e o 404 (removido em
+ * outra aba) também mudam o que a lista tem de mostrar.
+ */
+export function useConfirmarEmailDaIa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, codigo }: { id: string; codigo: string }) => api.confirmarEmailDaIa(id, { codigo }),
+    gcTime: 0,
+    onSettled: () => invalidarAdministracao(queryClient),
+  });
+}
+
+/** Manda outro código de confirmação; o anterior morre. O 409 (já confirmado) relê a lista. */
+export function useReenviarCodigoDoEmailDaIa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.reenviarCodigoDoEmailDaIa(id),
+    onError: () => invalidarAdministracao(queryClient),
+  });
+}
+
+/** Tira o e-mail da lista: daí em diante, nenhum código vai para ele. */
+export function useRemoverEmailDaIa() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.removerEmailDaIa(id),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+// O CONSENTIMENTO, sem sessão (rota pública desde 26/10). Os três abaixo são
+// chamados de uma aba que pode não ter login nenhum.
+
+/**
+ * Pede o código de aprovação para o e-mail da IA. Não invalida nada: a
+ * resposta é a mesma com e-mail cadastrado ou não, e não muda lista nenhuma.
+ */
+export function usePedirCodigoDoPedido() {
+  return useMutation({
+    mutationFn: ({ pedidoId, email }: { pedidoId: string; email: string }) =>
+      api.pedirCodigoDoPedido(pedidoId, { email }),
+  });
+}
+
+/**
+ * Aprova o pedido com o e-mail e o código. A tela segue para
+ * `redirecionarPara` logo depois; a invalidação existe para quem tem sessão
+ * nesta mesma aba e a volta não acontece — a conexão nova tem de aparecer na
+ * lista. Sem sessão, não há consulta na memória e ela não faz nada.
+ *
+ * `gcTime: 0` pelo mesmo motivo do token em `useCriarConexaoDeIa`: o código é
+ * segredo de uso único, e a mutação guarda as variáveis enquanto vive no
+ * cache.
+ */
+export function useAprovarPedidoDeConexao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ pedidoId, email, codigo }: { pedidoId: string; email: string; codigo: string }) =>
+      api.aprovarPedidoDeConexao(pedidoId, { email, codigo }),
+    gcTime: 0,
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
+export function useRecusarPedidoDeConexao() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (pedidoId: string) => api.recusarPedidoDeConexao(pedidoId),
+    onSuccess: () => invalidarAdministracao(queryClient),
+  });
+}
+
 // ─── Foto de perfil ───────────────────────────────────────────────────────
 // `invalidarTudo`, e não só `chaves.fotoPropria`: a mesma foto aparece em
 // /alunos, na ficha e na auditoria (via `temFoto`/`ator_tem_foto`), e a

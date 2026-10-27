@@ -73,8 +73,15 @@ _SCHEMA_COMPARAR_CICLOS = {
 
 # ─── alunos_similares ─────────────────────────────────────────────────────
 
+#: Vizinhos são para achar o grupo de um caso, não para listar a escola com
+#: zona e média de cada um: `k` sem teto devolvia todos os alunos (a mesma
+#: minimização de `listar_alunos`, LGPD art. 6º, III).
+TETO_DE_VIZINHOS = 20
+
+
 def alunos_similares(cliente: Client, *, aluno_id: str, k: int = 5) -> dict:
     """kNN: alunos mais próximos por vetor (médias por matéria + desvio + slope)."""
+    k = min(max(1, k), TETO_DE_VIZINHOS)
     vetores = _vetores_features(cliente)
     if aluno_id not in vetores:
         return {"erro": f"aluno {aluno_id} sem notas suficientes para vetor de features"}
@@ -121,7 +128,7 @@ _SCHEMA_ALUNOS_SIMILARES = {
         "type": "object",
         "properties": {
             "aluno_id": {"type": "string", "description": "UUID do aluno alvo."},
-            "k": {"type": "integer", "default": 5, "description": "Quantos vizinhos."},
+            "k": {"type": "integer", "default": 5, "description": f"Quantos vizinhos, até {TETO_DE_VIZINHOS}."},
         },
         "required": ["aluno_id"],
     },
@@ -195,19 +202,22 @@ def comparar_alunos(cliente: Client, *, aluno_ids: list[str]) -> dict:
 
     # Onde eles mais divergem: é a pergunta que motiva a comparação, e deixá-la
     # para o modelo calcular a partir da matriz é convite a erro de conta.
+    #
+    # `alunoId` ao lado do nome em `maior` e `menor`: nome de aluno sem chave
+    # de identidade no mesmo dict obrigava o pseudonimizador do MCP a casar
+    # pelo valor, e com homônimos ele recusa a chamada (mapa de LGPD de 24/10).
     maiores_diferencas = []
     for codigo in codigos:
-        valores = [(a["nome"], a["porMateria"].get(codigo)) for a in alunos]
-        presentes = [(n, v) for n, v in valores if v is not None]
+        presentes = [a for a in alunos if a["porMateria"].get(codigo) is not None]
         if len(presentes) < 2:
             continue
-        melhor = max(presentes, key=lambda x: x[1])
-        pior = min(presentes, key=lambda x: x[1])
+        melhor = max(presentes, key=lambda a: a["porMateria"][codigo])
+        pior = min(presentes, key=lambda a: a["porMateria"][codigo])
         maiores_diferencas.append({
             "materia": codigo,
-            "diferenca": round(melhor[1] - pior[1], 2),
-            "maior": {"nome": melhor[0], "media": melhor[1]},
-            "menor": {"nome": pior[0], "media": pior[1]},
+            "diferenca": round(melhor["porMateria"][codigo] - pior["porMateria"][codigo], 2),
+            "maior": {"alunoId": melhor["alunoId"], "nome": melhor["nome"], "media": melhor["porMateria"][codigo]},
+            "menor": {"alunoId": pior["alunoId"], "nome": pior["nome"], "media": pior["porMateria"][codigo]},
         })
     maiores_diferencas.sort(key=lambda d: -d["diferenca"])
 
@@ -403,3 +413,13 @@ TOOLS: list[tuple[dict, callable]] = [
     (_SCHEMA_COMPARAR_SIMULADOS, comparar_simulados),
     (_SCHEMA_ALUNOS_SIMILARES, alunos_similares),
 ]
+
+#: Todas ao MCP (docs/43 §5.4, mapa de LGPD de 24/10): ciclo e simulado são
+#: agregado sem pessoa; nas de aluno, todo nome tem `alunoId` no mesmo dict —
+#: inclusive `maioresDiferencas[].maior/menor`, que ganharam o id para isso.
+METADADOS: dict[str, dict] = {
+    "comparar_ciclos": {"expor_no_mcp": True},
+    "comparar_alunos": {"expor_no_mcp": True},
+    "comparar_simulados": {"expor_no_mcp": True},
+    "alunos_similares": {"expor_no_mcp": True},
+}

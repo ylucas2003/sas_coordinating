@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     # somados (docs/14 §6.4).
     openai_modelo_coordenador: str = "gpt-4o-mini"
 
+    # Modelo do Tio Léo (chat do ALUNO), explícito pelo mesmo motivo do de
+    # cima: era uma constante em perfis.py, e trocar de modelo pedia deploy de
+    # código. Nada de inferir por substring (docs/43 §6, api/CLAUDE.md).
+    openai_modelo_aluno: str = "gpt-4o-mini"
+
     # Teto de uso do chat POR USUÁRIO. Não existia nada: nem rate limit, nem
     # max_tokens, nem leitura dos tokens_in/tokens_out que já eram gravados em
     # chat_mensagem. Com o chat aberto para ~900 alunos, não havia nada entre
@@ -89,6 +94,15 @@ class Settings(BaseSettings):
     # gpt-4o-mini — o que dá um teto previsível para a conta mensal.
     chat_limite_mensagens_hora: int = 20
     chat_limite_tokens_dia: int = 300_000
+
+    # O motor do chat (docs/43 §4.2). Ligados por default; as chaves existem
+    # para DESLIGAR por ambiente, sem deploy de código, se algo der errado em
+    # produção — os caminhos antigos continuam em chat/agente.py:
+    #   False em `chat_tools_em_paralelo` → as tools de uma volta rodam em série;
+    #   False em `chat_streaming` → a resposta chega inteira e é picada em
+    #   pedaços de 40 caracteres, como era até 24/10/2026.
+    chat_tools_em_paralelo: bool = True
+    chat_streaming: bool = True
 
     # Canvas LMS — sincronização direta (canvas_sync/). Ver docs/08-integracao-canvas.md.
     canvas_base_url: str = ""

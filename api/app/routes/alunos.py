@@ -37,6 +37,7 @@ from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
 from ..banco.missao import hoje_na_escola
 from ..schemas.domain import Aluno
+from ..stats import aluno_dados
 from ..stats import classificacao as _classif
 from ..stats import serie_recente as _series
 from ..stats.utils import (
@@ -565,47 +566,23 @@ def trajetoria_aluno(aluno_id: str) -> list[dict]:
 
     Retorna `pontuacao` normalizada (`acertos / total * 10`). O cliente recebe
     direto o número que faz sentido pra interpretar — nunca acertos brutos.
+
+    Quem entra na série é `aluno_dados.trajetoria_do_aluno` — a mesma leitura
+    da tool `trajetoria_aluno` e do gráfico de aluno do assistente —, que
+    recebe o cliente em vez de pegar um por dentro. Aqui só se escolhem os
+    campos.
     """
-    cliente = get_supabase()
-    resp = (
-        cliente.table("nota")
-        .select(
-            "pontuacao, presente, simulado("
-            "id, nome, data_aplicacao, anulado, e_agregado, nota_confiavel, "
-            "materia_id, nota_maxima, tipo"
-            ")"
-        )
-        .eq("aluno_id", aluno_id)
-        # A prova não confiável continua na linha; o zero sem resposta, não —
-        # ele não é desempenho, e afundaria a série de quem não fez a prova.
-        .eq("computavel", True)
-        .execute()
-    )
-    linhas: list[dict] = []
-    for linha in resp.data or []:
-        sim = linha.get("simulado") or {}
-        if sim.get("anulado") or sim.get("e_agregado"):
-            continue
-        if not linha.get("presente"):
-            continue
-        nota = nota_real(
-            como_float(linha.get("pontuacao")),
-            como_float(sim.get("nota_maxima")),
-        )
-        if nota is None:
-            continue
-        linhas.append(
-            {
-                "simuladoId": sim.get("id"),
-                "simulado": sim.get("nome"),
-                "dataAplicacao": sim.get("data_aplicacao"),
-                "materiaId": sim.get("materia_id"),
-                "tipo": sim.get("tipo"),
-                "pontuacao": round(nota, 2),
-            }
-        )
-    linhas.sort(key=lambda r: r["dataAplicacao"] or "")
-    return linhas
+    return [
+        {
+            "simuladoId": p["simuladoId"],
+            "simulado": p["simulado"],
+            "dataAplicacao": p["dataAplicacao"],
+            "materiaId": p["materiaId"],
+            "tipo": p["tipo"],
+            "pontuacao": p["nota"],
+        }
+        for p in aluno_dados.trajetoria_do_aluno(get_supabase(), aluno_id)
+    ]
 
 
 @router.get("/{aluno_id}/heatmap")

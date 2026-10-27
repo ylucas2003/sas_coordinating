@@ -116,6 +116,33 @@ class FiltrosQuestoes:
     por_pagina: int = POR_PAGINA_PADRAO
 
 
+class FiltroInvalido(ValueError):
+    """O recorte pedido não tem um sentido só. A mensagem sai pronta para quem
+    pediu: o 400 da rota, o `{"erro": ...}` da tool."""
+
+
+def validar_filtros(filtros: FiltrosQuestoes) -> None:
+    """Recusa o recorte que `listar_questoes` responderia errado sem erro nenhum.
+
+    Hoje a regra é uma: **tópico exige matéria**. '1.1' existe nas três
+    matérias e significa coisa diferente em cada uma — "Fundamentos",
+    "Conjuntos e Lógica", "Estrutura Atômica" (0028). Sem `materia` o filtro
+    juntaria as três em silêncio (`_ids_por_topico`), e quem lê veria um
+    recorte errado sem erro nenhum na tela. `TOPICO_SEM_CLASSIFICACAO` fica de
+    fora da regra: "sem assunto" não é código do edital e não muda de sentido
+    entre matérias.
+
+    Nasceu na rota (`GET /banco/questoes`) e desceu para cá porque a rota
+    deixou de ser a única porta: a tool do assistente monta os mesmos filtros
+    (docs/43 §4.3) e não pode ter uma cópia da guarda. `listar_questoes` não
+    a chama sozinha — quem monta o filtro valida antes de ler, como a rota faz.
+    """
+    if filtros.topico and filtros.topico != TOPICO_SEM_CLASSIFICACAO and not filtros.materia:
+        raise FiltroInvalido(
+            "Filtrar por tópico exige `materia`: o mesmo código existe nas três matérias"
+        )
+
+
 # ─── Taxonomia ───────────────────────────────────────────────────────────
 
 
@@ -349,6 +376,34 @@ def anexar_estudo(
     return list(questoes)
 
 
+def anexar_estudo_do_aluno(
+    cliente: Client, questoes: Sequence[QuestaoVestibular], aluno_id: str
+) -> list[QuestaoVestibular]:
+    """As questões com `resolvida`/`anotacao` do estudo DESTE aluno (docs/22 §P6).
+
+    Uma leitura do estudo para a página inteira, nunca uma por questão. Sem
+    questão, não lê nada.
+
+    Quem decide SE o estudo vale é quem sabe quem pede, e por isso o `aluno_id`
+    é argumento: a rota anexa só para sessão de aluno — para a coordenação os
+    dois campos ficam None, ver `anexar_estudo` —, e a tool do aluno passa o
+    `aluno_id` do token (docs/43 §3.1). Nasceu na rota como
+    `_com_estudo_do_aluno` e desceu para a tool não repetir as três linhas.
+
+    Não vale para as listas, e é decisão do domínio: a lista serve os dois
+    perfis e o estudo é de UM aluno, então quem quer o estado pede
+    `GET /banco/estudo` (`listas._questoes_por_id`).
+    """
+    if not questoes:
+        return list(questoes)
+    # Import tardio: `listas` importa este módulo (`montar_questoes`), e o
+    # import no topo fecharia o ciclo antes de `montar_questoes` existir.
+    from .listas import listar_estudo
+
+    estudo = {item.questaoId: item for item in listar_estudo(cliente, aluno_id)}
+    return anexar_estudo(questoes, estudo)
+
+
 # ─── Tradução da fronteira ───────────────────────────────────────────────
 
 
@@ -482,7 +537,8 @@ def _ids_por_topico(cliente: Client, materia: str | None, topico: str) -> list[s
 
     ⚠️ Sem `materia`, o mesmo código casa nas três matérias — '1.1' é
     "Fundamentos", "Conjuntos e Lógica" e "Estrutura Atômica" conforme a
-    matéria (0028). A rota deve exigir as duas coisas juntas.
+    matéria (0028). Quem monta o filtro exige as duas coisas juntas passando
+    por `validar_filtros` antes de ler.
 
     O `.in_()` que consome esta lista viaja na query string. O maior tópico do
     banco tem dezenas de questões, longe do limite de URL que já mordeu o

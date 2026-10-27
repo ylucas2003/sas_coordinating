@@ -2,10 +2,13 @@
 
 Duas camadas, de propósito:
 
-  **Higiene** roda sempre e não custa nada. São 30 tools; a chance de duas
-  ganharem o mesmo nome, ou de um `required` apontar para um parâmetro que não
-  existe, cresce a cada uma que se acrescenta — e o sintoma é o modelo chamando
-  a tool errada, que ninguém liga ao commit que causou.
+  **Higiene** roda sempre e não custa nada. São 41 tools desde a cobertura do
+  docs/43 §4.3; a chance de duas ganharem o mesmo nome, ou de um `required`
+  apontar para um parâmetro que não existe, cresce a cada uma que se
+  acrescenta — e o sintoma é o modelo chamando a tool errada, que ninguém liga
+  ao commit que causou. O comportamento das tools novas está em
+  test_chat_tools_coordenacao.py; o que vai ao MCP, em
+  test_chat_exposicao_no_mcp.py.
 
   **Escolha** é a resposta à pergunta que o docs/10 §2.8 deixou aberta —
   *"existe teto de quantas tools cabem num prompt antes de a escolha
@@ -16,10 +19,21 @@ Duas camadas, de propósito:
 """
 
 import os
+import re
 
 import pytest
 
 from app.chat.tools import HANDLERS, SCHEMAS
+
+#: As tools cujo handler limita `limite`/`k` — os tetos de minimização do mapa
+#: de LGPD de 24/10 e os das tools novas do docs/43 §4.3.
+_COM_TETO_NO_HANDLER = frozenset({
+    "buscar_aluno_por_nome", "notas_simulado", "trajetoria_aluno", "alunos_em_risco",
+    "alunos_destaque", "listar_alunos", "alunos_similares",
+    "topicos_do_edital", "buscar_questoes_do_banco", "recorrencia_no_banco",
+    "cortados_pela_regua", "estado_do_sync_canvas", "pendencias_canvas_do_ciclo",
+    "estado_das_gravacoes", "historico_de_alteracoes",
+})
 
 
 def nomes() -> list[str]:
@@ -72,6 +86,41 @@ class TestInventario:
         ):
             assert tool in HANDLERS, f"{tool} sumiu do registry"
 
+    def test_as_lacunas_do_docs_42_estao_fechadas(self):
+        """A cobertura da coordenação do docs/43 §4.3: os domínios que nenhuma
+        tool lia em 24/10. Os nomes são contrato — os roteiros e o MCP os citam."""
+        for tool in (
+            "buscar_aluno_por_matricula",   # a porta de entrada do MCP
+            "topicos_do_edital",            # banco de questões
+            "buscar_questoes_do_banco",
+            "recorrencia_no_banco",
+            "reguas_de_corte",              # a régua como objeto
+            "cortados_pela_regua",
+            "estado_do_sync_canvas",        # rotinas automáticas
+            "pendencias_canvas_do_ciclo",
+            "estado_das_gravacoes",
+            "lembretes_agendados",
+            "historico_de_alteracoes",      # auditoria
+        ):
+            assert tool in HANDLERS, f"{tool} sumiu do registry"
+
+    def test_toda_tool_com_teto_diz_o_teto_ao_modelo(self):
+        """O handler limita (o despacho não confere `maximum`), e o modelo
+        precisa saber: pedir 200 e receber 50 calado o faria concluir que a
+        turma tem 50 alunos. A convenção é "até N" na descrição do limite."""
+        sem_teto_dito = []
+        for s in SCHEMAS:
+            fn = s["function"]
+            for campo, esquema in (fn.get("parameters") or {}).get("properties", {}).items():
+                descricao = (esquema or {}).get("description", "")
+                if (
+                    campo in ("limite", "k")
+                    and fn["name"] in _COM_TETO_NO_HANDLER
+                    and not re.search(r"até \d+", descricao)
+                ):
+                    sem_teto_dito.append(f"{fn['name']}.{campo}")
+        assert not sem_teto_dito, sem_teto_dito
+
     def test_nenhuma_tool_escreve_no_banco(self):
         """Convenção do registry: toda tool é READ-ONLY.
 
@@ -122,6 +171,22 @@ CASOS: list[tuple[str, set[str]]] = [
     ("Exporte os alunos em zona de risco em CSV", {"exportar_csv", "alunos_em_risco"}),
     ("Me mostre o histograma do último simulado", {"gerar_grafico", "listar_simulados", "histograma_simulado"}),
     ("Me leva pra ficha da Ana", {"buscar_aluno_por_nome", "navegar_para"}),
+    # A cobertura do docs/43 §4.3 — um caso por tool nova.
+    ("Como está o aluno de matrícula 9000002?", {"buscar_aluno_por_matricula"}),
+    ("Quantas questões de óptica o banco tem?", {"topicos_do_edital"}),
+    ("Me mostre questões de termodinâmica do ITA desde 2020",
+     {"topicos_do_edital", "buscar_questoes_do_banco"}),
+    ("O que mais cai em Química no IME?", {"recorrencia_no_banco"}),
+    ("O que a régua do ITA Fase 1 exige em Química?", {"reguas_de_corte"}),
+    ("Quem a régua do IME Fase 2 corta no ciclo mais recente?",
+     {"cortados_pela_regua", "listar_ciclos", "reguas_de_corte"}),
+    ("O Canvas está sincronizando direito?", {"estado_do_sync_canvas"}),
+    ("O que deste ciclo ainda não subiu para o Canvas?", {"pendencias_canvas_do_ciclo", "listar_ciclos"}),
+    ("As aulas gravadas de ontem já estão no YouTube?", {"estado_das_gravacoes"}),
+    ("Os alunos vão receber lembrete do simulado de amanhã?", {"lembretes_agendados"}),
+    ("Quem mudou a nota da Ana no P22?",
+     {"historico_de_alteracoes", "buscar_aluno_por_nome", "listar_simulados"}),
+    ("Prepare a pauta da reunião de coordenação sobre o ciclo", {"roteiro_da_coordenacao"}),
 ]
 
 
@@ -133,9 +198,10 @@ CASOS: list[tuple[str, set[str]]] = [
 def test_escolha_de_tool_nao_degradou(pergunta, esperadas):
     from openai import OpenAI
 
+    from app.chat.ferramentas import Sessao
     from app.chat.perfis import perfil_coordenador
 
-    perfil = perfil_coordenador()
+    perfil = perfil_coordenador(Sessao(tipo="coordenador", usuario="coord:teste"))
     resposta = OpenAI().chat.completions.create(
         model=perfil.modelo,
         temperature=0,

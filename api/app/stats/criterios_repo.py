@@ -30,14 +30,17 @@ from . import criterios
 
 log = logging.getLogger("sas.stats.criterios_repo")
 
-#: As matérias de `materia` (carga inicial da 0001), mais os dois códigos
-#: especiais que o avaliador entende.
-MATERIAS_VALIDAS = frozenset(
-    {"matematica", "fisica", "quimica", "portugues", "ingles", "redacao"}
-)
+#: As matérias de `materia` (carga inicial da 0001) — as mesmas que
+#: `descrever_criterio` resolve, e por isso derivadas da lista dele em vez de
+#: uma segunda cópia. Os dois códigos especiais que o avaliador entende ficam
+#: em `_ESPECIAIS`.
+MATERIAS_VALIDAS = frozenset(criterios.MATERIAS_CONHECIDAS)
 _ESPECIAIS = {criterios.TODAS, criterios.FASE_1}
 
-_RE_SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+#: O formato do slug de uma régua criada. Público porque a tool da trilha de
+#: auditoria (chat/tools/trilha.py) valida o slug pela mesma regra antes de
+#: montar o filtro.
+RE_SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 _SELECT = (
     "id, slug, versao, nome, descricao, combinador, fase, desempate, embutido, ativo, "
@@ -99,8 +102,9 @@ def _para_criterio(linha: dict) -> criterios.Criterio:
     )
 
 
-def _linhas_ativas(cliente) -> list[dict]:
-    """As réguas CRIADAS que estão valendo — a maior versão ativa de cada slug."""
+def _linhas_ativas_com_estado(cliente) -> tuple[list[dict], bool]:
+    """As réguas CRIADAS que estão valendo — a maior versão ativa de cada slug —
+    e se a leitura falhou (`True` = o banco não respondeu)."""
     try:
         resp = (
             cliente.table("criterio_classificacao")
@@ -112,19 +116,40 @@ def _linhas_ativas(cliente) -> list[dict]:
     except Exception:
         # Falha aberto: sem banco, o Painel continua com as cinco embutidas.
         log.warning("não consegui listar critérios do banco", exc_info=True)
-        return []
+        return [], True
 
     por_slug: dict[str, dict] = {}
     for linha in resp.data or []:
         atual = por_slug.get(linha["slug"])
         if atual is None or (linha.get("versao") or 1) > (atual.get("versao") or 1):
             por_slug[linha["slug"]] = linha
-    return list(por_slug.values())
+    return list(por_slug.values()), False
+
+
+def _linhas_ativas(cliente) -> list[dict]:
+    return _linhas_ativas_com_estado(cliente)[0]
 
 
 def listar(cliente) -> list[criterios.Criterio]:
     """Todas as réguas oferecidas: as cinco do arquivo, depois as criadas."""
-    return [*criterios.CRITERIOS.values(), *(_para_criterio(l) for l in _linhas_ativas(cliente))]
+    return listar_com_estado(cliente)[0]
+
+
+def listar_com_estado(cliente) -> tuple[list[criterios.Criterio], bool]:
+    """As mesmas réguas de `listar`, mais `criadas_indisponiveis`.
+
+    `listar` falha aberto de propósito — o Painel classifica pelas cinco
+    embutidas mesmo com o banco fora —, e por isso não distingue "não há régua
+    criada" de "não consegui ler as criadas". Para a tela tanto faz; para quem
+    RESPONDE sobre as réguas (a tool do assistente, docs/43 §4.3) é a diferença
+    entre dizer "só existem as cinco" e dizer "não consegui ver as criadas".
+
+    ⚠️ `resolver` continua falhando aberto: com o banco fora, o slug de uma
+    régua criada dá o mesmo `KeyError` de um slug inventado.
+    """
+    linhas, criadas_indisponiveis = _linhas_ativas_com_estado(cliente)
+    reguas = [*criterios.CRITERIOS.values(), *(_para_criterio(l) for l in linhas)]
+    return reguas, criadas_indisponiveis
 
 
 def resolver(cliente, slug: str) -> criterios.Criterio:
@@ -171,7 +196,7 @@ def validar(payload: dict) -> None:
     quebrada não falha — ela classifica errado, em silêncio.
     """
     slug = (payload.get("slug") or "").strip()
-    if not _RE_SLUG.match(slug):
+    if not RE_SLUG.match(slug):
         raise CriterioInvalido(
             "slug deve ser minúsculo, sem acento, palavras separadas por hífen "
             "(ex.: 'meta-7-exatas')."

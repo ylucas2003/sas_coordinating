@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 
-import { Artefato } from './Artefato';
 import { useContextoDaTela } from '../layout/migalhas';
 import { Markdown } from '../ui/Markdown';
-import { Mensagem } from './Mensagem';
+import { Mensagem, renderArtefatoPadrao } from './Mensagem';
+import type { RenderArtefato } from './Mensagem';
 import { ToolTrace } from './ToolTrace';
-import { ESTADO_INICIAL, mensagemDaResposta, reduzirEvento } from '../../dominio/chatStream';
-import type { EstadoStream } from '../../dominio/chatStream';
+import {
+  ESTADO_INICIAL, artefatosNaResposta, mensagemDaResposta, reduzirEvento,
+} from '../../dominio/chatStream';
+import type { EscopoDaConversa, EstadoStream } from '../../dominio/chatStream';
 import * as api from '../../servicos/api';
 import type { ContextoDaTela } from '../../dominio/contextoDaTela';
 import type { ChatThreadDetalhe, GrupoSugestoes, MensagemChat } from '../../tipos/chat';
@@ -18,6 +20,35 @@ interface Props {
   capacidades: string[];
   /** Quando presente, as sugestões passam a depender da tela aberta. */
   derivarSugestoes?: (ctx: ContextoDaTela) => GrupoSugestoes[];
+  /**
+   * Quem desenha os artefatos, os do histórico e os da resposta ao vivo. Sem
+   * ele, o `Artefato` da coordenação — que é o que o `ChatLauncher` usa, por
+   * não passar nada. A folha do aluno passa o `ArtefatoAluno`.
+   */
+  renderArtefato?: RenderArtefato;
+  /**
+   * De quem é a conversa (docs/43 §3.1). Sem ele, a coordenação — que é o que o
+   * `ChatLauncher` usa, por não passar nada. Hoje decide o que os traces
+   * mostram dos argumentos: no aluno, identificador cru não aparece.
+   */
+  escopo?: EscopoDaConversa;
+}
+
+/**
+ * O histórico que a conversa desenha a partir da thread persistida.
+ *
+ * ⚠️ O servidor pendura cada artefato na mensagem `tool` que o produziu, e
+ * `Mensagem` não desenha `tool`: sem a passagem por `artefatosNaResposta`, o
+ * gráfico, o CSV, o link de `navegar_para` e os cartões do Tio Léo sumiam
+ * toda vez que a conversa era reaberta (docs/43 §4.1, defeito 6). Aqui, na
+ * entrada da `Conversa`, vale para os dois cascos sem que nenhum precise
+ * lembrar — até 25/10 só a folha do aluno a fazia. A função é idempotente.
+ *
+ * `?? []` porque uma thread sem `mensagens` (payload inesperado da API) não
+ * pode derrubar o componente — o chat abre vazio, e não quebrado.
+ */
+function historicoDaThread(mensagens: MensagemChat[] | null | undefined): MensagemChat[] {
+  return artefatosNaResposta(mensagens ?? []);
 }
 
 /**
@@ -29,11 +60,11 @@ interface Props {
  */
 export function Conversa({
   thread, onTituloAtualizado, sugestoes, capacidades, derivarSugestoes,
+  renderArtefato = renderArtefatoPadrao,
+  escopo = 'coordenacao',
 }: Props) {
   const contexto = useContextoDaTela();
-  // `?? []` porque uma thread sem `mensagens` (payload inesperado da API) não
-  // pode derrubar o componente — o chat abre vazio, e não quebrado.
-  const [historico, setHistorico] = useState<MensagemChat[]>(thread.mensagens ?? []);
+  const [historico, setHistorico] = useState<MensagemChat[]>(() => historicoDaThread(thread.mensagens));
   const [stream, setStream] = useState<EstadoStream | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState('');
@@ -46,7 +77,7 @@ export function Conversa({
   // cujo `mensagens` chegasse com o mesmo conteúdo não reiniciariam o stream.
   // biome-ignore lint/correctness/useExhaustiveDependencies: gatilho, não leitura
   useEffect(() => {
-    setHistorico(thread.mensagens ?? []);
+    setHistorico(historicoDaThread(thread.mensagens));
     setStream(null);
     setErroEnvio('');
   }, [thread.id, thread.mensagens]);
@@ -112,10 +143,18 @@ export function Conversa({
   return (
     <section className="chat-conversa">
       <div className="chat-conversa__lista" ref={refLista}>
-        {historico.map((m, i) => <Mensagem key={i} msg={m} />)}
+        {historico.map((m, i) => (
+          <Mensagem key={i} msg={m} renderArtefato={renderArtefato} escopo={escopo} />
+        ))}
 
         {stream && (
-          <BolhaStream stream={stream} emAndamento={enviando} erroEnvio={erroEnvio} />
+          <BolhaStream
+            stream={stream}
+            emAndamento={enviando}
+            erroEnvio={erroEnvio}
+            renderArtefato={renderArtefato}
+            escopo={escopo}
+          />
         )}
 
         {mostrarSugestoes && (
@@ -130,22 +169,30 @@ export function Conversa({
 
 /** A resposta em andamento: traces, texto em stream e, no fim, o markdown. */
 function BolhaStream({
-  stream, emAndamento, erroEnvio,
+  stream, emAndamento, erroEnvio, renderArtefato, escopo,
 }: {
   stream: EstadoStream;
   emAndamento: boolean;
   erroEnvio: string;
+  renderArtefato: RenderArtefato;
+  escopo: EscopoDaConversa;
 }) {
   return (
     <div className={`chat-msg chat-msg--assistant${emAndamento ? ' chat-msg--streaming' : ''}`}>
-      {stream.traces.map((t) => <ToolTrace key={t.id} trace={t} />)}
+      {stream.traces.map((t) => <ToolTrace key={t.id} trace={t} escopo={escopo} />)}
 
       {stream.final ? (
         <>
-          <div className="chat-msg__corpo">
-            <Markdown texto={stream.final.texto} />
-          </div>
-          {stream.final.artefatos.map((art, i) => <Artefato key={i} artefato={art} />)}
+          {/* Sem corpo vazio: a resposta que acabou em erro antes de qualquer
+              texto mostra só o erro, embaixo. */}
+          {stream.final.texto && (
+            <div className="chat-msg__corpo">
+              <Markdown texto={stream.final.texto} />
+            </div>
+          )}
+          {stream.final.artefatos.map((art, i) => (
+            <Fragment key={i}>{renderArtefato(art)}</Fragment>
+          ))}
         </>
       ) : (
         stream.texto && (

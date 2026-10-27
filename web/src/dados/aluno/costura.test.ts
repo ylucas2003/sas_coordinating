@@ -114,10 +114,14 @@ describe('a costura', () => {
     // é leitura de servidor — é renderização no cliente, pelo `<Markdown>` que
     // já usava KaTeX desde 01/09 (docs/36 §3.1). Ela deixa esta lista por virar
     // `real`, não por passar a ser consumida por um hook.
+    //
+    // `artefatosDoTioLeo` SAIU em 25/10, pelo mesmo caminho: virou real sem
+    // hook próprio. O cartão chega no evento do chat e na releitura da thread
+    // (docs/43 §4.1), e os dois que buscam dado usam hooks de fontes que já
+    // existiam (`questaoDoBanco`, `simulado`).
     expect(naoConsumidas.sort()).toEqual(
       [
         'acertoPorAssunto',
-        'artefatosDoTioLeo',
         'escolhaDaFilaDeTreino',
         'esquadrilha',
         'ganchoDeRetorno',

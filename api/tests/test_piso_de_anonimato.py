@@ -42,10 +42,9 @@ from types import SimpleNamespace
 import pytest
 
 from app.auth import get_current_aluno
-from app.chat import tools_aluno
+from app.chat.ferramentas import REGISTRO, sessao_do_token
 from app.routes import me as rotas_me
 from app.stats import aluno_dados, insight_aluno
-from app.stats.utils import hash_payload_estavel
 
 from .fake_postgrest import FakeCliente, Query, Tabela
 
@@ -276,8 +275,11 @@ def _o_que_entrega_a_colega(resultado) -> list[float]:
 
 
 def _chat(banco: Banco, nome: str, args: dict) -> dict:
-    resultado = tools_aluno.executar_para_aluno(nome, banco, args, aluno_id=ANA)
-    # `executar_para_aluno` engole exceção e devolve {"erro"}: sem esta
+    # Pelo despacho de verdade, o registro único (docs/43 §3), que tomou o
+    # lugar de `tools_aluno.executar_para_aluno`: a sessão é montada do MESMO
+    # token que as rotas recebem, e o `aluno_id` vem dela, não do argumento.
+    resultado = REGISTRO.despachar(sessao_do_token(SESSAO_DA_ANA), nome, banco, args)
+    # O despacho engole exceção e devolve {"erro"}: sem esta
     # conferência, uma tool quebrada passaria no detector por não ter número.
     assert "erro" not in resultado, f"{nome}: {resultado}"
     return resultado
@@ -376,6 +378,11 @@ class TestProvaDeDuasNotas:
         com a média das duas notas — sob o hash daquele payload. Sem o piso ele
         volta do cache, como volta hoje em produção; com o piso, o hash é outro,
         o bullet não sai e o insight é regerado sem a média.
+
+        A linha é semeada pela chave de hoje, `insight_aluno._chave_do_cache`,
+        que leva também o prompt (docs/43 §4.4): pela fórmula antiga,
+        `{stats, ctx}`, ela não voltaria nem sem o piso, e o teste mediria a
+        troca de prompt em vez do piso.
         """
         contexto = {"nomeAluno": SESSAO_DA_ANA["nome"]}
         with monkeypatch.context() as m:
@@ -385,7 +392,7 @@ class TestProvaDeDuasNotas:
         dupla.db["insight_aluno_ciclo"] = {
             "velho": {
                 "id": "velho", "aluno_id": ANA, "ciclo_id": ciclo["id"],
-                "hash_payload": hash_payload_estavel({"stats": payload_velho, "ctx": contexto}),
+                "hash_payload": insight_aluno._chave_do_cache(payload_velho, contexto),
                 "bullets": ["A turma tirou 7,94 em Matemática."], "modelo": "gpt-4o-mini",
             }
         }
@@ -419,6 +426,8 @@ class TestLimitesDoPiso:
         assert r["grupos"]["voce"] == 6.0 and r["total"] == n
         assert (r["grupos"]["geral"] is not None) is geral
         assert (r["posicao"] is not None) is geral and (r["percentil"] is not None) is geral
+        if geral:
+            assert r["posicao"] >= 1
         assert (r["grupos"]["top15"] is not None) is grupos
         assert (r["grupos"]["bottom15"] is not None) is grupos
 

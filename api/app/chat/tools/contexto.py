@@ -11,12 +11,31 @@ unidade.
 from __future__ import annotations
 
 import re
+from typing import get_args
 
 from supabase import Client
 
+from ...schemas.domain import CategoriaAlerta, Severidade
 from .. import navegacao
 
-_PESO_SEVERIDADE = {"critico": 0, "atencao": 1, "informativo": 2}
+#: As severidades que o banco GRAVA (CHECK da 0001; `stats/alertas.py`), na
+#: ordem do Literal `Severidade` (schemas/domain.py), que é a ordem semântica
+#: do design system — vermelho > âmbar > verde > cinza — e a do
+#: `_PESO_SEVERIDADE` de routes/alertas.py. Um teste trava as duas juntas.
+#:
+#: Até 24/10 esta tool tinha a sua própria lista, critico/atencao/informativo,
+#: que o banco nunca gravou: o filtro devolvia zero, o despacho recusava os
+#: valores reais, e sem filtro todo alerta caía no mesmo peso.
+SEVERIDADES: tuple[str, ...] = get_args(Severidade)
+_PESO_SEVERIDADE = {severidade: peso for peso, severidade in enumerate(SEVERIDADES)}
+
+#: Os nomes antigos continuam aceitos — uma conversa gravada os repete no
+#: histórico — e viram o valor real. 'cinza' é o informativo
+#: (`regra_panorama_ciclo`); 'verde' (subida atípica) não tinha nome antigo.
+_NOME_ANTIGO = {"critico": "vermelho", "atencao": "ambar", "informativo": "cinza"}
+
+#: A leitura traz os mais recentes; o corte por `limite` é na saída.
+_JANELA_DE_ALERTAS = 100
 
 
 # ─── listar_alertas ───────────────────────────────────────────────────────
@@ -35,33 +54,45 @@ def listar_alertas(
         .eq("resolvido", False)
     )
     if severidade:
-        consulta = consulta.eq("severidade", severidade)
+        consulta = consulta.eq("severidade", _NOME_ANTIGO.get(severidade, severidade))
     if categoria:
         consulta = consulta.eq("categoria", categoria)
 
-    linhas = consulta.order("disparado_em", desc=True).limit(100).execute().data or []
-    linhas.sort(key=lambda r: (_PESO_SEVERIDADE.get(r["severidade"], 99), r.get("disparado_em") or ""))
-    return {"total": len(linhas), "alertas": linhas[:limite]}
+    linhas = consulta.order("disparado_em", desc=True).limit(_JANELA_DE_ALERTAS).execute().data or []
+    # Só o peso: o sort é estável, então dentro da mesma severidade fica a
+    # ordem da consulta — o mais recente primeiro. Severidade desconhecida
+    # vai para o fim, sem derrubar a lista.
+    linhas.sort(key=lambda r: _PESO_SEVERIDADE.get(r.get("severidade"), len(_PESO_SEVERIDADE)))
+    return {"total": len(linhas), "alertas": linhas[: min(max(1, limite), _JANELA_DE_ALERTAS)]}
 
 
 _SCHEMA_LISTAR_ALERTAS = {
     "name": "listar_alertas",
     "description": (
-        "Alertas pendentes que o SISTEMA já sinalizou (queda de desempenho, "
-        "variância anômala, etc.), do mais severo para o menos. Use quando "
-        "perguntarem 'o que precisa de atenção', 'tem algum alerta', 'o que "
-        "aconteceu de importante'. Diferente de alunos_em_risco, que calcula "
-        "na hora: aqui você lê o que já foi detectado e ainda não foi resolvido."
+        "Quando usar: 'o que precisa de atenção?', 'tem algum alerta?', 'o que aconteceu de "
+        "importante?'. É o que o SISTEMA já sinalizou e ninguém resolveu; para calcular na "
+        "hora quem está em risco, use alunos_em_risco.\n"
+        "Antes de chamar, confirme: nada — severidade e categoria só se a pessoa pediu.\n"
+        "Definições: severidade vermelho = crítico; ambar = atenção; verde = subida atípica, "
+        "boa notícia; cinza = informativo (panorama do ciclo). Os nomes antigos critico, "
+        "atencao e informativo valem como vermelho, ambar e cinza. Vem do mais severo para o "
+        "menos e, na mesma severidade, do mais recente; total conta entre os 100 mais "
+        "recentes.\n"
+        "Exemplo: listar_alertas(severidade='vermelho') → 'há 3 alertas críticos: …'."
     ),
     "parameters": {
         "type": "object",
         "properties": {
             "severidade": {
                 "type": "string",
-                "enum": ["critico", "atencao", "informativo"],
+                "enum": [*SEVERIDADES, *_NOME_ANTIGO],
                 "description": "Filtra por severidade (opcional).",
             },
-            "categoria": {"type": "string", "description": "Filtra por categoria (opcional)."},
+            "categoria": {
+                "type": "string",
+                "enum": list(get_args(CategoriaAlerta)),
+                "description": "Filtra por categoria (opcional).",
+            },
             "limite": {"type": "integer", "default": 20, "description": "Máx. de alertas."},
         },
     },
@@ -129,6 +160,12 @@ _SCHEMA_INSIGHTS_CICLO = {
 
 # ─── listar_alunos ────────────────────────────────────────────────────────
 
+#: Uma turma inteira cabe; a escola inteira, não. É a tool que mais facilita
+#: extrair dado em massa (mapa de LGPD de 24/10), e o despacho não confere
+#: `maximum`: quem limita é o handler.
+TETO_DE_ALUNOS = 100
+
+
 def listar_alunos(
     cliente: Client,
     *,
@@ -139,7 +176,14 @@ def listar_alunos(
     sede_id: str | None = None,
     limite: int = 30,
 ) -> dict:
-    """Alunos filtrados por classificação e/ou lotação — o que a tela Alunos faz."""
+    """Alunos filtrados por classificação e/ou lotação — o que a tela Alunos faz.
+
+    O teto é da SAÍDA (`TETO_DE_ALUNOS`, minimização — LGPD art. 6º, III),
+    não da leitura: o `.limit(500)` que havia no select ordenava pela média
+    só os primeiros 500 de ~900 e dizia `total` 500 — número errado sem erro
+    nenhum (armadilha 2 do CLAUDE.md).
+    """
+    limite = min(max(1, limite), TETO_DE_ALUNOS)
     consulta = cliente.table("classificacao_aluno").select(
         "aluno_id, perfil, tendencia, zona, media_recente, aluno:aluno_id(id, nome, matricula)"
     )
@@ -150,7 +194,7 @@ def listar_alunos(
     if tendencia:
         consulta = consulta.eq("tendencia", tendencia)
 
-    linhas = consulta.limit(500).execute().data or []
+    linhas = consulta.execute().data or []
 
     # Turma/sede vivem em matricula_turma, não na classificação — filtramos
     # por interseção de ids em vez de tentar um join que o PostgREST não faz
@@ -204,7 +248,7 @@ _SCHEMA_LISTAR_ALUNOS = {
             "tendencia": {"type": "string", "enum": ["subindo", "estavel", "caindo"]},
             "turma_id": {"type": "string", "description": "UUID da turma."},
             "sede_id": {"type": "string", "description": "UUID da sede."},
-            "limite": {"type": "integer", "default": 30},
+            "limite": {"type": "integer", "default": 30, "description": f"Quantos listar, até {TETO_DE_ALUNOS}."},
         },
     },
 }
@@ -441,3 +485,21 @@ TOOLS: list[tuple[dict, callable]] = [
     (_SCHEMA_QUESTOES_SIMULADO, questoes_do_simulado),
     (_SCHEMA_NAVEGAR_PARA, navegar_para),
 ]
+
+#: O que vai ao MCP (docs/43 §5.4, mapa de LGPD de 24/10). `listar_alertas`
+#: entrou em 26/10, quando o dono decidiu que o MCP mostra o nome do aluno
+#: (app/mcp/configuracao.py, `mostrar_nome_do_aluno`): ela só ficava fora porque
+#: o título é texto livre com o nome interpolado, que o pseudônimo não sabe
+#: trocar. Com o pseudônimo ligado de novo, o catálogo do MCP a tira
+#: (`app.mcp.catalogo.SO_COM_NOME_DO_ALUNO`), e o teto de linhas do MCP vale
+#: para o `limite`. Fica FORA `navegar_para`: artefato de UI, cuja rota relativa
+#: não abre nada fora do app.
+METADADOS: dict[str, dict] = {
+    "listar_alertas": {"expor_no_mcp": True},
+    "insights_do_ciclo": {"expor_no_mcp": True},
+    "listar_alunos": {"expor_no_mcp": True},
+    "listar_sedes": {"expor_no_mcp": True},
+    "listar_turmas": {"expor_no_mcp": True},
+    "questoes_do_simulado": {"expor_no_mcp": True},
+    "navegar_para": {"expor_no_mcp": False},
+}

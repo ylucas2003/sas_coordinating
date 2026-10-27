@@ -39,17 +39,20 @@ def _agora() -> datetime:
     return datetime.now(UTC)
 
 
-def _filtro_ts(momento: datetime) -> str:
+def filtro_ts(momento: datetime) -> str:
     """Timestamp pra usar em FILTRO do PostgREST (query string). O '+' de
     '+00:00' não é encodado pelo cliente e viraria espaço na URL — o Postgres
-    rejeitaria ("invalid input syntax"). O sufixo 'Z' diz o mesmo sem '+'."""
+    rejeitaria ("invalid input syntax"). O sufixo 'Z' diz o mesmo sem '+'.
+
+    Público porque as tools das rotinas e da trilha (chat/tools/) filtram
+    timestamptz pela mesma regra."""
     return momento.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def _resgatar_claims_orfaos(cliente: Client) -> int:
     """'enviando' parado há mais de 30 min = processo morreu no meio do envio.
     Volta pra 'falhou' (com tentativa contada) e o laço normal re-tenta."""
-    corte = _filtro_ts(_agora() - timedelta(minutes=ENVIANDO_ORFAO_MINUTOS))
+    corte = filtro_ts(_agora() - timedelta(minutes=ENVIANDO_ORFAO_MINUTOS))
     orfaos = (
         cliente.table("disparo")
         .select("id, tentativas")
@@ -70,14 +73,15 @@ def _resgatar_claims_orfaos(cliente: Client) -> int:
     return len(orfaos)
 
 
-def _enviados_nas_ultimas_24h(cliente: Client) -> int:
+def enviados_nas_ultimas_24h(cliente: Client) -> int:
     """Contagem do teto de segurança. Janela deslizante de 24h porque é assim
-    que a cota do SES conta — não por dia do calendário."""
+    que a cota do SES conta — não por dia do calendário. Público porque a tool
+    dos lembretes (chat/tools/rotinas.py) mostra o mesmo número."""
     resp = (
         cliente.table("disparo")
         .select("id", count="exact")
         .eq("estado", "enviado")
-        .gte("enviado_em", _filtro_ts(_agora() - timedelta(hours=24)))
+        .gte("enviado_em", filtro_ts(_agora() - timedelta(hours=24)))
         .limit(1)
         .execute()
     )
@@ -139,14 +143,14 @@ async def processar_disparos_vencidos(cliente: Client) -> dict[str, Any]:
             "contexto, chave_idempotencia"
         )
         .in_("estado", ["agendado", "falhou"])
-        .lte("enviar_em", _filtro_ts(_agora()))
+        .lte("enviar_em", filtro_ts(_agora()))
         .lt("tentativas", MAX_TENTATIVAS)
         .order("enviar_em")
         .execute()
     ).data or []
 
     invalidos = supressao.carregar_invalidos(cliente)
-    enviados_24h = _enviados_nas_ultimas_24h(cliente)
+    enviados_24h = enviados_nas_ultimas_24h(cliente)
     teto = int(settings.email_teto_diario)
 
     for indice, disparo in enumerate(fila):

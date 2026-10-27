@@ -14,6 +14,10 @@ aluno nunca enxerga threads da coordenação nem de outro aluno.
 
 Tools do coordenador podem ler dados de qualquer aluno (decisão do produto);
 o aluno recebe um perfil de tools restrito aos próprios dados.
+
+Cada mensagem leva um preâmbulo do turno (`contexto_do_turno.py`, docs/43
+§4.2): a data para os dois, mais o contexto da tela para a coordenação e os
+dados do próprio aluno — lidos do JWT, nunca do browser — para o aluno.
 """
 
 from __future__ import annotations
@@ -32,7 +36,15 @@ from pydantic import BaseModel, Field
 from ..auth import get_current_user
 from ..config import get_settings
 from ..supabase_client import get_supabase
-from . import agente, navegacao, perfis
+from . import agente, contexto_do_turno, navegacao, perfis
+from .ferramentas import (
+    Escopo,
+    Sessao,
+    SessaoRecusada,
+    artefatos_do_resultado,
+    serializar_para_modelo,
+    sessao_do_token,
+)
 
 log = logging.getLogger("sas.chat.rotas")
 
@@ -97,27 +109,23 @@ def _verificar_teto_de_uso(cliente, usuario: str) -> None:
         )
 
 
-def _usuario_do_token(user: dict) -> str:
-    """Namespace do dono da thread em chat_thread.usuario_id.
+def _sessao(user: dict) -> Sessao:
+    """A sessão do assistente, ou 403.
 
     Fail-closed de propósito, em cima do `get_current_user` que já recusa token
-    fora de `TIPOS_DE_SESSAO` (app/auth.py). São duas camadas porque esta função
-    decide DE QUEM é a thread: um `else` genérico aqui devolvia namespace de
-    coordenação para qualquer token que não fosse de aluno, e o default
-    `'coordenador'` no `sub` ainda colapsava todos eles num balde só.
+    fora de `TIPOS_DE_SESSAO` (app/auth.py). São duas camadas porque esta
+    decide DE QUEM é a thread e QUAL catálogo de tools a pessoa vê — a regra
+    mora em `ferramentas.sessao_do_token`, para as duas coisas não divergirem.
     """
-    tipo = user.get("tipo")
+    try:
+        return sessao_do_token(user)
+    except SessaoRecusada as e:
+        raise HTTPException(status_code=403, detail=str(e)) from None
 
-    if tipo == "aluno":
-        return f"aluno:{user['aluno_id']}"
 
-    if tipo == "coordenador":
-        sub = user.get("sub")
-        if not sub:
-            raise HTTPException(status_code=403, detail="Token sem identidade de coordenação")
-        return f"coord:{sub}"
-
-    raise HTTPException(status_code=403, detail="Token não autoriza uso do chat")
+def _usuario_do_token(user: dict) -> str:
+    """Namespace do dono da thread em chat_thread.usuario_id."""
+    return _sessao(user).usuario
 
 
 # ─── Schemas ─────────────────────────────────────────────────────────────
@@ -355,7 +363,8 @@ async def enviar_mensagem(
     user: dict = Depends(get_current_user),
 ):
     cliente = get_supabase()
-    usuario = _usuario_do_token(user)
+    sessao = _sessao(user)
+    usuario = sessao.usuario
     _carregar_thread_ou_404(cliente, thread_id, usuario)
     texto = (body.conteudo or "").strip()
     if not texto:
@@ -366,24 +375,40 @@ async def enviar_mensagem(
 
     # Perfil define prompt/tools/modelo: aluno conversa com o mentor (tools
     # restritas ao próprio aluno_id); coordenador com o assistente staff.
-    tipo = user.get("tipo")
-    preambulo: str | None = None
-    if tipo == "aluno":
-        perfil = perfis.perfil_aluno(user["aluno_id"], user.get("nome") or "")
-        # O contexto de tela NÃO vale para o aluno, e o `preambulo` fica None.
+    #
+    # O preâmbulo do turno é montado numa THREAD: ele lê o banco pelo cliente
+    # PostgREST, que é síncrono, e este `async def` roda no único event loop do
+    # processo (`UVICORN_WORKERS=1`). Chamado direto, segurava a API inteira —
+    # a cantina inclusive — enquanto lia (docs/40 §12.1.1); o do aluno são
+    # perto de vinte idas ao banco quando o cache dele está vazio.
+    if sessao.escopo == "aluno":
+        perfil = perfis.perfil_aluno(sessao)
+        # O contexto de TELA continua NÃO valendo para o aluno: `body.contexto`
+        # é ignorado.
         #
-        # Todo o isolamento do mentor está em `perfil_aluno`, que amarra as
-        # tools ao `aluno_id` do JWT. O preâmbulo passaria por fora desse
-        # portão: ele resolve nomes no banco com o cliente de serviço, então um
-        # aluno que POSTasse `contexto.entidade = {tipo: "aluno", id: <outro>}`
-        # leria o nome de um colega dentro do próprio system message — dado de
-        # menor de idade (CLAUDE.md §6). Além disso as telas do aluno nem estão
-        # em `derivarContexto`, que só conhece as rotas da coordenação.
-    elif tipo == "coordenador":
-        perfil = perfis.perfil_coordenador()
+        # Todo o isolamento do mentor está no registro de ferramentas, que
+        # amarra as tools do escopo `aluno` ao `aluno_id` do JWT. O preâmbulo
+        # de navegação passaria por fora desse portão: ele resolve nomes no
+        # banco com o cliente de serviço, então um aluno que POSTasse
+        # `contexto.entidade = {tipo: "aluno", id: <outro>}` leria o nome de um
+        # colega dentro do próprio system message — dado de menor de idade
+        # (CLAUDE.md §6). Além disso as telas do aluno nem estão em
+        # `derivarContexto`, que só conhece as rotas da coordenação.
+        #
+        # O contexto do TURNO vale, e vem do JWT: `preambulo_do_aluno` lê só o
+        # `aluno_id` da sessão — data, vestibulares-alvo, régua e zona,
+        # próximo simulado e sequência (docs/43 §4.2).
+        preambulo = await asyncio.to_thread(
+            contexto_do_turno.preambulo_do_aluno, cliente, sessao
+        )
+    elif sessao.escopo == "coordenacao":
+        perfil = perfis.perfil_coordenador(sessao)
         # Montado AQUI, com o cliente do request: ele lê o banco para nomear as
-        # entidades, e o nome que o browser mandou é descartado.
-        preambulo = navegacao.preambulo(cliente, body.contexto)
+        # entidades, e o nome que o browser mandou é descartado. A data vai
+        # junto: nenhum dos dois prompts sabia que dia era (docs/43 §1).
+        preambulo = await asyncio.to_thread(
+            contexto_do_turno.preambulo_da_coordenacao, cliente, body.contexto
+        )
     else:
         # Nunca por omissão: o perfil de coordenação carrega as tools que leem
         # QUALQUER aluno, e era para cá que caía um token de download.
@@ -454,8 +479,12 @@ async def _stream_mensagem(
         perfil=perfil,
         preambulo=preambulo,
     ):
-        # Emite o evento bruto pro front.
-        yield evt.formatar_sse().encode("utf-8")
+        # Emite o evento pro front, serializado AQUI e com `default=str`: o
+        # `end` carrega o resultado CHEIO de cada tool, e uma data esquecida
+        # num payload de artefato derrubava o stream bem no evento de que a
+        # persistência abaixo depende. O formato é o mesmo de
+        # `agente.Evento.formatar_sse`.
+        yield Evento_para_bytes(evt.nome, evt.dados)
         if evt.nome == "end":
             texto_final = evt.dados.get("texto_final") or ""
             tool_calls_acumuladas = evt.dados.get("tool_calls") or []
@@ -481,46 +510,72 @@ async def _stream_mensagem(
     # 3. Persiste tool_calls como assistant turn + tool turns.
     if tool_calls_acumuladas:
         # A resposta do insert não é lida: o turno do assistente só precisa
-        # existir para os tool results abaixo referenciarem a ordem.
-        (
-            cliente.table("chat_mensagem")
-            .insert({
-                "thread_id": thread_id,
-                "ordem": proxima_ordem,
-                "papel": "assistant",
-                "conteudo": None,
-                "tool_calls": [
-                    {"id": tc["id"], "name": tc["nome"], "arguments": tc["args"]}
-                    for tc in tool_calls_acumuladas
-                ],
-                "tokens_in": tokens_in,
-                "tokens_out": tokens_out,
-                "modelo": modelo_usado,
-            })
-            .execute()
-        )
-        proxima_ordem += 1
-
-        # Tool result messages
-        for tc in tool_calls_acumuladas:
-            tool_msg_resp = (
+        # existir para os tool results abaixo referenciarem a ordem. Se ele não
+        # grava, a resposta final ainda grava (ver o ⚠️ abaixo): as mensagens
+        # `tool` sem o pedido ficam fora da janela do modelo
+        # (`agente.janela_do_historico`, regra 2), e os cartões delas continuam
+        # voltando na releitura da thread.
+        try:
+            (
                 cliente.table("chat_mensagem")
                 .insert({
                     "thread_id": thread_id,
                     "ordem": proxima_ordem,
-                    "papel": "tool",
-                    "conteudo": json.dumps(tc["resultado"], ensure_ascii=False)[:60_000],
-                    "tool_call_id": tc["id"],
-                    "nome_tool": tc["nome"],
+                    "papel": "assistant",
+                    "conteudo": None,
+                    "tool_calls": [
+                        {"id": tc["id"], "name": tc["nome"], "arguments": tc["args"]}
+                        for tc in tool_calls_acumuladas
+                    ],
+                    "tokens_in": tokens_in,
+                    "tokens_out": tokens_out,
+                    "modelo": modelo_usado,
                 })
                 .execute()
             )
-            tool_msg_id = tool_msg_resp.data[0]["id"]
+        except Exception:
+            log.exception("turno com tool_calls não gravado; a resposta final segue")
+        proxima_ordem += 1
+
+        # Tool result messages.
+        #
+        # ⚠️ Daqui até a resposta final, nada pode interromper a persistência:
+        # o `end` já foi para o browser, e uma exceção neste gerador deixava
+        # sem gravar as mensagens `tool` seguintes, a resposta final e o update
+        # da thread — a resposta que a pessoa acabou de ler sumia ao recarregar.
+        # Uma linha que não grava fica no log; a conversa segue. Mensagem `tool`
+        # faltando é o caso que `agente.janela_do_historico` já trata (regra 3).
+        for tc in tool_calls_acumuladas:
+            try:
+                tool_msg_resp = (
+                    cliente.table("chat_mensagem")
+                    .insert({
+                        "thread_id": thread_id,
+                        "ordem": proxima_ordem,
+                        "papel": "tool",
+                        # O mesmo texto que o modelo leu nesta volta: é ele que
+                        # volta como histórico na próxima mensagem.
+                        "conteudo": serializar_para_modelo(tc["resultado"]),
+                        "tool_call_id": tc["id"],
+                        "nome_tool": tc["nome"],
+                    })
+                    .execute()
+                )
+                tool_msg_id = tool_msg_resp.data[0]["id"]
+            except Exception:
+                log.exception(
+                    "mensagem de tool não gravada; a conversa segue sem ela",
+                    extra={"ferramenta": tc.get("nome")},
+                )
+                tool_msg_id = None
             proxima_ordem += 1
 
-            # Artefatos: se o resultado for de gerar_grafico ou exportar_csv,
-            # cria registro em chat_artefato pra UI renderizar.
-            _talvez_salvar_artefato(cliente, tool_msg_id, tc["nome"], tc["resultado"])
+            # O cartão vai pendurado na mensagem `tool` que o produziu, e é de
+            # lá que a releitura da thread o devolve (`obter_thread`).
+            if tool_msg_id is not None:
+                _talvez_salvar_artefato(
+                    cliente, tool_msg_id, tc["nome"], tc["resultado"], perfil.sessao.escopo
+                )
 
     # 4. Resposta final do assistant.
     msg_final_resp = (
@@ -564,7 +619,10 @@ async def _stream_mensagem(
 
 
 def Evento_para_bytes(nome: str, dados: dict) -> bytes:
-    return f"event: {nome}\ndata: {json.dumps(dados, ensure_ascii=False)}\n\n".encode()
+    # `default=str` pelo mesmo motivo de `ferramentas._json`: "tools devolvem
+    # só JSON-serializável" é convenção, e uma data esquecida derrubava o stream.
+    texto = json.dumps(dados, ensure_ascii=False, default=str)
+    return f"event: {nome}\ndata: {texto}\n\n".encode()
 
 
 def _carregar_thread_ou_404(cliente, thread_id: str, usuario: str) -> dict:
@@ -642,37 +700,47 @@ def _proxima_ordem(cliente, thread_id: str) -> int:
     return int(resp.data[0]["ordem"]) + 1
 
 
-def _talvez_salvar_artefato(cliente, mensagem_id: str, nome_tool: str, resultado: dict) -> None:
-    """Persiste artefato se a tool gerou um (gráfico, CSV ou link de navegação)."""
-    if not isinstance(resultado, dict):
+def _talvez_salvar_artefato(
+    cliente, mensagem_id: str, nome_tool: str, resultado: Any, escopo: Escopo
+) -> None:
+    """Grava os artefatos que a tool produziu — e nunca derruba a conversa.
+
+    O que é artefato quem decide é `ferramentas.artefatos_do_resultado`: o
+    catálogo fechado do ESCOPO da sessão (docs/43 §4.1, defeito 6), o mesmo que
+    o front espelha em `chatStream.ts`. Aqui só se grava, um INSERT por cartão.
+
+    ⚠️ Cada INSERT no seu `try`. Isto roda dentro do gerador SSE, depois de o
+    `end` já ter ido para o browser: o CHECK de `chat_artefato.tipo` recusando
+    um tipo que a migration ainda não aceita (foi o caso dos cartões do aluno
+    antes da 0070), ou um `\\u0000` que o jsonb não aceita, deixava sem gravar
+    o resto do turno — a resposta final inclusive (ver `_stream_mensagem`).
+    Perder o cartão é o mal menor; o stack fica no log.
+    """
+    try:
+        artefatos = artefatos_do_resultado(nome_tool, resultado, escopo)
+    except Exception:
+        log.exception("artefatos não lidos; a conversa segue sem eles", extra={"ferramenta": nome_tool})
         return
-    if "erro" in resultado:
-        return
-    tipo = resultado.get("tipo")
-    if nome_tool == "gerar_grafico" and tipo in {"histograma", "linha_temporal"}:
-        cliente.table("chat_artefato").insert({
-            "mensagem_id": mensagem_id,
-            "tipo": tipo,
-            "titulo": resultado.get("titulo"),
-            "payload": resultado.get("payload"),
-        }).execute()
-    elif nome_tool == "navegar_para" and tipo == "navegacao":
-        # Persistido como os outros artefatos: reabrir a conversa amanhã tem
-        # que devolver os mesmos links clicáveis, não um texto órfão.
-        cliente.table("chat_artefato").insert({
-            "mensagem_id": mensagem_id,
-            "tipo": "navegacao",
-            "titulo": resultado.get("titulo"),
-            "payload": resultado.get("payload"),
-        }).execute()
-    elif nome_tool == "exportar_csv" and resultado.get("tipo") == "csv":
-        # Salva o conteúdo no payload (no MVP — pra escala, subir pro Storage).
-        cliente.table("chat_artefato").insert({
-            "mensagem_id": mensagem_id,
-            "tipo": "csv",
-            "titulo": resultado.get("titulo"),
-            "payload": {
-                "conteudo": resultado.get("conteudo"),
-                "nLinhas": resultado.get("nLinhas"),
-            },
-        }).execute()
+    for artefato in artefatos:
+        try:
+            cliente.table("chat_artefato").insert({
+                "mensagem_id": mensagem_id,
+                "tipo": artefato["tipo"],
+                "titulo": artefato["titulo"],
+                "payload": _para_jsonb(artefato["payload"]),
+            }).execute()
+        except Exception:
+            log.exception(
+                "artefato não gravado; a conversa segue sem ele",
+                extra={"ferramenta": nome_tool, "artefato": artefato["tipo"]},
+            )
+
+
+def _para_jsonb(payload: Any) -> Any:
+    """O payload como o PostgREST consegue enviar: só tipos de JSON.
+
+    O cliente serializa o corpo sem `default`, então uma `date` dentro do
+    payload levantava na hora de gravar. Ida e volta por `json` com
+    `default=str`, a mesma regra de `ferramentas._json`.
+    """
+    return json.loads(json.dumps(payload, ensure_ascii=False, default=str))

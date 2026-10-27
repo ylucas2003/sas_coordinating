@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Conversa } from './Conversa';
 import { ListaThreads } from './ListaThreads';
 import * as api from '../../servicos/api';
@@ -56,6 +56,38 @@ export function ChatLauncher({
     setCarregou(true);
     void carregarInicial();
   }, [aberto, carregou, carregarInicial]);
+
+  // Fechar a gaveta desmonta a `Conversa`, e com ela o histórico que só existia
+  // no estado dela: reabrir mostrava a conversa truncada no ponto em que tinha
+  // sido carregada, sem as perguntas e respostas da última vez. Daí a releitura
+  // em silêncio da thread aberta a cada reabertura — o mesmo que a folha do Tio
+  // Léo faz (FolhaTioLeo.tsx). A thread aberta vai em ref para a releitura a
+  // ler sem virar dependência do efeito.
+  const idAberto = useRef<string | null>(null);
+  const estavaAberto = useRef(false);
+  useEffect(() => {
+    idAberto.current = detalhe?.id ?? null;
+  }, [detalhe?.id]);
+
+  const relerAberta = useCallback(async () => {
+    const id = idAberto.current;
+    if (!id) return;
+    try {
+      const relida = (await api.obterChatThread(id)) as ChatThreadDetalhe;
+      // A pessoa pode ter trocado de conversa enquanto a releitura voava.
+      if (idAberto.current === id) setDetalhe(relida);
+    } catch {
+      // Silêncio de propósito: a releitura não foi pedida, e o que já está na
+      // tela continua valendo.
+    }
+  }, []);
+
+  useEffect(() => {
+    const reabriu = aberto && !estavaAberto.current;
+    estavaAberto.current = aberto;
+    // Na primeira abertura quem carrega é `carregarInicial`, acima.
+    if (reabriu && carregou) void relerAberta();
+  }, [aberto, carregou, relerAberta]);
 
   // A classe no <body> é o que empurra o conteúdo da página para o lado.
   useEffect(() => {

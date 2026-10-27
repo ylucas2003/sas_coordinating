@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 
+import { LimiteDeErro } from '../../componentes/LimiteDeErro';
 import { Avatar } from '../../componentes/ui/Avatar';
 import { useLiga, useProximoSimulado, useSequencia, useXp } from '../../dados/aluno';
 import { useEventosDaCantina } from '../../hooks/eventosCantina';
@@ -200,10 +201,44 @@ export function CascoAluno() {
         ))}
       </nav>
 
-      <FabTioLeo />
+      <TioLeoComLimite />
 
       {conta === 'menu' && <FolhaDaConta onFechar={() => setConta('fechada')} />}
     </div>
+  );
+}
+
+/**
+ * O Tio Léo isolado: um erro de render dentro dele — um cartão, a conversa, a
+ * folha — derrubava a área do aluno INTEIRA, e com ela a tela que o aluno
+ * estava usando. A coordenação já isola o chat do mesmo jeito (`ChatComLimite`,
+ * AppCoordenacao.tsx); cada cartão tem ainda o próprio limite
+ * (`ArtefatoAluno.tsx`), e este é o último.
+ *
+ * O que fica no lugar é o mesmo botão flutuante, e tocá-lo REINICIA o Tio Léo:
+ * trocar a `key` remonta o limite e tudo o que está dentro, sem recarregar a
+ * página — e sem tirar o aluno da tela em que ele está.
+ */
+function TioLeoComLimite() {
+  const [tentativa, setTentativa] = useState(0);
+
+  return (
+    <LimiteDeErro
+      key={tentativa}
+      fallback={() => (
+        <button
+          type="button"
+          className="alu-fab"
+          title="O Tio Léo travou. Toque para reiniciar."
+          onClick={() => setTentativa((n) => n + 1)}
+        >
+          <Icone nome="faisca" tamanho={26} />
+          <span className="alu-so-leitor">O Tio Léo travou — toque para reiniciar</span>
+        </button>
+      )}
+    >
+      <FabTioLeo />
+    </LimiteDeErro>
   );
 }
 

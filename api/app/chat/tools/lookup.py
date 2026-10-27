@@ -14,17 +14,42 @@ from supabase import Client
 
 # ─── buscar_aluno_por_nome ────────────────────────────────────────────────
 
+#: A busca existe para ligar um nome a um id, não para listar a escola: com
+#: duas letras e sem teto, `nome='al'` trazia todos os alunos (mapa de LGPD de
+#: 24/10; minimização, LGPD art. 6º, III). O despacho não confere `maximum`,
+#: então quem limita é o handler.
+TETO_DE_CANDIDATOS = 20
+
+
+def literal_no_like(termo: str) -> str:
+    """O termo como LETRAS num padrão LIKE/ILIKE: `%` e `_` são curingas, e a
+    barra invertida é o ESCAPE padrão do Postgres — os três vão escapados.
+
+    Sem isto, `nome='__'` ou `'%%'` passava no mínimo de 2 caracteres e trazia
+    os primeiros alunos da escola em ordem alfabética, sem trecho de nome
+    nenhum (revisão de 26/10, quando a busca por nome entrou no MCP). O `*`
+    não tem escape: o PostgREST o troca por `%` em todo padrão de like — quem
+    chama tira antes (`buscar_aluno_por_nome`).
+    """
+    return termo.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def buscar_aluno_por_nome(cliente: Client, *, nome: str, limite: int = 8) -> dict:
-    """Busca alunos por nome (ILIKE %nome%). Retorna até `limite` candidatos."""
-    if not nome or len(nome.strip()) < 2:
+    """Busca alunos por um TRECHO do nome (ILIKE %trecho%, com o trecho lido
+    como letras — `literal_no_like`). Retorna até `limite` candidatos.
+
+    O `*` sai antes de contar os 2 caracteres: nome não tem `*`, e o PostgREST
+    o leria como `%` (`'**'` voltaria a listar a escola)."""
+    termo = (nome or "").replace("*", "").strip()
+    if len(termo) < 2:
         return {"erro": "nome muito curto (mín. 2 caracteres)"}
-    padrao = f"%{nome.strip()}%"
+    padrao = f"%{literal_no_like(termo)}%"
     resp = (
         cliente.table("aluno")
         .select("id, nome, matricula, ativo")
         .ilike("nome", padrao)
         .order("nome")
-        .limit(limite)
+        .limit(min(max(1, limite), TETO_DE_CANDIDATOS))
         .execute()
     )
     return {"total": len(resp.data or []), "alunos": resp.data or []}
@@ -33,9 +58,13 @@ def buscar_aluno_por_nome(cliente: Client, *, nome: str, limite: int = 8) -> dic
 _SCHEMA_BUSCAR_ALUNO = {
     "name": "buscar_aluno_por_nome",
     "description": (
-        "Procura alunos pelo nome (busca parcial, case-insensitive). "
-        "Use SEMPRE primeiro quando o usuário menciona um aluno por nome — "
-        "você precisa do id antes de chamar outras tools."
+        "Quando usar: SEMPRE primeiro quando o usuário menciona um aluno pelo nome — as "
+        "outras tools pedem o id.\n"
+        "Antes de chamar, confirme: um trecho do nome com pelo menos 2 letras. Com a "
+        "matrícula em mãos, use buscar_aluno_por_matricula.\n"
+        "Definições: busca parcial, sem diferenciar maiúscula. Mais de um candidato = "
+        "pergunte qual antes de seguir; nunca escolha sozinho.\n"
+        "Exemplo: 'como está a Ana Souza?' → buscar_aluno_por_nome(nome='Ana Souza')."
     ),
     "parameters": {
         "type": "object",
@@ -46,11 +75,61 @@ _SCHEMA_BUSCAR_ALUNO = {
             },
             "limite": {
                 "type": "integer",
-                "description": "Máx. de candidatos (default 8).",
+                "description": f"Máx. de candidatos, até {TETO_DE_CANDIDATOS}.",
                 "default": 8,
             },
         },
         "required": ["nome"],
+    },
+}
+
+
+# ─── buscar_aluno_por_matricula ───────────────────────────────────────────
+
+def buscar_aluno_por_matricula(cliente: Client, *, matricula: str) -> dict:
+    """O aluno de uma matrícula (o SIS User ID, único na 0001), ou erro.
+
+    Com o pseudônimo ligado (MCP_MOSTRAR_NOME_DO_ALUNO=false), é a única
+    porta de entrada que o MCP abre (docs/43 §5.4): buscar por nome deixaria
+    no provedor o par "nome digitado ↔ matrícula devolvida", que é justamente
+    o vínculo que o pseudônimo quer evitar (mapa de LGPD de 24/10). Com o nome
+    real — o padrão desde 26/10 —, `buscar_aluno_por_nome` também está lá
+    (`METADADOS`, no fim do módulo). Pela matrícula, quem pergunta já sabe de
+    quem fala, e a resposta é no máximo um aluno.
+    """
+    alvo = (matricula or "").strip()
+    if not alvo:
+        return {"erro": "informe a matrícula do aluno"}
+    resp = (
+        cliente.table("aluno")
+        .select("id, nome, matricula, ativo")
+        .eq("matricula", alvo)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data:
+        return {"erro": f"nenhum aluno com a matrícula {alvo}"}
+    return {"aluno": resp.data[0]}
+
+
+_SCHEMA_BUSCAR_MATRICULA = {
+    "name": "buscar_aluno_por_matricula",
+    "description": (
+        "Quando usar: quando a pessoa diz a matrícula do aluno ('o 2024001', 'Aluno "
+        "9000002') e você precisa do id para as outras tools.\n"
+        "Antes de chamar, confirme: a matrícula inteira, como está no cadastro; não há busca "
+        "parcial.\n"
+        "Definições: matrícula = o SIS User ID do Canvas, única por aluno. A resposta é um "
+        "aluno só, com id, nome, matrícula e se está ativo.\n"
+        "Exemplo: 'como está o aluno 9000002?' → buscar_aluno_por_matricula(matricula="
+        "'9000002'), depois relatorio_aluno com o id."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "matricula": {"type": "string", "description": "A matrícula (SIS User ID) do aluno."},
+        },
+        "required": ["matricula"],
     },
 }
 
@@ -376,9 +455,29 @@ def _mapa_codigo_nome_materia(cliente: Client) -> dict[str, dict]:
 
 TOOLS: list[tuple[dict, callable]] = [
     (_SCHEMA_BUSCAR_ALUNO, buscar_aluno_por_nome),
+    (_SCHEMA_BUSCAR_MATRICULA, buscar_aluno_por_matricula),
     (_SCHEMA_OBTER_ALUNO, obter_aluno),
     (_SCHEMA_LISTAR_CICLOS, listar_ciclos),
     (_SCHEMA_LISTAR_SIMULADOS, listar_simulados),
     (_SCHEMA_OBTER_SIMULADO, obter_simulado),
     (_SCHEMA_LISTAR_MATERIAS, listar_materias),
 ]
+
+#: O que vai ao MCP da coordenação (docs/43 §5.4, mapa de LGPD de 24/10).
+#: Catálogo sem pessoa (ciclos, simulados, matérias) e o aluno com chave de
+#: identidade no mesmo dict. `buscar_aluno_por_nome` entrou em 26/10, quando o
+#: dono decidiu que o MCP mostra o nome do aluno (app/mcp/configuracao.py,
+#: `mostrar_nome_do_aluno`): ela só ficava fora porque a entrada é nome
+#: digitado, e cada chamada deixaria no provedor o par nome ↔ matrícula — que,
+#: com o nome liberado, toda tool de aluno já entrega. Com o pseudônimo ligado
+#: de novo, o catálogo do MCP a tira (`app.mcp.catalogo.SO_COM_NOME_DO_ALUNO`).
+#: A minimização continua: `TETO_DE_CANDIDATOS` aqui e o teto de linhas do MCP.
+METADADOS: dict[str, dict] = {
+    "buscar_aluno_por_nome": {"expor_no_mcp": True},
+    "buscar_aluno_por_matricula": {"expor_no_mcp": True},
+    "obter_aluno": {"expor_no_mcp": True},
+    "listar_ciclos": {"expor_no_mcp": True},
+    "listar_simulados": {"expor_no_mcp": True},
+    "obter_simulado": {"expor_no_mcp": True},
+    "listar_materias": {"expor_no_mcp": True},
+}

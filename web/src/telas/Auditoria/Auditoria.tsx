@@ -26,6 +26,8 @@ const CANAL_LABEL: Record<CanalAuditoria, string> = {
   ciclo: 'Ciclos',
   canvas: 'Canvas',
   criterio: 'Réguas de corte',
+  // O nome da tela onde a conexão nasce (Administração › Conexões de IA).
+  mcp: 'Conexões de IA',
 };
 
 const ACAO_LABEL: Record<string, string> = {
