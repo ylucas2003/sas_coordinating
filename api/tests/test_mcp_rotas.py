@@ -15,6 +15,7 @@ Rodar:  cd api && APP_ENV=dev ./.venv/bin/python -m pytest tests/test_mcp_rotas.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
@@ -196,6 +197,18 @@ def test_com_so_o_administrador_ligado_cada_recusa_tem_a_sua_frase(banco, config
     assert erro.value.status_code == 403 and erro.value.detail != FRASE_SO_ADMINISTRADOR
     assert erro.value.detail == auth.MENSAGEM_CONTA_DESATIVADA
     assert banco["token_mcp"] == {}
+
+
+def test_a_tela_conhece_a_frase_da_conta_desativada_letra_por_letra():
+    """Emitir token tem dois 403, e a tela de Conexões de IA os separa pela
+    frase: a do só-administrador ela troca pela dela, que diz a quem recorrer,
+    e a da conta desativada ela mostra (`fraseDoProibido`, em
+    web/src/dominio/conexoesDeIa.ts). Com as duas cópias separadas, a conta
+    desativada voltava a ler "só do administrador", o motivo errado."""
+    dominio = Path(__file__).resolve().parents[2] / "web" / "src" / "dominio" / "conexoesDeIa.ts"
+    if not dominio.exists():
+        pytest.skip("web/ fora deste checkout (container da API)")
+    assert f"'{auth.MENSAGEM_CONTA_DESATIVADA}'" in dominio.read_text(encoding="utf-8")
 
 
 def test_conta_desativada_ainda_lista_e_revoga_as_suas(banco, config):

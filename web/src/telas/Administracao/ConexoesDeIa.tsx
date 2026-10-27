@@ -5,7 +5,7 @@ import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import {
   DIGITOS_DO_CODIGO, EMAIL_MAXIMO, ESPERA_PARA_OUTRO_CODIGO_MS, NOME_MAXIMO, avisoDaCaixaDoEmail,
   avisoDoCodigoDeConfirmacao, cabecalhoDeAutorizacao, codigoCompleto, comandoDoClaudeCode, dataCurta,
-  emUmaLinha, emailComFormaValida, emailDaIaConfirmado, limparCodigo, mensagemDaFalhaDaConfirmacao,
+  emUmaLinha, emailComFormaValida, emailDaIaConfirmado, fraseDoProibido, limparCodigo, mensagemDaFalhaDaConfirmacao,
   mensagemDaFalhaDoEmailDaIa, mensagemDaFalhaDoReenvio, nomeDaConexaoValido, normalizarEmail,
   ordenarConexoes, ordenarEmailsDaIa, origemLegivel, perguntaDeRemocaoDoEmail, perguntaDeRevogacao,
   permissaoDeEmitir, situacaoDaConexao, situacaoLegivel, ultimoUsoLegivel,
@@ -65,10 +65,11 @@ interface TokenRevelado {
 
 /**
  * A frase da falha. O 403 ganha texto próprio porque o do servidor diz QUE foi
- * recusado, e a pessoa precisa saber POR QUÊ e a quem recorrer.
+ * recusado, e a pessoa precisa saber POR QUÊ e a quem recorrer — menos o da
+ * conta desativada, que já diz o porquê (`fraseDoProibido`).
  */
 function mensagemDaFalha(erro: unknown, { padrao, proibido }: { padrao: string; proibido: string }): string {
-  if (erro instanceof ErroApi && erro.status === 403) return proibido;
+  if (erro instanceof ErroApi && erro.status === 403) return fraseDoProibido(erro.message, proibido);
   return (erro as Error)?.message || padrao;
 }
 

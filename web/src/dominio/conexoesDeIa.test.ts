@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DIGITOS_DO_CODIGO,
   EMAIL_MAXIMO,
+  MENSAGEM_CONTA_DESATIVADA,
   NOME_DO_APP_MAXIMO,
   NOME_MAXIMO,
   REVOGACAO_OAUTH_CORTA_RENOVACAO,
@@ -19,6 +20,7 @@ import {
   emUmaLinha,
   emailComFormaValida,
   emailDaIaConfirmado,
+  fraseDoProibido,
   fraseDoServidor,
   hostDaVolta,
   leituraDaFalhaDoPedido,
@@ -620,8 +622,10 @@ describe('e-mail da IA', () => {
     expect(mensagemDaFalhaDoEmailDaIa(400, doServidor)).toBe(doServidor);
     expect(mensagemDaFalhaDoEmailDaIa(400)).toContain('Remova um');
     expect(mensagemDaFalhaDoEmailDaIa(400)).not.toContain('Confira o e-mail');
-    // O cadastro não passa pelo portão do administrador: não há 403 a explicar.
+    // O cadastro não passa pelo portão do administrador: o 403 é só a conta
+    // desativada, que a sessão de 8 h ainda deixa abrir a tela (prova de 27/10).
     expect(mensagemDaFalhaDoEmailDaIa(403)).not.toContain('administrador');
+    expect(mensagemDaFalhaDoEmailDaIa(403)).toBe(MENSAGEM_CONTA_DESATIVADA);
   });
 
   it('o teto de códigos diz o prazo que o servidor deu, e o código que não saiu diz onde pedir outro', () => {
@@ -661,6 +665,8 @@ describe('e-mail da IA', () => {
     expect(mensagemDaFalhaDaConfirmacao(409)).toContain('outra conta');
     expect(mensagemDaFalhaDaConfirmacao(404)).toContain('não está mais');
     expect(mensagemDaFalhaDaConfirmacao(500)).toBe('Não consegui confirmar agora. Tente de novo em instantes.');
+    // A conta desativada não confirma: "tente de novo" não resolveria nada.
+    expect(mensagemDaFalhaDaConfirmacao(403)).toBe(MENSAGEM_CONTA_DESATIVADA);
   });
 
   it('a falha do reenvio usa o prazo do servidor no teto, e diz quando já está confirmado', () => {
@@ -670,6 +676,7 @@ describe('e-mail da IA', () => {
     expect(mensagemDaFalhaDoReenvio(409)).toContain('já está confirmado');
     expect(mensagemDaFalhaDoReenvio(503)).toContain('não saiu');
     expect(mensagemDaFalhaDoReenvio(404)).toContain('não está mais');
+    expect(mensagemDaFalhaDoReenvio(403)).toBe(MENSAGEM_CONTA_DESATIVADA);
   });
 
   it('ordena pela data de cadastro, o primeiro em cima, sem mexer na lista recebida', () => {
@@ -805,5 +812,25 @@ describe('fraseDoServidor', () => {
     ['várias listas', '[object Object],[object Object]'],
   ])('não toma por frase %s', (_caso, texto) => {
     expect(fraseDoServidor(texto)).toBeNull();
+  });
+});
+
+describe('fraseDoProibido', () => {
+  const proibido = 'O servidor recusou: neste ambiente, criar conexão de IA é só do administrador do SAS.';
+
+  it('a conta desativada fica com a frase do servidor, e não com a do só-administrador', () => {
+    // Emitir token tem duas recusas 403 (prova de ponta a ponta de 27/10): o
+    // "só do administrador" seria o motivo errado para a conta desativada.
+    expect(fraseDoProibido(MENSAGEM_CONTA_DESATIVADA, proibido)).toBe(MENSAGEM_CONTA_DESATIVADA);
+    expect(fraseDoProibido(`  ${MENSAGEM_CONTA_DESATIVADA}\n`, proibido)).toBe(MENSAGEM_CONTA_DESATIVADA);
+  });
+
+  it.each([
+    ['a regra do só-administrador', 'Conectar uma IA ao SAS está, neste ambiente, restrito ao administrador.'],
+    ['o recuo do transporte', 'POST /mcp/tokens → 403'],
+    ['vazia', ''],
+    ['ausente', undefined],
+  ])('com %s, a tela usa a frase dela', (_caso, doServidor) => {
+    expect(fraseDoProibido(doServidor, proibido)).toBe(proibido);
   });
 });

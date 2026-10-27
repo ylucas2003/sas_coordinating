@@ -530,6 +530,27 @@ export function fraseDoServidor(mensagem: string | null | undefined): string | n
   return texto;
 }
 
+/**
+ * A recusa da conta DESATIVADA que ainda tem a sessão de 8 h aberta. O servidor
+ * relê a conta na tabela onde nasce credencial do MCP — emitir token,
+ * cadastrar, confirmar e reenviar o código do e-mail da IA — e responde 403
+ * com esta frase (`auth.MENSAGEM_CONTA_DESATIVADA`; prova de ponta a ponta de
+ * 27/10, docs/43 §8.1). É o MESMO texto do servidor, letra por letra: um teste
+ * do backend (`test_mcp_rotas`) reprova se os dois se separarem.
+ */
+export const MENSAGEM_CONTA_DESATIVADA =
+  'Esta conta da coordenação está desativada e não pode conectar uma IA ao SAS.';
+
+/**
+ * A frase de um 403 na tela de Conexões de IA. Emitir token tem DUAS recusas:
+ * a regra do só-administrador, em que a tela troca a frase do servidor pela
+ * dela (que diz a quem recorrer), e a conta desativada, que fica com a frase do
+ * servidor — o "só do administrador" seria o motivo errado.
+ */
+export function fraseDoProibido(mensagemDoServidor: string | null | undefined, proibido: string): string {
+  return fraseDoServidor(mensagemDoServidor) === MENSAGEM_CONTA_DESATIVADA ? MENSAGEM_CONTA_DESATIVADA : proibido;
+}
+
 // ─── Os e-mails da IA e o código (decisão do dono de 26/10) ──────────────
 //
 // O claude.ai e o ChatGPT não dizem ao SAS qual é o e-mail da conta de quem
@@ -595,13 +616,15 @@ export function emailComFormaValida(texto: string): boolean {
  * e-mail" a quem escreveu certo era mandar corrigir o que não estava errado
  * (revisão de 26/10). No teto e no limite de códigos (429) vale a frase do
  * servidor, que diz o número e o prazo. 503 é o código de confirmação que não
- * saiu — o e-mail já está na lista, aguardando. Não há 403: o cadastro não
- * passa pelo portão do administrador.
+ * saiu — o e-mail já está na lista, aguardando. O 403 é só a conta desativada
+ * (`MENSAGEM_CONTA_DESATIVADA`): o cadastro não passa pelo portão do
+ * administrador.
  */
 export function mensagemDaFalhaDoEmailDaIa(
   status: number | null | undefined,
   mensagemDoServidor?: string,
 ): string {
+  if (status === 403) return MENSAGEM_CONTA_DESATIVADA;
   if (status === 409) {
     return 'Esse e-mail já está cadastrado no SAS, nesta conta ou em outra. Se ele é seu e está em outra conta, fale com o administrador do SAS.';
   }
@@ -642,9 +665,10 @@ export function avisoDoCodigoDeConfirmacao(email: string): string {
  * A falha de confirmar o e-mail com o código. O 400 é uma frase só, como no
  * consentimento: código errado, vencido, trocado por outro e sem tentativas
  * pedem a mesma ação. O 409 é o e-mail confirmado por OUTRA conta enquanto
- * este aguardava — sem dizer qual.
+ * este aguardava — sem dizer qual. O 403 é a conta desativada.
  */
 export function mensagemDaFalhaDaConfirmacao(status: number | null | undefined): string {
+  if (status === 403) return MENSAGEM_CONTA_DESATIVADA;
   if (status === 400 || status === 422) {
     return 'Código errado, vencido ou sem tentativas. Confira o último código que chegou, ou peça outro.';
   }
@@ -655,8 +679,12 @@ export function mensagemDaFalhaDaConfirmacao(status: number | null | undefined):
   return 'Não consegui confirmar agora. Tente de novo em instantes.';
 }
 
-/** A falha de pedir outro código de confirmação. No teto, a frase (e o prazo) do servidor. */
+/**
+ * A falha de pedir outro código de confirmação. No teto, a frase (e o prazo) do
+ * servidor; o 403 é a conta desativada.
+ */
 export function mensagemDaFalhaDoReenvio(status: number | null | undefined, mensagemDoServidor?: string): string {
+  if (status === 403) return MENSAGEM_CONTA_DESATIVADA;
   if (status === 429) {
     return fraseDoServidor(mensagemDoServidor) ?? 'Códigos demais em pouco tempo. Espere e peça de novo mais tarde.';
   }
