@@ -88,6 +88,147 @@
   color: var(--sas-texto);
 }
 
+/* ─── Como conectar ──────────────────────────────────────────────────────
+   O passo a passo de UMA IA por vez: a pessoa escolhe a dela nas pílulas e lê
+   só os passos que vai fazer. A mesma caixa da explicação. Os números são o
+   fio da leitura, e por isso são o único destaque da lista: a ação em
+   negrito, o detalhe em tom de apoio, e nada de cor nova (docs/37). */
+
+.ia-guia {
+  display: grid;
+  gap: 12px;
+  max-width: 78ch;
+  padding: 18px 22px;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+}
+
+.ia-guia__titulo {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--sas-magnitude);
+}
+
+/* A escolha é um `fieldset` (o grupo de botões com o nome dele, para o leitor
+   de tela): sem a moldura nem o recuo que o navegador dá a ele. */
+.ia-guia__escolha {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.ia-guia__pergunta {
+  padding: 0;
+  font-size: 14px;
+  color: var(--sas-texto-2);
+}
+
+.ia-guia__pilulas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ia-guia__passos {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: passo;
+  display: grid;
+  gap: 16px;
+}
+
+.ia-guia__passo {
+  counter-increment: passo;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+/* O número do passo: um círculo do tamanho de uma linha de título, para o
+   olho achar "onde eu estava" ao voltar da outra aba. */
+.ia-guia__passo::before {
+  content: counter(passo);
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--sas-magnitude);
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--sas-magnitude);
+}
+
+.ia-guia__conteudo {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.ia-guia__acao {
+  margin: 3px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--sas-texto);
+}
+
+.ia-guia__detalhe {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+}
+
+/* "Feito" ou "Ainda falta": texto forte, e não semáforo (R6 do brief). */
+.ia-guia__estado {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+/* O endereço e o "Copiar" lado a lado; a falha de copiar vem embaixo, na
+   largura toda. */
+.ia-guia__copiar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.ia-guia__copiar code {
+  padding: 7px 10px;
+  background: var(--sas-superficie-2);
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: var(--sas-texto);
+  overflow-wrap: anywhere;
+}
+
+.ia-guia__copiar .ia-erro {
+  flex-basis: 100%;
+}
+
+.ia-guia__acoes {
+  margin-top: 6px;
+}
+
+.ia-guia .ia-comando {
+  margin-top: 6px;
+}
+
 /* ─── Avisos ─────────────────────────────────────────────────────────────
    `.ia-aviso` é NEUTRO: "o servidor está desligado", "só o administrador
    emite" e "confira de onde veio o pedido" não são falha — são o estado das
@@ -686,6 +827,7 @@
    impressão também casa media query de largura. */
 @media screen and (max-width: 760px) {
   .ia-explicacao,
+  .ia-guia,
   .ia-nova,
   .ia-token,
   .ia-pedido,
@@ -754,5 +896,18 @@
     flex: 1 1 100%;
     max-width: none;
     margin-top: 0;
+  }
+
+  /* As pílulas da escolha da IA, no dedo: altura de toque, e cada uma na
+     largura toda, porque "claude.ai ou Claude Desktop" não cabe ao lado de
+     outra a 390px. */
+  .ia-guia__escolha .pill {
+    flex: 1 1 100%;
+    min-height: 44px;
+  }
+
+  .ia-guia__acoes .btn,
+  .ia-guia__copiar .btn {
+    width: 100%;
   }
 }

@@ -3,14 +3,16 @@ import type { FormEvent, ReactNode, RefObject } from 'react';
 
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import {
-  DIGITOS_DO_CODIGO, EMAIL_MAXIMO, ESPERA_PARA_OUTRO_CODIGO_MS, NOME_MAXIMO, avisoDaCaixaDoEmail,
-  avisoDoCodigoDeConfirmacao, cabecalhoDeAutorizacao, codigoCompleto, comandoDoClaudeCode, dataCurta,
-  emUmaLinha, emailComFormaValida, emailDaIaConfirmado, fraseDoProibido, limparCodigo, mensagemDaFalhaDaConfirmacao,
-  mensagemDaFalhaDoEmailDaIa, mensagemDaFalhaDoReenvio, nomeDaConexaoValido, normalizarEmail,
-  ordenarConexoes, ordenarEmailsDaIa, origemLegivel, perguntaDeRemocaoDoEmail, perguntaDeRevogacao,
-  permissaoDeEmitir, situacaoDaConexao, situacaoLegivel, ultimoUsoLegivel,
+  DIGITOS_DO_CODIGO, EMAIL_MAXIMO, ESPERA_PARA_OUTRO_CODIGO_MS, IAS_PARA_CONECTAR, NOME_MAXIMO,
+  avisoDaCaixaDoEmail, avisoDoCodigoDeConfirmacao, cabecalhoDeAutorizacao, codigoCompleto,
+  comandoDoClaudeCode, cuidadoDePrivacidade, dataCurta, emUmaLinha, emailComFormaValida,
+  emailDaIaConfirmado, estadoDoEmailConfirmado, fraseDoProibido, limparCodigo,
+  mensagemDaFalhaDaConfirmacao, mensagemDaFalhaDoEmailDaIa, mensagemDaFalhaDoReenvio,
+  nomeDaConexaoValido, normalizarEmail, ordenarConexoes, ordenarEmailsDaIa, origemLegivel,
+  passosParaConectar, perguntaDeRemocaoDoEmail, perguntaDeRevogacao, permissaoDeEmitir,
+  situacaoDaConexao, situacaoLegivel, ultimoUsoLegivel,
 } from '../../dominio/conexoesDeIa';
-import type { PermissaoDeEmitir } from '../../dominio/conexoesDeIa';
+import type { IaParaConectar, PermissaoDeEmitir } from '../../dominio/conexoesDeIa';
 import { useConexoesDeIa, useDisponibilidadeDoMcp, useEmailsDaIa } from '../../hooks/consultas';
 import {
   useCadastrarEmailDaIa, useConfirmarEmailDaIa, useCriarConexaoDeIa, useReenviarCodigoDoEmailDaIa,
@@ -84,6 +86,10 @@ export function ConexoesDeIa() {
   const souAdministrador = sessao.ehAdministrador();
   const disponibilidade = useDisponibilidadeDoMcp();
   const conexoes = useConexoesDeIa();
+  // A mesma consulta do card dos e-mails (o React Query a faz uma vez só): o
+  // passo a passo diz se o e-mail que aprova a conexão já está confirmado.
+  const emails = useEmailsDaIa();
+  const emailsConfirmados = emails.data ? emails.data.filter(emailDaIaConfirmado).length : null;
   const [criando, setCriando] = useState(false);
   const [revelado, setRevelado] = useState<TokenRevelado | null>(null);
   const botaoNovaConexao = useRef<HTMLButtonElement>(null);
@@ -139,6 +145,17 @@ export function ConexoesDeIa() {
           Neste ambiente, só o administrador do SAS cria conexões — é uma configuração do
           servidor. Você continua vendo e revogando as conexões em seu nome.
         </p>
+      )}
+
+      {/* Só quando dá para seguir até o fim: servidor ligado, com endereço, e
+          esta conta podendo conectar. Fora disso, os avisos de cima já dizem
+          por que não. */}
+      {permissao === 'pode' && disponibilidade.data?.habilitado && disponibilidade.data.urlDoServidor && (
+        <ComoConectar
+          url={disponibilidade.data.urlDoServidor}
+          emailsConfirmados={emailsConfirmados}
+          onNovaConexao={ofereceCriar ? () => setCriando(true) : undefined}
+        />
       )}
 
       {criando && (
@@ -217,6 +234,81 @@ function Explicacao() {
           <b>Revogar corta na hora.</b> A primeira consulta com o token revogado já é recusada.
         </li>
       </ul>
+    </section>
+  );
+}
+
+/**
+ * Como conectar: o passo a passo de UMA IA por vez. A pessoa escolhe a dela e
+ * lê só o que vai fazer, na ordem — os passos são do domínio
+ * (`passosParaConectar`), e aqui ficam só as peças que a tela acrescenta: o
+ * "Copiar" do endereço, o "Nova conexão" do token e o estado do e-mail.
+ *
+ * Exportado para o teste de SSR: a tela usa os hooks e passa o resto pronto.
+ */
+export function ComoConectar({
+  url, emailsConfirmados, onNovaConexao,
+}: {
+  url: string;
+  /** `null` enquanto a lista dos e-mails não chegou (ou não veio). */
+  emailsConfirmados: number | null;
+  /** Ausente quando "Nova conexão" não está disponível agora. */
+  onNovaConexao?: () => void;
+}) {
+  const idTitulo = useId();
+  const [ia, setIa] = useState<IaParaConectar>('claude');
+  const passos = passosParaConectar(ia, url);
+  const estadoDoEmail = estadoDoEmailConfirmado(emailsConfirmados);
+
+  return (
+    <section className="ia-guia" aria-labelledby={idTitulo}>
+      <h2 id={idTitulo} className="ia-guia__titulo">Como conectar a sua IA</h2>
+      <fieldset className="ia-guia__escolha">
+        <legend className="ia-guia__pergunta">Qual IA você usa?</legend>
+        <div className="ia-guia__pilulas">
+          {IAS_PARA_CONECTAR.map((o) => (
+            <button
+              key={o.valor}
+              type="button"
+              className={`pill${o.valor === ia ? ' is-active' : ''}`}
+              aria-pressed={o.valor === ia}
+              onClick={() => setIa(o.valor)}
+            >
+              {o.rotulo}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <ol className="ia-guia__passos">
+        {passos.map((p) => (
+          <li key={`${ia}-${p.acao}`} className="ia-guia__passo">
+            <div className="ia-guia__conteudo">
+              <p className="ia-guia__acao">{p.acao}</p>
+              <p className="ia-guia__detalhe">{p.detalhe}</p>
+              {p.confereEmail && estadoDoEmail && (
+                <p className="ia-guia__estado">{estadoDoEmail}</p>
+              )}
+              {p.copiar && (
+                <div className="ia-guia__copiar">
+                  <code>{p.copiar.texto}</code>
+                  <BotaoDeCopiar texto={p.copiar.texto} rotulo={p.copiar.rotulo} />
+                </div>
+              )}
+              {p.comando && <pre className="ia-comando"><code>{p.comando}</code></pre>}
+              {p.criaConexao && onNovaConexao && (
+                <div className="ia-guia__acoes">
+                  <button type="button" className="btn btn-primary" onClick={onNovaConexao}>
+                    Nova conexão
+                  </button>
+                </div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <p className="ia-aviso">{cuidadoDePrivacidade(ia)}</p>
     </section>
   );
 }
