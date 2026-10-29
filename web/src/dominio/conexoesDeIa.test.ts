@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DIGITOS_DO_CODIGO,
   EMAIL_MAXIMO,
+  IAS_PARA_CONECTAR,
   MENSAGEM_CONTA_DESATIVADA,
   NOME_DO_APP_MAXIMO,
   NOME_MAXIMO,
@@ -14,12 +15,14 @@ import {
   codigoCompleto,
   comandoDoClaudeCode,
   comoDesfazerAConexao,
+  cuidadoDePrivacidade,
   dataCurta,
   destinoDaVolta,
   diasDesde,
   emUmaLinha,
   emailComFormaValida,
   emailDaIaConfirmado,
+  estadoDoEmailConfirmado,
   fraseDoProibido,
   fraseDoServidor,
   hostDaVolta,
@@ -34,6 +37,7 @@ import {
   normalizarEmail,
   ordenarConexoes,
   ordenarEmailsDaIa,
+  passosParaConectar,
   origemLegivel,
   perguntaDeRemocaoDoEmail,
   perguntaDeRevogacao,
@@ -832,5 +836,62 @@ describe('fraseDoProibido', () => {
     ['ausente', undefined],
   ])('com %s, a tela usa a frase dela', (_caso, doServidor) => {
     expect(fraseDoProibido(doServidor, proibido)).toBe(proibido);
+  });
+});
+
+describe('passosParaConectar', () => {
+  const url = 'https://exemplo.test/mcp';
+  const textoDe = (passos: ReturnType<typeof passosParaConectar>) => JSON.stringify(passos);
+
+  it('cobre as três IAs, com o caminho mais usado primeiro', () => {
+    expect(IAS_PARA_CONECTAR.map((o) => o.valor)).toEqual(['claude', 'claude-code', 'chatgpt']);
+    for (const { valor } of IAS_PARA_CONECTAR) {
+      expect(passosParaConectar(valor, url).length).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it('no claude.ai e no ChatGPT, o primeiro passo é o e-mail confirmado, e o endereço vem para copiar', () => {
+    // A aprovação é pelo código no e-mail da conta de IA (decisão de 26/10):
+    // sem ele confirmado, o passo de aprovar não tem como dar certo.
+    for (const ia of ['claude', 'chatgpt'] as const) {
+      const passos = passosParaConectar(ia, url);
+      expect(passos[0].confereEmail).toBe(true);
+      expect(passos.filter((p) => p.copiar).map((p) => p.copiar?.texto)).toEqual([url]);
+      expect(textoDe(passos)).toContain('Aprovar');
+    }
+  });
+
+  it('no Claude Code, o caminho é o token: criar, copiar o comando e conferir', () => {
+    const passos = passosParaConectar('claude-code', url);
+    expect(passos[0].criaConexao).toBe(true);
+    expect(passos.some((p) => p.confereEmail)).toBe(false);
+    expect(passos.find((p) => p.comando)?.comando).toBe('claude mcp list');
+    expect(textoDe(passos)).toContain('histórico');
+  });
+
+  it('o endereço é o que o servidor deu, nunca um escrito no texto', () => {
+    // A mesma tela serve o dev, a stack de teste e a produção.
+    for (const { valor } of IAS_PARA_CONECTAR) {
+      expect(textoDe(passosParaConectar(valor, url))).not.toMatch(/portalsas|localhost/);
+    }
+  });
+
+  it('o código do e-mail diz quantos dígitos tem, pela mesma constante da tela de aprovar', () => {
+    expect(textoDe(passosParaConectar('claude', url))).toContain(`${DIGITOS_DO_CODIGO} dígitos`);
+  });
+
+  it('cada IA tem o cuidado de privacidade dela, e todos falam em treino do modelo', () => {
+    expect(cuidadoDePrivacidade('claude')).toContain('Ajudar a melhorar o Claude');
+    expect(cuidadoDePrivacidade('chatgpt')).toContain('Melhorar o modelo para todos');
+    expect(cuidadoDePrivacidade('claude-code')).toContain('conta do Claude');
+  });
+});
+
+describe('estadoDoEmailConfirmado', () => {
+  it('diz se o passo do e-mail já está feito, e cala enquanto a lista não chegou', () => {
+    expect(estadoDoEmailConfirmado(null)).toBeNull();
+    expect(estadoDoEmailConfirmado(0)).toContain('Ainda falta');
+    expect(estadoDoEmailConfirmado(1)).toBe('Feito: esta conta tem 1 e-mail confirmado.');
+    expect(estadoDoEmailConfirmado(2)).toBe('Feito: esta conta tem 2 e-mails confirmados.');
   });
 });

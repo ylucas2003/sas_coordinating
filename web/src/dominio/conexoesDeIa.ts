@@ -808,3 +808,154 @@ export function mensagemDaFalhaDoConsentimento(
   if (leitura === 'espera') return 'Respostas demais em pouco tempo. Espere alguns minutos e tente de novo.';
   return 'Não consegui enviar a recusa. Tente de novo em instantes.';
 }
+
+// ─── Como conectar: o passo a passo de cada IA ───────────────────────────
+//
+// A tela tinha as peças — o endereço, o card dos e-mails, "Nova conexão" —,
+// mas não a ORDEM em que elas se usam, e o caminho do claude.ai e do ChatGPT
+// passa por uma aba de fora (`/conectar-ia`) que a pessoa só vê depois de
+// clicar em "Conectar" lá. Por isso o passo a passo é de UMA IA por vez: a
+// pessoa escolhe a dela e lê só o que vai fazer, na ordem.
+//
+// O endereço vem do servidor (`/mcp/disponibilidade`), nunca escrito aqui: a
+// mesma tela serve o dev, a stack de teste e a produção.
+
+/** As IAs que o passo a passo cobre. */
+export type IaParaConectar = 'claude' | 'claude-code' | 'chatgpt';
+
+/** A ordem dos botões: o caminho mais usado primeiro. */
+export const IAS_PARA_CONECTAR: ReadonlyArray<{ valor: IaParaConectar; rotulo: string }> = [
+  { valor: 'claude', rotulo: 'claude.ai ou Claude Desktop' },
+  { valor: 'claude-code', rotulo: 'Claude Code' },
+  { valor: 'chatgpt', rotulo: 'ChatGPT' },
+];
+
+/**
+ * Um passo: a AÇÃO, curta, que a tela põe em destaque, e o detalhe de onde
+ * clicar. Os opcionais pedem à tela uma peça a mais no passo.
+ */
+export interface PassoDeConexao {
+  acao: string;
+  detalhe: string;
+  /** O que a pessoa cola do outro lado — a tela põe ao lado um "Copiar". */
+  copiar?: { rotulo: string; texto: string };
+  /** Um comando de terminal, para ler e rodar. */
+  comando?: string;
+  /** O passo do e-mail confirmado: a tela diz se já está feito. */
+  confereEmail?: boolean;
+  /** O passo do token: a tela oferece o botão "Nova conexão" ali mesmo. */
+  criaConexao?: boolean;
+}
+
+/**
+ * Os passos de uma IA, na ordem em que se fazem.
+ *
+ * Os nomes dos menus vão em português e, onde a tradução varia, também em
+ * inglês: o claude.ai e o ChatGPT mostram a língua da conta, não a do SAS.
+ */
+export function passosParaConectar(ia: IaParaConectar, url: string): PassoDeConexao[] {
+  const copiarEndereco = { rotulo: 'Copiar o endereço', texto: url };
+  const confirmarEmail: PassoDeConexao = {
+    acao: 'Confirme o e-mail da sua conta de IA',
+    detalhe:
+      'No quadro "E-mails da sua IA", mais abaixo nesta tela. É para esse e-mail que o SAS manda o código que aprova a conexão.',
+    confereEmail: true,
+  };
+  const aprovar: PassoDeConexao = {
+    acao: 'Digite o e-mail, depois o código, e aprove',
+    detalhe: `Abre uma aba do SAS. Digite o e-mail confirmado e peça o código: ele tem ${DIGITOS_DO_CODIGO} dígitos, chega em segundos e vale 10 minutos (na primeira vez, olhe também o spam). Digite o código e clique em "Aprovar".`,
+  };
+
+  if (ia === 'claude-code') {
+    return [
+      {
+        acao: 'Crie uma conexão',
+        detalhe:
+          'Clique em "Nova conexão" e dê um nome que você reconheça depois — por exemplo, "Claude Code do notebook".',
+        criaConexao: true,
+      },
+      {
+        acao: 'Copie o comando pronto',
+        detalhe:
+          'O token aparece uma vez só, já dentro de um comando. Clique em "Copiar o comando" antes de fechar o quadro.',
+      },
+      {
+        acao: 'Cole no terminal e rode',
+        detalhe: 'Para conferir, rode o comando abaixo: o SAS tem de aparecer como conectado.',
+        comando: 'claude mcp list',
+      },
+      {
+        acao: 'Apague a linha do histórico',
+        detalhe:
+          'O comando leva o token, e o terminal guarda o que você roda. A conexão vale 90 dias; para cortar antes, revogue na lista desta tela.',
+      },
+    ];
+  }
+
+  if (ia === 'chatgpt') {
+    return [
+      confirmarEmail,
+      {
+        acao: 'Ligue o modo desenvolvedor',
+        detalhe:
+          'No ChatGPT, abra Configurações → Apps e conectores → Configurações avançadas e ligue o "Modo desenvolvedor" ("Developer mode").',
+      },
+      {
+        acao: 'Crie o conector do SAS',
+        detalhe:
+          'Ainda em Apps e conectores, crie um conector com o nome SAS, autenticação OAuth e este endereço:',
+        copiar: copiarEndereco,
+      },
+      aprovar,
+      {
+        acao: 'Use',
+        detalhe: 'Numa conversa, escolha o conector SAS e faça a sua pergunta.',
+      },
+    ];
+  }
+
+  return [
+    confirmarEmail,
+    {
+      acao: 'Adicione o SAS como conector',
+      detalhe:
+        'No claude.ai, abra Configurações → Conectores → "Adicionar conector personalizado" ("Add custom connector"). Dê o nome SAS e cole este endereço:',
+      copiar: copiarEndereco,
+    },
+    {
+      acao: 'Clique em "Conectar"',
+      detalhe: 'Fica ao lado do conector que você acabou de adicionar.',
+    },
+    aprovar,
+    {
+      acao: 'Use',
+      detalhe:
+        'Numa conversa, ligue o SAS no menu de ferramentas e pergunte, por exemplo: "Quais alunos estão em risco no ciclo mais recente?". O Claude Desktop usa a mesma conta: o conector aparece lá também.',
+    },
+  ];
+}
+
+/**
+ * O cuidado de antes do primeiro uso, de cada IA: desligar o uso das
+ * conversas para treinar o modelo. É a decisão do dono de 27/10 (docs/43
+ * §0.2): a coordenação conecta com a conta PESSOAL, e o que a IA lê do SAS —
+ * nome de aluno inclusive — fica sob as regras dessa conta.
+ */
+export function cuidadoDePrivacidade(ia: IaParaConectar): string {
+  if (ia === 'chatgpt') {
+    return 'Antes de usar com dados de alunos: no ChatGPT, em Configurações → Controles de dados, desligue "Melhorar o modelo para todos" ("Improve the model for everyone").';
+  }
+  if (ia === 'claude-code') {
+    return 'Antes de usar com dados de alunos: se o Claude Code entra com a sua conta do Claude, vale a opção de privacidade dela — no claude.ai, em Configurações → Privacidade, desligue "Ajudar a melhorar o Claude" ("Help improve Claude").';
+  }
+  return 'Antes de usar com dados de alunos: no claude.ai, em Configurações → Privacidade, desligue "Ajudar a melhorar o Claude" ("Help improve Claude").';
+}
+
+/** O que o passo do e-mail diz sobre ele mesmo, a partir da lista do card. */
+export function estadoDoEmailConfirmado(confirmados: number | null): string | null {
+  if (confirmados === null) return null;
+  if (confirmados === 0) return 'Ainda falta: nenhum e-mail confirmado nesta conta.';
+  return confirmados === 1
+    ? 'Feito: esta conta tem 1 e-mail confirmado.'
+    : `Feito: esta conta tem ${confirmados} e-mails confirmados.`;
+}
