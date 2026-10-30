@@ -14,14 +14,17 @@ de LGPD de 24/10, que rodou as 30 tools de então contra dados sintéticos:
   * e as duas de 26/10: `buscar_aluno_por_nome` e `listar_alertas`, que só
     ficavam fora por causa do pseudônimo e entraram quando o dono decidiu que
     o MCP mostra o NOME do aluno (app/mcp/configuracao.py). Com o pseudônimo
-    ligado de novo, o catálogo as tira (app.mcp.catalogo.SO_COM_NOME_DO_ALUNO).
-São 31.
+    ligado de novo, o catálogo as tira (app.mcp.catalogo.SO_COM_NOME_DO_ALUNO);
+  * e as quatro da captação externa, de 30/10, quando a coordenação decidiu
+    que a IA lê o que o coordenador lê (chat/tools/captacao.py). As três que
+    devolvem nome de gente de fora também saem com o pseudônimo.
+São 35.
 
 Tudo o mais fica FORA: os artefatos de UI (`gerar_grafico`, `exportar_csv`,
 `navegar_para`), sem uso fora do app, e as novas de régua, rotinas e trilha,
 que são decisão aberta (docs/43 §6).
 
-E a invariante que torna o pseudônimo possível — para as 29 que o MCP serve
+E a invariante que torna o pseudônimo possível — para as 30 que o MCP serve
 também com ele ligado —, provada rodando cada tool pelo REGISTRO de verdade
 contra a escola sintética de test_chat_tools_coordenacao.py: **nome de aluno
 só sai em campo de nome, num dict que traz a identidade (`alunoId` ou
@@ -48,6 +51,7 @@ import pytest
 from app.chat.ferramentas import REGISTRO
 from app.mcp.catalogo import SO_COM_NOME_DO_ALUNO, Catalogo
 from app.mcp.pseudonimo import PseudonimoRecusado, pseudonimizar
+from tests import fake_captacao
 from tests.test_chat_tools_coordenacao import (
     C1,
     C2,
@@ -81,10 +85,22 @@ EXPOSTAS_NOVAS = frozenset({
 })
 #: As de 26/10, que só servem com o nome real (decisão do dono).
 EXPOSTAS_COM_O_NOME = frozenset({"buscar_aluno_por_nome", "listar_alertas"})
-EXPOSTAS = EXPOSTAS_SEM_PESSOA | EXPOSTAS_COM_PSEUDONIMO | EXPOSTAS_NOVAS | EXPOSTAS_COM_O_NOME
+#: As da captação externa (30/10) que devolvem nome de gente de fora: o nome é o
+#: objeto delas, e não há matrícula por que trocá-lo (chat/tools/captacao.py).
+EXPOSTAS_DA_CAPTACAO_COM_NOME = frozenset({
+    "buscar_candidatos_externos", "buscar_candidatos_por_conquista", "perfil_do_candidato_externo",
+})
+#: E a que só traz o catálogo das provas: sem pessoa, nos dois modos.
+EXPOSTAS_DA_CAPTACAO_SEM_PESSOA = frozenset({"provas_da_captacao"})
+EXPOSTAS = (
+    EXPOSTAS_SEM_PESSOA | EXPOSTAS_COM_PSEUDONIMO | EXPOSTAS_NOVAS | EXPOSTAS_COM_O_NOME
+    | EXPOSTAS_DA_CAPTACAO_COM_NOME | EXPOSTAS_DA_CAPTACAO_SEM_PESSOA
+)
+#: As que o catálogo tira com o pseudônimo ligado (`SO_COM_NOME_DO_ALUNO`).
+SO_COM_O_NOME = EXPOSTAS_COM_O_NOME | EXPOSTAS_DA_CAPTACAO_COM_NOME
 #: As que o MCP serve também com o pseudônimo ligado: as que têm de cumprir a
 #: invariante do nome com a identidade ao lado.
-EXPOSTAS_TAMBEM_COM_PSEUDONIMO = EXPOSTAS - EXPOSTAS_COM_O_NOME
+EXPOSTAS_TAMBEM_COM_PSEUDONIMO = EXPOSTAS - SO_COM_O_NOME
 
 #: Fora, de propósito — cada uma com o motivo no METADADOS do módulo dela.
 FORA_DO_MCP = frozenset({
@@ -130,6 +146,10 @@ CHAMADAS: dict[str, dict[str, Any]] = {
     "topicos_do_edital": {},
     "buscar_questoes_do_banco": {"materia": "Física"},
     "recorrencia_no_banco": {"materia": "Física"},
+    "buscar_candidatos_externos": {},
+    "buscar_candidatos_por_conquista": {"provas": ["OBF"], "faixas": ["ouro"]},
+    "perfil_do_candidato_externo": {"nome_normalizado": fake_captacao.ANA},
+    "provas_da_captacao": {},
 }
 
 #: Onde o nome do aluno pode estar — as mesmas chaves que o pseudonimizador troca.
@@ -208,16 +228,17 @@ class TestPolitica:
     def test_o_conjunto_exposto_e_exatamente_o_decidido(self):
         expostas = {f.nome for f in REGISTRO.catalogo("coordenacao") if f.expor_no_mcp}
         assert expostas == EXPOSTAS
-        assert len(EXPOSTAS) == 31
+        assert len(EXPOSTAS) == 35
 
     def test_com_o_pseudonimo_o_catalogo_tira_as_que_so_servem_com_o_nome(self):
-        """As duas de 26/10 são exatamente as que o catálogo do MCP tira com o
-        pseudônimo ligado — as listas de lá e daqui não podem divergir."""
-        assert SO_COM_NOME_DO_ALUNO == EXPOSTAS_COM_O_NOME
+        """As duas de 26/10 e as três da captação com nome são exatamente as
+        que o catálogo do MCP tira com o pseudônimo ligado — as listas de lá e
+        daqui não podem divergir."""
+        assert SO_COM_NOME_DO_ALUNO == SO_COM_O_NOME
         assert set(Catalogo(REGISTRO, teto_de_linhas=50).nomes()) == EXPOSTAS
         com_pseudonimo = Catalogo(REGISTRO, teto_de_linhas=50, com_nome_do_aluno=False)
         assert set(com_pseudonimo.nomes()) == EXPOSTAS_TAMBEM_COM_PSEUDONIMO
-        assert len(EXPOSTAS_TAMBEM_COM_PSEUDONIMO) == 29
+        assert len(EXPOSTAS_TAMBEM_COM_PSEUDONIMO) == 30
 
     def test_tudo_o_mais_da_coordenacao_fica_fora(self):
         """Tool nova na coordenação reprova aqui até alguém decidir se ela sai
@@ -259,7 +280,7 @@ def test_listar_alertas_e_por_que_ela_so_existe_com_o_nome_real(resultados):
         )
 
 
-@pytest.mark.parametrize("nome", sorted(EXPOSTAS_SEM_PESSOA | {
+@pytest.mark.parametrize("nome", sorted(EXPOSTAS_SEM_PESSOA | EXPOSTAS_DA_CAPTACAO_SEM_PESSOA | {
     "topicos_do_edital", "buscar_questoes_do_banco", "recorrencia_no_banco",
 }))
 def test_as_que_nao_sao_de_pessoa_nao_devolvem_nome_de_aluno(resultados, nome):
@@ -275,6 +296,15 @@ def test_as_de_aluno_de_fato_devolvem_nome(resultados, nome):
     """O contrário do anterior, para a conferência não passar no vazio.
     `trajetoria_aluno` e `tendencia_aluno` não devolvem nome nenhum."""
     assert _tem_nome(json.dumps(resultados[nome], ensure_ascii=False))
+
+
+@pytest.mark.parametrize("nome", sorted(EXPOSTAS_DA_CAPTACAO_COM_NOME))
+def test_a_captacao_devolve_gente_de_fora_e_nunca_aluno(resultados, nome):
+    """As duas populações não se misturam: a resposta traz o candidato da busca
+    e nenhum nome de aluno, mesmo com a escola sintética inteira no banco."""
+    texto = json.dumps(resultados[nome], ensure_ascii=False)
+    assert fake_captacao.ANA in texto
+    assert not _tem_nome(texto)
 
 
 @pytest.mark.parametrize("nome", sorted(EXPOSTAS_TAMBEM_COM_PSEUDONIMO))

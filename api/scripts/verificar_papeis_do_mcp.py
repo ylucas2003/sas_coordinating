@@ -94,11 +94,14 @@ _PADRAO_UP = re.compile(r"^\d{4}_[a-z0-9_]+\.sql$")
 _PADRAO_DOWN = re.compile(r"^\d{4}_[a-z0-9_]+\.down\.sql$")
 
 #: O que o sas_mcp não lê de jeito nenhum: credencial (inclusive o OAuth e os
-#: e-mails das contas de IA, 0073), conversa, contato, cantina, captação (gente
-#: de fora), gravação e a própria trilha (0071). Conferidas uma a uma, com ou
-#: sem --api. É também a régua de tests/test_migrations_do_mcp.py. `alerta`
-#: saiu daqui em 26/10: com o nome do aluno liberado no MCP (decisão do dono),
-#: `listar_alertas` é exposta e a 0071 dá o GRANT por coluna.
+#: e-mails das contas de IA, 0073), conversa, contato, cantina, gravação e a
+#: própria trilha (0071). Conferidas uma a uma, com ou sem --api. É também a
+#: régua de tests/test_migrations_do_mcp.py. `alerta` saiu daqui em 26/10: com
+#: o nome do aluno liberado no MCP (decisão do dono), `listar_alertas` é
+#: exposta e a 0071 dá o GRANT por coluna. `prova_externa`, `candidato_externo`
+#: e `conquista_externa` saíram em 30/10, quando a coordenação decidiu que a IA
+#: lê o que o coordenador lê: a 0076 dá o GRANT por coluna, e o que continua
+#: fechado da captação está em COLUNAS_PROIBIDAS_DA_CAPTACAO.
 TABELAS_PROIBIDAS: tuple[str, ...] = (
     "usuario_coordenacao",
     "usuario_cantina",
@@ -124,9 +127,6 @@ TABELAS_PROIBIDAS: tuple[str, ...] = (
     "direito_refeicao_aluno",
     "pedido_refeicao",
     "pedido_refeicao_item",
-    "prova_externa",
-    "candidato_externo",
-    "conquista_externa",
     "questao_estudo_aluno",
 )
 
@@ -144,10 +144,20 @@ COLUNAS_PROIBIDAS_DO_ALUNO: tuple[str, ...] = (
     "restricao_alimentar",
 )
 
+#: Colunas da captação que nunca entram no GRANT (0076): o texto livre do funil,
+#: onde um telefone anotado à mão apareceria (o SAS não tem coluna de contato),
+#: e o bastidor da raspagem e do resolver, que a tela não mostra. São pessoas de
+#: fora, muitas menores, que nunca se cadastraram: a régua é o que a tela mostra.
+COLUNAS_PROIBIDAS_DA_CAPTACAO: dict[str, tuple[str, ...]] = {
+    "candidato_externo": ("observacoes", "retrato_editado_a_mao"),
+    "conquista_externa": ("nome_informado", "raspado_em"),
+}
+
 #: As únicas funções que o sas_mcp pode executar. `buscar_candidatos_por_conquista`
 #: é SECURITY INVOKER (0068) e vem de PUBLIC: roda com o privilégio de quem
-#: chama, e o sas_mcp não lê nada da captação — volta 42501. Função nova que
-#: aparecer aqui é para olhar: se for SECURITY DEFINER, roda como superusuário.
+#: chama, então só alcança as colunas que a 0076 lhe deu — é uma das tools da
+#: captação. Função nova que aparecer aqui é para olhar: se for SECURITY
+#: DEFINER, roda como superusuário.
 FUNCOES_EXECUTAVEIS: frozenset[str] = frozenset(
     {"mcp_conferir_token", "buscar_candidatos_por_conquista"}
 )
@@ -157,6 +167,7 @@ FUNCOES_EXECUTAVEIS: frozenset[str] = frozenset(
 _CHAVES_SENSIVEIS: frozenset[str] = frozenset(
     {
         *(c.replace("_", "") for c in COLUNAS_PROIBIDAS_DO_ALUNO),
+        *(c.replace("_", "") for colunas in COLUNAS_PROIBIDAS_DA_CAPTACAO.values() for c in colunas),
         "fotourl",
         "hashacesso",
         "ip",
@@ -368,6 +379,10 @@ _RE_REVOKE = re.compile(
     r"(?: ?\((?P<colunas>[^)]*)\))? ON (?:TABLE )?(?P<tabela>[\w.]+) FROM (?P<papeis>.+)",
     re.IGNORECASE,
 )
+_RE_DROP = re.compile(
+    r"DROP (?:MATERIALIZED VIEW|VIEW|TABLE) (?:IF EXISTS )?(?P<nomes>[\w., ]+?)(?: CASCADE| RESTRICT)?",
+    re.IGNORECASE,
+)
 
 
 def lista_branca(
@@ -387,6 +402,13 @@ def lista_branca(
 
 
 def _aplicar(estado: dict[str, set[str] | None], comando: str, papel: str) -> None:
+    # O GRANT morre com o objeto: a view materializada recriada volta sem ele (foi
+    # o que a 0065 e a 0068 fizeram, antes de ela estar na lista). Sem isto o
+    # leitor continuaria dizendo que o MCP a lê, e a tool só cairia no 42501.
+    if m := _RE_DROP.fullmatch(comando):
+        for nome in m["nomes"].split(","):
+            estado.pop(nome.strip().lower().removeprefix("public."), None)
+        return
     if m := _RE_GRANT_SELECT.fullmatch(comando):
         if papel not in _papeis(m["papeis"]):
             return
@@ -434,17 +456,38 @@ LOGIN_DO_MCP = "autenticador_mcp"
 #: login. Toda regra de concessão vale para os três.
 PAPEIS_DO_MCP: tuple[str, ...] = ("sas_leitura", "sas_mcp", LOGIN_DO_MCP)
 _VIGIADOS: frozenset[str] = frozenset({*PAPEIS_DO_MCP, "public"})
-_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_")
+_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_", "0076_")
 DIR_INIT = Path(__file__).resolve().parent.parent.parent / "infra" / "postgres" / "init"
 
 #: Prefixos de tabela que nunca entram na lista branca, além das nomeadas em
 #: TABELAS_PROIBIDAS: conversa, credencial, token, OAuth (0073), cantina,
 #: captação, disparo e e-mail (o das contas de IA inclusive) — e `v_`, porque
-#: nenhuma view do schema usa security_invoker (0071).
+#: view comum roda com o privilégio do dono (0071).
 PREFIXOS_PROIBIDOS: tuple[str, ...] = (
     "chat_", "usuario_", "token_", "oauth_", "cantina", "cardapio", "pedido_", "direito_",
     "candidato_", "conquista_", "prova_externa", "disparo", "email_", "v_",
 )
+
+#: As views que a lista branca pode ter, pelo nome (0076). A trava do prefixo
+#: `v_` continua para todas as outras, e a destas tem de sobreviver à auditoria
+#: estrutural (`_views`): não podem rodar com o privilégio do dono, ou seja, são
+#: materializadas (ler não roda a consulta de baixo: o GRANT por coluna vale como
+#: numa tabela) ou têm `security_invoker` (leem com o privilégio de quem chama).
+VIEWS_DA_LISTA_BRANCA: frozenset[str] = frozenset({"v_candidato_externo_por_nome", "v_prova_externa_resumo"})
+
+#: O que entra PELO NOME apesar do prefixo. As três tabelas da captação, e só as
+#: três (0076): uma tabela de contato do candidato, amanhã, nasce proibida e pede
+#: uma decisão, em vez de herdar a liberação destas.
+LIBERADAS_PELO_NOME: frozenset[str] = frozenset(
+    {"prova_externa", "candidato_externo", "conquista_externa", *VIEWS_DA_LISTA_BRANCA}
+)
+
+
+def tabela_proibida(tabela: str) -> bool:
+    """A tabela nunca entra na lista branca: a régua nominal e a dos prefixos."""
+    if tabela in TABELAS_PROIBIDAS:
+        return True
+    return tabela not in LIBERADAS_PELO_NOME and tabela.startswith(PREFIXOS_PROIBIDOS)
 
 #: As colunas que o sas_mcp insere na trilha (0072): nem `id` nem `ocorrido_em`.
 COLUNAS_DA_TRILHA: frozenset[str] = frozenset(
@@ -539,12 +582,60 @@ def auditar_migrations(
     return problemas
 
 
+_RE_VIEW_CRIADA = re.compile(
+    r"CREATE (?:OR REPLACE )?(?P<materializada>MATERIALIZED )?VIEW (?:IF NOT EXISTS )?(?:public\.)?"
+    r"(?P<nome>\w+)(?P<resto>.*)",
+    re.IGNORECASE,
+)
+_RE_VIEW_OPCOES = re.compile(
+    r"ALTER (?:VIEW|TABLE) (?:IF EXISTS )?(?:public\.)?(?P<nome>\w+) (?P<verbo>SET|RESET) \((?P<opcoes>[^()]*)\)",
+    re.IGNORECASE,
+)
+_RE_VIEW_RENOMEADA = re.compile(
+    r"ALTER (?:MATERIALIZED )?VIEW (?:IF EXISTS )?(?:public\.)?(?P<nome>\w+) RENAME TO (?P<novo>\w+)",
+    re.IGNORECASE,
+)
+_RE_VIEW_DERRUBADA = re.compile(
+    r"DROP (?:MATERIALIZED )?VIEW (?:IF EXISTS )?(?P<nomes>[\w., ]+?)(?: CASCADE| RESTRICT)?", re.IGNORECASE
+)
+#: `security_invoker` ligado. Sem valor também liga; valor entre aspas (o texto
+#: normalizado o troca por `''`) não casa e fica como dono: na dúvida, fecha.
+_RE_INVOKER_LIGADO = re.compile(r"\bsecurity_invoker\b(?:\s*=\s*(?:true|on|yes|1)\b|\s*(?=,|$))", re.IGNORECASE)
+
+
+def _invoker_ligado(opcoes: str) -> bool:
+    return any(_RE_INVOKER_LIGADO.search(opcao.strip()) for opcao in opcoes.split(","))
+
+
 def _views(comandos: Iterable[Comando]) -> frozenset[str]:
-    """As views (e as materializadas) que as migrations criam."""
-    padrao = re.compile(
-        r"CREATE (?:OR REPLACE )?(?:MATERIALIZED )?VIEW (?:IF NOT EXISTS )?(?:public\.)?(\w+)", re.IGNORECASE
-    )
-    return frozenset(m[1].lower() for c in comandos if (m := padrao.match(c.texto)))
+    """As views que rodam com o privilégio do DONO depois de todas as migrations.
+
+    É o que torna um GRANT perigoso: elas expõem o que leem, mesmo sem GRANT nas
+    tabelas de baixo (0071). Não entram as materializadas (ler não roda a consulta
+    de baixo) nem as de `security_invoker` ligado. Vale o ÚLTIMO comando de cada
+    view: `CREATE OR REPLACE VIEW` sem o `WITH` DESLIGA a opção — provado num
+    Postgres 16 descartável em 30/10 —, e por isso quem recria a view do rodapé da
+    captação sem repetir a opção reprova aqui, no GRANT da 0076.
+    """
+    do_dono: dict[str, bool] = {}
+    for comando in comandos:
+        texto = comando.texto
+        if m := _RE_VIEW_CRIADA.match(texto):
+            cabecalho = re.split(r"\sAS\s", m["resto"], maxsplit=1, flags=re.IGNORECASE)[0]
+            opcoes = re.search(r"\bWITH \((?P<opcoes>[^()]*)\)", cabecalho, re.IGNORECASE)
+            invoker = opcoes is not None and _invoker_ligado(opcoes["opcoes"])
+            do_dono[m["nome"].lower()] = not m["materializada"] and not invoker
+        elif m := _RE_VIEW_OPCOES.fullmatch(texto):
+            nome = m["nome"].lower()
+            if nome in do_dono and "security_invoker" in m["opcoes"].lower():
+                do_dono[nome] = m["verbo"].upper() == "RESET" or not _invoker_ligado(m["opcoes"])
+        elif m := _RE_VIEW_RENOMEADA.fullmatch(texto):
+            if m["nome"].lower() in do_dono:
+                do_dono[m["novo"].lower()] = do_dono.pop(m["nome"].lower())
+        elif m := _RE_VIEW_DERRUBADA.fullmatch(texto):
+            for nome in m["nomes"].split(","):
+                do_dono.pop(nome.strip().lower().removeprefix("public."), None)
+    return frozenset(nome for nome, dono in do_dono.items() if dono)
 
 
 def _auditar_init(dir_init: Path) -> list[str]:
@@ -645,12 +736,14 @@ def _forma_permitida(
                 return ["GRANT SELECT ao sas_leitura é numa tabela por comando"]
             tabela, colunas = t["tabela"].lower(), _colunas(m["colunas"])
             motivos = []
-            if tabela in TABELAS_PROIBIDAS or tabela.startswith(PREFIXOS_PROIBIDOS):
+            if tabela_proibida(tabela):
                 motivos.append(f"{tabela} nunca entra na lista branca")
             if tabela in views:
                 motivos.append(f"{tabela} é view: roda com o privilégio do dono e expõe o que lê (0071)")
             if tabela == "aluno" and (proibidas := colunas & set(COLUNAS_PROIBIDAS_DO_ALUNO)):
                 motivos.append(f"coluna proibida de aluno: {', '.join(sorted(proibidas))}")
+            if proibidas := colunas & set(COLUNAS_PROIBIDAS_DA_CAPTACAO.get(tabela, ())):
+                motivos.append(f"coluna proibida da captação: {', '.join(sorted(proibidas))}")
             return motivos
         if priv.upper() == "SELECT":
             return ["GRANT SELECT ao sas_leitura é por coluna: coluna nova nasce invisível (0071)"]
@@ -1172,6 +1265,11 @@ def conferir_nada_alem(
 #: Recusa que não é 42501 mas também prova que não há escrita: coluna gerada
 #: só aceita DEFAULT (o Postgres recusa antes de conferir o privilégio).
 _SO_DEFAULT = "428C9"
+#: Idem para view que agrega, que não é atualizável: o Postgres recusa no
+#: reescritor, antes de olhar privilégio. Só vale para as VIEWS_DA_LISTA_BRANCA
+#: (a 0076 deixou a do rodapé da captação com security_invoker): numa tabela,
+#: este código seria uma sonda que não exercitou privilégio nenhum.
+_VIEW_NAO_ATUALIZAVEL = "55000"
 
 
 def conferir_sem_escrita(
@@ -1210,6 +1308,7 @@ def conferir_sem_escrita(
         rel.aviso("sem OpenAPI, a sonda de escrita só cobre as colunas da lista branca")
     trilha_inteira = set(COLUNAS_DA_TRILHA) | {"id", "ocorrido_em"}
     for tabela in sorted(set(branca) | {"evento_auditoria"}):
+        recusas = {_SO_DEFAULT} | ({_VIEW_NAO_ATUALIZAVEL} if tabela in VIEWS_DA_LISTA_BRANCA else set())
         legiveis = sorted(branca.get(tabela) or ())
         reserva = trilha_inteira if tabela == "evento_auditoria" else set(legiveis)
         todas = sorted(colunas_de.get(tabela) or reserva)
@@ -1219,16 +1318,16 @@ def conferir_sem_escrita(
             if tabela == "evento_auditoria" and coluna in COLUNAS_DA_TRILHA:
                 if r.status != 201:
                     abertas.append(f"INSERT ({coluna}) é da 0072 e deu {r.resumo()}")
-            elif not (r.negada or r.codigo == _SO_DEFAULT):
+            elif not (r.negada or r.codigo in recusas):
                 abertas.append(f"INSERT ({coluna}): {r.resumo()}")
         if legiveis:
             filtro = _contraditorio(legiveis[0])
             for coluna in todas:
                 r = mcp.pedir("PATCH", tabela, params=filtro, corpo={coluna: None}, cabecalhos=_SO_O_MINIMO)
-                if not (r.negada or r.codigo == _SO_DEFAULT):
+                if not (r.negada or r.codigo in recusas):
                     abertas.append(f"UPDATE ({coluna}): {r.resumo()}")
             r = mcp.pedir("DELETE", tabela, params=filtro, cabecalhos=_SO_O_MINIMO)
-            if not r.negada:
+            if not (r.negada or r.codigo in recusas - {_SO_DEFAULT}):
                 abertas.append(f"DELETE: {r.resumo()}")
             alcance = f"INSERT e UPDATE nas {len(todas)} colunas, DELETE"
         else:
@@ -1418,6 +1517,28 @@ def _descobrir_valores(cliente: Any) -> dict[str, Any]:
         questoes = linhas("questao_vestibular", "ano", eq={"id": v["questao_id"]})
         if questoes:
             v["ano_desde"] = v["ano_ate"] = questoes[0]["ano"]
+    # A captação (0076): cada leitura aqui já é o sas_mcp lendo o que a lista
+    # branca lhe deu. Sem linha, a tool sai com o vazio, e o verificador diz.
+    nomes = linhas("v_candidato_externo_por_nome", "nome_normalizado, ufs", ordem="conquistas_total")
+    if nomes:
+        v["nome_normalizado"] = nomes[0]["nome_normalizado"]
+        if nomes[0].get("ufs"):
+            v["uf"] = nomes[0]["ufs"][0]
+        perfis = linhas("candidato_externo", "id", eq={"nome_normalizado": v["nome_normalizado"]})
+        conquistas = (
+            linhas("conquista_externa", "ano, prova_id", eq={"candidato_id": perfis[0]["id"]}, ordem="ano")
+            if perfis
+            else []
+        )
+        if perfis:
+            v["candidato_id"] = perfis[0]["id"]
+        if conquistas:
+            v["ano"] = v["ano_min"] = v["ano_max"] = conquistas[0]["ano"]
+            provas = linhas("prova_externa", "nome", eq={"id": conquistas[0]["prova_id"]})
+            if provas:
+                v["prova"] = provas[0]["nome"]
+                v["provas"] = [provas[0]["nome"]]
+    v["faixas"], v["publicos"], v["conquistas_min"] = ["ouro"], ["medio"], 1
     return v
 
 

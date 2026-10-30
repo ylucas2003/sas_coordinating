@@ -54,6 +54,7 @@ from app.lembretes import motor
 from app.lembretes.aplicacoes import aluno_simulado
 from app.schemas.domain import Severidade
 from app.stats import classificacao_ciclo, criterios, criterios_repo
+from tests import fake_captacao
 from tests.esquema_das_migrations import esquema
 from tests.fake_postgrest import FakeCliente, Query, Resp, _ordenavel
 
@@ -335,6 +336,23 @@ class TabelaRica:
     insert = upsert = update = delete = _escrita
 
 
+class _Rpc:
+    def __init__(self, linhas: list[dict]):
+        self.linhas = linhas
+
+    def execute(self) -> Resp:
+        return Resp(self.linhas)
+
+
+#: As RPC que uma tool pode chamar: leitura, SECURITY INVOKER, emuladas em
+#: tests/fake_captacao.py. Qualquer outra é escrita proibida, como sempre foi.
+RPCS_DE_LEITURA = {
+    "buscar_candidatos_por_conquista": lambda db, params: fake_captacao.buscar_candidatos_por_conquista(
+        db, params, casa_like=_casa_like
+    ),
+}
+
+
 class FakeRico(FakeCliente):
     """O fake de sempre com projeção, embed, os filtros que faltavam e escrita
     proibida. `consultas` guarda cada leitura, para conferir limite e formato."""
@@ -344,11 +362,15 @@ class FakeRico(FakeCliente):
         self.falhar_em = frozenset(falhar_em)
         self.consultas: list[ConsultaRica] = []
         self.escritas: list[str] = []
+        self.rpcs: list[tuple[str, dict]] = []
 
     def table(self, nome):
         return TabelaRica(self, nome)
 
-    def rpc(self, funcao, *_a, **_k):
+    def rpc(self, funcao, params=None, *_a, **_k):
+        if funcao in RPCS_DE_LEITURA:
+            self.rpcs.append((funcao, params))
+            return _Rpc(RPCS_DE_LEITURA[funcao](self.db, params or {}))
         self.escritas.append(f"rpc:{funcao}")
         raise AssertionError(f"tool da coordenação chamou rpc {funcao}")
 
@@ -704,6 +726,9 @@ def nova_escola() -> Escola:
     ), start=1):
         por("evento_auditoria", id=n, ocorrido_em=ts(**atras), acao=acao, canal=canal, ator_tipo=ator_tipo,
             ator_id=ator, recurso=recurso, ip="10.0.0.1", detalhe=detalhe, request_id=f"req-{n}")
+
+    # A captação externa: gente de fora, que nada tem a ver com os alunos acima.
+    fake_captacao.semear(por)
 
     return Escola(db=db, agora=agora, hoje_brt=hoje_brt)
 
@@ -1605,6 +1630,8 @@ class TestOFakeConfereOEsquema:
         """Coluna inventada na semente engana do mesmo jeito que a pedida pela
         tool: o `fase=None` dos simulados daqui era isso."""
         for tabela, linhas in escola.db.items():
+            if tabela in esquema().views:
+                continue  # as colunas de view não são lidas, e o fake não as inventa
             colunas = esquema().colunas(tabela)
             assert colunas is not None, tabela
             for linha in linhas.values():
@@ -1650,6 +1677,10 @@ EXEMPLOS: dict[str, dict[str, Any]] = {
     "questoes_do_simulado": {"simulado_id": S["FIS_F2"]},
     "navegar_para": {"tipo": "aluno", "id": A},
     "roteiro_da_coordenacao": {"nome": "diagnostico_do_ciclo"},
+    "buscar_candidatos_externos": {"uf": "CE", "conquistas_min": 1},
+    "buscar_candidatos_por_conquista": {"provas": ["OBF"], "faixas": ["ouro"], "publicos": ["medio"]},
+    "perfil_do_candidato_externo": {"nome_normalizado": fake_captacao.ANA},
+    "provas_da_captacao": {},
 }
 
 

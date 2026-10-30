@@ -28,6 +28,7 @@ from typing import Any
 from . import (
     artefato,
     banco_questoes,
+    captacao,
     comparar,
     contexto,
     heuristicas,
@@ -42,10 +43,11 @@ from . import (
 # ─── Registry ─────────────────────────────────────────────────────────────
 
 # Os quatro do fim são a cobertura do docs/43 §4.3: banco de questões, régua
-# como objeto, rotinas automáticas (sync, gravações, lembretes) e auditoria.
+# como objeto, rotinas automáticas (sync, gravações, lembretes) e auditoria. A
+# captação externa entrou em 30/10 (a IA lê o que o coordenador lê).
 _MODULOS = (
     lookup, stats, comparar, heuristicas, relatorios, artefato, contexto,
-    banco_questoes, reguas, rotinas, trilha,
+    banco_questoes, reguas, rotinas, trilha, captacao,
 )
 
 SCHEMAS: list[dict[str, Any]] = []
