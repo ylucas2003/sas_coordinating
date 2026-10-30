@@ -94,11 +94,13 @@ _PADRAO_UP = re.compile(r"^\d{4}_[a-z0-9_]+\.sql$")
 _PADRAO_DOWN = re.compile(r"^\d{4}_[a-z0-9_]+\.down\.sql$")
 
 #: O que o sas_mcp não lê de jeito nenhum: credencial (inclusive o OAuth e os
-#: e-mails das contas de IA, 0073), conversa, contato, cantina, captação (gente
-#: de fora), gravação e a própria trilha (0071). Conferidas uma a uma, com ou
-#: sem --api. É também a régua de tests/test_migrations_do_mcp.py. `alerta`
-#: saiu daqui em 26/10: com o nome do aluno liberado no MCP (decisão do dono),
-#: `listar_alertas` é exposta e a 0071 dá o GRANT por coluna.
+#: e-mails das contas de IA, 0073), conversa, contato, captação (gente de
+#: fora), gravação e a própria trilha (0071). Conferidas uma a uma, com ou sem
+#: --api. É também a régua de tests/test_migrations_do_mcp.py. `alerta` saiu
+#: daqui em 26/10: com o nome do aluno liberado no MCP (decisão do dono),
+#: `listar_alertas` é exposta e a 0071 dá o GRANT por coluna. As tabelas da
+#: cantina saíram em 30/10, pela decisão de que a IA lê o que a coordenação lê
+#: (0075, por coluna) — menos `usuario_cantina`, que é conta de acesso e fica.
 TABELAS_PROIBIDAS: tuple[str, ...] = (
     "usuario_coordenacao",
     "usuario_cantina",
@@ -119,11 +121,6 @@ TABELAS_PROIBIDAS: tuple[str, ...] = (
     "upload_evento",
     "canvas_sync_execucao",
     "aula_gravacao",
-    "cantina",
-    "cardapio",
-    "direito_refeicao_aluno",
-    "pedido_refeicao",
-    "pedido_refeicao_item",
     "prova_externa",
     "candidato_externo",
     "conquista_externa",
@@ -131,7 +128,9 @@ TABELAS_PROIBIDAS: tuple[str, ...] = (
 )
 
 #: Colunas de `aluno` que nunca entram no GRANT (0071): segredo, contato,
-#: chave de entrada do Canvas, foto e dado de saúde.
+#: chave de entrada do Canvas e foto. `restricao_alimentar` estava aqui até
+#: 30/10: a decisão da coordenação a pôs na lista branca (0075), para uma tool
+#: só — e é `_TOOL_DO_DADO_DE_SAUDE`, abaixo, que continua vigiando as outras.
 COLUNAS_PROIBIDAS_DO_ALUNO: tuple[str, ...] = (
     "senha_hash",
     "email",
@@ -141,8 +140,14 @@ COLUNAS_PROIBIDAS_DO_ALUNO: tuple[str, ...] = (
     "email_verificado_em",
     "foto_perfil_storage",
     "foto_perfil_atualizada_em",
-    "restricao_alimentar",
 )
+
+#: A única tool que pode devolver a restrição alimentar: dado de saúde de menor
+#: (LGPD art. 11; decisão de 30/10, 0075). O GRANT é do papel, e não da tool —
+#: nada no Postgres impede outra tool de ler a coluna —, então a chave segue
+#: sensível para todas as outras, e o --ferramentas reprova a que a devolver.
+_TOOL_DO_DADO_DE_SAUDE = "restricoes_alimentares"
+_CHAVE_DO_DADO_DE_SAUDE = "restricaoalimentar"
 
 #: As únicas funções que o sas_mcp pode executar. `buscar_candidatos_por_conquista`
 #: é SECURITY INVOKER (0068) e vem de PUBLIC: roda com o privilégio de quem
@@ -157,6 +162,7 @@ FUNCOES_EXECUTAVEIS: frozenset[str] = frozenset(
 _CHAVES_SENSIVEIS: frozenset[str] = frozenset(
     {
         *(c.replace("_", "") for c in COLUNAS_PROIBIDAS_DO_ALUNO),
+        _CHAVE_DO_DADO_DE_SAUDE,
         "fotourl",
         "hashacesso",
         "ip",
@@ -434,15 +440,16 @@ LOGIN_DO_MCP = "autenticador_mcp"
 #: login. Toda regra de concessão vale para os três.
 PAPEIS_DO_MCP: tuple[str, ...] = ("sas_leitura", "sas_mcp", LOGIN_DO_MCP)
 _VIGIADOS: frozenset[str] = frozenset({*PAPEIS_DO_MCP, "public"})
-_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_")
+_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_", "0075_")
 DIR_INIT = Path(__file__).resolve().parent.parent.parent / "infra" / "postgres" / "init"
 
 #: Prefixos de tabela que nunca entram na lista branca, além das nomeadas em
-#: TABELAS_PROIBIDAS: conversa, credencial, token, OAuth (0073), cantina,
-#: captação, disparo e e-mail (o das contas de IA inclusive) — e `v_`, porque
-#: nenhuma view do schema usa security_invoker (0071).
+#: TABELAS_PROIBIDAS: conversa, credencial, token, OAuth (0073), captação,
+#: disparo e e-mail (o das contas de IA inclusive) — e `v_`, porque nenhuma view
+#: do schema usa security_invoker (0071). Os prefixos da cantina saíram em 30/10
+#: (0075); `usuario_` é o que segue segurando `usuario_cantina`.
 PREFIXOS_PROIBIDOS: tuple[str, ...] = (
-    "chat_", "usuario_", "token_", "oauth_", "cantina", "cardapio", "pedido_", "direito_",
+    "chat_", "usuario_", "token_", "oauth_",
     "candidato_", "conquista_", "prova_externa", "disparo", "email_", "v_",
 )
 
@@ -1407,6 +1414,14 @@ def _descobrir_valores(cliente: Any) -> dict[str, Any]:
     turmas = linhas("turma", "id, sede_id")
     if turmas:
         v["turma_id"], v["sede_id"] = turmas[0]["id"], turmas[0]["sede_id"]
+    # As tools da cantina (0075): um cardápio de verdade, o mais recente, para
+    # `data` exercitar o caminho com pedido em vez do "hoje" que pode estar vazio.
+    cantinas = linhas("cantina", "id")
+    if cantinas:
+        v["cantina_id"] = cantinas[0]["id"]
+    cardapios = linhas("cardapio", "data", ordem="data")
+    if cardapios:
+        v["data"] = cardapios[0]["data"]
     reguas = linhas("criterio_classificacao", "slug", eq={"embutido": False, "ativo": True})
     if reguas:
         v["criterio"] = reguas[0]["slug"]
@@ -1461,17 +1476,20 @@ def _chamadas(ferramenta: Any, valores: dict[str, Any]) -> Iterator[tuple[str, d
             yield rotulo, args
 
 
-def _chaves_sensiveis(valor: Any, caminho: str = "") -> list[str]:
+def _chaves_sensiveis(
+    valor: Any, caminho: str = "", *, permitidas: frozenset[str] = frozenset()
+) -> list[str]:
     achadas: list[str] = []
     if isinstance(valor, dict):
         for chave, filho in valor.items():
             onde = f"{caminho}.{chave}" if caminho else str(chave)
-            if str(chave).replace("_", "").lower() in _CHAVES_SENSIVEIS:
+            normalizada = str(chave).replace("_", "").lower()
+            if normalizada in _CHAVES_SENSIVEIS and normalizada not in permitidas:
                 achadas.append(onde)
-            achadas += _chaves_sensiveis(filho, onde)
+            achadas += _chaves_sensiveis(filho, onde, permitidas=permitidas)
     elif isinstance(valor, list):
         for i, filho in enumerate(valor):
-            achadas += _chaves_sensiveis(filho, f"{caminho}[{i}]")
+            achadas += _chaves_sensiveis(filho, f"{caminho}[{i}]", permitidas=permitidas)
     return achadas
 
 
@@ -1529,7 +1547,7 @@ def conferir_ferramentas(
                     continue
                 captura.registros.clear()
                 resultado = REGISTRO.despachar(sessao, ferramenta.nome, cliente, args)
-                _julgar(rel, titulo, resultado, captura.registros, proibidos)
+                _julgar(rel, titulo, resultado, captura.registros, proibidos, ferramenta=ferramenta.nome)
     finally:
         raiz.removeHandler(captura)
 
@@ -1540,6 +1558,8 @@ def _julgar(
     resultado: dict[str, Any],
     registros: list[logging.LogRecord],
     proibidos: list[str],
+    *,
+    ferramenta: str | None = None,
 ) -> None:
     negadas, outras = [], []
     for registro in registros:
@@ -1550,7 +1570,10 @@ def _julgar(
     if negadas:
         rel.falha(f"{titulo}: permissão negada — {'; '.join(negadas)}")
         return
-    sensiveis = _chaves_sensiveis(resultado)
+    permitidas = (
+        frozenset({_CHAVE_DO_DADO_DE_SAUDE}) if ferramenta == _TOOL_DO_DADO_DE_SAUDE else frozenset()
+    )
+    sensiveis = _chaves_sensiveis(resultado, permitidas=permitidas)
     if sensiveis:
         rel.falha(f"{titulo}: devolveu coluna sensível em {', '.join(sensiveis)}")
         return

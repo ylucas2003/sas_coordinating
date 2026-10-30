@@ -33,6 +33,8 @@ _COM_TETO_NO_HANDLER = frozenset({
     "topicos_do_edital", "buscar_questoes_do_banco", "recorrencia_no_banco",
     "cortados_pela_regua", "estado_do_sync_canvas", "pendencias_canvas_do_ciclo",
     "estado_das_gravacoes", "historico_de_alteracoes",
+    "cantinas_e_regras", "calendario_da_cantina", "cardapio_da_cantina", "pedidos_da_refeicao",
+    "custos_da_cantina", "direitos_a_refeicao", "restricoes_alimentares",
 })
 
 
@@ -187,6 +189,14 @@ CASOS: list[tuple[str, set[str]]] = [
     ("Quem mudou a nota da Ana no P22?",
      {"historico_de_alteracoes", "buscar_aluno_por_nome", "listar_simulados"}),
     ("Prepare a pauta da reunião de coordenação sobre o ciclo", {"roteiro_da_coordenacao"}),
+    # A cantina (decisão de 30/10) — um caso por tool nova.
+    ("Até que horas dá para pedir o almoço?", {"cantinas_e_regras"}),
+    ("A cantina já lançou o cardápio da semana que vem?", {"calendario_da_cantina"}),
+    ("O que tem no almoço de hoje?", {"cardapio_da_cantina"}),
+    ("Quantos pediram frango no almoço de hoje?", {"pedidos_da_refeicao"}),
+    ("Quanto a cantina custou em outubro?", {"custos_da_cantina"}),
+    ("Quantos alunos têm direito a jantar na escola?", {"direitos_a_refeicao"}),
+    ("Quem do almoço de hoje tem alergia alimentar?", {"restricoes_alimentares"}),
 ]
 
 

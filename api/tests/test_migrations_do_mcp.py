@@ -37,8 +37,10 @@ from scripts.verificar_papeis_do_mcp import (
     PAPEIS_DO_MCP,
     PREFIXOS_PROIBIDOS,
     TABELAS_PROIBIDAS,
+    _chaves_sensiveis,
     _comandos,
     _evento,
+    _julgar,
     _separar,
     auditar_funcoes,
     auditar_migrations,
@@ -82,7 +84,7 @@ def test_toda_migration_tem_down():
 
 
 def test_as_migrations_do_mcp_existem_com_down():
-    for prefixo in ("0071_", "0072_", "0073_"):
+    for prefixo in ("0071_", "0072_", "0073_", "0075_"):
         up = _arquivo(prefixo)
         assert up.with_name(up.name.replace(".sql", ".down.sql")).exists()
 
@@ -124,6 +126,10 @@ def test_colunas_de_bastidor_ficam_fora():
         "questao_vestibular": {"fonte_pdf", "arquivo_origem", "classificado_por"},
         # Entrou em 26/10 (listar_alertas, com o nome liberado): só o que a tool lê.
         "alerta": {"dados_brutos", "hash_dedup", "resolvido_em"},
+        # A cantina (0075): sem a conta que lançou e sem carimbo de bastidor.
+        "cantina": {"criado_em"},
+        "cardapio": {"criado_por", "criado_em", "atualizado_em"},
+        "pedido_refeicao": {"atualizado_em"},
     }
     for tabela, colunas in fora.items():
         assert tabela in branca, tabela
@@ -135,6 +141,98 @@ def test_sas_mcp_nao_recebe_select_direto():
     assert lista_branca(DIR_MIGRATIONS, papel="sas_mcp") == {}
     # E o login nem isso: é NOINHERIT, e não lê nada por si (0071).
     assert lista_branca(DIR_MIGRATIONS, papel=LOGIN_DO_MCP) == {}
+
+
+# ─── A 0075: a cantina ───────────────────────────────────────────────────
+
+
+def test_a_cantina_entra_sem_a_conta_de_acesso_nem_as_views():
+    branca = lista_branca(DIR_MIGRATIONS)
+    # A conta segue proibida pelo nome e pelo prefixo: é ela que guarda e-mail,
+    # último login e senha_hash (0047).
+    assert "usuario_cantina" in TABELAS_PROIBIDAS and "usuario_cantina".startswith(PREFIXOS_PROIBIDOS)
+    assert "usuario_cantina" not in branca
+    # View roda com o privilégio do dono: o MCP faz a conta nas tabelas (0071).
+    assert {"v_pedidos_por_cardapio", "v_contagem_pedidos_por_opcao"} & set(branca) == set()
+
+
+def test_a_restricao_alimentar_entra_so_pela_0075_e_em_grant_proprio():
+    # Dado de saúde de menor (LGPD art. 11): ela sai sozinha por um REVOKE, sem
+    # desfazer o resto, e nenhum outro GRANT a arrasta junto.
+    com_ela = [c for c in _todos_os_comandos() if c.startswith("GRANT") and "restricao_alimentar" in c]
+    assert com_ela == ["GRANT SELECT (restricao_alimentar) ON aluno TO sas_leitura"]
+    assert "GRANT SELECT (restricao_alimentar) ON aluno TO sas_leitura" in _comandos_de(_arquivo("0075_"))
+
+
+def test_o_comment_da_coluna_deixa_de_dizer_em_lugar_nenhum_mais():
+    texto = " ".join(_arquivo("0075_").read_text(encoding="utf-8").split())
+    assert "restricoes_alimentares, e só nela" in texto
+    assert "LGPD art. 11" in texto
+
+
+def test_o_down_da_0075_devolve_cada_grant_e_o_comment_da_0049():
+    up = _arquivo("0075_")
+    down = up.with_name(up.name.replace(".sql", ".down.sql"))
+    # O que a 0075 concede: (tabela, colunas), lido do GRANT.
+    concedido = {}
+    for c in _comandos_de(up):
+        m = re.fullmatch(r"GRANT SELECT \((?P<colunas>[^)]+)\) ON (?P<tabela>\w+) TO sas_leitura", c)
+        if m:
+            concedido[m["tabela"]] = {x.strip() for x in m["colunas"].split(",")}
+    revogado = {}
+    for c in _comandos_de(down):
+        m = re.fullmatch(r"REVOKE SELECT \((?P<colunas>[^)]+)\) ON (?P<tabela>\w+) FROM sas_leitura", c)
+        if m:
+            revogado[m["tabela"]] = {x.strip() for x in m["colunas"].split(",")}
+    assert concedido and revogado == concedido
+    # Por coluna: em `aluno`, o que a 0071 deu continua valendo depois do down.
+    assert revogado["aluno"] == {"restricao_alimentar"}
+    texto_0049 = next(p for p in _ups() if p.name.startswith("0049_")).read_text(encoding="utf-8")
+    trecho = "e em lugar nenhum mais — não entra em ficha, painel, dossiê nem chat (docs/38 §2.6)."
+    assert trecho in texto_0049 and trecho in down.read_text(encoding="utf-8")
+
+
+def test_a_chave_de_saude_segue_sensivel_para_toda_tool_menos_a_dela():
+    # O GRANT é do papel, e não da tool: tirar a coluna de
+    # COLUNAS_PROIBIDAS_DO_ALUNO não pode desligar o vigia das outras 37.
+    resultado = {"alunos": [{"nome": "x", "restricaoAlimentar": "y"}]}
+
+    class Registro:
+        def __init__(self):
+            self.falhas: list[str] = []
+            self.oks: list[str] = []
+
+        def falha(self, texto):
+            self.falhas.append(texto)
+
+        def ok(self, texto):
+            self.oks.append(texto)
+
+    outra = Registro()
+    _julgar(outra, "pedidos_da_refeicao", resultado, [], [], ferramenta="pedidos_da_refeicao")
+    assert len(outra.falhas) == 1 and "alunos[0].restricaoAlimentar" in outra.falhas[0]
+    sem_nome = Registro()
+    _julgar(sem_nome, "qualquer", resultado, [], [])
+    assert len(sem_nome.falhas) == 1
+
+    a_dela = Registro()
+    _julgar(a_dela, "restricoes_alimentares", resultado, [], [], ferramenta="restricoes_alimentares")
+    assert a_dela.falhas == [] and len(a_dela.oks) == 1
+
+
+def test_a_excecao_da_tool_de_saude_nao_abre_as_outras_chaves():
+    assert _chaves_sensiveis({"senha_hash": "x", "restricao_alimentar": "y"}, permitidas=frozenset({"restricaoalimentar"})) == [
+        "senha_hash"
+    ]
+
+
+def test_as_tabelas_da_cantina_nao_sao_mais_proibidas():
+    # O que mudou em 30/10, e só isso: sem esta conferência, um prefixo esquecido
+    # reprovaria a 0075, e um removido a mais abriria outra coisa.
+    for tabela in ("cantina", "cardapio", "cardapio_bloco", "cardapio_opcao",
+                   "direito_refeicao_aluno", "pedido_refeicao", "pedido_refeicao_item"):
+        assert tabela not in TABELAS_PROIBIDAS and not tabela.startswith(PREFIXOS_PROIBIDOS), tabela
+    assert "oauth_pedido_mcp" in TABELAS_PROIBIDAS and "oauth_pedido_mcp".startswith(PREFIXOS_PROIBIDOS)
 
 
 # ─── A auditoria: o que o leitor não entende falha ───────────────────────
@@ -803,6 +901,9 @@ def test_lista_branca_cobre_as_tabelas_das_tools_expostas():
         "simulado", "turma", "vestibular_alvo_aluno", "questao_vestibular",
         "questao_vestibular_alternativa", "questao_vestibular_topico",
         "topico_taxonomia", "topico_taxonomia_assunto", "parametro_importancia",
+        # A cantina (0075, decisão de 30/10): tudo o que as sete tools leem.
+        "cantina", "cardapio", "cardapio_bloco", "cardapio_opcao",
+        "direito_refeicao_aluno", "pedido_refeicao", "pedido_refeicao_item",
     }
     assert set(lista_branca(DIR_MIGRATIONS)) == esperadas
 

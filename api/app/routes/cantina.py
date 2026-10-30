@@ -40,7 +40,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from .. import cantina_relatorio, senha_definida
+from .. import cantina_leitura, cantina_relatorio, senha_definida
 from ..auditoria import registrar as auditar
 from ..auth import (
     get_current_administrador,
@@ -71,13 +71,12 @@ from ..cantina_token import (
 )
 from ..supabase_client import ClienteDados, get_supabase
 
-REFEICOES = ("almoco", "janta")
-
-#: Os dois jeitos de comer (docs/40 §1). `pedido` escolhe itens com
-#: antecedência e compromete a cozinha; `presencial` é declaração de presença,
-#: sem prato, e só vira compromisso quando o QR é lido.
-MODO_PEDIDO = "pedido"
-MODO_PRESENCIAL = "presencial"
+# As refeições e os dois jeitos de comer (docs/40 §1) moram no domínio de
+# leitura desde 30/10, com o resto do que a coordenação e o MCP leem
+# (app/cantina_leitura.py); os nomes daqui ficam para quem já os importava.
+REFEICOES = cantina_leitura.REFEICOES
+MODO_PEDIDO = cantina_leitura.MODO_PEDIDO
+MODO_PRESENCIAL = cantina_leitura.MODO_PRESENCIAL
 
 #: A regra da casa, coluna a coluna (0051). Uma lista só porque os quatro nomes
 #: aparecem em três lugares — corpo, insert e patch —, e um esquecido ali é uma
@@ -122,16 +121,11 @@ def _agora() -> datetime:
     return datetime.now(UTC)
 
 
-def _instante(bruto: str | None) -> datetime | None:
-    """timestamptz do PostgREST → datetime com fuso.
-
-    O PostgREST devolve ISO-8601 já com offset; o `replace` cobre o `Z` que
-    algumas versões emitem e que o `fromisoformat` do Python só aceita a
-    partir do 3.11.
-    """
-    if not bruto:
-        return None
-    return datetime.fromisoformat(str(bruto).replace("Z", "+00:00"))
+# A leitura do tempo e do estado mora no domínio (app/cantina_leitura.py)
+# desde 30/10: a rota e as tools da cantina, no chat e no MCP, leem o MESMO
+# estado de cardápio (docs/43 §4.4). Os nomes privados ficam para quem já os
+# importava (tests/test_cantina.py).
+_instante = cantina_leitura.instante
 
 
 def _prazo_pela_regra(cantina: dict, dia: date) -> datetime:
@@ -156,46 +150,11 @@ def _prazo_pela_regra(cantina: dict, dia: date) -> datetime:
     return local.astimezone(UTC)
 
 
-def _modos_pela_regra(cantina: dict, refeicao: str) -> tuple[bool, bool]:
-    """Que modos a REGRA da casa liga num cardápio novo daquela refeição (docs/40 §1).
-
-    Mesmo papel de `_prazo_pela_regra`: isto só pré-preenche, e o valor do dia é
-    do cardápio. Os fallbacks espelham os DEFAULT da 0051 — pedido ligado,
-    presencial desligado —, senão o modo passaria a depender da origem da linha.
-    """
-    aceita_pedido = cantina.get(f"aceita_pedido_{refeicao}")
-    aceita_presencial = cantina.get(f"aceita_presencial_{refeicao}")
-    return (
-        True if aceita_pedido is None else bool(aceita_pedido),
-        False if aceita_presencial is None else bool(aceita_presencial),
-    )
-
-
-def _modos_do_cardapio(cardapio: dict) -> tuple[bool, bool]:
-    """O que ESTE dia aceita. Os mesmos fallbacks da 0051, pelo mesmo motivo."""
-    aceita_pedido = cardapio.get("aceita_pedido")
-    aceita_presencial = cardapio.get("aceita_presencial")
-    return (
-        True if aceita_pedido is None else bool(aceita_pedido),
-        False if aceita_presencial is None else bool(aceita_presencial),
-    )
-
-
-def _estado(cardapio: dict, agora: datetime) -> str:
-    """Os CINCO estados do calendário (docs/38 §3.3).
-
-    `aberto` e `fechado` são o mesmo cardápio publicado antes e depois do
-    prazo, e a diferença é a que a cantina mais precisa ler: em `fechado` a
-    contagem é final, e é ela que vai para o fogão.
-    """
-    if cardapio.get("sem_refeicao"):
-        return "sem-refeicao"
-    if not cardapio.get("publicado_em"):
-        return "rascunho"
-    prazo = _instante(cardapio.get("pedidos_ate"))
-    if prazo is None or agora >= prazo:
-        return "fechado"
-    return "aberto"
+# A regra dos modos da casa é do domínio desde 30/10: a tool
+# `cantinas_e_regras` diz o que um cardápio novo aceita pela MESMA conta.
+_modos_pela_regra = cantina_leitura.modos_pela_regra
+_modos_do_cardapio = cantina_leitura.modos_do_cardapio
+_estado = cantina_leitura.estado
 
 
 def _cantina_por_id(cliente: ClienteDados, cantina_id: str) -> dict:
@@ -229,67 +188,11 @@ def _cardapio_da_cantina(cliente: ClienteDados, cardapio_id: str, cantina_id: st
     return linha[0]
 
 
-def _blocos_por_cardapio(
-    cliente: ClienteDados, cardapio_ids: list[str]
-) -> dict[str, list[dict]]:
-    """Blocos e opções de VÁRIOS cardápios, numa ida só.
-
-    ⚠️ Existe por causa de um N+1 medido, não por elegância: `cantina_do_aluno`
-    chamava `_montar_cardapio` dentro do `for`, e uma semana lançada com almoço
-    e janta são ~10 idas ao PostgREST **em série** — cada uma bloqueando o event
-    loop, porque o cliente é síncrono (docs/40 §12.1.3). E essa rota tem
-    `refetchInterval` de 60 s por aluno com direito.
-
-    A ordenação continua em Python: o `order` do PostgREST não alcança relação
-    aninhada em dois níveis, e as listas são de dezenas de itens.
-    """
-    if not cardapio_ids:
-        return {}
-    blocos = (
-        cliente.table("cardapio_bloco")
-        .select("*, cardapio_opcao(*)")
-        .in_("cardapio_id", cardapio_ids)
-        .execute()
-        .data
-        or []
-    )
-    por_cardapio: dict[str, list[dict]] = {}
-    for bloco in blocos:
-        opcoes = bloco.pop("cardapio_opcao", None) or []
-        opcoes.sort(key=lambda o: o.get("ordem") or 0)
-        bloco["opcoes"] = opcoes
-        por_cardapio.setdefault(bloco["cardapio_id"], []).append(bloco)
-    for lista in por_cardapio.values():
-        lista.sort(key=lambda b: b.get("ordem") or 0)
-    return por_cardapio
-
-
-def _montar_cardapio(
-    cliente: ClienteDados,
-    cardapio: dict,
-    agora: datetime,
-    *,
-    blocos: list[dict] | None = None,
-) -> dict:
-    """Cardápio + blocos + opções, ordenados, prontos para a tela.
-
-    `blocos` já resolvidos evitam a consulta — é como o laço de
-    `cantina_do_aluno` deixou de ser N+1. Quem monta UM cardápio só continua
-    chamando sem o parâmetro, e a consulta acontece aqui.
-    """
-    if blocos is None:
-        blocos = _blocos_por_cardapio(cliente, [cardapio["id"]]).get(cardapio["id"], [])
-    aceita_pedido, aceita_presencial = _modos_do_cardapio(cardapio)
-    return {
-        **cardapio,
-        "estado": _estado(cardapio, agora),
-        # Em camelCase e derivados por `_modos_do_cardapio` mesmo já viajando em
-        # snake_case dentro do `**cardapio`: é o contrato da tela, e é o único
-        # lugar onde o default de uma base sem a 0051 é aplicado.
-        "aceitaPedido": aceita_pedido,
-        "aceitaPresencial": aceita_presencial,
-        "blocos": blocos,
-    }
+# Blocos, opções e a montagem do cardápio para a tela: domínio desde 30/10,
+# com as colunas por extenso — o MCP lê o mesmo cardápio, e o papel dele não
+# aceita `select=*` (migration 0075).
+_blocos_por_cardapio = cantina_leitura.blocos_por_cardapio
+_montar_cardapio = cantina_leitura.montar_cardapio
 
 
 def _opcoes_com_pedido(cliente: ClienteDados, opcao_ids: list[str]) -> set[str]:
@@ -425,85 +328,17 @@ async def eventos_da_coordenacao() -> StreamingResponse:
 def _calendario(
     cliente: ClienteDados, cantina_id: str | list[str], de: date, ate: date
 ) -> list[dict]:
-    """Um objeto por cardápio existente na janela, com estado e quem vai comer.
+    """O calendário das rotas — o da cantina e o da coordenação, que delegam
+    aqui para o contrato ser um só (test_cantina_retirada.py).
 
-    Dia sem cardápio não vem: quem sabe quais dias existem no mês é o
-    calendário da tela, e mandar 30 objetos vazios só para ele descobrir isso
-    seria o servidor desenhando a grade.
-
-    São TRÊS números de gente e não um (docs/40 §10.1). `pedidos` responde
-    "quantos vão comer" — as duas portas somadas —, e é ele que pinta o dia. A
-    quebra em `comPedido` e `presenciais` existe porque a contagem por opção,
-    que a cantina lê para cozinhar, só soma quem escolheu prato: presencial não
-    escolhe nada. Sem a quebra, os dois números parecem que deviam bater, não
-    batem, e viram chamado de bug.
+    A montagem é do domínio (`cantina_leitura.calendario`), que o MCP também
+    chama; a contagem, aqui, vem da VIEW da 0049/0052, porque o calendário
+    mostra um mês inteiro e contar em Python exigiria trazer todos os pedidos
+    do mês só para saber o tamanho de cada dia.
     """
-    agora = _agora()
-    # Uma cantina ou várias na MESMA consulta. A versão que aceitava só uma
-    # levava quem quisesse o total a chamar isto num `for` — e duas idas por
-    # cantina é o N+1 que a §12.1.3 tirou da rota do aluno; reintroduzi-lo aqui
-    # no mesmo trabalho seria trocar de lugar, não consertar.
-    ids = [cantina_id] if isinstance(cantina_id, str) else list(cantina_id)
-    if not ids:
-        return []
-    consulta = (
-        cliente.table("cardapio")
-        .select(
-            "id, cantina_id, data, refeicao, pedidos_ate, publicado_em, sem_refeicao, "
-            "aceita_pedido, aceita_presencial"
-        )
+    return cantina_leitura.calendario(
+        cliente, cantina_id, de, ate, momento=_agora(), contar=cantina_leitura.contar_pela_view
     )
-    consulta = consulta.eq("cantina_id", ids[0]) if len(ids) == 1 else consulta.in_("cantina_id", ids)
-    cardapios = (
-        consulta
-        .gte("data", de.isoformat())
-        .lte("data", ate.isoformat())
-        .execute()
-        .data
-        or []
-    )
-    if not cardapios:
-        return []
-
-    # A contagem vem da view (0049, quebrada por modo na 0052), e não de um
-    # count por cardápio: o calendário mostra um mês inteiro, e contar em Python
-    # exigiria trazer todos os pedidos do mês só para saber o tamanho de cada
-    # dia.
-    ids = [c["id"] for c in cardapios]
-    contagens = (
-        cliente.table("v_pedidos_por_cardapio")
-        .select("cardapio_id, quantos, com_pedido, presenciais")
-        .in_("cardapio_id", ids)
-        .execute()
-        .data
-        or []
-    )
-    por_cardapio = {c["cardapio_id"]: c for c in contagens}
-
-    saida = []
-    for c in cardapios:
-        aceita_pedido, aceita_presencial = _modos_do_cardapio(c)
-        contagem = por_cardapio.get(c["id"], {})
-        saida.append(
-            {
-                "id": c["id"],
-                # O id da cantina viaja junto desde que o calendário pode somar
-                # mais de uma: sem ele, dois cardápios de almoço no mesmo dia
-                # são indistinguíveis na resposta.
-                "cantinaId": c.get("cantina_id"),
-                "data": c["data"],
-                "refeicao": c["refeicao"],
-                "estado": _estado(c, agora),
-                "pedidosAte": c.get("pedidos_ate"),
-                "pedidos": contagem.get("quantos", 0),
-                "comPedido": contagem.get("com_pedido", 0),
-                "presenciais": contagem.get("presenciais", 0),
-                "aceitaPedido": aceita_pedido,
-                "aceitaPresencial": aceita_presencial,
-            }
-        )
-    saida.sort(key=lambda c: (c["data"], c["refeicao"]))
-    return saida
 
 
 @router.get("/calendario")
@@ -922,123 +757,33 @@ async def copiar_cardapio(
 # ─── A cantina: o que cozinhar, e o que servir ────────────────────────────
 
 
-def _contagem(cliente: ClienteDados, cardapio_id: str) -> list[dict]:
-    linhas = (
-        cliente.table("v_contagem_pedidos_por_opcao")
-        .select("*")
-        .eq("cardapio_id", cardapio_id)
-        .execute()
-        .data
-        or []
-    )
-    linhas.sort(key=lambda linha: (linha["bloco_ordem"], linha["opcao_ordem"]))
-    return linhas
-
-
-def _contagem_presencial(cliente: ClienteDados, cardapio_id: str) -> dict:
-    """Quantos declararam presença, e quantos já passaram pelo balcão.
-
-    Linha à parte na tela, e não misturada na contagem por opção, porque
-    presencial NÃO escolhe prato (docs/40 §10.1): somá-lo às opções inventaria
-    pedidos de comida que ninguém pediu, e omiti-lo esconderia gente que vai
-    comer.
-
-    Conta em Python e não em view, ao contrário da contagem por opção: aqui são
-    no máximo os alunos com direito àquela refeição (~900 no teto do colégio, em
-    UMA coluna), e não `pedido_refeicao_item`, que é a tabela da armadilha 2. Se
-    um dia isto pesar, vira view como a 0049 fez.
-    """
-    linhas = (
-        cliente.table("pedido_refeicao")
-        .select("retirado_em")
-        .eq("cardapio_id", cardapio_id)
-        .eq("modo", MODO_PRESENCIAL)
-        .execute()
-        .data
-        or []
-    )
-    retirados = sum(1 for linha in linhas if linha.get("retirado_em"))
-    return {"pendentes": len(linhas) - retirados, "retirados": retirados}
+# A contagem por opção (da view da 0049), o placar do presencial e a lista de
+# quem vai comer são domínio desde 30/10 (app/cantina_leitura.py): a
+# coordenação e as tools da cantina leem a MESMA lista, e só quem chama decide
+# se a restrição alimentar vem junto.
+_contagem = cantina_leitura.contagem_por_opcao_pela_view
+_contagem_presencial = cantina_leitura.contagem_presencial
 
 
 def _pedidos_do_cardapio(
     cliente: ClienteDados, cardapio_id: str, *, contagem: list[dict] | None = None
 ) -> list[dict]:
-    """Linha por aluno: nome, turma, restrição e o que ele marcou.
+    """A lista do balcão: nome, turma, restrição e o que cada um marcou.
 
-    ⚠️ **É tudo que a cantina vê do aluno** (docs/38 §8.2.2). Nenhuma consulta
-    daqui toca `nota`, `simulado` ou ficha: são dados de menores, e a lista de
-    pedidos já é informação sensível por tabela interposta — a escolha
-    vegetariana insinua religião ou saúde.
+    COM a restrição alimentar: é a cantina que monta o prato, e a tela da
+    coordenação mostra que ela existe (docs/38 §2.6). O nome das opções sai da
+    contagem — quando quem chama já a tem, ela entra por parâmetro: em
+    `cardapio_para_a_coordenacao` ela era calculada DUAS vezes na mesma
+    requisição (docs/40 §12.1.3).
     """
-    pedidos = (
-        cliente.table("pedido_refeicao")
-        .select(
-            "id, aluno_id, criado_em, modo, retirado_em, "
-            "aluno(nome, restricao_alimentar)"
-        )
-        .eq("cardapio_id", cardapio_id)
-        .execute()
-        .data
-        or []
-    )
-    if not pedidos:
-        return []
 
-    itens = (
-        cliente.table("pedido_refeicao_item")
-        .select("pedido_id, opcao_id")
-        .in_("pedido_id", [p["id"] for p in pedidos])
-        .execute()
-        .data
-        or []
-    )
-    # A contagem entra por parâmetro quando quem chama já a tem: em
-    # `cardapio_para_a_coordenacao` ela era calculada DUAS vezes na mesma
-    # requisição — uma para a tela, outra aqui só para descobrir o nome das
-    # opções (docs/40 §12.1.3).
-    if contagem is None:
-        contagem = _contagem(cliente, cardapio_id)
-    nomes = {linha["opcao_id"]: linha["opcao"] for linha in contagem}
-    escolhas: dict[str, list[str]] = {}
-    for item in itens:
-        escolhas.setdefault(item["pedido_id"], []).append(
-            nomes.get(item["opcao_id"], "—")
-        )
+    def nomes_das_opcoes() -> dict[str, str]:
+        linhas = contagem if contagem is not None else _contagem(cliente, cardapio_id)
+        return {linha["opcao_id"]: linha["opcao"] for linha in linhas}
 
-    # A turma sai de `matricula_turma` com `ativo_ate IS NULL`, que é como o
-    # resto do backend define "a turma do aluno hoje" (stats/classificacao_ciclo).
-    matriculas = (
-        cliente.table("matricula_turma")
-        .select("aluno_id, turma(section_original)")
-        .in_("aluno_id", [p["aluno_id"] for p in pedidos])
-        .is_("ativo_ate", "null")
-        .execute()
-        .data
-        or []
+    return cantina_leitura.pedidos_do_cardapio(
+        cliente, cardapio_id, nomes_das_opcoes=nomes_das_opcoes, com_restricao=True
     )
-    turma_por_aluno = {
-        m["aluno_id"]: (m.get("turma") or {}).get("section_original") for m in matriculas
-    }
-
-    saida = [
-        {
-            "alunoId": p["aluno_id"],
-            "nome": (p.get("aluno") or {}).get("nome"),
-            "turma": turma_por_aluno.get(p["aluno_id"]),
-            "restricaoAlimentar": (p.get("aluno") or {}).get("restricao_alimentar"),
-            "escolhas": sorted(escolhas.get(p["id"], [])),
-            "pedidoEm": p.get("criado_em"),
-            # O modo é rótulo de FLUXO, não dado sensível: quem só declarou
-            # presença aparece sem escolhas, e sem esta marca a linha pareceria
-            # um pedido em branco (docs/40 §8).
-            "modo": p.get("modo") or MODO_PEDIDO,
-            "retiradoEm": p.get("retirado_em"),
-        }
-        for p in pedidos
-    ]
-    saida.sort(key=lambda linha: (linha["nome"] or "").casefold())
-    return saida
 
 
 @router.get("/eu")
@@ -1076,11 +821,8 @@ async def publico_da_cantina(usuario: dict = Depends(get_current_cantina)) -> di
     linhas = (
         cliente.table("direito_refeicao_aluno").select("aluno_id, refeicao").execute().data or []
     )
-    por_refeicao = {refeicao: 0 for refeicao in REFEICOES}
-    for linha in linhas:
-        if linha["refeicao"] in por_refeicao:
-            por_refeicao[linha["refeicao"]] += 1
-    return por_refeicao
+    # A MESMA conta do "3 almoço · 3 janta" do hub da coordenação (domínio).
+    return cantina_leitura.contar_direitos_por_refeicao(linhas)
 
 
 @router.get("/cardapios/{cardapio_id}/contagem")
@@ -1933,8 +1675,7 @@ async def calendario_da_coordenacao(
     if not todas:
         return _calendario(cliente, _cantina_padrao(cliente, None)["id"], de, ate)
 
-    ativas = cliente.table("cantina").select("id").eq("ativo", True).execute().data or []
-    return _calendario(cliente, [linha["id"] for linha in ativas], de, ate)
+    return _calendario(cliente, cantina_leitura.ids_das_cantinas_ativas(cliente), de, ate)
 
 
 @router_admin.get("/cantina/cardapios/{cardapio_id}")
@@ -2178,26 +1919,9 @@ async def resumo_da_cantina() -> dict:
     dado de saúde de menor (docs/38 §2.6) — um card de resumo não pode ser o
     caminho mais fácil para ele sair da tela onde a revelação é deliberada.
     """
-    cliente = get_supabase()
-    ativos = (
-        cliente.table("aluno").select("id", count="exact").eq("ativo", True).limit(1).execute()
-    ).count or 0
-
-    linhas = (
-        cliente.table("direito_refeicao_aluno").select("aluno_id, refeicao").execute().data or []
-    )
-    por_refeicao = {refeicao: 0 for refeicao in REFEICOES}
-    for linha in linhas:
-        if linha["refeicao"] in por_refeicao:
-            por_refeicao[linha["refeicao"]] += 1
-
-    return {
-        "ativos": ativos,
-        # Alunos DISTINTOS com algum direito — não a soma das duas refeições,
-        # que contaria duas vezes quem come nas duas.
-        "comDireito": len({linha["aluno_id"] for linha in linhas}),
-        **por_refeicao,
-    }
+    # A conta é do domínio desde 30/10: a tool `direitos_a_refeicao` devolve o
+    # MESMO resumo (app/cantina_leitura.py).
+    return cantina_leitura.resumo_dos_direitos(get_supabase())
 
 
 @router_admin.get("/direito-refeicao")
@@ -2207,47 +1931,9 @@ async def listar_direitos() -> dict:
     Leitura é de qualquer coordenador; escrever é do administrador. É a mesma
     divisão de `Contas.tsx` — ver quem tem acesso não é o mesmo que dar acesso.
     """
-    cliente = get_supabase()
-    alunos = (
-        cliente.table("aluno")
-        .select("id, nome, matricula, restricao_alimentar")
-        .eq("ativo", True)
-        .execute()
-        .data
-        or []
-    )
-    direitos = (
-        cliente.table("direito_refeicao_aluno").select("aluno_id, refeicao").execute().data or []
-    )
-    por_aluno: dict[str, list[str]] = {}
-    for linha in direitos:
-        por_aluno.setdefault(linha["aluno_id"], []).append(linha["refeicao"])
-
-    matriculas = (
-        cliente.table("matricula_turma")
-        .select("aluno_id, turma(section_original)")
-        .is_("ativo_ate", "null")
-        .execute()
-        .data
-        or []
-    )
-    turma_por_aluno = {
-        m["aluno_id"]: (m.get("turma") or {}).get("section_original") for m in matriculas
-    }
-
-    saida = [
-        {
-            "id": a["id"],
-            "nome": a["nome"],
-            "matricula": a.get("matricula"),
-            "turma": turma_por_aluno.get(a["id"]),
-            "direitos": sorted(por_aluno.get(a["id"], [])),
-            "restricaoAlimentar": a.get("restricao_alimentar"),
-        }
-        for a in alunos
-    ]
-    saida.sort(key=lambda linha: (linha["nome"] or "").casefold())
-    return {"total": len(saida), "comDireito": sum(1 for a in saida if a["direitos"]), "alunos": saida}
+    # COM a restrição: a tela a revela sob clique (docs/38 §2.6). A mesma lista,
+    # sem ela, é a da tool `direitos_a_refeicao` — e a tool nem lê a coluna.
+    return cantina_leitura.alunos_e_direitos(get_supabase(), com_restricao=True)
 
 
 @router_admin.post("/direito-refeicao", dependencies=[Depends(get_current_administrador)])
@@ -2399,7 +2085,9 @@ async def listar_cantinas() -> list[dict]:
     """As cantinas e as contas de cada uma. Leitura é de qualquer coordenador —
     saber quem tem acesso é diferente de dar acesso."""
     cliente = get_supabase()
-    cantinas = cliente.table("cantina").select("*").execute().data or []
+    # A cantina e a regra da casa vêm do domínio, o mesmo select da tool
+    # `cantinas_e_regras`; as CONTAS são só daqui — credencial, que o MCP não lê.
+    cantinas = cantina_leitura.cantinas(cliente)
     contas = (
         cliente.table("usuario_cantina")
         .select("id, cantina_id, email, nome, ativo, ultimo_login_em")

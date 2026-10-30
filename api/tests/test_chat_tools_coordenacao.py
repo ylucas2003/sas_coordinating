@@ -1650,6 +1650,15 @@ EXEMPLOS: dict[str, dict[str, Any]] = {
     "questoes_do_simulado": {"simulado_id": S["FIS_F2"]},
     "navegar_para": {"tipo": "aluno", "id": A},
     "roteiro_da_coordenacao": {"nome": "diagnostico_do_ciclo"},
+    # A cantina (decisão de 30/10): aqui sem cardápio nenhum, o caminho do vazio.
+    # O caminho cheio está em test_chat_tools_cantina.py.
+    "cantinas_e_regras": {},
+    "calendario_da_cantina": {},
+    "cardapio_da_cantina": {},
+    "pedidos_da_refeicao": {"refeicao": "almoco"},
+    "custos_da_cantina": {},
+    "direitos_a_refeicao": {},
+    "restricoes_alimentares": {},
 }
 
 

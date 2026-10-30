@@ -14,8 +14,12 @@ de LGPD de 24/10, que rodou as 30 tools de então contra dados sintéticos:
   * e as duas de 26/10: `buscar_aluno_por_nome` e `listar_alertas`, que só
     ficavam fora por causa do pseudônimo e entraram quando o dono decidiu que
     o MCP mostra o NOME do aluno (app/mcp/configuracao.py). Com o pseudônimo
-    ligado de novo, o catálogo as tira (app.mcp.catalogo.SO_COM_NOME_DO_ALUNO).
-São 31.
+    ligado de novo, o catálogo as tira (app.mcp.catalogo.SO_COM_NOME_DO_ALUNO);
+  * e as sete da cantina, da decisão de 30/10 de que a IA lê o que a
+    coordenação lê: três sem pessoa, duas com a identidade ao lado do nome e
+    duas que só existem com o nome real — `custos_da_cantina` (o nome é rótulo
+    da soma) e `restricoes_alimentares` (dado de saúde, LGPD art. 11).
+São 38.
 
 Tudo o mais fica FORA: os artefatos de UI (`gerar_grafico`, `exportar_csv`,
 `navegar_para`), sem uso fora do app, e as novas de régua, rotinas e trilha,
@@ -48,6 +52,7 @@ import pytest
 from app.chat.ferramentas import REGISTRO
 from app.mcp.catalogo import SO_COM_NOME_DO_ALUNO, Catalogo
 from app.mcp.pseudonimo import PseudonimoRecusado, pseudonimizar
+from tests.test_chat_tools_cantina import semear_cantina
 from tests.test_chat_tools_coordenacao import (
     C1,
     C2,
@@ -79,9 +84,21 @@ EXPOSTAS_NOVAS = frozenset({
     "relatorio_ciclo", "buscar_aluno_por_matricula",
     "topicos_do_edital", "buscar_questoes_do_banco", "recorrencia_no_banco",
 })
-#: As de 26/10, que só servem com o nome real (decisão do dono).
-EXPOSTAS_COM_O_NOME = frozenset({"buscar_aluno_por_nome", "listar_alertas"})
-EXPOSTAS = EXPOSTAS_SEM_PESSOA | EXPOSTAS_COM_PSEUDONIMO | EXPOSTAS_NOVAS | EXPOSTAS_COM_O_NOME
+#: As de 26/10, que só servem com o nome real (decisão do dono), e as duas da
+#: cantina que o MCP só serve assim (o comentário de `SO_COM_NOME_DO_ALUNO`).
+EXPOSTAS_COM_O_NOME = frozenset({
+    "buscar_aluno_por_nome", "listar_alertas", "custos_da_cantina", "restricoes_alimentares",
+})
+#: As da cantina que não devolvem pessoa nenhuma (30/10).
+EXPOSTAS_DA_CANTINA_SEM_PESSOA = frozenset({
+    "cantinas_e_regras", "calendario_da_cantina", "cardapio_da_cantina",
+})
+#: As da cantina com o aluno, identidade ao lado: passam pelo pseudônimo (30/10).
+EXPOSTAS_DA_CANTINA_COM_PSEUDONIMO = frozenset({"pedidos_da_refeicao", "direitos_a_refeicao"})
+EXPOSTAS = (
+    EXPOSTAS_SEM_PESSOA | EXPOSTAS_COM_PSEUDONIMO | EXPOSTAS_NOVAS | EXPOSTAS_COM_O_NOME
+    | EXPOSTAS_DA_CANTINA_SEM_PESSOA | EXPOSTAS_DA_CANTINA_COM_PSEUDONIMO
+)
 #: As que o MCP serve também com o pseudônimo ligado: as que têm de cumprir a
 #: invariante do nome com a identidade ao lado.
 EXPOSTAS_TAMBEM_COM_PSEUDONIMO = EXPOSTAS - EXPOSTAS_COM_O_NOME
@@ -130,6 +147,13 @@ CHAMADAS: dict[str, dict[str, Any]] = {
     "topicos_do_edital": {},
     "buscar_questoes_do_banco": {"materia": "Física"},
     "recorrencia_no_banco": {"materia": "Física"},
+    "cantinas_e_regras": {},
+    "calendario_da_cantina": {},
+    "cardapio_da_cantina": {},
+    "pedidos_da_refeicao": {"refeicao": "almoco"},
+    "custos_da_cantina": {},
+    "direitos_a_refeicao": {},
+    "restricoes_alimentares": {},
 }
 
 #: Onde o nome do aluno pode estar — as mesmas chaves que o pseudonimizador troca.
@@ -198,6 +222,7 @@ def _conferir_campo(dono: dict, chave: str, valor: str, caminho: str) -> list[st
 def resultados() -> dict[str, dict]:
     """Cada tool exposta, uma vez, pelo REGISTRO, contra a mesma escola sintética."""
     escola = nova_escola()
+    semear_cantina(escola.db)
     return {nome: chamar(escola.cliente(), nome, **args) for nome, args in CHAMADAS.items()}
 
 
@@ -208,16 +233,16 @@ class TestPolitica:
     def test_o_conjunto_exposto_e_exatamente_o_decidido(self):
         expostas = {f.nome for f in REGISTRO.catalogo("coordenacao") if f.expor_no_mcp}
         assert expostas == EXPOSTAS
-        assert len(EXPOSTAS) == 31
+        assert len(EXPOSTAS) == 38
 
     def test_com_o_pseudonimo_o_catalogo_tira_as_que_so_servem_com_o_nome(self):
-        """As duas de 26/10 são exatamente as que o catálogo do MCP tira com o
-        pseudônimo ligado — as listas de lá e daqui não podem divergir."""
+        """As que só servem com o nome são exatamente as que o catálogo do MCP
+        tira com o pseudônimo ligado — as listas de lá e daqui não podem divergir."""
         assert SO_COM_NOME_DO_ALUNO == EXPOSTAS_COM_O_NOME
         assert set(Catalogo(REGISTRO, teto_de_linhas=50).nomes()) == EXPOSTAS
         com_pseudonimo = Catalogo(REGISTRO, teto_de_linhas=50, com_nome_do_aluno=False)
         assert set(com_pseudonimo.nomes()) == EXPOSTAS_TAMBEM_COM_PSEUDONIMO
-        assert len(EXPOSTAS_TAMBEM_COM_PSEUDONIMO) == 29
+        assert len(EXPOSTAS_TAMBEM_COM_PSEUDONIMO) == 34
 
     def test_tudo_o_mais_da_coordenacao_fica_fora(self):
         """Tool nova na coordenação reprova aqui até alguém decidir se ela sai
@@ -259,7 +284,34 @@ def test_listar_alertas_e_por_que_ela_so_existe_com_o_nome_real(resultados):
         )
 
 
-@pytest.mark.parametrize("nome", sorted(EXPOSTAS_SEM_PESSOA | {
+def test_custos_e_por_que_ela_so_existe_com_o_nome_real(resultados):
+    """A soma por aluno traz o nome como `rotulo`, sem identidade ao lado: com
+    o pseudônimo ligado, o portão recusaria a chamada inteira."""
+    assert _violacoes(resultados["custos_da_cantina"])
+    with pytest.raises(PseudonimoRecusado):
+        pseudonimizar(
+            resultados["custos_da_cantina"], matricula_por_id=MATRICULA, nomes_de_alunos=frozenset(NOME.values())
+        )
+
+
+def test_a_restricao_sai_do_catalogo_com_o_pseudonimo_mesmo_passando_pelo_portao(resultados):
+    """Ela tem a identidade ao lado do nome, e o portão a deixaria passar: quem
+    a tira é a decisão. "Aluno <matrícula>" ao lado de um dado de saúde continua
+    dado pessoal sensível (LGPD art. 5º, I e II; art. 11)."""
+    assert _violacoes(resultados["restricoes_alimentares"]) == []
+    assert "restricoes_alimentares" in SO_COM_NOME_DO_ALUNO
+    assert Catalogo(REGISTRO, teto_de_linhas=50, com_nome_do_aluno=False).obter("restricoes_alimentares") is None
+
+
+@pytest.mark.parametrize("nome", sorted(EXPOSTAS - {"restricoes_alimentares"}))
+def test_so_uma_tool_exposta_devolve_a_restricao_alimentar(resultados, nome):
+    """O GRANT é do papel, não da tool: nada no Postgres impede outra exposta de
+    ler a coluna. Quem segura são isto e o --ferramentas do verificador."""
+    texto = json.dumps(resultados[nome], ensure_ascii=False)
+    assert "SENTINELA-SAUDE" not in texto and "restricaoAlimentar" not in texto
+
+
+@pytest.mark.parametrize("nome", sorted(EXPOSTAS_SEM_PESSOA | EXPOSTAS_DA_CANTINA_SEM_PESSOA | {
     "topicos_do_edital", "buscar_questoes_do_banco", "recorrencia_no_banco",
 }))
 def test_as_que_nao_sao_de_pessoa_nao_devolvem_nome_de_aluno(resultados, nome):
@@ -268,7 +320,10 @@ def test_as_que_nao_sao_de_pessoa_nao_devolvem_nome_de_aluno(resultados, nome):
 
 
 @pytest.mark.parametrize("nome", sorted(
-    (EXPOSTAS_COM_PSEUDONIMO | EXPOSTAS_COM_O_NOME | {"relatorio_ciclo", "buscar_aluno_por_matricula"})
+    (
+        EXPOSTAS_COM_PSEUDONIMO | EXPOSTAS_COM_O_NOME | EXPOSTAS_DA_CANTINA_COM_PSEUDONIMO
+        | {"relatorio_ciclo", "buscar_aluno_por_matricula"}
+    )
     - {"trajetoria_aluno", "tendencia_aluno"}
 ))
 def test_as_de_aluno_de_fato_devolvem_nome(resultados, nome):

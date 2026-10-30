@@ -60,7 +60,15 @@ INTEIROS_QUE_NAO_SAO_LIMITE: frozenset[str] = frozenset()
 #: provedor o par nome ↔ matrícula que o pseudônimo existe para não entregar,
 #: e `listar_alertas` traz o nome interpolado no título, gravado uma vez — o
 #: portão do pseudônimo (passada 3) recusaria toda chamada.
-SO_COM_NOME_DO_ALUNO: frozenset[str] = frozenset({"buscar_aluno_por_nome", "listar_alertas"})
+#:
+#: As duas da cantina (30/10): `custos_da_cantina` traz o nome do aluno como
+#: rótulo da soma (`porAluno`), sem identidade ao lado, e o portão a recusaria
+#: inteira; e `restricoes_alimentares` passaria pelo portão, mas é dado de saúde
+#: de menor (LGPD art. 11), e "Aluno <matrícula>" ao lado dele continua dado
+#: pessoal sensível: o modo conservador não o manda.
+SO_COM_NOME_DO_ALUNO: frozenset[str] = frozenset({
+    "buscar_aluno_por_nome", "listar_alertas", "custos_da_cantina", "restricoes_alimentares",
+})
 
 #: Os trechos da descrição do CHAT que o tools/list publica trocados, por
 #: tool: (o trecho como está no chat, o que o MCP publica no lugar). Cada um

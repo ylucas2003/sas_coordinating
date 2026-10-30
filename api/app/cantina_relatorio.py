@@ -28,6 +28,7 @@ from datetime import date
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
 
+from .cantina_leitura import tem_restricao
 from .supabase_client import ClienteDados
 
 #: Rótulo das duas refeições, para o cabeçalho não sair em `snake_case`.
@@ -81,8 +82,15 @@ def agregados(
     pedido sem valor, uma turma vazia), e a divergência aparece como "a
     planilha não bate com a tela" — que é a forma mais cara de descobrir que
     havia dois códigos.
+
+    ⚠️ `com_itens=False`: a soma é de `pedido_refeicao`, e prato não entra nela.
+    Pedir os itens aqui derrubava a tela e a tool de custos acima de ~1.770
+    pedidos no período: `_ler` os filtra com a lista de ids NA URL, e o httpx
+    recusa query com mais de 65.536 caracteres (`InvalidURL`, medido num
+    Postgres descartável em 30/10, com um mês de 900 alunos). Uma semana cheia
+    já passa disso.
     """
-    dados = _ler(cliente, de=de, ate=ate, cantina_id=cantina_id)
+    dados = _ler(cliente, de=de, ate=ate, cantina_id=cantina_id, com_itens=False)
 
     def linhas(chave) -> list[dict]:
         return [
@@ -123,12 +131,17 @@ def _ler(
     ate: date,
     cantina_id: str | None,
     com_restricao: bool = False,
+    com_itens: bool = True,
 ) -> dict:
     """Todas as consultas do relatório, em LOTE.
 
     Uma consulta por tabela, e nenhuma dentro de laço: é o mesmo cuidado da
     §12.1.3, e aqui ele pesa mais — este é o único lugar do produto que lê um
     mês inteiro de pedidos de uma vez.
+
+    `com_itens=False` não lê blocos, opções nem itens: é o caso de quem só soma
+    (`agregados`). ⚠️ Com eles, o filtro de itens leva todos os ids de pedido na
+    URL, e acima de ~1.770 pedidos o httpx recusa (ver `agregados`).
     """
     cardapios = (
         cliente.table("cardapio")
@@ -204,7 +217,7 @@ def _ler(
             .data
             or []
         )
-        if ids
+        if ids and com_itens
         else []
     )
     opcoes = (
@@ -228,7 +241,7 @@ def _ler(
             .data
             or []
         )
-        if pedidos
+        if pedidos and com_itens
         else []
     )
 
@@ -589,7 +602,7 @@ def planilha_de_direitos(cliente: ClienteDados) -> bytes:
             turma.get(a["id"]) or "",
             "sim" if "almoco" in direitos[a["id"]] else "",
             "sim" if "janta" in direitos[a["id"]] else "",
-            "sim" if (a.get("restricao_alimentar") or "").strip() else "",
+            "sim" if tem_restricao(a.get("restricao_alimentar")) else "",
         ]
         for a in sorted(alunos, key=lambda a: (a["nome"] or "").casefold())
     ]
