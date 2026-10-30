@@ -204,7 +204,7 @@ def _sem_o_video(texto: str | None, video: str | None) -> str | None:
 def _trilha_de_alteracoes(db: dict) -> list[dict]:
     linhas = []
     for linha in db.get("evento_auditoria", {}).values():
-        if linha.get("canal") not in trilha.CANAIS_DA_TRILHA:
+        if linha.get("canal") not in trilha.CANAIS_DA_TRILHA or linha.get("acao") in trilha.ACOES_FORA_DA_TRILHA:
             continue
         bruto = linha.get("detalhe")
         detalhe = {k: v for k, v in bruto.items() if k in _CHAVES_DA_TRILHA} if isinstance(bruto, dict) else None
@@ -1920,7 +1920,7 @@ class TestHistoricoDeAlteracoes:
         base = {"ocorrido_em": ts, "ator_tipo": "coordenador", "ator_id": K1, "ip": "10.0.0.9", "request_id": "req-x"}
         semente = {
             901: ("cantina", "conta_cantina_criada", "usuario_cantina/1", {"email": "conta@cantina.invalid", "nome": "CONTA"}),
-            902: ("cantina", "restricao_alimentar_editada", f"aluno/{A}", {"preenchida": True}),
+            902: ("cantina", "direito_refeicao_concedido", None, {"refeicao": "almoco", "alunos": [A, B]}),
             903: ("captacao", "captacao_perfil_criado", "candidato_externo/1", {"nome_normalizado": "candidato de fora"}),
             904: ("captacao", "captacao_status_alterado", "candidato_externo/1", {"valor_antes": "novo", "valor_depois": "contatado"}),
         }
@@ -1929,7 +1929,7 @@ class TestHistoricoDeAlteracoes:
         r = chamar(escola.cliente(), "historico_de_alteracoes", canal="cantina")
         por_acao = {e["acao"]: e for e in r["eventos"]}
         assert por_acao["conta_cantina_criada"]["detalhe"] == {}
-        assert por_acao["restricao_alimentar_editada"]["detalhe"] == {"preenchida": True}
+        assert por_acao["direito_refeicao_concedido"]["detalhe"] == {"refeicao": "almoco", "totalDeAlunos": 2}
         r = chamar(escola.cliente(), "historico_de_alteracoes", canal="captacao")
         por_acao = {e["acao"]: e for e in r["eventos"]}
         assert por_acao["captacao_perfil_criado"]["detalhe"] == {}
@@ -1937,6 +1937,20 @@ class TestHistoricoDeAlteracoes:
         texto = _texto(r)
         for proibido in ("candidato de fora", "conta@cantina", "10.0.0.9"):
             assert proibido not in texto
+
+    @pytest.mark.parametrize("acao", trilha.ACOES_FORA_DA_TRILHA)
+    def test_login_da_cantina_e_restricao_nao_entram_pelo_canal_aberto(self, escola, acao):
+        """O canal `cantina` grava também os logins, e em `login_falhou` o
+        `ator_id` é o que a pessoa digitou (prova integrada de 30/10). E a edição
+        da restrição, com o id do aluno, diria quem a tem com a tool dela desligada."""
+        ts = escola.hoje_brt.isoformat() + "T12:00:00+00:00"
+        escola.db["evento_auditoria"][950] = {
+            "id": 950, "ocorrido_em": ts, "canal": "cantina", "acao": acao, "ator_tipo": "cantina",
+            "ator_id": "digitado@cantina.invalid", "recurso": f"aluno/{A}", "ip": "10.0.0.9",
+            "detalhe": {"preenchida": True}, "request_id": "req-y",
+        }
+        texto = _texto(chamar(escola.cliente(), "historico_de_alteracoes", canal="cantina"))
+        assert acao not in texto and "digitado@cantina" not in texto
 
     @pytest.mark.parametrize("canal", ["acesso", "mcp"])
     def test_os_canais_de_login_e_do_proprio_mcp_continuam_fora(self, escola, canal):

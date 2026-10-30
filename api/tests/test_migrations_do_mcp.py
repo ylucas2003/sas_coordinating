@@ -30,9 +30,10 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.chat.tools.trilha import CANAIS_DA_TRILHA, DETALHE_POR_ACAO
+from app.chat.tools.trilha import ACOES_FORA_DA_TRILHA, CANAIS_DA_TRILHA, DETALHE_POR_ACAO
 from app.mcp.dados import TABELA_DA_SONDA
 from scripts.verificar_papeis_do_mcp import (
+    ACOES_FORA_DA_TRILHA_NA_VIEW,
     CANAIS_DA_TRILHA_NA_VIEW,
     COLUNAS_DA_TRILHA,
     COLUNAS_PROIBIDAS_DA_CAPTACAO,
@@ -613,6 +614,15 @@ def _corpo_da_view(nome: str) -> str:
 
 def test_o_verificador_sonda_os_mesmos_canais_que_a_trilha_le():
     assert set(CANAIS_DA_TRILHA_NA_VIEW) == set(CANAIS_DA_TRILHA)
+    assert set(ACOES_FORA_DA_TRILHA_NA_VIEW) == set(ACOES_FORA_DA_TRILHA)
+
+
+def test_a_view_da_trilha_corta_os_logins_que_o_canal_da_cantina_grava():
+    """O canal não basta: `cantina` grava `login_falhou`, com o que a pessoa digitou
+    em `ator_id`. Abrir o canal sem isto reabria o motivo de a view existir."""
+    corpo = _corpo_da_view("trilha_de_alteracoes")
+    achado = re.search(r"e\.acao NOT IN \((?P<lista>[^)]*)\)", corpo)
+    assert achado and set(re.findall(r"'(\w+)'", achado["lista"])) == set(ACOES_FORA_DA_TRILHA)
 
 
 #: As duas das listas estão na 0077, com o corpo e o down travados em testes próprios.

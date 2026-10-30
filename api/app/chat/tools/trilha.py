@@ -52,17 +52,23 @@ from ...texto_seguro import texto_seguro
 #: Os canais que esta tool lê — e só estes, por construção.
 CANAIS_DA_TRILHA = ("nota", "simulado", "ciclo", "canvas", "criterio", "cantina", "captacao")
 
+#: As ações que nem a view da 0074 entrega, mesmo vindo de um canal da lista. O
+#: canal `cantina` grava também os LOGINS, e em `login_falhou` o `ator_id` é o que
+#: a pessoa digitou (routes/auth.py). E a edição da restrição alimentar, com o id
+#: do aluno no recurso, diria quem tem restrição mesmo com a tool dela desligada:
+#: o dado de saúde sai por uma tool só (0075).
+ACOES_FORA_DA_TRILHA = (*auditoria.ACOES_DE_ACESSO, "restricao_alimentar_editada")
+
 #: As chaves de `detalhe` que saem, por ação, tiradas de quem grava cada uma
 #: (routes/notas.py, simulados.py, ciclos.py, criterios.py, banco.py, cantina.py
 #: e captacao.py). Ação fora daqui aparece com o detalhe vazio: o que ninguém
 #: revisou não sai.
 #:
 #: Da cantina, as contas ficam com o detalhe vazio de propósito: o de
-#: `conta_cantina_criada` leva o e-mail. `restricao_alimentar_editada` só diz se
-#: foi preenchida, e nunca o texto, que é dado de saúde e sai só por
-#: `restricoes_alimentares`. Da captação, o `nome_normalizado` fica fora: a
-#: trilha continua no catálogo com o pseudônimo, e o nome de gente de fora
-#: voltaria por aqui.
+#: `conta_cantina_criada` leva o e-mail. `alunos` sai como contagem: um lote de
+#: 900 são 36 KB de uuids por evento. Da captação, o `nome_normalizado` fica
+#: fora: a trilha continua no catálogo com o pseudônimo, e o nome de gente de
+#: fora voltaria por aqui.
 DETALHE_POR_ACAO: dict[str, tuple[str, ...]] = {
     "nota_editada": (
         "aluno", "valor_antes", "valor_depois", "valor_canvas", "presente",
@@ -84,7 +90,6 @@ DETALHE_POR_ACAO: dict[str, tuple[str, ...]] = {
     "retirada_confirmada": ("aluno_id", "cardapio_id", "refeicao"),
     "direito_refeicao_concedido": ("refeicao", "alunos"),
     "direito_refeicao_revogado": ("refeicao", "alunos"),
-    "restricao_alimentar_editada": ("preenchida",),
     "cantina_criada": ("nome",),
     "cantina_editada": (),
     "conta_cantina_criada": (),
@@ -188,9 +193,13 @@ def historico_de_alteracoes(
         limite=limite,
         so_alteracoes=True,
     )
-    # Defesa em profundidade: a lista de canais vai na consulta, e um canal
+    # Defesa em profundidade: a lista de canais vai na consulta, a view corta as
+    # ações de `ACOES_FORA_DA_TRILHA`, e um canal
     # fora dela não sai nem que a leitura mude por baixo.
-    linhas = [linha for linha in linhas if linha.get("canal") in CANAIS_DA_TRILHA]
+    linhas = [
+        linha for linha in linhas
+        if linha.get("canal") in CANAIS_DA_TRILHA and linha.get("acao") not in ACOES_FORA_DA_TRILHA
+    ]
 
     # Só nome de COORDENADOR: ator aluno nesses canais seria dado de menor
     # que ninguém pediu, e a view nem o resolve.
@@ -294,6 +303,9 @@ def _detalhe(acao: Any, bruto: Any, tipo: str, ident: str) -> dict[str, Any]:
             saida["alunoId"] = ident.split("/", 1)[0] if tipo == "nota" and ident else None
             saida["alunoNome"] = valor
             continue
+        if chave == "alunos" and isinstance(valor, list):
+            saida["totalDeAlunos"] = len(valor)
+            continue
         saida[chave] = valor
     return saida
 
@@ -302,16 +314,19 @@ _SCHEMA_HISTORICO = {
     "name": "historico_de_alteracoes",
     "description": (
         "Quando usar: 'quem mudou a nota da aluna no P22?', 'o que alteraram no simulado X?', "
-        "'quem criou ou mudou a régua Y?', 'o que mudou ontem?'. É a trilha de auditoria de "
-        "notas, simulados, ciclos, envios ao Canvas, réguas e calibração do banco.\n"
+        "'quem criou ou mudou a régua Y?', 'o que mudou ontem?', 'quem publicou o cardápio?', "
+        "'quem mudou o status do candidato?'. É a trilha de auditoria de notas, simulados, "
+        "ciclos, envios ao Canvas, réguas, calibração do banco, cantina (cardápios, retiradas, "
+        "direitos) e captação externa.\n"
         "Antes de chamar, confirme: o id da entidade (aluno por buscar_aluno_por_nome, "
         "simulado por listar_simulados, ciclo por listar_ciclos, régua por reguas_de_corte) e "
         "o período, se a pergunta tiver data.\n"
-        "Definições: quem = a pessoa da coordenação que fez ('sistema' = rotina automática). "
+        "Definições: quem = a pessoa da coordenação que fez ('sistema' = rotina automática; "
+        "'cantina' = uma conta da cantina). "
         "detalhe traz antes → depois quando existe (valor_antes, valor_depois, valor_canvas). "
-        "A trilha é melhor-esforço: não achar evento não prova que nada aconteceu. Logins, "
-        "contas de acesso, cantina e captação não estão aqui de propósito; diga que essa parte "
-        "não é consultável pelo assistente.\n"
+        "A trilha é melhor-esforço: não achar evento não prova que nada aconteceu. Logins e o "
+        "uso do próprio assistente não estão aqui de propósito, nem a edição da restrição "
+        "alimentar; diga que essa parte não é consultável pelo assistente.\n"
         "Exemplo: historico_de_alteracoes(aluno_id='…', acao='nota_editada') → 'em 12/10, às "
         "14:03, <nome> mudou a nota de 4,0 para 5,5 (no Canvas estava 4,0)'."
     ),

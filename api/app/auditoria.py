@@ -52,10 +52,10 @@ LIMITE_MAXIMO = 500
 _COLUNAS = "id, ocorrido_em, acao, canal, ator_tipo, ator_id, recurso, ip, detalhe, request_id"
 
 #: A trilha que as tools leem, no chat e no MCP (migration 0074): só os canais
-#: de alteração (nota, simulado, ciclo, canvas, criterio), sem `ip` nem
+#: de `trilha.CANAIS_DA_TRILHA`, sem logins (`ACOES_DE_ACESSO`), sem `ip` nem
 #: `request_id`, e o detalhe só com as chaves que a tool mostra. GRANT por
-#: coluna não corta LINHA, e a tabela tem o canal `acesso`, com o e-mail
-#: digitado no login que falhou — por isso a view, e não a tabela.
+#: coluna não corta LINHA, e a tabela tem o e-mail digitado no login que falhou
+#: — por isso a view, e não a tabela.
 VIEW_DAS_ALTERACOES = "trilha_de_alteracoes"
 _COLUNAS_DAS_ALTERACOES = "id, ocorrido_em, acao, canal, ator_tipo, ator_id, recurso, detalhe"
 
@@ -142,10 +142,10 @@ def consultar(
     isto a um modelo lê com `so_alteracoes`:
 
       * `so_alteracoes` — lê `VIEW_DAS_ALTERACOES` (0074) em vez da tabela: os
-        cinco canais de alteração, sem `ip` nem `request_id`, e o detalhe só
-        com as chaves revisadas. É o que a tool lê no chat e no MCP — e o
+        canais de alteração, sem logins, sem `ip` nem `request_id`, e o detalhe
+        só com as chaves revisadas. É o que a tool lê no chat e no MCP — e o
         único jeito de o MCP ler a trilha, que ele não lê como tabela. Os
-        filtros são os mesmos; canal fora dos cinco simplesmente não vem.
+        filtros são os mesmos; o que está fora da view simplesmente não vem.
     """
     limite = min(max(1, limite), LIMITE_MAXIMO)
     origem, colunas = (VIEW_DAS_ALTERACOES, _COLUNAS_DAS_ALTERACOES) if so_alteracoes else ("evento_auditoria", _COLUNAS)

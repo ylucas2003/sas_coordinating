@@ -96,8 +96,13 @@ BEGIN;
 -- dois lados divergirem. A tool ainda corta o detalhe por AÇÃO; aqui é o
 -- teto, para que uma chave nova gravada amanhã num destes canais não saia
 -- sem alguém revisar. Detalhe que não é objeto vira NULL, como a tool o lê.
--- As leituras do MCP (`mcp_ferramenta_chamada`) e os logins nem chegam aqui:
--- são dos canais `mcp` e `acesso`.
+-- As leituras do MCP (`mcp_ferramenta_chamada`) nem chegam aqui: são do canal
+-- `mcp`. Os logins, sim, precisam do `acao`: o canal `cantina` também os grava
+-- (routes/auth.py), e em `login_falhou` o `ator_id` é o que a pessoa digitou —
+-- o motivo desta view existir. A prova integrada de 30/10 mostrou esse buraco
+-- ao abrir o canal. `restricao_alimentar_editada` fica fora pela regra do dado
+-- de saúde: ele sai por uma tool só (`restricoes_alimentares`), e com o id do
+-- aluno a trilha diria quem tem restrição mesmo com essa tool desligada.
 CREATE VIEW trilha_de_alteracoes WITH (security_barrier = true) AS
 SELECT e.id,
        e.ocorrido_em,
@@ -114,11 +119,12 @@ SELECT e.id,
                               'data_aplicacao', 'canvas_estado', 'campos', 'origem',
                               'apagado_no_canvas', 'ok', 'erro', 'enviados', 'falhas', 'total',
                               'versao', 'requisitos', 'de', 'para', 'data', 'refeicao',
-                              'blocos', 'aluno_id', 'cardapio_id', 'alunos', 'preenchida',
-                              'conquista_id')
+                              'blocos', 'aluno_id', 'cardapio_id', 'alunos', 'conquista_id')
        ) END AS detalhe
   FROM evento_auditoria AS e
- WHERE e.canal IN ('nota', 'simulado', 'ciclo', 'canvas', 'criterio', 'cantina', 'captacao');
+ WHERE e.canal IN ('nota', 'simulado', 'ciclo', 'canvas', 'criterio', 'cantina', 'captacao')
+   AND e.acao NOT IN ('login_ok', 'login_falhou', 'primeiro_acesso_bloqueado',
+                      'restricao_alimentar_editada');
 
 COMMENT ON VIEW trilha_de_alteracoes IS
     'A trilha que as tools leem (0074): só os canais nota, simulado, ciclo, canvas, criterio, cantina e captacao, sem ip nem request_id, e o detalhe só com as chaves que historico_de_alteracoes mostra. É por ela, e nunca pela tabela, que o MCP lê evento_auditoria (docs/43 §5.2).';

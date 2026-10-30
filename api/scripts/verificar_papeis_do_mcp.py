@@ -185,11 +185,15 @@ VIEWS_DO_MCP: frozenset[str] = frozenset({
     "lista_questoes_da_coordenacao", "lista_questoes_item_da_coordenacao",
 })
 
-#: Os canais que `trilha_de_alteracoes` deixa passar: os mesmos de
-#: `trilha.CANAIS_DA_TRILHA` (tests/test_migrations_do_mcp.py reprova se
-#: divergirem). Aqui, repetidos, para o verificador não importar o app.
+#: Os canais que `trilha_de_alteracoes` deixa passar e as ações que ela corta: os
+#: mesmos de `trilha.CANAIS_DA_TRILHA` e `trilha.ACOES_FORA_DA_TRILHA`
+#: (tests/test_migrations_do_mcp.py reprova se divergirem). Aqui, repetidos, para o
+#: verificador não importar o app.
 CANAIS_DA_TRILHA_NA_VIEW: tuple[str, ...] = (
     "nota", "simulado", "ciclo", "canvas", "criterio", "cantina", "captacao",
+)
+ACOES_FORA_DA_TRILHA_NA_VIEW: tuple[str, ...] = (
+    "login_ok", "login_falhou", "primeiro_acesso_bloqueado", "restricao_alimentar_editada",
 )
 
 #: As únicas funções que o sas_mcp pode executar. `buscar_candidatos_por_conquista`
@@ -1300,6 +1304,17 @@ def conferir_linhas_das_views(rel: Relatorio, mcp: PostgREST, api: PostgREST | N
         params={"select": "id", "canal": f"not.in.({','.join(CANAIS_DA_TRILHA_NA_VIEW)})", "limit": "1"},
     )
     rel.conferir(r.status == 200 and r.corpo == [], "trilha_de_alteracoes: só os canais da tool", r.resumo())
+
+    # Um canal da lista grava também o que não pode sair: os logins da cantina, com
+    # o que a pessoa digitou em `ator_id` (prova de 30/10). E a chave `email` no
+    # detalhe é o sinal de que o filtro de chaves da view caiu.
+    for sonda, parametros in (
+        ("sem logins nem restrição", {"acao": f"in.({','.join(ACOES_FORA_DA_TRILHA_NA_VIEW)})"}),
+        ("sem e-mail digitado no ator", {"ator_id": "like.*@*"}),
+        ("sem e-mail no detalhe", {"detalhe->>email": "not.is.null"}),
+    ):
+        r = mcp.pedir("GET", "trilha_de_alteracoes", params={"select": "id", "limit": "1", **parametros})
+        rel.conferir(r.status == 200 and r.corpo == [], f"trilha_de_alteracoes: {sonda}", r.resumo())
 
     if api is None:
         rel.aviso("sem --api: a view dos itens das listas não foi conferida por linha")
