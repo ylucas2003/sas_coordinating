@@ -66,6 +66,14 @@ LIMITE_DO_RESULTADO = 60_000
 #: escolher de quem é a nota que o mentor lê.
 _IDENTIDADE_DO_ALUNO = frozenset({"aluno_id"})
 
+#: O mesmo para a coordenação: o `sub` da conta conectada, que nenhum schema
+#: declara e o modelo não escolhe. Ao contrário do `aluno_id`, só chega à tool
+#: que o PEDE na assinatura (`_identidade_da_coordenacao`): quase toda tool da
+#: coordenação lê a escola inteira e não tem dono. A que tem é a lista do
+#: banco de questões — "o dono é sempre o da sessão, nunca vem da URL nem do
+#: corpo" (docs/22 §5.2) —, desde 30/10 também no MCP (docs/43 §4.4).
+_IDENTIDADE_DA_COORDENACAO = frozenset({"coordenador_id"})
+
 _INTEIRO = re.compile(r"[+-]?\d+")
 
 
@@ -88,6 +96,19 @@ class Sessao:
     @property
     def escopo(self) -> Escopo:
         return "aluno" if self.tipo == "aluno" else "coordenacao"
+
+    @property
+    def coordenador_id(self) -> str | None:
+        """O `sub` da conta da coordenação: `usuario` sem o `coord:`.
+
+        Derivado, e não um campo, porque `usuario` já é ele (`sessao_do_token`
+        e o MCP montam `coord:<sub>`, o MCP com o `coordenador_id` do token —
+        `usuario_coordenacao.id`, o mesmo `sub` do JWT): dois campos com a
+        mesma identidade divergiriam no primeiro lugar que montasse um só.
+        """
+        if self.tipo != "coordenador":
+            return None
+        return self.usuario.removeprefix("coord:") or None
 
 
 def sessao_do_token(user: dict) -> Sessao:
@@ -392,7 +413,7 @@ class Registro:
             if f.escopo == "aluno":
                 bruto = f.handler(cliente, aluno_id=sessao.aluno_id, **kwargs)
             else:
-                bruto = f.handler(cliente, **kwargs)
+                bruto = f.handler(cliente, **_identidade_da_coordenacao(f, sessao), **kwargs)
         except Exception:
             # O stack vai para o log; o texto da exceção NÃO vai ao modelo, que
             # o repetiria para o usuário — mensagem de exceção pode carregar a
@@ -426,18 +447,20 @@ def _preparar_argumentos(
     """Invariantes 2 e 3: os kwargs que o handler vai receber, ou o erro."""
     brutos = dict(args) if isinstance(args, dict) else {}
 
-    if f.escopo == "aluno":
-        intrusos = sorted(_IDENTIDADE_DO_ALUNO & brutos.keys())
-        if intrusos:
-            # Aviso, e não info: num escopo que não declara `aluno_id`, ele só
-            # chega por alucinação ou por alguém tentando ler outro aluno.
-            log.warning(
-                "identidade no argumento descartada: %s",
-                ", ".join(intrusos),
-                extra={"ferramenta": f.nome, "escopo": f.escopo, "usuario": sessao.usuario},
-            )
-            for campo in intrusos:
-                brutos.pop(campo)
+    identidade = _IDENTIDADE_DO_ALUNO if f.escopo == "aluno" else _IDENTIDADE_DA_COORDENACAO
+    intrusos = sorted(identidade & brutos.keys())
+    if intrusos:
+        # Aviso, e não info: num escopo que não declara a identidade, ela só
+        # chega por alucinação ou por alguém tentando ler o de outra pessoa.
+        # (Fora do schema ela já seria descartada abaixo; tirar aqui é o que
+        # deixa o rastro no log.)
+        log.warning(
+            "identidade no argumento descartada: %s",
+            ", ".join(intrusos),
+            extra={"ferramenta": f.nome, "escopo": f.escopo, "usuario": sessao.usuario},
+        )
+        for campo in intrusos:
+            brutos.pop(campo)
 
     propriedades = f.propriedades
     kwargs: dict[str, Any] = {}
@@ -453,11 +476,19 @@ def _preparar_argumentos(
         kwargs[campo] = valor
 
     _, obrigatorios = parametros_do_handler(f.handler)
-    injetados = _IDENTIDADE_DO_ALUNO if f.escopo == "aluno" else frozenset()
-    faltando = sorted(obrigatorios - injetados - kwargs.keys())
+    faltando = sorted(obrigatorios - identidade - kwargs.keys())
     if faltando:
         return {}, f"argumentos inválidos para '{f.nome}': falta {', '.join(faltando)}"
     return kwargs, None
+
+
+def _identidade_da_coordenacao(f: Ferramenta, sessao: Sessao) -> dict[str, Any]:
+    """`coordenador_id` da SESSÃO para a tool da coordenação que o pede; {} para
+    as outras — que nem o aceitariam (`TypeError`)."""
+    aceitos, _ = parametros_do_handler(f.handler)
+    if "coordenador_id" not in aceitos:
+        return {}
+    return {"coordenador_id": sessao.coordenador_id}
 
 
 def _coagir(campo: str, valor: Any, esquema: dict[str, Any]) -> tuple[Any, str | None]:

@@ -79,10 +79,15 @@ INTEIROS_QUE_NAO_SAO_LIMITE: frozenset[str] = frozenset(
 #: delas, e não há matrícula por que trocá-lo: com a opção que esconde o nome
 #: de quem é da escola ligada, o de quem é de fora também não sai.
 #: `provas_da_captacao` não tem pessoa e fica nos dois modos.
+#:
+#: `minhas_listas_do_banco` (30/10) entra pela dúvida, não pela certeza: o
+#: título da lista é texto livre de quem a montou ("Revisão do <aluno>"), e o
+#: portão só pega o nome ATUAL e inteiro — apelido e primeiro nome passariam.
 SO_COM_NOME_DO_ALUNO: frozenset[str] = frozenset({
     "buscar_aluno_por_nome", "listar_alertas",
     "custos_da_cantina", "restricoes_alimentares",
     "buscar_candidatos_externos", "buscar_candidatos_por_conquista", "perfil_do_candidato_externo",
+    "minhas_listas_do_banco",
 })
 
 #: Os trechos da descrição do CHAT que o tools/list publica trocados, por

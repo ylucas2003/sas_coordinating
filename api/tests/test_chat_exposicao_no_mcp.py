@@ -11,7 +11,7 @@ de LGPD de 24/10, que rodou as 30 tools de então contra dados sintéticos:
   * mais `relatorio_ciclo` (depois que os alunos dele ganharam `alunoId` e
     `matricula`), `buscar_aluno_por_matricula` (a porta de entrada no lugar
     da busca por nome) e as três do banco de questões (prova pública);
-  * e as duas de 26/10: `buscar_aluno_por_nome` e `listar_alertas`, que só
+  * as duas de 26/10: `buscar_aluno_por_nome` e `listar_alertas`, que só
     ficavam fora por causa do pseudônimo e entraram quando o dono decidiu que
     o MCP mostra o NOME do aluno (app/mcp/configuracao.py). Com o pseudônimo
     ligado de novo, o catálogo as tira (app.mcp.catalogo.SO_COM_NOME_DO_ALUNO);
@@ -23,15 +23,20 @@ de LGPD de 24/10, que rodou as 30 tools de então contra dados sintéticos:
     coordenação lê: três sem pessoa, duas com a identidade ao lado do nome e
     duas que só existem com o nome real — `custos_da_cantina` (o nome é rótulo
     da soma) e `restricoes_alimentares` (dado de saúde, LGPD art. 11);
-  * e as quatro da captação externa, da mesma decisão
+  * as quatro da captação externa, da mesma decisão
     (chat/tools/captacao.py). As três que devolvem nome de gente de fora
-    também saem com o pseudônimo.
-São 49.
+    também saem com o pseudônimo;
+  * e as quatro do banco de questões de 30/10, quando a coordenação decidiu que
+    a IA lê tudo o que ela lê na plataforma: `abrir_questao_do_banco`,
+    `panorama_do_banco`, `calibracao_da_importancia` (traz o nome de quem da
+    coordenação girou o botão, não de aluno) e `minhas_listas_do_banco`, que
+    o catálogo também tira com o pseudônimo, pelo título em texto livre.
+São 53.
 
 Tudo o mais fica FORA: os artefatos de UI (`gerar_grafico`, `exportar_csv`,
 `navegar_para`), sem uso fora do app.
 
-E a invariante que torna o pseudônimo possível — para as 42 que o MCP serve
+E a invariante que torna o pseudônimo possível — para as 45 que o MCP serve
 também com ele ligado —, provada rodando cada tool pelo REGISTRO de verdade
 contra a escola sintética de test_chat_tools_coordenacao.py: **nome de aluno
 só sai em campo de nome, num dict que traz a identidade (`alunoId` ou
@@ -96,10 +101,16 @@ EXPOSTAS_NOVAS = frozenset({
     "relatorio_ciclo", "buscar_aluno_por_matricula",
     "topicos_do_edital", "buscar_questoes_do_banco", "recorrencia_no_banco",
 })
-#: As de 26/10, que só servem com o nome real (decisão do dono), e as duas da
-#: cantina que o MCP só serve assim (o comentário de `SO_COM_NOME_DO_ALUNO`).
+#: As de 26/10, que só servem com o nome real (decisão do dono), as duas da
+#: cantina que o MCP só serve assim e a lista do banco de 30/10, cujo título é
+#: texto livre (o comentário de `SO_COM_NOME_DO_ALUNO`).
 EXPOSTAS_COM_O_NOME = frozenset({
     "buscar_aluno_por_nome", "listar_alertas", "custos_da_cantina", "restricoes_alimentares",
+    "minhas_listas_do_banco",
+})
+#: As do banco de questões de 30/10 que não devolvem nome de aluno.
+EXPOSTAS_DO_BANCO_SEM_ALUNO = frozenset({
+    "abrir_questao_do_banco", "panorama_do_banco", "calibracao_da_importancia",
 })
 #: As da cantina que não devolvem pessoa nenhuma (30/10).
 EXPOSTAS_DA_CANTINA_SEM_PESSOA = frozenset({
@@ -126,7 +137,7 @@ EXPOSTAS_ROTINAS_COM_ALUNO = frozenset({
 EXPOSTAS_ROTINAS = EXPOSTAS_ROTINAS_SEM_ALUNO | EXPOSTAS_ROTINAS_COM_ALUNO
 EXPOSTAS = (
     EXPOSTAS_SEM_PESSOA | EXPOSTAS_COM_PSEUDONIMO | EXPOSTAS_NOVAS | EXPOSTAS_COM_O_NOME
-    | EXPOSTAS_ROTINAS
+    | EXPOSTAS_ROTINAS | EXPOSTAS_DO_BANCO_SEM_ALUNO
     | EXPOSTAS_DA_CANTINA_SEM_PESSOA | EXPOSTAS_DA_CANTINA_COM_PSEUDONIMO
     | EXPOSTAS_DA_CAPTACAO_COM_NOME | EXPOSTAS_DA_CAPTACAO_SEM_PESSOA
 )
@@ -194,6 +205,10 @@ CHAMADAS: dict[str, dict[str, Any]] = {
     "buscar_candidatos_por_conquista": {"provas": ["OBF"], "faixas": ["ouro"]},
     "perfil_do_candidato_externo": {"nome_normalizado": fake_captacao.ANA},
     "provas_da_captacao": {},
+    "abrir_questao_do_banco": {"questao_id": "ita_2023_fase1_q07"},
+    "panorama_do_banco": {},
+    "calibracao_da_importancia": {},
+    "minhas_listas_do_banco": {},
 }
 
 #: Onde o nome do aluno pode estar — as mesmas chaves que o pseudonimizador troca.
@@ -283,7 +298,7 @@ class TestPolitica:
     def test_o_conjunto_exposto_e_exatamente_o_decidido(self):
         expostas = {f.nome for f in REGISTRO.catalogo("coordenacao") if f.expor_no_mcp}
         assert expostas == EXPOSTAS
-        assert len(EXPOSTAS) == 49
+        assert len(EXPOSTAS) == 53
 
     def test_com_o_pseudonimo_o_catalogo_tira_as_que_so_servem_com_o_nome(self):
         """As que só servem com o nome são exatamente as que o catálogo do MCP
@@ -292,7 +307,7 @@ class TestPolitica:
         assert set(Catalogo(REGISTRO, teto_de_linhas=50).nomes()) == EXPOSTAS
         com_pseudonimo = Catalogo(REGISTRO, teto_de_linhas=50, com_nome_do_aluno=False)
         assert set(com_pseudonimo.nomes()) == EXPOSTAS_TAMBEM_COM_PSEUDONIMO
-        assert len(EXPOSTAS_TAMBEM_COM_PSEUDONIMO) == 42
+        assert len(EXPOSTAS_TAMBEM_COM_PSEUDONIMO) == 45
 
     def test_tudo_o_mais_da_coordenacao_fica_fora(self):
         """Tool nova na coordenação reprova aqui até alguém decidir se ela sai
@@ -361,9 +376,36 @@ def test_so_uma_tool_exposta_devolve_a_restricao_alimentar(resultados, nome):
     assert "SENTINELA-SAUDE" not in texto and "restricaoAlimentar" not in texto
 
 
+def test_o_titulo_da_lista_e_por_que_ela_so_existe_com_o_nome_real(resultados):
+    """O título é texto livre de quem montou a lista: o portão recusa o nome
+    inteiro, mas não conhece apelido nem primeiro nome. Pela dúvida, a tool sai do
+    catálogo com o pseudônimo, em vez de depender do cinto de segurança."""
+    assert _violacoes(resultados["minhas_listas_do_banco"])
+    with pytest.raises(PseudonimoRecusado):
+        pseudonimizar(
+            resultados["minhas_listas_do_banco"],
+            matricula_por_id=MATRICULA,
+            nomes_de_alunos=frozenset(NOME.values()),
+        )
+
+
+def test_o_nome_de_quem_girou_o_botao_nao_e_nome_de_aluno():
+    """`calibracao_da_importancia` fica com o pseudônimo ligado porque devolve
+    nome de pessoa da COORDENAÇÃO, fora do cadastro de alunos e fora de campo
+    `nome`: passa pelo portão sem ser trocado, e a coluna "Quem" continua legível."""
+    escola = nova_escola()
+    escola.db["parametro_importancia"] = {1: {
+        "versao": 1, "meia_vida_anos": 5, "janela_tendencia_anos": 5, "ativo": True,
+        "criado_em": "2026-10-01T12:00:00+00:00", "criado_por": "COORDENADORA SINTETICA",
+    }}
+    resultado = chamar(escola.cliente(), "calibracao_da_importancia")
+    saida = pseudonimizar(resultado, matricula_por_id=MATRICULA, nomes_de_alunos=frozenset(NOME.values()))
+    assert saida["historico"][0]["criadaPor"] == "COORDENADORA SINTETICA"
+
+
 @pytest.mark.parametrize("nome", sorted(
     EXPOSTAS_SEM_PESSOA | EXPOSTAS_ROTINAS_SEM_ALUNO | EXPOSTAS_DA_CANTINA_SEM_PESSOA
-    | EXPOSTAS_DA_CAPTACAO_SEM_PESSOA | {
+    | EXPOSTAS_DA_CAPTACAO_SEM_PESSOA | EXPOSTAS_DO_BANCO_SEM_ALUNO | {
     "topicos_do_edital", "buscar_questoes_do_banco", "recorrencia_no_banco",
 }))
 def test_as_que_nao_sao_de_pessoa_nao_devolvem_nome_de_aluno(resultados, nome):

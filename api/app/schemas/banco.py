@@ -168,6 +168,44 @@ class EstatisticasBanco(BaseModel):
     versaoParametro: int | None
 
 
+class PanoramaPorAno(BaseModel):
+    """Quantas questões o acervo tem de uma prova (ano), por fase."""
+
+    ano: int
+    fase1: int
+    fase2: int
+    # As do ano que ainda não têm tópico. É por ano porque elas não se
+    # espalham: em Química · IME são provas inteiras (04/09/2026), e é o ano
+    # sem tópico que distorce o índice — ver `estatisticas.recorrencia`.
+    semClassificacao: int
+
+
+class PanoramaDoRecorte(BaseModel):
+    """O tamanho e a cobertura do acervo numa matéria de um vestibular
+    (`estatisticas.panorama`). Contagem de questões DISTINTAS: aqui não há
+    tópico, e a questão mista conta uma vez só."""
+
+    materia: MateriaBanco
+    vestibular: VestibularBanco
+    totalQuestoes: int
+    semClassificacao: int
+    dissertativas: int
+    # As duas origens do gabarito (CHECK da 0031). Dissertativa não tem letra,
+    # e isso é o esperado, não falta de dado (docs/22 §8, risco 4).
+    gabaritoDaBanca: int
+    gabaritoSugerido: int
+    # A mesma escolha do cartão: o link do Ari vence o texto escrito
+    # (`consultas.origem_da_resolucao`).
+    resolucaoDoProfessor: int
+    resolucaoEscrita: int
+    # As duas coleções de `consultas.MODOS_DA_COLECAO`.
+    recentes: int
+    arquivo: int
+    # Crescente, e só os anos com questão: ano sem prova no acervo não é zero
+    # (o domínio da série é este, como em `EstatisticasBanco.anos`).
+    porAno: list[PanoramaPorAno]
+
+
 # ─── Listas ──────────────────────────────────────────────────────────────
 
 

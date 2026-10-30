@@ -21,6 +21,8 @@ O QUE ELE CONFERE
   0b. o PostgREST do MCP conecta: sem a senha do login definida, ele sai, e
      nada abaixo diria alguma coisa;
   1. o sas_mcp lê cada tabela da lista branca, com as colunas dela;
+  1b. e a view das listas só mostra o lado da coordenação (0077): GRANT é por
+     coluna, e quem segura a LINHA é o WHERE dela;
   2. e nada além: coluna fora da lista dá 42501, tabela fora dela não aparece
      para ele, e as proibidas (credencial, conversa, auditoria…) dão 42501;
   3. não escreve em tabela nenhuma da lista branca: INSERT e UPDATE coluna a
@@ -125,6 +127,10 @@ TABELAS_PROIBIDAS: tuple[str, ...] = (
     "upload_evento",
     "aula_gravacao",
     "questao_estudo_aluno",
+    # Guardam as listas dos ALUNOS também: o MCP só lê o lado da coordenação, pelas
+    # views de `VIEWS_DO_MCP` (0077). A tabela em si continua dando 42501.
+    "lista_questoes",
+    "lista_questoes_item",
 )
 
 #: Colunas de `aluno` que nunca entram no GRANT (0071): segredo, contato,
@@ -168,14 +174,16 @@ COLUNAS_PROIBIDAS_POR_TABELA: dict[str, tuple[str, ...]] = {
     "curso_monitorado_gravacao": ("professor_padrao",),
 }
 
-#: As únicas views que entram na lista branca. Toda outra continua proibida:
-#: view roda com o privilégio do dono e expõe o que lê (0071). Estas três foram
-#: escritas PARA o MCP na 0074 e são o caminho até o que ele não lê como tabela:
-#: a trilha sem o canal `acesso`, o nome da coordenação sem o resto da conta, e a
-#: aula sem link. Por isso a regra é de quem as mexe: `_auditar_view`.
-VIEWS_DO_MCP: frozenset[str] = frozenset(
-    {"trilha_de_alteracoes", "nome_da_coordenacao", "aula_gravacao_para_ia"}
-)
+#: As únicas views com dono na lista branca. Toda outra continua proibida: view
+#: roda com o privilégio do dono e expõe o que lê (0071). Estas foram escritas
+#: PARA o MCP e são o caminho até o que ele não lê como tabela: a trilha sem o
+#: canal `acesso`, o nome da coordenação sem o resto da conta e a aula sem o S3
+#: (0074), e a linha da coordenação sem a do aluno (0077). Por isso a regra é de
+#: quem as mexe: `_auditar_view`.
+VIEWS_DO_MCP: frozenset[str] = frozenset({
+    "trilha_de_alteracoes", "nome_da_coordenacao", "aula_gravacao_para_ia",
+    "lista_questoes_da_coordenacao", "lista_questoes_item_da_coordenacao",
+})
 
 #: As únicas funções que o sas_mcp pode executar. `buscar_candidatos_por_conquista`
 #: é SECURITY INVOKER (0068) e vem de PUBLIC: roda com o privilégio de quem
@@ -481,7 +489,10 @@ LOGIN_DO_MCP = "autenticador_mcp"
 #: login. Toda regra de concessão vale para os três.
 PAPEIS_DO_MCP: tuple[str, ...] = ("sas_leitura", "sas_mcp", LOGIN_DO_MCP)
 _VIGIADOS: frozenset[str] = frozenset({*PAPEIS_DO_MCP, "public"})
-_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_", "0074_", "0075_", "0076_")
+#: As migrations que existem PARA o MCP. As de 30/10 estendem a lista branca
+#: pela decisão de que a IA lê o que o coordenador lê: 0074 (régua, rotinas e
+#: trilha), 0075 (cantina), 0076 (captação) e 0077 (o banco de questões inteiro).
+_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_", "0074_", "0075_", "0076_", "0077_")
 DIR_INIT = Path(__file__).resolve().parent.parent.parent / "infra" / "postgres" / "init"
 
 #: Prefixos de tabela que nunca entram na lista branca, além das nomeadas em
@@ -681,6 +692,9 @@ def _auditar_view(texto: str, *, do_mcp: bool) -> list[str]:
     regras: só migration do MCP as toca; nasce com `security_barrier`, senão
     filtro de fora roda antes do WHERE dela; e ALTER nenhum, em nenhum arquivo —
     ALTER TABLE também alcança view, e é por ele que saem a barreira e o dono.
+
+    A segunda regra vale em dobro no `CREATE OR REPLACE`: sem o `WITH`, ele ZERA
+    as opções da view e a barreira sai calada (provado em Postgres 16, 30/10).
     """
     m = _RE_MEXE_EM_VIEW.match(texto.lower())
     if m is None or m["nome"] not in VIEWS_DO_MCP:
@@ -1251,6 +1265,23 @@ def conferir_lista_branca(
             continue
         r = mcp.ler(tabela, sorted(colunas))
         rel.conferir(r.status == 200, f"{tabela} ({len(colunas)} colunas)", r.resumo())
+
+
+def conferir_lado_das_listas(rel: Relatorio, mcp: PostgREST) -> None:
+    """Pela view, só o lado da coordenação (0077).
+
+    O resto do script confere coluna, e aqui o que importa é a LINHA: um WHERE
+    alargado passaria pelas seções 1 e 2 sem uma falha, porque nem coluna nem GRANT
+    mudam. Num banco sem lista de aluno a conferência passa sem provar muito; a
+    prova com a linha de aluno semeada foi feita em 30/10 (docs/43).
+    """
+    rel.secao("1b · A lista de aluno não aparece pela view")
+    r = mcp.pedir(
+        "GET",
+        "lista_questoes_da_coordenacao",
+        params={"select": "id", "dono_tipo": "neq.coordenacao", "limit": "1"},
+    )
+    rel.conferir(r.status == 200 and r.corpo == [], "lista_questoes_da_coordenacao: só coordenação", r.resumo())
 
 
 def conferir_nada_alem(
@@ -1830,6 +1861,7 @@ def main(argv: list[str] | None = None) -> int:
         origem = superficie_da_api or superficie
         colunas_de = origem[0] if origem else {}
         conferir_lista_branca(rel, mcp, branca)
+        conferir_lado_das_listas(rel, mcp)
         conferir_nada_alem(rel, mcp, branca, superficie, superficie_da_api)
         conferir_sem_escrita(rel, mcp, branca, colunas_de, api)
         conferir_auditoria(rel, mcp)

@@ -21,11 +21,19 @@ mesmo padrão do `stats/` ao lado.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from typing import Any
+from typing import Any, get_args
 
 from supabase import Client
 
-from ..schemas.banco import EstatisticasBanco, MateriaBanco, RecorrenciaTopico, VestibularBanco
+from ..schemas.banco import (
+    EstatisticasBanco,
+    MateriaBanco,
+    PanoramaDoRecorte,
+    PanoramaPorAno,
+    RecorrenciaTopico,
+    VestibularBanco,
+)
+from .consultas import colecao_da_questao, origem_da_resolucao
 from .importancia import carregar_parametro, indice_de_importancia, ranking_0_a_100
 
 
@@ -177,6 +185,101 @@ def recorrencia(
         # não é conferível.
         meiaVidaAnos=parametro.meia_vida_anos,
         versaoParametro=parametro.versao,
+    )
+
+
+# ─── O panorama do acervo ────────────────────────────────────────────────
+
+#: Só o que a contagem usa. A ordem das matérias e dos vestibulares da saída
+#: vem dos Literal do schema (`get_args`), não de uma lista à parte que
+#: envelheceria calada (o mesmo motivo de `consultas._materias_pedidas`).
+_COLUNAS_DO_PANORAMA = (
+    "id, materia, vestibular, ano, fase, dissertativa, gabarito, gabarito_origem, "
+    "resolucao_url, resolucao_md, resolucao_origem, extraido_por"
+)
+
+
+def panorama(
+    cliente: Client,
+    materia: MateriaBanco | None = None,
+    vestibular: VestibularBanco | None = None,
+) -> list[PanoramaDoRecorte]:
+    """Quantas questões o acervo tem, e com quê, por matéria × vestibular × ano.
+
+    É a pergunta anterior à da recorrência: antes de "o que mais cai em Física
+    no IME" vem "quantas provas de Física do IME o banco tem, de que anos, e
+    quantas sem tópico". Os números são os que o cartão de cada questão mostra
+    — discursiva, gabarito da banca ou sugerido, resolução do professor ou
+    escrita, coleção —, somados.
+
+    ⚠️ Tabela inteira, sem teto, como a recorrência (docstring do módulo): é
+    contagem, e leitura truncada daria número errado sem parecer errado.
+
+    Classificada = tem ligação na MESMA matéria dela. A ligação guarda a
+    matéria por conta própria (metade da FK composta da 0028), e é o critério
+    de `consultas.listar_taxonomia` e de `recorrencia`: com outro, o
+    `semClassificacao` daqui divergiria do da árvore de assuntos.
+    """
+    consulta = cliente.table("questao_vestibular").select(_COLUNAS_DO_PANORAMA)
+    if materia:
+        consulta = consulta.eq("materia", materia)
+    if vestibular:
+        consulta = consulta.eq("vestibular", vestibular)
+    questoes = consulta.execute().data or []
+
+    ligacoes = cliente.table("questao_vestibular_topico").select("questao_id, materia")
+    if materia:
+        ligacoes = ligacoes.eq("materia", materia)
+    classificadas = {(l["questao_id"], l["materia"]) for l in (ligacoes.execute().data or [])}
+
+    por_recorte: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for questao in questoes:
+        por_recorte[(questao["materia"], questao["vestibular"])].append(questao)
+
+    resultado: list[PanoramaDoRecorte] = []
+    for nome_materia in get_args(MateriaBanco):
+        for nome_vestibular in get_args(VestibularBanco):
+            linhas = por_recorte.get((nome_materia, nome_vestibular))
+            if not linhas:
+                continue
+            resultado.append(_panorama_do_recorte(nome_materia, nome_vestibular, linhas, classificadas))
+    return resultado
+
+
+def _panorama_do_recorte(
+    materia: str, vestibular: str, linhas: list[dict[str, Any]], classificadas: set[tuple[str, str]]
+) -> PanoramaDoRecorte:
+    sem_topico = [q for q in linhas if (q["id"], q["materia"]) not in classificadas]
+    por_ano_e_fase = Counter((int(q["ano"]), int(q["fase"])) for q in linhas)
+    sem_topico_por_ano = Counter(int(q["ano"]) for q in sem_topico)
+    gabaritos = Counter(q.get("gabarito_origem") for q in linhas if q.get("gabarito"))
+    resolucoes = Counter(
+        origem_da_resolucao(q.get("resolucao_url"), q.get("resolucao_md"), q.get("resolucao_origem"))
+        for q in linhas
+    )
+    colecoes = Counter(colecao_da_questao(q.get("extraido_por")) for q in linhas)
+    return PanoramaDoRecorte(
+        materia=materia,  # type: ignore[arg-type]
+        vestibular=vestibular,  # type: ignore[arg-type]
+        totalQuestoes=len(linhas),
+        semClassificacao=len(sem_topico),
+        dissertativas=sum(1 for q in linhas if q.get("dissertativa")),
+        gabaritoDaBanca=gabaritos.get("banca", 0),
+        gabaritoSugerido=gabaritos.get("sugerido", 0),
+        resolucaoDoProfessor=resolucoes.get("professor", 0),
+        # Toda origem de texto escrito: 'sugerida' e a não registrada.
+        resolucaoEscrita=sum(n for origem, n in resolucoes.items() if origem not in (None, "professor")),
+        recentes=colecoes.get("recentes", 0),
+        arquivo=colecoes.get("arquivo", 0),
+        porAno=[
+            PanoramaPorAno(
+                ano=ano,
+                fase1=por_ano_e_fase.get((ano, 1), 0),
+                fase2=por_ano_e_fase.get((ano, 2), 0),
+                semClassificacao=sem_topico_por_ano.get(ano, 0),
+            )
+            for ano in sorted({ano for ano, _ in por_ano_e_fase})
+        ],
     )
 
 

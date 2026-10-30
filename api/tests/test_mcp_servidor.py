@@ -396,6 +396,24 @@ def test_tools_que_so_servem_com_o_nome_saem_do_catalogo_com_o_pseudonimo():
     assert _eventos(db)[0]["detalhe"]["desfecho"] == "inexistente"
 
 
+def test_a_conta_do_token_chega_a_tool_que_pede_e_o_argumento_nao_a_troca():
+    """A lista do banco tem dono (docs/22 §5.2): no MCP, o dono é a conta dona do
+    token, a mesma `Identidade` que o chat lê do JWT como `sub`. Um `coordenador_id`
+    nos argumentos, de alucinação ou de injeção, não escolhe de quem é a lista."""
+    vistos: list = []
+
+    def com_dono(cliente, *, coordenador_id=None):
+        vistos.append(coordenador_id)
+        return {"ok": True}
+
+    async def corpo(s):
+        return await s.call_tool("com_dono", {"coordenador_id": "ffffffff-0000-4000-8000-000000000009"})
+
+    chamada = _em_memoria(_servidor_com(FabricaDeClientes(_banco()), _ferramenta("com_dono", com_dono)), corpo)
+    assert not chamada.isError
+    assert vistos == [COORDENADOR]
+
+
 class _Objeto:
     """Um objeto qualquer no resultado: o serializador o escreve pelo `str()`."""
 

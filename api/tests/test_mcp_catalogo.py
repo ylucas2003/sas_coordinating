@@ -117,6 +117,8 @@ def test_com_o_pseudonimo_as_que_so_servem_com_o_nome_ficam_fora():
         "custos_da_cantina", "restricoes_alimentares",
         # A captação externa (30/10): o nome é o objeto delas, e é de gente de fora.
         "buscar_candidatos_externos", "buscar_candidatos_por_conquista", "perfil_do_candidato_externo",
+        # A lista do banco (30/10): o título é texto livre.
+        "minhas_listas_do_banco",
     }
     assert esperadas == SO_COM_NOME_DO_ALUNO
 

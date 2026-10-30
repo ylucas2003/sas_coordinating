@@ -18,7 +18,7 @@ import asyncio
 import pytest
 from fastapi import HTTPException
 
-from app.banco import consultas
+from app.banco import consultas, listas
 from app.routes import banco as rota_banco
 from app.schemas.banco import QuestaoVestibular
 
@@ -182,3 +182,97 @@ class TestARotaSoAnexaParaAluno:
         assert [(q.id, q.resolvida, q.anotacao) for q in pagina.questoes] == [
             ("q1", True, "refazer a conta")
         ]
+
+
+# ─── 3 · A calibração desceu da rota sem mudar o contrato ────────────────
+
+
+def test_a_rota_da_calibracao_devolve_o_contrato_da_tela(monkeypatch):
+    """`GET /banco/importancia/parametro` montava o quadro na rota, e desceu para
+    `importancia.calibracao_em_vigor` (docs/43 §4.4). As chaves são as de
+    `ParametroImportancia` em `web/src/tipos/banco.ts`; `historico` segue cru,
+    em snake_case, porque é o que `Calibracao.tsx` lê."""
+    versao = {
+        "versao": 2, "meia_vida_anos": 3, "janela_tendencia_anos": 4, "ativo": True,
+        "criado_em": "2026-10-01T12:00:00+00:00", "criado_por": "Coordenadora",
+    }
+    db = {"parametro_importancia": {1: versao}}
+    monkeypatch.setattr(rota_banco, "get_supabase", lambda: FakeCliente(db))
+
+    resposta = asyncio.run(rota_banco.obter_parametro_de_importancia(_coordenador={}))
+
+    assert resposta == {
+        "meiaVidaAnos": 3.0,
+        "janelaTendenciaAnos": 4,
+        "versao": 2,
+        "meiaVidaPadrao": 5.0,
+        "janelaTendenciaPadrao": 5,
+        "meiaVidaMaxima": 100.0,
+        "historico": [versao],
+    }
+
+
+# ─── 4 · A coordenação lê pela view, e a escrita segue na tabela ─────────
+
+CONTA = "c0000000-0000-4000-8000-000000000001"
+LISTA = "aaaaaaaa-0000-4000-8000-000000000001"
+
+
+class _TabelaAnotada:
+    def __init__(self, tabela, nome: str, anotacoes: list):
+        self._tabela, self._nome, self._anotacoes = tabela, nome, anotacoes
+
+    def __getattr__(self, operacao: str):
+        self._anotacoes.append((self._nome, operacao))
+        return getattr(self._tabela, operacao)
+
+
+class _ClienteAnotado(FakeCliente):
+    """Anota (tabela, operação): a `listas.py` é uma função só para a rota e para
+    a tool, e o que muda por lado é só de onde se lê."""
+
+    def __init__(self, db):
+        super().__init__(db)
+        self.anotacoes: list[tuple[str, str]] = []
+
+    def table(self, nome):
+        return _TabelaAnotada(super().table(nome), nome, self.anotacoes)
+
+
+def _com_a_lista(dono_tipo: str) -> _ClienteAnotado:
+    linha = {
+        "id": LISTA, "titulo": "Óptica", "dono_tipo": dono_tipo, "dono_id": CONTA,
+        "criada_em": "2026-10-01T12:00:00+00:00", "atualizada_em": "2026-10-01T12:00:00+00:00",
+    }
+    # O mesmo dicionário nas duas: aqui se confere o caminho, e não o filtro da view.
+    return _ClienteAnotado({"lista_questoes": {LISTA: linha}, "lista_questoes_da_coordenacao": {LISTA: linha}})
+
+
+@pytest.mark.parametrize(
+    ("dono_tipo", "fontes"),
+    [
+        ("coordenacao", {"lista_questoes_da_coordenacao", "lista_questoes_item_da_coordenacao"}),
+        ("aluno", {"lista_questoes", "lista_questoes_item"}),
+    ],
+)
+def test_cada_lado_le_da_sua_fonte(dono_tipo, fontes):
+    cliente = _com_a_lista(dono_tipo)
+    assert listas.listar(cliente, dono_tipo, CONTA)[0].id == LISTA
+    assert listas.obter(cliente, LISTA, dono_tipo, CONTA).titulo == "Óptica"
+    assert {nome for nome, operacao in cliente.anotacoes if operacao == "select"} == fontes
+
+
+def test_a_escrita_da_coordenacao_vai_para_a_tabela():
+    """A view de listas até aceitaria o UPDATE do `sas_service`, mas a escrita tem
+    uma fonte só: a tabela, nos dois lados."""
+    cliente = _com_a_lista("coordenacao")
+    assert listas.atualizar(cliente, LISTA, "coordenacao", CONTA, titulo="Novo") is not None
+    assert ("lista_questoes", "update") in cliente.anotacoes
+    assert ("lista_questoes_da_coordenacao", "update") not in cliente.anotacoes
+
+
+def test_dono_que_nao_e_uuid_nao_tem_lista_e_nem_chega_ao_banco():
+    cliente = _ClienteAnotado({})
+    assert listas.listar(cliente, "coordenacao", "verificacao-mcp") == []
+    assert listas.obter(cliente, LISTA, "coordenacao", "verificacao-mcp") is None
+    assert cliente.anotacoes == []
