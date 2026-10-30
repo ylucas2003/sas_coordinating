@@ -19,7 +19,11 @@ que estas tools usam e ele não tinha —
     existe é 42703 e id torto em coluna uuid é 22P02, como no PostgREST. Sem
     isso o fake devolvia `None` para a coluna inventada, e `materias_problematicas`
     — que pedia `simulado.fase`, removida na 0003 — passou na suíte enquanto
-    falhava sempre no banco de verdade (revisão paralela de 25/10).
+    falhava sempre no banco de verdade (revisão paralela de 25/10);
+  * as duas VIEWS das listas (0077), derivadas da tabela de baixo a cada leitura,
+    com as colunas do GRANT e o tipo da tabela. São um espelho do SQL, escrito de
+    novo aqui: a prova do SQL é no Postgres, e o que se trava aqui é a tool, dado
+    o que a view entrega.
 
 Dados 100% sintéticos.
 
@@ -54,6 +58,7 @@ from app.lembretes import motor
 from app.lembretes.aplicacoes import aluno_simulado
 from app.schemas.domain import Severidade
 from app.stats import classificacao_ciclo, criterios, criterios_repo
+from scripts.verificar_papeis_do_mcp import lista_branca
 from tests.esquema_das_migrations import esquema
 from tests.fake_postgrest import FakeCliente, Query, Resp, _ordenavel
 
@@ -180,6 +185,38 @@ def _algum_ramo_bate(linha: dict, filtro: str) -> bool:
 _COMPARACOES = frozenset({"eq", "neq", "in", "nao_in", "lt", "lte", "gt", "gte"})
 
 
+# ─── As views da 0077, como o fake as vê ─────────────────────────────────
+
+
+def _listas_da_coordenacao(db: dict) -> list[dict]:
+    return [l for l in db.get("lista_questoes", {}).values() if l.get("dono_tipo") == "coordenacao"]
+
+
+def _itens_da_coordenacao(db: dict) -> list[dict]:
+    listas = {l["id"] for l in _listas_da_coordenacao(db)}
+    return [i for i in db.get("lista_questoes_item", {}).values() if i.get("lista_id") in listas]
+
+
+_VIEWS = {
+    "lista_questoes_da_coordenacao": _listas_da_coordenacao,
+    "lista_questoes_item_da_coordenacao": _itens_da_coordenacao,
+}
+#: As colunas de uma view não são lidas pelo leitor de migrations: as destas estão
+#: no GRANT dela, e pedir coluna que ele não dá é 42501 no banco. O tipo vem da
+#: tabela de baixo, porque uuid torto em coluna de view também é 22P02.
+_BASE_DAS_VIEWS = {
+    "lista_questoes_da_coordenacao": "lista_questoes",
+    "lista_questoes_item_da_coordenacao": "lista_questoes_item",
+}
+_COLUNAS_DAS_VIEWS = {
+    v: {c: esquema().colunas(_BASE_DAS_VIEWS[v])[c] for c in lista_branca()[v]} for v in _VIEWS
+}
+
+
+def _colunas_de(tabela: str) -> dict[str, str] | None:
+    return esquema().colunas(tabela) or _COLUNAS_DAS_VIEWS.get(tabela)
+
+
 def _recusar(codigo: str, mensagem: str) -> NoReturn:
     """A mesma exceção que o postgrest-py levanta com a resposta de erro."""
     raise APIError({"code": codigo, "message": mensagem, "details": None, "hint": None})
@@ -197,7 +234,7 @@ def _tabela_do_embed(tabela: str, cabeca: str) -> str:
 
 
 def _conferir_selecao(tabela: str, selecao: str) -> None:
-    colunas = esquema().colunas(tabela)
+    colunas = _colunas_de(tabela)
     if colunas is None:
         return  # view: o leitor não sabe as colunas, e o fake não as inventa
     for item in _partes(selecao or "*"):
@@ -218,7 +255,7 @@ def _conferir_no_esquema(consulta: ConsultaRica) -> None:
     if not esquema().existe(consulta.tabela):
         _recusar("PGRST205", f"Could not find the table 'public.{consulta.tabela}' in the schema cache")
     _conferir_selecao(consulta.tabela, consulta.colunas)
-    colunas = esquema().colunas(consulta.tabela)
+    colunas = _colunas_de(consulta.tabela)
     if colunas is None:
         return
     for tipo, coluna, valor in consulta.filtros:
@@ -301,7 +338,9 @@ class ConsultaRica(Query):
         if self.op != "select":
             raise AssertionError(f"tool da coordenação tentou {self.op} em {self.tabela}")
         _conferir_no_esquema(self)
-        linhas = [l for l in self.db.get(self.tabela, {}).values() if self._bate(l)]
+        visao = _VIEWS.get(self.tabela)
+        fonte = visao(self.db) if visao else self.db.get(self.tabela, {}).values()
+        linhas = [l for l in fonte if self._bate(l)]
         for coluna, desc in reversed(self._order):
             linhas.sort(key=lambda l, c=coluna: _ordenavel(l.get(c)), reverse=desc)
         n = len(linhas)
@@ -1342,6 +1381,15 @@ class TestMinhasListasDoBanco:
         do domínio, o `.eq("dono_id", ...)` seria 22P02 (uuid torto)."""
         assert self._como(escola, "verificacao-mcp")["listas"] == []
         assert "erro" in self._como(escola, "verificacao-mcp", lista_id=LISTA_OPTICA)
+
+    def test_le_pela_view_e_nunca_pela_tabela(self, escola):
+        """No MCP, a tabela é 42501: uma leitura direta aqui só cairia em produção."""
+        for args in ({}, {"lista_id": LISTA_OPTICA}):
+            cliente = escola.cliente()
+            assert "erro" not in chamar(cliente, "minhas_listas_do_banco", **args)
+            assert cliente.em("lista_questoes_da_coordenacao")
+            assert cliente.em("lista_questoes_item_da_coordenacao")
+            assert not cliente.em("lista_questoes") and not cliente.em("lista_questoes_item")
 
     def test_sem_identidade_e_erro_e_nao_le_nada(self):
         cliente = FakeRico({})

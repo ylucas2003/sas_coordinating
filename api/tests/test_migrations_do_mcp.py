@@ -37,6 +37,8 @@ from scripts.verificar_papeis_do_mcp import (
     PAPEIS_DO_MCP,
     PREFIXOS_PROIBIDOS,
     TABELAS_PROIBIDAS,
+    VIEWS_DO_MCP,
+    _auditar_view,
     _comandos,
     _evento,
     _separar,
@@ -137,6 +139,75 @@ def test_sas_mcp_nao_recebe_select_direto():
     assert lista_branca(DIR_MIGRATIONS, papel="sas_mcp") == {}
     # E o login nem isso: é NOINHERIT, e não lê nada por si (0071).
     assert lista_branca(DIR_MIGRATIONS, papel=LOGIN_DO_MCP) == {}
+
+
+# ─── As views das listas (0077) ──────────────────────────────────────────
+
+
+def _corpo_da_view_das_listas(nome: str) -> str:
+    """O CREATE VIEW da 0077, sem comentário e com o espaço normalizado, mas com
+    os literais: o `_comandos` os esvazia, e aqui o literal é o que importa."""
+    texto = re.sub(r"--[^\n]*", "", _arquivo("0077_").read_text(encoding="utf-8"))
+    (corpo,) = re.findall(rf"CREATE VIEW {nome}\b.*?;", texto, re.S)
+    return " ".join(corpo.split())
+
+
+def test_as_views_das_listas_trazem_so_o_lado_da_coordenacao():
+    """O WHERE é o que segura a linha, e nem coluna nem GRANT o denunciam: uma view
+    mais larga passaria por todo o resto desta suíte. Por isso o corpo vai inteiro."""
+    assert _corpo_da_view_das_listas("lista_questoes_da_coordenacao") == (
+        "CREATE VIEW lista_questoes_da_coordenacao WITH (security_barrier = true) AS "
+        "SELECT l.id, l.titulo, l.dono_tipo, l.dono_id, l.criada_em, l.atualizada_em "
+        "FROM lista_questoes AS l WHERE l.dono_tipo = 'coordenacao';"
+    )
+    assert _corpo_da_view_das_listas("lista_questoes_item_da_coordenacao") == (
+        "CREATE VIEW lista_questoes_item_da_coordenacao WITH (security_barrier = true) AS "
+        "SELECT i.lista_id, i.questao_id, i.posicao FROM lista_questoes_item AS i "
+        "WHERE i.lista_id IN (SELECT l.id FROM lista_questoes AS l WHERE l.dono_tipo = 'coordenacao');"
+    )
+
+
+def test_as_views_das_listas_rodam_como_o_dono():
+    """O sas_mcp não tem acesso às tabelas: com `security_invoker`, a view voltaria
+    42501 em toda leitura. É o oposto das views da captação, e é de propósito."""
+    for nome in VIEWS_DO_MCP:
+        if nome.startswith("lista_questoes"):
+            assert "security_invoker" not in _corpo_da_view_das_listas(nome)
+
+
+def test_o_mcp_le_a_view_e_a_tabela_de_baixo_continua_proibida():
+    branca = lista_branca(DIR_MIGRATIONS)
+    for tabela in ("lista_questoes", "lista_questoes_item"):
+        assert tabela in TABELAS_PROIBIDAS and tabela not in branca
+    assert branca["lista_questoes_da_coordenacao"] == {
+        "id", "titulo", "dono_tipo", "dono_id", "criada_em", "atualizada_em",
+    }
+    assert branca["lista_questoes_item_da_coordenacao"] == {"lista_id", "questao_id", "posicao"}
+
+
+def test_as_views_do_mcp_nao_caem_na_regra_do_prefixo():
+    """Sem `v_` de propósito: a trava do prefixo segue valendo para toda outra view."""
+    for nome in VIEWS_DO_MCP:
+        assert nome not in TABELAS_PROIBIDAS and not nome.startswith(PREFIXOS_PROIBIDOS)
+
+
+@pytest.mark.parametrize(
+    "comando",
+    [
+        # `CREATE OR REPLACE` sem o WITH zera as opções: a barreira sai calada.
+        "CREATE OR REPLACE VIEW lista_questoes_da_coordenacao AS SELECT 1",
+        "CREATE VIEW lista_questoes_item_da_coordenacao AS SELECT 1",
+        "ALTER VIEW lista_questoes_da_coordenacao RESET (security_barrier)",
+        "ALTER TABLE lista_questoes_item_da_coordenacao OWNER TO postgres",
+    ],
+)
+def test_nem_migration_do_mcp_tira_a_barreira(comando):
+    assert _auditar_view(comando, do_mcp=True)
+
+
+def test_a_view_da_lista_recriada_com_a_barreira_passa_na_migration_do_mcp():
+    comando = "CREATE OR REPLACE VIEW lista_questoes_da_coordenacao WITH (security_barrier = true) AS SELECT 1"
+    assert _auditar_view(comando, do_mcp=True) == []
 
 
 # ─── A auditoria: o que o leitor não entende falha ───────────────────────
@@ -241,6 +312,21 @@ MUTACOES: dict[str, str] = {
     "teto_de_duracao_acima_do_prazo": "ALTER ROLE autenticador_mcp SET statement_timeout = '10min';",
     "select_direto_ao_login": "GRANT SELECT (nome) ON aluno TO autenticador_mcp;",
     "login_ganha_o_sas_leitura": "GRANT sas_leitura TO autenticador_mcp;",
+    # As views das listas (0077): a tabela de baixo pela porta da frente, a view
+    # mexida fora de uma migration do MCP, e outra view tentando entrar igual.
+    "lista_de_aluno_pela_tabela": "GRANT SELECT (titulo) ON lista_questoes TO sas_leitura;",
+    "itens_de_aluno_pela_tabela": "GRANT SELECT (questao_id) ON lista_questoes_item TO sas_leitura;",
+    "view_das_listas_alargada_fora_do_mcp": (
+        "CREATE OR REPLACE VIEW lista_questoes_da_coordenacao WITH (security_barrier = true) AS "
+        "SELECT id FROM lista_questoes;"
+    ),
+    "view_das_listas_derrubada_fora_do_mcp": "DROP VIEW lista_questoes_item_da_coordenacao;",
+    "view_das_listas_perde_a_barreira": "ALTER VIEW lista_questoes_da_coordenacao RESET (security_barrier);",
+    "view_das_listas_vira_invoker": "ALTER VIEW lista_questoes_da_coordenacao SET (security_invoker = true);",
+    "view_das_listas_troca_de_dono": "ALTER TABLE lista_questoes_item_da_coordenacao OWNER TO sas_service;",
+    "outra_view_na_lista_branca": (
+        "CREATE VIEW outra_lista AS SELECT 1 AS a;\nGRANT SELECT (a) ON outra_lista TO sas_leitura;"
+    ),
 }
 
 
@@ -805,8 +891,9 @@ def test_lista_branca_cobre_as_tabelas_das_tools_expostas():
         "simulado", "turma", "vestibular_alvo_aluno", "questao_vestibular",
         "questao_vestibular_alternativa", "questao_vestibular_topico",
         "topico_taxonomia", "topico_taxonomia_assunto", "parametro_importancia",
-        # 0077 (30/10): as listas da coordenação, de minhas_listas_do_banco.
-        "lista_questoes", "lista_questoes_item",
+        # 0077 (30/10): as listas da coordenação, de minhas_listas_do_banco. São as
+        # VIEWS, e não as tabelas: lá está o lado do aluno também.
+        "lista_questoes_da_coordenacao", "lista_questoes_item_da_coordenacao",
     }
     assert set(lista_branca(DIR_MIGRATIONS)) == esperadas
 

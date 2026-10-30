@@ -21,6 +21,8 @@ O QUE ELE CONFERE
   0b. o PostgREST do MCP conecta: sem a senha do login definida, ele sai, e
      nada abaixo diria alguma coisa;
   1. o sas_mcp lê cada tabela da lista branca, com as colunas dela;
+  1b. e a view das listas só mostra o lado da coordenação (0077): GRANT é por
+     coluna, e quem segura a LINHA é o WHERE dela;
   2. e nada além: coluna fora da lista dá 42501, tabela fora dela não aparece
      para ele, e as proibidas (credencial, conversa, auditoria…) dão 42501;
   3. não escreve em tabela nenhuma da lista branca: INSERT e UPDATE coluna a
@@ -128,6 +130,10 @@ TABELAS_PROIBIDAS: tuple[str, ...] = (
     "candidato_externo",
     "conquista_externa",
     "questao_estudo_aluno",
+    # Guardam as listas dos ALUNOS também: o MCP só lê o lado da coordenação, pelas
+    # views de `VIEWS_DO_MCP` (0077). A tabela em si continua dando 42501.
+    "lista_questoes",
+    "lista_questoes_item",
 )
 
 #: Colunas de `aluno` que nunca entram no GRANT (0071): segredo, contato,
@@ -142,6 +148,15 @@ COLUNAS_PROIBIDAS_DO_ALUNO: tuple[str, ...] = (
     "foto_perfil_storage",
     "foto_perfil_atualizada_em",
     "restricao_alimentar",
+)
+
+#: As únicas views que entram na lista branca. Toda outra continua proibida:
+#: view roda com o privilégio do dono e expõe o que lê (0071). Estas foram
+#: escritas PARA o MCP e são o caminho até o que ele não lê como tabela: aqui, a
+#: linha da coordenação sem a do aluno (0077). Por isso a regra é de quem as
+#: mexe: `_auditar_view`.
+VIEWS_DO_MCP: frozenset[str] = frozenset(
+    {"lista_questoes_da_coordenacao", "lista_questoes_item_da_coordenacao"}
 )
 
 #: As únicas funções que o sas_mcp pode executar. `buscar_candidatos_por_conquista`
@@ -533,7 +548,8 @@ def auditar_migrations(
         down = _PADRAO_DOWN.match(caminho.name) is not None
         do_mcp = caminho.name.startswith(_MIGRATIONS_DO_MCP)
         for comando in comandos:
-            for motivo in _auditar_comando(comando, down=down, do_mcp=do_mcp, views=views):
+            motivos = _auditar_comando(comando, down=down, do_mcp=do_mcp, views=views)
+            for motivo in (*motivos, *_auditar_view(comando.texto, do_mcp=do_mcp)):
                 problemas.append(f"{caminho.name}: {motivo} — {comando.texto[:160]}")
     problemas += [f"funções: {motivo}" for motivo in auditar_funcoes(ups)]
     if dir_init is not None and dir_init.is_dir():
@@ -547,6 +563,38 @@ def _views(comandos: Iterable[Comando]) -> frozenset[str]:
         r"CREATE (?:OR REPLACE )?(?:MATERIALIZED )?VIEW (?:IF NOT EXISTS )?(?:public\.)?(\w+)", re.IGNORECASE
     )
     return frozenset(m[1].lower() for c in comandos if (m := padrao.match(c.texto)))
+
+
+_RE_MEXE_EM_VIEW = re.compile(
+    r"(?P<verbo>create(?: or replace)?|alter|drop)(?: materialized)? (?:view|table) "
+    r"(?:if (?:not )?exists )?(?:public\.)?(?P<nome>\w+)\b(?P<resto>.*)",
+    re.S,
+)
+
+
+def _auditar_view(texto: str, *, do_mcp: bool) -> list[str]:
+    """Quem mexe numa view de `VIEWS_DO_MCP`.
+
+    O GRANT sobrevive ao CREATE OR REPLACE: uma view recriada numa migration
+    qualquer, com o WHERE mais largo, entregaria ao MCP as linhas que ela existe
+    para esconder, sem GRANT novo nenhum para a auditoria ver. Daí as três
+    regras: só migration do MCP as toca; nasce com `security_barrier`, senão
+    filtro de fora roda antes do WHERE dela; e ALTER nenhum, em nenhum arquivo —
+    ALTER TABLE também alcança view, e é por ele que saem a barreira e o dono.
+
+    A segunda regra vale em dobro no `CREATE OR REPLACE`: sem o `WITH`, ele ZERA
+    as opções da view e a barreira sai calada (provado em Postgres 16, 30/10).
+    """
+    m = _RE_MEXE_EM_VIEW.match(texto.lower())
+    if m is None or m["nome"] not in VIEWS_DO_MCP:
+        return []
+    if not do_mcp:
+        return [f"{m['nome']} é view do MCP: só uma migration do MCP a toca"]
+    if m["verbo"] == "alter":
+        return [f"ALTER em {m['nome']}: tiraria a barreira ou trocaria o dono da view do MCP"]
+    if m["verbo"].startswith("create") and not re.search(r"\bsecurity_barrier = true\b", m["resto"]):
+        return [f"{m['nome']} é view do MCP e nasce com security_barrier = true"]
+    return []
 
 
 def _auditar_init(dir_init: Path) -> list[str]:
@@ -649,7 +697,7 @@ def _forma_permitida(
             motivos = []
             if tabela in TABELAS_PROIBIDAS or tabela.startswith(PREFIXOS_PROIBIDOS):
                 motivos.append(f"{tabela} nunca entra na lista branca")
-            if tabela in views:
+            if tabela in views and tabela not in VIEWS_DO_MCP:
                 motivos.append(f"{tabela} é view: roda com o privilégio do dono e expõe o que lê (0071)")
             if tabela == "aluno" and (proibidas := colunas & set(COLUNAS_PROIBIDAS_DO_ALUNO)):
                 motivos.append(f"coluna proibida de aluno: {', '.join(sorted(proibidas))}")
@@ -1102,6 +1150,23 @@ def conferir_lista_branca(
             continue
         r = mcp.ler(tabela, sorted(colunas))
         rel.conferir(r.status == 200, f"{tabela} ({len(colunas)} colunas)", r.resumo())
+
+
+def conferir_lado_das_listas(rel: Relatorio, mcp: PostgREST) -> None:
+    """Pela view, só o lado da coordenação (0077).
+
+    O resto do script confere coluna, e aqui o que importa é a LINHA: um WHERE
+    alargado passaria pelas seções 1 e 2 sem uma falha, porque nem coluna nem GRANT
+    mudam. Num banco sem lista de aluno a conferência passa sem provar muito; a
+    prova com a linha de aluno semeada foi feita em 30/10 (docs/43).
+    """
+    rel.secao("1b · A lista de aluno não aparece pela view")
+    r = mcp.pedir(
+        "GET",
+        "lista_questoes_da_coordenacao",
+        params={"select": "id", "dono_tipo": "neq.coordenacao", "limit": "1"},
+    )
+    rel.conferir(r.status == 200 and r.corpo == [], "lista_questoes_da_coordenacao: só coordenação", r.resumo())
 
 
 def conferir_nada_alem(
@@ -1616,6 +1681,7 @@ def main(argv: list[str] | None = None) -> int:
         origem = superficie_da_api or superficie
         colunas_de = origem[0] if origem else {}
         conferir_lista_branca(rel, mcp, branca)
+        conferir_lado_das_listas(rel, mcp)
         conferir_nada_alem(rel, mcp, branca, superficie, superficie_da_api)
         conferir_sem_escrita(rel, mcp, branca, colunas_de, api)
         conferir_auditoria(rel, mcp)

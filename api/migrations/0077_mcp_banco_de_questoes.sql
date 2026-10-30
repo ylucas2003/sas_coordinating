@@ -31,45 +31,87 @@
 -- quem a lê; "filtro" e "ordem" marcam coluna que a tool não devolve mas que o
 -- comando cita (o Postgres exige SELECT em toda coluna citada).
 --
--- ⚠️ O GRANT é por coluna, NÃO POR LINHA. `lista_questoes` guarda as listas
--- dos dois lados (dono_tipo 'aluno' e 'coordenacao', CHECK da 0029), e o
--- sas_mcp passa a poder ler as dos alunos também. Nenhuma tool as lê: o lado é
--- fixo na tool ('coordenacao') e a pessoa vem da SESSÃO — o registro injeta o
--- `coordenador_id` (chat/ferramentas.py, `_IDENTIDADE_DA_COORDENACAO`), que
--- nenhum schema declara e o modelo não escolhe. A trava por linha seria RLS, e
--- ela fica fora de propósito: ligaria a segurança por linha também para o
--- sas_service da API, que não é dono da tabela, e a política teria de citar o
--- papel do MCP — forma que a auditoria das migrations recusa
--- (scripts/verificar_papeis_do_mcp.py). O que fica ao alcance do PAPEL numa
--- lista de aluno é o título, o `dono_id` (que cruza com `aluno`, também na
--- lista branca) e quais questões ele separou; anotação e resposta moram em
--- `questao_estudo_aluno`, que continua proibida. Medido num Postgres
--- descartável em 30/10: o `SET ROLE sas_mcp` lê a linha, e a tool responde o
--- mesmo "não existe" de uma lista inexistente. A camada que segura isto é a do
--- código, não a do papel, ao contrário do resto da lista branca: é decisão a
--- rever se um dia o MCP ganhar outra porta além das tools do registro.
+-- AS LISTAS ENTRAM POR VIEW, E NÃO POR TABELA (decisão de 30/10). `lista_questoes`
+-- guarda os dois lados (dono_tipo 'aluno' e 'coordenacao', CHECK da 0029), e
+-- GRANT é por coluna, nunca por linha: dado na tabela, ele punha ao alcance do
+-- papel o título e as questões de cada lista de aluno, que nenhuma tool lê. As
+-- duas views daqui só têm o lado da coordenação, e as duas tabelas de baixo
+-- continuam dando 42501 ao sas_mcp (estão em TABELAS_PROIBIDAS do verificador).
+-- Quem segura a linha passa a ser o PAPEL, como no resto da lista branca. RLS
+-- ficou de fora: ligaria a segurança por linha também para o sas_service, e a
+-- política teria de citar papel do MCP, forma que a auditoria recusa.
 --
--- ⚠️ Depois de aplicar: nada a reiniciar. GRANT vale na hora — o Postgres
--- confere privilégio a cada consulta —, e as três tabelas já existiam (0029,
--- 0044), então o cache de schema do postgrest_mcp já as conhece. Rodar
--- `scripts/verificar_papeis_do_mcp.py --ferramentas` contra o postgrest_mcp.
+-- Três coisas, nas duas views, que não são detalhe:
+--
+--   * NÃO são `security_invoker`, de propósito: rodam com o privilégio do DONO
+--     (o `postgres`, que aplica as migrations), porque o sas_mcp não tem acesso
+--     às tabelas. É o caso que a 0071 proíbe para toda outra view — a que roda
+--     como dono expõe o que lê —, e por isso estas entram por nome
+--     (VIEWS_DO_MCP) e o corpo delas é travado por teste: elas expõem só o que
+--     o WHERE deixa.
+--   * SÃO `security_barrier`. Sem a barreira, o planejador pode rodar um filtro
+--     vindo de fora ANTES do WHERE da view, e uma função que vaze o argumento vê
+--     a linha do aluno. Medido num Postgres descartável em 30/10: com a tabela
+--     cheia de listas da coordenação, o plano sai assim sozinho. O sas_mcp não
+--     cria função, então é a segunda camada, e sai barata: uuid e texto têm
+--     igualdade `leakproof`, e o `dono_id = …` da tool segue usando o índice.
+--   * ⚠️ `CREATE OR REPLACE VIEW` sem o `WITH` ZERA as opções, e a barreira sai
+--     em silêncio, com o GRANT intacto (provado no mesmo Postgres). Quem recriar
+--     uma delas repete o `WITH`; a auditoria recusa a que nascer sem ele
+--     (`_auditar_view`), e ALTER nenhum as toca.
+--
+-- O `sas_service` lê as duas sem GRANT aqui: a API também lê por elas (ver
+-- abaixo), e o ALTER DEFAULT PRIVILEGES do init lhe dá ALL em toda tabela e view
+-- que o `postgres` criar, como em tudo desde a 0001. Conferido em 30/10.
+--
+-- A ROTA DA TELA LÊ PELAS MESMAS VIEWS: `banco/listas.py` é uma função só para a
+-- rota e para a tool, e o lado da coordenação lê sempre pela view (o do aluno
+-- segue na tabela, e a escrita dos dois também). Consequência para o deploy: com
+-- o código novo, a aba Minha lista da coordenação DEPENDE desta migration.
+--
+-- Depois de aplicar, o restart de sempre (CLAUDE.md, armadilha 1), que o deploy.sh
+-- já faz nos dois PostgREST. Medido em 30/10 no v12.2.3: a view só entra no cache
+-- de schema (a OpenAPI) com o restart, mas o SELECT sem embed, que é o que
+-- `listas.py` faz, não depende dele: a tool e as rotas responderam com o cache
+-- velho. O que protege a tela é a ORDEM: sem a view, a leitura dá 404 (42P01), e o
+-- deploy aplica a migration antes do `up -d`. O verificador lê a OpenAPI: rode
+-- `scripts/verificar_papeis_do_mcp.py --ferramentas` só depois do restart.
 
 BEGIN;
 
--- lista_questoes · minhas_listas_do_banco (listas.listar e
+-- Sem `dono_tipo = 'aluno'`, por construção. A coluna fica porque o domínio é um
+-- só para os dois lados: `_COLUNAS_LISTA` a seleciona e todo filtro de dono a cita.
+CREATE VIEW lista_questoes_da_coordenacao WITH (security_barrier = true) AS
+SELECT l.id, l.titulo, l.dono_tipo, l.dono_id, l.criada_em, l.atualizada_em
+  FROM lista_questoes AS l
+ WHERE l.dono_tipo = 'coordenacao';
+
+-- Semi-join, e não JOIN: a view continua atualizável, e a escrita do sas_mcp é
+-- recusada pelo privilégio (42501), que é o que o verificador confere. Com JOIN o
+-- Postgres recusaria antes, na reescrita, com 55000.
+CREATE VIEW lista_questoes_item_da_coordenacao WITH (security_barrier = true) AS
+SELECT i.lista_id, i.questao_id, i.posicao
+  FROM lista_questoes_item AS i
+ WHERE i.lista_id IN (SELECT l.id FROM lista_questoes AS l WHERE l.dono_tipo = 'coordenacao');
+
+COMMENT ON VIEW lista_questoes_da_coordenacao IS
+    'As listas do banco de questões, só o lado da coordenação (0077). Roda como o dono, de propósito: é por ela que o MCP as lê, sem acesso à tabela. A API também lê por ela. Recriar com CREATE OR REPLACE exige repetir o WITH.';
+COMMENT ON VIEW lista_questoes_item_da_coordenacao IS
+    'Os itens das listas da coordenação (0077): a mesma fronteira de lista_questoes_da_coordenacao. Recriar com CREATE OR REPLACE exige repetir o WITH.';
+
+-- lista_questoes_da_coordenacao · minhas_listas_do_banco (listas.listar e
 -- listas._linha_da_lista: _COLUNAS_LISTA; dono_tipo e dono_id são filtro,
 -- atualizada_em é ordem). dono_id é o uuid da conta da coordenação — o `sub`,
--- não e-mail —, e a tool não o devolve. São todas as colunas da tabela; vão
--- por coluna pela regra da 0071 (coluna nova nasce invisível).
+-- não e-mail —, e a tool não o devolve.
 GRANT SELECT (id, titulo, dono_tipo, dono_id, criada_em, atualizada_em)
-    ON lista_questoes TO sas_leitura;
+    ON lista_questoes_da_coordenacao TO sas_leitura;
 
--- lista_questoes_item · minhas_listas_do_banco (listas.listar conta os itens
--- por lista_id; listas._ordem_dos_itens lê questao_id e posicao, com lista_id
--- de filtro e posicao de ordem). As questões da lista vêm depois de
+-- lista_questoes_item_da_coordenacao · minhas_listas_do_banco (listas.listar
+-- conta os itens por lista_id; listas._ordem_dos_itens lê questao_id e posicao,
+-- com lista_id de filtro e posicao de ordem). As questões da lista vêm depois de
 -- questao_vestibular, pela 0071.
 GRANT SELECT (lista_id, questao_id, posicao)
-    ON lista_questoes_item TO sas_leitura;
+    ON lista_questoes_item_da_coordenacao TO sas_leitura;
 
 -- parametro_importancia · calibracao_da_importancia (importancia.historico).
 -- A 0071 deixou de fora `criado_por`, o NOME de quem da coordenação girou o

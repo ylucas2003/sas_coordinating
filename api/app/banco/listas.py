@@ -10,6 +10,11 @@ aqui o par `(dono_tipo, dono_id)` chega pronto e entra em TODA consulta. É o
 ponto da parte: um aluno não enxerga lista de outro, e isso é teste, não
 comentário (docs/22 §5.2).
 
+**O lado da coordenação LÊ pelas views da 0077**, e aqui é uma função só para a
+rota e para a tool do MCP (`_FONTE_DAS_LISTAS`). O MCP não tem acesso às tabelas:
+é a view que garante, no papel do Postgres, que ele não alcança lista de aluno. A
+ESCRITA dos dois lados continua nas tabelas, e o lado do aluno lê a tabela.
+
 Duas formas de dizer "não deu", e a distinção importa para a rota traduzir:
 
   - `None` (ou `False`, em `remover`) → a lista não existe **ou não é do dono**.
@@ -91,6 +96,19 @@ def _uuid_valido(valor: str) -> bool:
 
 _COLUNAS_LISTA = "id, titulo, dono_tipo, criada_em, atualizada_em"
 
+#: De onde cada LADO lê. A coordenação lê pelas views da 0077, sem ramo por
+#: chamador: a rota e a tool passam pelas mesmas funções, e um `se for o MCP`
+#: aqui seria o segundo caminho que o teste deixaria de ver. Só LEITURA: quem
+#: escreve vai direto às tabelas.
+_FONTE_DAS_LISTAS: dict[DonoLista, str] = {
+    "aluno": "lista_questoes",
+    "coordenacao": "lista_questoes_da_coordenacao",
+}
+_FONTE_DOS_ITENS: dict[DonoLista, str] = {
+    "aluno": "lista_questoes_item",
+    "coordenacao": "lista_questoes_item_da_coordenacao",
+}
+
 
 def _linha_da_lista(
     cliente: Client, lista_id: str, dono_tipo: DonoLista, dono_id: str
@@ -115,7 +133,7 @@ def _linha_da_lista(
     if not _uuid_valido(lista_id) or not _uuid_valido(dono_id):
         return None
     linhas = (
-        cliente.table("lista_questoes")
+        cliente.table(_FONTE_DAS_LISTAS[dono_tipo])
         .select(_COLUNAS_LISTA)
         .eq("id", lista_id)
         .eq("dono_tipo", dono_tipo)
@@ -126,10 +144,10 @@ def _linha_da_lista(
     return linhas[0] if linhas else None
 
 
-def _ordem_dos_itens(cliente: Client, lista_id: str) -> list[str]:
+def _ordem_dos_itens(cliente: Client, lista_id: str, dono_tipo: DonoLista) -> list[str]:
     """Os `questao_id` da lista, na ordem escolhida por quem montou."""
     itens = (
-        cliente.table("lista_questoes_item")
+        cliente.table(_FONTE_DOS_ITENS[dono_tipo])
         .select("questao_id, posicao")
         .eq("lista_id", lista_id)
         .order("posicao")
@@ -193,7 +211,8 @@ def _lista_com_ordem(
 
 
 def _lista_completa(cliente: Client, linha: dict[str, Any]) -> Lista:
-    return _lista_com_ordem(cliente, linha, _ordem_dos_itens(cliente, str(linha["id"])))
+    ordem = _ordem_dos_itens(cliente, str(linha["id"]), linha["dono_tipo"])
+    return _lista_com_ordem(cliente, linha, ordem)
 
 
 def _tocar(
@@ -242,7 +261,7 @@ def listar(cliente: Client, dono_tipo: DonoLista, dono_id: str) -> list[ListaRes
     if not _uuid_valido(dono_id):
         return []
     linhas = (
-        cliente.table("lista_questoes")
+        cliente.table(_FONTE_DAS_LISTAS[dono_tipo])
         .select(_COLUNAS_LISTA)
         .eq("dono_tipo", dono_tipo)
         .eq("dono_id", dono_id)
@@ -258,7 +277,7 @@ def listar(cliente: Client, dono_tipo: DonoLista, dono_id: str) -> list[ListaRes
     ids = [str(linha["id"]) for linha in linhas]
     for lote in _em_lotes(ids):
         itens = (
-            cliente.table("lista_questoes_item")
+            cliente.table(_FONTE_DOS_ITENS[dono_tipo])
             .select("lista_id")
             .in_("lista_id", lote)
             .execute()
@@ -393,7 +412,7 @@ def adicionar_questao(
         raise ValueError(f"Questão inexistente no banco: {questao_id}")
 
     itens = (
-        cliente.table("lista_questoes_item")
+        cliente.table(_FONTE_DOS_ITENS[dono_tipo])
         .select("questao_id, posicao")
         .eq("lista_id", lista_id)
         .order("posicao")
