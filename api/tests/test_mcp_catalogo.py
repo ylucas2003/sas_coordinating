@@ -111,9 +111,14 @@ def test_com_o_pseudonimo_as_que_so_servem_com_o_nome_ficam_fora():
     com_pseudonimo = Catalogo(registro, teto_de_linhas=50, com_nome_do_aluno=False)
     assert {t.name for t in com_pseudonimo.listar()} == {"exposta"}
     assert all(com_pseudonimo.obter(nome) is None for nome in SO_COM_NOME_DO_ALUNO)
-    assert {
-        "buscar_aluno_por_nome", "listar_alertas", "custos_da_cantina", "restricoes_alimentares",
-    } == SO_COM_NOME_DO_ALUNO
+    esperadas = {
+        "buscar_aluno_por_nome", "listar_alertas",
+        # A cantina (30/10): a soma com o nome como rótulo, e o dado de saúde.
+        "custos_da_cantina", "restricoes_alimentares",
+        # A captação externa (30/10): o nome é o objeto delas, e é de gente de fora.
+        "buscar_candidatos_externos", "buscar_candidatos_por_conquista", "perfil_do_candidato_externo",
+    }
+    assert esperadas == SO_COM_NOME_DO_ALUNO
 
 
 def test_toda_tool_vai_anotada_como_leitura_sem_mundo_aberto():
@@ -297,8 +302,13 @@ class _ClienteQueRecusaEscrita:
         return _TabelaQueRecusaEscrita(nome, self.escritas)
 
     def rpc(self, funcao, *_a, **_k):
-        # O sas_mcp só tem EXECUTE em mcp_conferir_token (0072): RPC numa
-        # tool exposta é 42501 em produção, mesmo que ela só leia.
+        # O sas_mcp executa duas funções (FUNCOES_EXECUTAVEIS do verificador):
+        # mcp_conferir_token (0072), que é do portão e não de tool, e a busca
+        # por conquista (0068), SECURITY INVOKER, que só lê o que a 0076 lhe deu.
+        # Qualquer outra RPC numa tool exposta é 42501 em produção, mesmo que
+        # ela só leia.
+        if funcao == "buscar_candidatos_por_conquista":
+            return _CONSULTA_VAZIA
         self.escritas.append(f"rpc:{funcao}")
         raise PermissionError("42501: o sas_mcp não executa esta função")
 

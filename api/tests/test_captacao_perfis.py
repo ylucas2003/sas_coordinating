@@ -18,7 +18,9 @@ PostgREST.
 — o `FakeCliente` não sabe agregar, então cada teste semeia essas "tabelas"
 já com os números prontos, como se a view já tivesse rodado. O que fica sem
 cobertura aqui é a SQL da view em si (migration 0063) — isso se confere com
-`EXPLAIN` contra o Postgres de verdade, não em teste Python.
+`EXPLAIN` contra o Postgres de verdade, não em teste Python. A ficha de um
+nome não lê mais `v_candidato_externo` (30/10, `captacao/consultas.py`): soma
+as conquistas que já leu, e o teste dela semeia `candidato_externo`.
 
 Rodar:  cd api && ./.venv/bin/python -m pytest tests/test_captacao_perfis.py -q
 """
@@ -28,6 +30,7 @@ from __future__ import annotations
 import pytest
 from fastapi import BackgroundTasks, HTTPException
 
+from app.captacao import consultas
 from app.routes import captacao
 from tests.fake_postgrest import FakeCliente
 
@@ -328,12 +331,11 @@ def test_obter_perfis_do_nome_com_um_candidato_nao_da_404(banco):
     (resolver_candidatos_externos.py), a maioria esmagadora dos nomes tem
     exatamente 1 perfil — se o guard continuasse `< 2`, clicar em quase
     qualquer nome na lista geral daria 404."""
-    banco["v_candidato_externo"]["cand-solo"] = {
+    banco["candidato_externo"]["cand-solo"] = {
         "id": "cand-solo", "nome": "Fulano Único", "nome_normalizado": "FULANO UNICO",
         "escola": None, "cidade": None, "uf": None, "serie_referencia_min": None,
         "serie_referencia_max": None, "ano_referencia_serie": None, "status_captacao": "novo",
         "observacoes": None, "criado_em": "2024-01-01T00:00:00+00:00", "atualizado_em": "2024-01-01T00:00:00+00:00",
-        "conquistas_total": 1, "provas_distintas": 1, "ano_mais_recente": 2024,
     }
 
     resposta = captacao.obter_perfis_do_nome("FULANO UNICO")
@@ -349,14 +351,13 @@ def test_obter_perfis_do_nome_404_sem_ninguem(banco):
 
 
 def test_obter_perfis_do_nome_com_varios_candidatos(banco):
-    banco["v_candidato_externo"] = {
+    banco["candidato_externo"] = {
         "cand-a": {
             "id": "cand-a", "nome": "Ana Beatriz Souza", "nome_normalizado": "ANA BEATRIZ SOUZA",
             "escola": "Colégio Nova Era", "cidade": "Fortaleza", "uf": "CE",
             "serie_referencia_min": None, "serie_referencia_max": None, "ano_referencia_serie": 2023,
-            "status_captacao": "novo", "observacoes": None,
+            "status_captacao": "novo", "observacoes": "anotação da coordenação",
             "criado_em": "2024-01-01T00:00:00+00:00", "atualizado_em": "2024-01-01T00:00:00+00:00",
-            "conquistas_total": 1, "provas_distintas": 1, "ano_mais_recente": 2023,
         },
         "cand-b": {
             "id": "cand-b", "nome": "Ana Beatriz Souza", "nome_normalizado": "ANA BEATRIZ SOUZA",
@@ -364,13 +365,50 @@ def test_obter_perfis_do_nome_com_varios_candidatos(banco):
             "serie_referencia_min": None, "serie_referencia_max": None, "ano_referencia_serie": 2024,
             "status_captacao": "novo", "observacoes": None,
             "criado_em": "2024-02-01T00:00:00+00:00", "atualizado_em": "2024-02-01T00:00:00+00:00",
-            "conquistas_total": 1, "provas_distintas": 1, "ano_mais_recente": 2024,
         },
     }
 
     resposta = captacao.obter_perfis_do_nome("ANA BEATRIZ SOUZA")
 
     assert len(resposta["candidatos"]) == 2
+
+
+def test_a_ficha_soma_as_conquistas_com_a_conta_da_view(banco):
+    """`v_candidato_externo` (0058/0064) contava toda linha, participação
+    inclusive, as provas distintas e o ano mais recente. A ficha deixou de
+    lê-la em 30/10 e a conta passou a ser daqui: a resposta da tela é a mesma,
+    com a observação do funil, que a rota continua devolvendo."""
+    banco["candidato_externo"]["c-1"] = {
+        "id": "c-1", "nome": "Fulana", "nome_normalizado": "FULANA", "escola": None, "cidade": None,
+        "uf": None, "serie_referencia_min": None, "serie_referencia_max": None,
+        "ano_referencia_serie": None, "status_captacao": "novo", "observacoes": "anotação",
+        "criado_em": "2024-01-01T00:00:00+00:00", "atualizado_em": "2024-01-01T00:00:00+00:00",
+    }
+    banco["prova_externa"]["p-1"] = {"id": "p-1", "nome": "OBF", "categoria": "olimpiada"}
+    banco["prova_externa"]["p-2"] = {"id": "p-2", "nome": "ITA", "categoria": "vestibular"}
+    banco["conquista_externa"]["q-1"] = _conquista(id="q-1", candidato_id="c-1", prova_id="p-1", ano=2023)
+    banco["conquista_externa"]["q-2"] = _conquista(id="q-2", candidato_id="c-1", prova_id="p-1", ano=2025)
+    banco["conquista_externa"]["q-3"] = _conquista(id="q-3", candidato_id="c-1", prova_id="p-2", ano=2024)
+
+    perfil = captacao.obter_perfis_do_nome("FULANA")["candidatos"][0]
+
+    assert perfil["conquistas_total"] == 3
+    assert perfil["provas_distintas"] == 2
+    assert perfil["ano_mais_recente"] == 2025
+    assert [c["ano"] for c in perfil["conquistas"]] == [2025, 2024, 2023]
+    assert perfil["observacoes"] == "anotação"
+    assert perfil["conquistas"][0]["prova_nome"] == "OBF"
+    assert perfil["conquistas"][0]["prova_categoria"] == "olimpiada"  # tipos/captacao.ts já a declarava
+
+
+def test_perfil_sem_conquista_soma_zero(banco):
+    banco["candidato_externo"]["c-1"] = {
+        "id": "c-1", "nome": "Fulana", "nome_normalizado": "FULANA", "criado_em": "2024-01-01T00:00:00+00:00",
+    }
+
+    perfil = captacao.obter_perfis_do_nome("FULANA")["candidatos"][0]
+
+    assert (perfil["conquistas_total"], perfil["provas_distintas"], perfil["ano_mais_recente"]) == (0, 0, None)
 
 
 # ─── listar_candidatos: agrega por nome, filtros por conjunto ──────────────
@@ -511,13 +549,56 @@ def test_listar_com_criterio_de_conquista_usa_a_busca_por_conquista(banco, monke
 def test_listar_ano_ingresso_padrao_e_o_ano_que_vem(banco, monkeypatch):
     cliente = _ClienteComRpc(banco, [])
     monkeypatch.setattr(captacao, "get_supabase", lambda: cliente)
-    monkeypatch.setattr(captacao, "_ano_ingresso_padrao", lambda: 2031)
+    monkeypatch.setattr(consultas, "ano_ingresso_padrao", lambda: 2031)
 
     resposta = _listar(publico=["fundamental"])
 
     assert cliente.chamadas[0][1]["p_ano_ingresso"] == 2031
     assert resposta["total"] == 0
     assert resposta["ano_ingresso"] == 2031
+
+
+@pytest.mark.parametrize(
+    ("digitado", "padrao"),
+    [
+        ("joão", "JOAO"),
+        ("50%", "50\\%"),
+        ("a_b", "A\\_B"),
+        ("a\\b", "A\\\\B"),
+        ("a*o", "AO"),  # o PostgREST trocaria o `*` por `%`, e escapado continuaria curinga
+    ],
+)
+def test_a_busca_le_os_curingas_como_letras(banco, monkeypatch, digitado, padrao):
+    """Até 30/10 a rota tirava `%` e `_` e deixava passar a barra invertida e o
+    `*`. Agora é `literal_no_like`, nos dois caminhos (docs/43 §5.6, ponta c)."""
+    cliente = _ClienteComRpc(banco, [])
+    monkeypatch.setattr(captacao, "get_supabase", lambda: cliente)
+
+    _listar(busca=digitado, prova=["OBF"])
+
+    assert cliente.chamadas[0][1]["p_busca"] == padrao
+
+
+@pytest.mark.parametrize("digitado", ["**", "   ", ""])
+def test_busca_sem_letra_nenhuma_e_sem_filtro(banco, monkeypatch, digitado):
+    cliente = _ClienteComRpc(banco, [])
+    monkeypatch.setattr(captacao, "get_supabase", lambda: cliente)
+
+    _listar(busca=digitado, prova=["OBF"])
+
+    assert cliente.chamadas[0][1]["p_busca"] is None
+
+
+@pytest.mark.parametrize(
+    "filtro",
+    [{"ano_min": 1000}, {"ano_max": 3000}, {"ano_ingresso": 1500}, {"conquistas_min": 0}],
+)
+def test_listar_400_fora_do_intervalo(banco, filtro):
+    """O `Query(ge=…)` da rota já barra isso na porta HTTP; a régua mora no
+    domínio porque a tool chega sem passar por ele (`validar_filtros`)."""
+    with pytest.raises(HTTPException) as exc:
+        _listar(**filtro)
+    assert exc.value.status_code == 400
 
 
 def test_listar_sem_criterio_de_conquista_nao_chama_a_busca(banco, monkeypatch):
