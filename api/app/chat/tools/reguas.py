@@ -14,8 +14,13 @@ mesmo de GET /ciclos/{id}/classificacao), e "abaixo do corte" é o `tom` que o
 avaliador já deu sob a régua escolhida. O semáforo só serve para CONTAR: a
 palavra de cor não sai daqui (a interface aboliu o semáforo, docs/37).
 
-Nenhuma das duas vai ao MCP: o que a coordenação deixa sair de régua e de
-corte por aluno é decisão aberta (docs/43 §6).
+As duas vão ao MCP desde 30/10: a decisão de 24/10 as deixava fora (o que sai
+de régua e de corte por aluno estava em aberto, docs/43 §6), e a coordenação a
+reverteu — o que ela lê na plataforma a IA lê também. `cortados_pela_regua`
+devolve nome de aluno sempre com `alunoId` ao lado, e passa pelo pseudônimo.
+`reguas_de_corte` diz o nome de quem criou a versão, que é de coordenador, não
+de aluno; ele vem de `nome_da_coordenacao` (0074), porque o MCP não lê
+`usuario_coordenacao`.
 """
 
 from __future__ import annotations
@@ -36,6 +41,9 @@ from ...texto_seguro import texto_seguro
 FASES = {"fase_1": 1, "fase_2": 2}
 
 TETO_DE_NOMES = 50
+#: São as cinco embutidas e as criadas, poucas. O teto é para a lista ser como
+#: toda outra do catálogo: o limite do MCP só alcança parâmetro de limite.
+TETO_DE_REGUAS = 50
 
 #: Os limites que a rota impõe ao texto livre de uma régua criada
 #: (`CriterioEntrada`, routes/criterios.py): é o que cabe sem cortar nada.
@@ -78,15 +86,18 @@ def _regua_que_nao_achei(
 # ─── reguas_de_corte ─────────────────────────────────────────────────────
 
 
-def reguas_de_corte(cliente: Client, *, slug: str | None = None) -> dict:
+def reguas_de_corte(cliente: Client, *, slug: str | None = None, limite: int = 30) -> dict:
     """Todas as réguas, em resumo; com `slug`, o detalhe de uma."""
     por_slug, criadas_indisponiveis = _reguas_por_slug(cliente)
+    limite = min(max(1, limite), TETO_DE_REGUAS)
 
     if not slug or not slug.strip():
+        reguas = list(por_slug.values())
         saida: dict[str, Any] = {
-            "total": len(por_slug),
+            "total": len(reguas),
+            "truncado": len(reguas) > limite,
             "criadasIndisponiveis": criadas_indisponiveis,
-            "reguas": [_resumo(r) for r in por_slug.values()],
+            "reguas": [_resumo(r) for r in reguas[:limite]],
         }
         if criadas_indisponiveis:
             saida["aviso"] = (
@@ -102,7 +113,9 @@ def reguas_de_corte(cliente: Client, *, slug: str | None = None) -> dict:
 
     detalhe = _descrever(regua)
     if not detalhe["embutida"]:
-        detalhe["versoes"] = _versoes(cliente, slug)
+        versoes = _versoes(cliente, slug)
+        detalhe["totalVersoes"] = len(versoes)
+        detalhe["versoes"] = versoes[:limite]
     return detalhe
 
 
@@ -140,14 +153,12 @@ def _resumo(regua: criterios.Criterio) -> dict[str, Any]:
 def _versoes(cliente: Client, slug: str) -> list[dict[str, Any]]:
     """As versões de uma régua criada, com o NOME de quem criou cada uma.
 
-    `criado_por` é o `sub` do coordenador (routes/criterios.py). Vira nome pela
-    mesma leitura da tela de auditoria — nunca e-mail, e nunca o uuid cru:
-    quem não está mais cadastrado sai como `null`.
+    `criado_por` é o `sub` do coordenador (routes/criterios.py). Vira nome por
+    `nomes_da_coordenacao`, a mesma leitura da trilha — nunca e-mail, e nunca
+    o uuid cru: quem não está mais cadastrado sai como `null`.
     """
     linhas = criterios_repo.versoes(cliente, slug)
-    nomes, _ = auditoria.nomes_dos_atores(
-        cliente, [("coordenador", linha.get("criado_por")) for linha in linhas]
-    )
+    nomes = auditoria.nomes_da_coordenacao(cliente, [linha.get("criado_por") for linha in linhas])
     return [
         {
             "versao": linha.get("versao"),
@@ -188,6 +199,11 @@ _SCHEMA_REGUAS = {
                     "Omitido, lista todas as réguas. Com ele, o detalhe de uma: requisitos com o "
                     "artigo do edital e, se criada pela coordenação, as versões."
                 ),
+            },
+            "limite": {
+                "type": "integer",
+                "default": 30,
+                "description": f"Quantas réguas, ou versões de uma régua, listar, até {TETO_DE_REGUAS}.",
             },
         },
         "required": [],
@@ -341,7 +357,9 @@ TOOLS: list[tuple[dict, Callable]] = [
 #: `classificar` lê todas as notas do ciclo paginando, mais alunos e
 #: matrículas em fatias — ~20 requisições num ciclo de ~900 alunos (estimado,
 #: não medido: classificacao_ciclo.py). Os 90 s do padrão ficariam no limite.
-#: Fora do MCP, como a outra (docs/43 §6).
+#: ⚠️ No MCP o teto real é outro: o `statement_timeout` de 30 s do login dele
+#: (0071) vale por requisição ao PostgREST, e não pela tool inteira.
 METADADOS: dict[str, dict[str, Any]] = {
-    "cortados_pela_regua": {"prazo_s": 150.0},
+    "reguas_de_corte": {"expor_no_mcp": True},
+    "cortados_pela_regua": {"prazo_s": 150.0, "expor_no_mcp": True},
 }

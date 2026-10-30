@@ -98,7 +98,11 @@ _PADRAO_DOWN = re.compile(r"^\d{4}_[a-z0-9_]+\.down\.sql$")
 #: de fora), gravação e a própria trilha (0071). Conferidas uma a uma, com ou
 #: sem --api. É também a régua de tests/test_migrations_do_mcp.py. `alerta`
 #: saiu daqui em 26/10: com o nome do aluno liberado no MCP (decisão do dono),
-#: `listar_alertas` é exposta e a 0071 dá o GRANT por coluna.
+#: `listar_alertas` é exposta e a 0071 dá o GRANT por coluna. `disparo` e
+#: `canvas_sync_execucao` saíram em 30/10, quando as rotinas entraram no MCP
+#: (0074): a primeira só pelas colunas de contagem. `aula_gravacao`,
+#: `evento_auditoria` e `usuario_coordenacao` FICAM: o MCP as alcança só pelas
+#: views de `VIEWS_DO_MCP`, e a tabela em si continua dando 42501.
 TABELAS_PROIBIDAS: tuple[str, ...] = (
     "usuario_coordenacao",
     "usuario_cantina",
@@ -113,11 +117,9 @@ TABELAS_PROIBIDAS: tuple[str, ...] = (
     "chat_thread",
     "chat_mensagem",
     "chat_artefato",
-    "disparo",
     "email_invalido",
     "upload",
     "upload_evento",
-    "canvas_sync_execucao",
     "aula_gravacao",
     "cantina",
     "cardapio",
@@ -142,6 +144,25 @@ COLUNAS_PROIBIDAS_DO_ALUNO: tuple[str, ...] = (
     "foto_perfil_storage",
     "foto_perfil_atualizada_em",
     "restricao_alimentar",
+)
+
+#: Colunas que nunca entram no GRANT das tabelas abertas pela 0074, pelo mesmo
+#: motivo das de `aluno`: `disparo` só se conta — o destinatário é e-mail, o
+#: corpo traz o primeiro nome do aluno e o link de descadastro, e o contexto, o
+#: nome; `evento_agenda.criado_por` é o e-mail de quem agendou (0018).
+COLUNAS_PROIBIDAS_POR_TABELA: dict[str, tuple[str, ...]] = {
+    "disparo": ("destinatario", "assunto", "corpo", "contexto", "erro"),
+    "evento_agenda": ("criado_por",),
+    "curso_monitorado_gravacao": ("professor_padrao",),
+}
+
+#: As únicas views que entram na lista branca. Toda outra continua proibida:
+#: view roda com o privilégio do dono e expõe o que lê (0071). Estas três foram
+#: escritas PARA o MCP na 0074 e são o caminho até o que ele não lê como tabela:
+#: a trilha sem o canal `acesso`, o nome da coordenação sem o resto da conta, e a
+#: aula sem link. Por isso a regra é de quem as mexe: `_auditar_view`.
+VIEWS_DO_MCP: frozenset[str] = frozenset(
+    {"trilha_de_alteracoes", "nome_da_coordenacao", "aula_gravacao_para_ia"}
 )
 
 #: As únicas funções que o sas_mcp pode executar. `buscar_candidatos_por_conquista`
@@ -434,16 +455,16 @@ LOGIN_DO_MCP = "autenticador_mcp"
 #: login. Toda regra de concessão vale para os três.
 PAPEIS_DO_MCP: tuple[str, ...] = ("sas_leitura", "sas_mcp", LOGIN_DO_MCP)
 _VIGIADOS: frozenset[str] = frozenset({*PAPEIS_DO_MCP, "public"})
-_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_")
+_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_", "0074_")
 DIR_INIT = Path(__file__).resolve().parent.parent.parent / "infra" / "postgres" / "init"
 
 #: Prefixos de tabela que nunca entram na lista branca, além das nomeadas em
 #: TABELAS_PROIBIDAS: conversa, credencial, token, OAuth (0073), cantina,
-#: captação, disparo e e-mail (o das contas de IA inclusive) — e `v_`, porque
-#: nenhuma view do schema usa security_invoker (0071).
+#: captação e e-mail (o das contas de IA inclusive) — e `v_`, porque nenhuma
+#: view do schema usa security_invoker (0071).
 PREFIXOS_PROIBIDOS: tuple[str, ...] = (
     "chat_", "usuario_", "token_", "oauth_", "cantina", "cardapio", "pedido_", "direito_",
-    "candidato_", "conquista_", "prova_externa", "disparo", "email_", "v_",
+    "candidato_", "conquista_", "prova_externa", "email_", "v_",
 )
 
 #: As colunas que o sas_mcp insere na trilha (0072): nem `id` nem `ocorrido_em`.
@@ -531,7 +552,8 @@ def auditar_migrations(
         down = _PADRAO_DOWN.match(caminho.name) is not None
         do_mcp = caminho.name.startswith(_MIGRATIONS_DO_MCP)
         for comando in comandos:
-            for motivo in _auditar_comando(comando, down=down, do_mcp=do_mcp, views=views):
+            motivos = _auditar_comando(comando, down=down, do_mcp=do_mcp, views=views)
+            for motivo in (*motivos, *_auditar_view(comando.texto, do_mcp=do_mcp)):
                 problemas.append(f"{caminho.name}: {motivo} — {comando.texto[:160]}")
     problemas += [f"funções: {motivo}" for motivo in auditar_funcoes(ups)]
     if dir_init is not None and dir_init.is_dir():
@@ -545,6 +567,35 @@ def _views(comandos: Iterable[Comando]) -> frozenset[str]:
         r"CREATE (?:OR REPLACE )?(?:MATERIALIZED )?VIEW (?:IF NOT EXISTS )?(?:public\.)?(\w+)", re.IGNORECASE
     )
     return frozenset(m[1].lower() for c in comandos if (m := padrao.match(c.texto)))
+
+
+_RE_MEXE_EM_VIEW = re.compile(
+    r"(?P<verbo>create(?: or replace)?|alter|drop)(?: materialized)? (?:view|table) "
+    r"(?:if (?:not )?exists )?(?:public\.)?(?P<nome>\w+)\b(?P<resto>.*)",
+    re.S,
+)
+
+
+def _auditar_view(texto: str, *, do_mcp: bool) -> list[str]:
+    """Quem mexe numa view de `VIEWS_DO_MCP`.
+
+    O GRANT sobrevive ao CREATE OR REPLACE: uma view recriada numa migration
+    qualquer, com o WHERE mais largo, entregaria ao MCP as linhas que ela existe
+    para esconder, sem GRANT novo nenhum para a auditoria ver. Daí as três
+    regras: só migration do MCP as toca; nasce com `security_barrier`, senão
+    filtro de fora roda antes do WHERE dela; e ALTER nenhum, em nenhum arquivo —
+    ALTER TABLE também alcança view, e é por ele que saem a barreira e o dono.
+    """
+    m = _RE_MEXE_EM_VIEW.match(texto.lower())
+    if m is None or m["nome"] not in VIEWS_DO_MCP:
+        return []
+    if not do_mcp:
+        return [f"{m['nome']} é view do MCP: só uma migration do MCP a toca"]
+    if m["verbo"] == "alter":
+        return [f"ALTER em {m['nome']}: tiraria a barreira ou trocaria o dono da view do MCP"]
+    if m["verbo"].startswith("create") and not re.search(r"\bsecurity_barrier = true\b", m["resto"]):
+        return [f"{m['nome']} é view do MCP e nasce com security_barrier = true"]
+    return []
 
 
 def _auditar_init(dir_init: Path) -> list[str]:
@@ -647,10 +698,12 @@ def _forma_permitida(
             motivos = []
             if tabela in TABELAS_PROIBIDAS or tabela.startswith(PREFIXOS_PROIBIDOS):
                 motivos.append(f"{tabela} nunca entra na lista branca")
-            if tabela in views:
+            if tabela in views and tabela not in VIEWS_DO_MCP:
                 motivos.append(f"{tabela} é view: roda com o privilégio do dono e expõe o que lê (0071)")
             if tabela == "aluno" and (proibidas := colunas & set(COLUNAS_PROIBIDAS_DO_ALUNO)):
                 motivos.append(f"coluna proibida de aluno: {', '.join(sorted(proibidas))}")
+            if proibidas := colunas & set(COLUNAS_PROIBIDAS_POR_TABELA.get(tabela, ())):
+                motivos.append(f"coluna proibida de {tabela}: {', '.join(sorted(proibidas))}")
             return motivos
         if priv.upper() == "SELECT":
             return ["GRANT SELECT ao sas_leitura é por coluna: coluna nova nasce invisível (0071)"]
@@ -1172,6 +1225,16 @@ def conferir_nada_alem(
 #: Recusa que não é 42501 mas também prova que não há escrita: coluna gerada
 #: só aceita DEFAULT (o Postgres recusa antes de conferir o privilégio).
 _SO_DEFAULT = "428C9"
+#: A mesma coisa na coluna CALCULADA de view (o `detalhe` filtrado da trilha, o
+#: erro sem o vídeo da aula, 0074): o Postgres a recusa ao reescrever o comando,
+#: antes de chegar ao privilégio, e as colunas simples da mesma view dão 42501.
+_COLUNA_CALCULADA_DE_VIEW = "0A000"
+
+
+def _escrita_recusada(r: Resposta, tabela: str) -> bool:
+    if r.negada or r.codigo == _SO_DEFAULT:
+        return True
+    return tabela in VIEWS_DO_MCP and r.codigo == _COLUNA_CALCULADA_DE_VIEW
 
 
 def conferir_sem_escrita(
@@ -1219,13 +1282,13 @@ def conferir_sem_escrita(
             if tabela == "evento_auditoria" and coluna in COLUNAS_DA_TRILHA:
                 if r.status != 201:
                     abertas.append(f"INSERT ({coluna}) é da 0072 e deu {r.resumo()}")
-            elif not (r.negada or r.codigo == _SO_DEFAULT):
+            elif not _escrita_recusada(r, tabela):
                 abertas.append(f"INSERT ({coluna}): {r.resumo()}")
         if legiveis:
             filtro = _contraditorio(legiveis[0])
             for coluna in todas:
                 r = mcp.pedir("PATCH", tabela, params=filtro, corpo={coluna: None}, cabecalhos=_SO_O_MINIMO)
-                if not (r.negada or r.codigo == _SO_DEFAULT):
+                if not _escrita_recusada(r, tabela):
                     abertas.append(f"UPDATE ({coluna}): {r.resumo()}")
             r = mcp.pedir("DELETE", tabela, params=filtro, cabecalhos=_SO_O_MINIMO)
             if not r.negada:
@@ -1409,7 +1472,16 @@ def _descobrir_valores(cliente: Any) -> dict[str, Any]:
         v["turma_id"], v["sede_id"] = turmas[0]["id"], turmas[0]["sede_id"]
     reguas = linhas("criterio_classificacao", "slug", eq={"embutido": False, "ativo": True})
     if reguas:
-        v["criterio"] = reguas[0]["slug"]
+        # `slug` é o ramo que lê as versões, e nelas o nome de quem criou (0074).
+        v["criterio"] = v["slug"] = v["regua_slug"] = reguas[0]["slug"]
+    cursos = linhas("curso_monitorado_gravacao", "curso_id")
+    if cursos:
+        v["curso_id"] = cursos[0]["curso_id"]
+    pessoas = linhas("nome_da_coordenacao", "nome")
+    if pessoas:
+        palavras = (pessoas[0].get("nome") or "").split()
+        if palavras and len(palavras[0]) >= 2:
+            v["ator_nome"] = palavras[0]
     ligacoes = linhas("questao_vestibular_topico", "questao_id, materia, topico_codigo")
     if ligacoes:
         v["questao_id"] = ligacoes[0]["questao_id"]

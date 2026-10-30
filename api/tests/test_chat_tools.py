@@ -33,6 +33,7 @@ _COM_TETO_NO_HANDLER = frozenset({
     "topicos_do_edital", "buscar_questoes_do_banco", "recorrencia_no_banco",
     "cortados_pela_regua", "estado_do_sync_canvas", "pendencias_canvas_do_ciclo",
     "estado_das_gravacoes", "historico_de_alteracoes",
+    "reguas_de_corte", "lembretes_agendados",
 })
 
 

@@ -31,6 +31,7 @@ from mcp.shared.memory import create_connected_server_and_client_session
 from postgrest.types import ReturnMethod
 from starlette.testclient import TestClient
 
+from app.chat import superficie
 from app.chat.ferramentas import Ferramenta, Registro
 from app.mcp import auditoria_mcp
 from app.mcp.app import (
@@ -232,6 +233,24 @@ def test_chamada_passa_pelo_registro_com_cliente_novo():
     # Despacho, cadastro de alunos (o do pseudônimo) e auditoria: cada um com o
     # seu cliente.
     assert fabrica.criados >= 3
+
+
+def test_a_tool_sabe_que_a_chamada_veio_do_mcp():
+    """`lembretes_agendados` lê o ambiente do processo, e o do MCP não é o da
+    API (chat/superficie.py). A marca tem de chegar à THREAD da tool, e não só
+    ao event loop — e sair dela depois, para não valer na chamada seguinte."""
+
+    def marca(_cliente):
+        return {"peloMcp": superficie.pelo_mcp()}
+
+    fabrica = FabricaDeClientes(_banco())
+
+    async def corpo(s):
+        return await s.call_tool("marca", {})
+
+    r = _em_memoria(_servidor_com(fabrica, _ferramenta("marca", marca)), corpo)
+    assert json.loads(_texto(r)) == {"peloMcp": True}
+    assert superficie.pelo_mcp() is False
 
 
 def test_excecao_da_tool_vira_mensagem_generica():

@@ -6,7 +6,8 @@ arquivo só é como se esquece um guard numa rota nova.
 
 A leitura é `painel(cliente)`, síncrona e sem `get_supabase()` por dentro, para
 a tool do assistente que acompanha as gravações (docs/43 §4.3) ler o mesmo que
-a tela, com o cliente dela.
+a tela, com o cliente dela. A tool lê com `para_ia=True`, que vai à view da 0074
+em vez da tabela: a mesma leitura, sem nenhum link de vídeo pelo caminho.
 """
 
 from __future__ import annotations
@@ -33,6 +34,18 @@ _CAMPOS = (
     "tentativas,youtube_video_id,youtube_titulo,erro_detalhe,"
     "canvas_estado,canvas_pagina_url,canvas_modulo_nome,canvas_erro,criado_em,atualizado_em"
 )
+
+#: O que vai a um modelo, no chat e no MCP (0074). A view não tem `youtube_*`,
+#: `canvas_pagina_*` nem `s3_*`, e o erro já vem sem o id do vídeo e sem a
+#: linha que o Postgres despeja: o id abre o vídeo não listado, e por isso o
+#: MCP não pode nem lê-lo para tirá-lo do texto depois.
+VIEW_PARA_IA = "aula_gravacao_para_ia"
+_CAMPOS_PARA_IA = (
+    "id,curso_id,titulo,iniciada_em,status,tentativas,erro_detalhe,"
+    "canvas_estado,canvas_modulo_nome,canvas_erro,atualizado_em"
+)
+_CAMPOS_DO_CURSO = "curso_id,nome,ativo,publicar_no_canvas,canvas_modulo_id"
+_CAMPOS_DO_CURSO_PARA_IA = "curso_id,nome,ativo,publicar_no_canvas"
 
 # ─── Situação: os dez `status` do pipeline em cinco degraus ──────────────
 #
@@ -87,7 +100,7 @@ def _para_camel(a: dict[str, Any], limite_do_erro: int | None = LIMITE_DO_ERRO_N
     return {
         "id": a["id"],
         "cursoId": a["curso_id"],
-        "conferenciaId": a["conferencia_id"],
+        "conferenciaId": a.get("conferencia_id"),
         "titulo": a["titulo"],
         "iniciadaEm": a.get("iniciada_em"),
         "duracaoMinutos": a.get("duracao_minutos"),
@@ -118,7 +131,12 @@ def listar_gravacoes() -> dict:
     return painel(get_supabase())
 
 
-def painel(cliente: Client, *, limite_do_erro: int | None = LIMITE_DO_ERRO_NA_TELA) -> dict:
+def painel(
+    cliente: Client,
+    *,
+    limite_do_erro: int | None = LIMITE_DO_ERRO_NA_TELA,
+    para_ia: bool = False,
+) -> dict:
     """Cursos monitorados e aulas, da mais recente para a mais antiga.
 
     Sem paginação de propósito: são dezenas de linhas por semestre (uma por
@@ -135,17 +153,21 @@ def painel(cliente: Client, *, limite_do_erro: int | None = LIMITE_DO_ERRO_NA_TE
     corta, e um texto que já chega cortado em 300 pode ter partido uma
     credencial ao meio — curta demais para o padrão, ela sairia pela metade
     (revisão paralela de 25/10). A tela continua recebendo os 300.
+
+    `para_ia=True` é a leitura de quem leva isto a um modelo: lê `VIEW_PARA_IA`
+    e nem pede a coluna do link, então os três campos acima vêm `None`. É o
+    único caminho que o MCP alcança — o `sas_mcp` não lê `aula_gravacao`.
     """
     cursos = (
         cliente.table("curso_monitorado_gravacao")
-        .select("curso_id,nome,ativo,publicar_no_canvas,canvas_modulo_id")
+        .select(_CAMPOS_DO_CURSO_PARA_IA if para_ia else _CAMPOS_DO_CURSO)
         .order("nome")
         .execute()
         .data
     )
     aulas = (
-        cliente.table("aula_gravacao")
-        .select(_CAMPOS)
+        cliente.table(VIEW_PARA_IA if para_ia else "aula_gravacao")
+        .select(_CAMPOS_PARA_IA if para_ia else _CAMPOS)
         .order("iniciada_em", desc=True)
         .execute()
         .data

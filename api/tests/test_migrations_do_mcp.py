@@ -30,13 +30,18 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.chat.tools.trilha import CANAIS_DA_TRILHA, DETALHE_POR_ACAO
+from app.mcp.dados import TABELA_DA_SONDA
 from scripts.verificar_papeis_do_mcp import (
     COLUNAS_DA_TRILHA,
     COLUNAS_PROIBIDAS_DO_ALUNO,
+    COLUNAS_PROIBIDAS_POR_TABELA,
     LOGIN_DO_MCP,
     PAPEIS_DO_MCP,
     PREFIXOS_PROIBIDOS,
     TABELAS_PROIBIDAS,
+    VIEWS_DO_MCP,
+    _auditar_view,
     _comandos,
     _evento,
     _separar,
@@ -82,7 +87,7 @@ def test_toda_migration_tem_down():
 
 
 def test_as_migrations_do_mcp_existem_com_down():
-    for prefixo in ("0071_", "0072_", "0073_"):
+    for prefixo in ("0071_", "0072_", "0073_", "0074_"):
         up = _arquivo(prefixo)
         assert up.with_name(up.name.replace(".sql", ".down.sql")).exists()
 
@@ -115,15 +120,27 @@ def test_toda_tabela_da_lista_vai_por_coluna():
 def test_colunas_de_bastidor_ficam_fora():
     branca = lista_branca(DIR_MIGRATIONS)
     fora = {
-        "nota": {"editada_por", "grader_canvas_user_id", "pontuacao_canvas", "pontuacao_sas"},
+        # As duas origens da pontuação e o estado do Canvas entraram em 30/10,
+        # com `pendencias_canvas_do_ciclo` no MCP (0074). Quem lançou, não.
+        "nota": {"editada_por", "grader_canvas_user_id"},
         "matricula_turma": {"last_activity_at", "last_attended_at", "canvas_enrollment_id"},
         "questao_resposta_aluno": {"aluno_id", "alternativa_id"},
-        "simulado": {"arquivo_storage_path", "canvas_erro", "motivo_zero_e_ausencia"},
-        "ciclo": {"canvas_erro"},
+        "simulado": {"arquivo_storage_path", "motivo_zero_e_ausencia"},
+        "ciclo": {"canvas_assignment_group_id"},
         "parametro_importancia": {"criado_por"},
         "questao_vestibular": {"fonte_pdf", "arquivo_origem", "classificado_por"},
         # Entrou em 26/10 (listar_alertas, com o nome liberado): só o que a tool lê.
         "alerta": {"dados_brutos", "hash_dedup", "resolvido_em"},
+        # A 0074: `disparo` só se conta, e o resto é e-mail, corpo e nome.
+        "disparo": {"destinatario", "assunto", "corpo", "contexto", "erro", "regra_lembrete_id"},
+        "evento_agenda": {"criado_por"},
+        "curso_monitorado_gravacao": {"professor_padrao", "canvas_modulo_id", "canvas_modulo_generico_id"},
+        "trilha_de_alteracoes": {"ip", "request_id"},
+        "nome_da_coordenacao": {"email", "senha_hash", "papel", "foto_perfil_storage"},
+        "aula_gravacao_para_ia": {
+            "youtube_video_id", "youtube_titulo", "canvas_pagina_url", "canvas_pagina_slug",
+            "s3_bucket", "s3_chave_composto", "conferencia_id",
+        },
     }
     for tabela, colunas in fora.items():
         assert tabela in branca, tabela
@@ -239,6 +256,21 @@ MUTACOES: dict[str, str] = {
     "teto_de_duracao_acima_do_prazo": "ALTER ROLE autenticador_mcp SET statement_timeout = '10min';",
     "select_direto_ao_login": "GRANT SELECT (nome) ON aluno TO autenticador_mcp;",
     "login_ganha_o_sas_leitura": "GRANT sas_leitura TO autenticador_mcp;",
+    # As tabelas e as views que a 0074 abriu: coluna proibida em tabela aberta,
+    # a tabela de baixo pela porta da frente, e a view do MCP mexida fora dele.
+    "email_do_destinatario": "GRANT SELECT (destinatario) ON disparo TO sas_leitura;",
+    "corpo_do_lembrete": "GRANT SELECT (corpo, contexto) ON disparo TO sas_leitura;",
+    "quem_agendou": "GRANT SELECT (criado_por) ON evento_agenda TO sas_leitura;",
+    "trilha_pela_tabela": "GRANT SELECT (ip, detalhe) ON evento_auditoria TO sas_leitura;",
+    "aula_pela_tabela": "GRANT SELECT (youtube_video_id) ON aula_gravacao TO sas_leitura;",
+    "nome_pela_tabela": "GRANT SELECT (id, nome) ON usuario_coordenacao TO sas_leitura;",
+    "view_do_mcp_alargada_fora_dele": (
+        "CREATE OR REPLACE VIEW trilha_de_alteracoes WITH (security_barrier = true) AS "
+        "SELECT * FROM evento_auditoria;"
+    ),
+    "view_do_mcp_derrubada_fora_dele": "DROP VIEW nome_da_coordenacao;",
+    "view_do_mcp_perde_a_barreira": "ALTER VIEW trilha_de_alteracoes RESET (security_barrier);",
+    "view_do_mcp_troca_de_dono": "ALTER TABLE aula_gravacao_para_ia OWNER TO sas_service;",
 }
 
 
@@ -279,6 +311,96 @@ def test_auditoria_le_o_init_dos_papeis(tmp_path, linha):
         arquivo.write(f"\n# it's: apóstrofo de comentário de shell\n{linha}\n")
     assert auditar_migrations(DIR_MIGRATIONS, init)
     assert auditar_migrations(DIR_MIGRATIONS, DIR_INIT) == []
+
+
+def _corpo_da_view(nome: str) -> str:
+    """O CREATE VIEW da 0074, sem comentário e com o espaço normalizado, mas com
+    os literais: `_separar` os troca por `''`, e aqui eles são a regra."""
+    texto = re.sub(r"--[^\n]*", "", _arquivo("0074_").read_text(encoding="utf-8"))
+    (corpo,) = re.findall(rf"CREATE VIEW {nome}\b.*?;", texto, re.S)
+    return " ".join(corpo.split())
+
+
+def test_as_views_do_mcp_sao_as_da_0074_com_barreira_e_com_grant_por_coluna():
+    branca = lista_branca(DIR_MIGRATIONS)
+    for nome in VIEWS_DO_MCP:
+        assert f"CREATE VIEW {nome} WITH (security_barrier = true) AS" in _corpo_da_view(nome)
+        assert branca[nome], nome
+        assert nome not in TABELAS_PROIBIDAS and not nome.startswith(PREFIXOS_PROIBIDOS)
+
+
+def test_o_que_o_mcp_le_por_view_continua_fechado_como_tabela():
+    """A view é o caminho; a tabela segue dando 42501. `usuario_coordenacao` é
+    também a sonda do boot: o GRANT nela impediria o MCP de subir (dados.py)."""
+    branca = lista_branca(DIR_MIGRATIONS)
+    assert TABELA_DA_SONDA == "usuario_coordenacao"
+    for tabela in ("usuario_coordenacao", "evento_auditoria", "aula_gravacao"):
+        assert tabela in TABELAS_PROIBIDAS and tabela not in branca
+
+
+def test_a_view_da_trilha_e_a_lista_da_tool_nao_divergem():
+    """Dois lados da mesma regra: o da tool é o que ela mostra; o da view, o que
+    o MCP consegue ler. Canal novo na tool sem a view volta vazio; chave nova na
+    view sem revisão sai do banco para quem não devia ler."""
+    corpo = _corpo_da_view("trilha_de_alteracoes")
+    canais = re.search(r"WHERE e\.canal IN \((?P<lista>[^)]*)\)", corpo)
+    assert canais and set(re.findall(r"'(\w+)'", canais["lista"])) == set(CANAIS_DA_TRILHA)
+    chaves = re.search(r"WHERE d\.chave IN \((?P<lista>[^)]*)\)", corpo)
+    assert chaves
+    assert set(re.findall(r"'(\w+)'", chaves["lista"])) == {c for lista in DETALHE_POR_ACAO.values() for c in lista}
+
+
+def test_a_view_da_trilha_nao_tem_a_coluna_do_ip():
+    corpo = _corpo_da_view("trilha_de_alteracoes").split(" FROM evento_auditoria")[0]
+    assert not re.search(r"\be\.(?:ip|request_id)\b", corpo)
+
+
+def test_a_view_dos_nomes_entrega_o_par_e_mais_nada():
+    assert _corpo_da_view("nome_da_coordenacao").endswith("AS SELECT u.id, u.nome FROM usuario_coordenacao AS u;")
+
+
+def test_a_view_das_aulas_so_cita_o_video_para_tira_lo_do_erro():
+    """`youtube_video_id` só pode aparecer dentro do CASE que o apaga do texto;
+    como coluna própria, seria o link do vídeo não listado saindo pelo GRANT."""
+    corpo = _corpo_da_view("aula_gravacao_para_ia")
+    assert "[vídeo]" in corpo and "Failing row contains" in corpo
+    sem_a_limpeza = re.sub(r"regexp_replace\(.*?\) AS (?:erro_detalhe|canvas_erro)", "", corpo)
+    assert not re.search(r"youtube|canvas_pagina|s3_|conferencia", sem_a_limpeza)
+
+
+@pytest.mark.parametrize(
+    "comando",
+    [
+        "CREATE VIEW nome_da_coordenacao AS SELECT 1",
+        "CREATE OR REPLACE VIEW aula_gravacao_para_ia AS SELECT 1",
+        "ALTER VIEW trilha_de_alteracoes SET (security_barrier = true)",
+    ],
+)
+def test_nem_a_migration_do_mcp_tira_a_barreira(comando):
+    assert _auditar_view(comando, do_mcp=True)
+
+
+def test_a_regra_das_views_nao_alcanca_a_view_comum():
+    assert _auditar_view("CREATE VIEW v_qualquer AS SELECT 1", do_mcp=False) == []
+    assert _auditar_view("DROP VIEW IF EXISTS trilha_de_alteracoes", do_mcp=True) == []
+
+
+def test_as_colunas_proibidas_das_tabelas_abertas_nao_estao_na_lista():
+    branca = lista_branca(DIR_MIGRATIONS)
+    for tabela, colunas in COLUNAS_PROIBIDAS_POR_TABELA.items():
+        assert branca[tabela] & set(colunas) == set(), tabela
+
+
+def test_o_down_da_0074_tira_so_o_que_ela_deu():
+    """Em `simulado`, `ciclo` e `nota` a 0071 já concedia colunas: o down revoga
+    por coluna, e um REVOKE na tabela inteira tiraria a lista dela junto."""
+    up = _arquivo("0074_")
+    down = _comandos_de(up.with_name(up.name.replace(".sql", ".down.sql")))
+    for tabela in ("simulado", "ciclo", "nota"):
+        fim = f") ON {tabela} FROM sas_leitura"
+        assert len([c for c in down if c.startswith("REVOKE SELECT (") and c.endswith(fim)]) == 1, tabela
+    for nome in VIEWS_DO_MCP:
+        assert f"DROP VIEW IF EXISTS {nome}" in down
 
 
 def test_o_que_o_sas_mcp_recebe_direto_e_so_o_da_0071_e_da_0072():
@@ -791,9 +913,9 @@ def test_leitor_aplica_grant_e_revoke_em_ordem(tmp_path):
 
 
 def test_lista_branca_cobre_as_tabelas_das_tools_expostas():
-    # As tabelas que as 31 tools expostas leem (0071), inclusive as do banco
-    # de questões e `alerta`, de listar_alertas — exposta em 26/10, quando o
-    # dono liberou o nome do aluno no MCP. Tirar uma daqui quebra uma tool no
+    # As tabelas que as tools expostas leem (0071 e 0074), inclusive as do
+    # banco de questões e `alerta`, de listar_alertas — exposta em 26/10, quando
+    # o dono liberou o nome do aluno no MCP. Tirar uma daqui quebra uma tool no
     # MCP com 42501.
     esperadas = {
         "alerta",
@@ -803,6 +925,9 @@ def test_lista_branca_cobre_as_tabelas_das_tools_expostas():
         "simulado", "turma", "vestibular_alvo_aluno", "questao_vestibular",
         "questao_vestibular_alternativa", "questao_vestibular_topico",
         "topico_taxonomia", "topico_taxonomia_assunto", "parametro_importancia",
+        # A régua, as rotinas e a trilha (0074), as três últimas por view.
+        "canvas_sync_execucao", "curso_monitorado_gravacao", "disparo", "evento_agenda",
+        "regra_lembrete", "trilha_de_alteracoes", "nome_da_coordenacao", "aula_gravacao_para_ia",
     }
     assert set(lista_branca(DIR_MIGRATIONS)) == esperadas
 

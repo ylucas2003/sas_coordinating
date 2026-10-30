@@ -31,7 +31,19 @@ destinatário, o corpo com o primeiro nome do aluno e o contexto com o nome
 (lembretes/aplicacoes/aluno_simulado.py). Da gravação nunca sai link: o vídeo é
 NÃO LISTADO e tem aluno menor de idade — o link é o acesso (consulta.py).
 
-Nenhuma vai ao MCP: decisão aberta (docs/43 §6).
+As quatro vão ao MCP desde 30/10: a decisão de 24/10 as deixava fora (docs/43
+§6), e a coordenação a reverteu. O que muda por isso, e só isso:
+
+  * o `sas_mcp` lê coluna por coluna (0074), e essas regras viraram piso no
+    banco: `disparo` sem destinatário, corpo nem contexto; `evento_agenda` sem
+    `criado_por`; a aula só por `aula_gravacao_para_ia`, sem link e com o erro
+    já sem o id do vídeo;
+  * `lembretes_agendados` lê o ambiente da API, que o processo do MCP não tem,
+    e lá diz que não sabe em vez de repetir o valor de fábrica
+    (chat/superficie.py).
+
+Só `pendencias_canvas_do_ciclo` devolve nome de aluno, sempre com `alunoId` ao
+lado: passa pelo pseudônimo.
 """
 
 from __future__ import annotations
@@ -55,6 +67,7 @@ from ...lembretes import despachante, motor
 from ...lembretes import email as email_ses
 from ...lembretes.aplicacoes import aluno_simulado
 from ...texto_seguro import texto_seguro
+from .. import superficie
 
 #: Uma linha de diagnóstico dentro de uma resposta, não o log: o texto inteiro
 #: continua no banco para quem depura.
@@ -66,6 +79,7 @@ TETO_DE_NOTAS_PENDENTES = 30
 TETO_DE_SIMULADOS_PENDENTES = 10
 TETO_DE_AULAS = 30
 TETO_DE_DIAS = 30
+TETO_DE_EVENTOS = 50
 
 
 def _erro(texto: Any) -> str | None:
@@ -345,8 +359,9 @@ def estado_das_gravacoes(
     O painel vem com o erro INTEIRO (`limite_do_erro=None`): a tela recebe os
     300 primeiros caracteres, e limpar depois desse corte deixaria passar meia
     credencial — `texto_seguro` limpa antes de cortar, e o corte daqui é o
-    dele (`_erro_da_aula`)."""
-    painel = gravacoes.painel(cliente, limite_do_erro=None)
+    dele (`_erro_da_aula`). E vem da view (`para_ia=True`): a tool nem pede a
+    coluna do link, nem no chat, para ter um caminho só."""
+    painel = gravacoes.painel(cliente, limite_do_erro=None, para_ia=True)
     cursos = {str(c["cursoId"]): c for c in painel["cursos"]}
     aulas = painel["aulas"]
     if curso_id:
@@ -437,24 +452,27 @@ def _aula(aula: dict[str, Any], cursos: dict[str, dict], motivos: list[str]) -> 
         "tentativas": aula.get("tentativas") or 0,
         "canvasEstado": aula.get("canvasEstado"),
         "motivos": motivos,
-        "erro": _erro_da_aula(aula.get("erroDetalhe"), aula.get("youtubeVideoId")),
-        "erroNoCanvas": _erro_da_aula(aula.get("canvasErro"), aula.get("youtubeVideoId")),
+        "erro": _erro_da_aula(aula.get("erroDetalhe")),
+        "erroNoCanvas": _erro_da_aula(aula.get("canvasErro")),
     }
 
 
-def _erro_da_aula(texto: str | None, video: str | None) -> str | None:
-    """O erro da aula sem o vídeo dela, e só então limpo e cortado.
+def _erro_da_aula(texto: str | None) -> str | None:
+    """O erro da aula sem a linha despejada, e só então limpo e cortado.
 
     `texto_seguro` tira URL e credencial, não id de vídeo solto. Em
     'publicado_sem_confirmacao' o erro é o da escrita que não gravou o id
     (gravacoes_aula/rotas.py), e o Postgres cita a linha inteira no `Failing row
     contains (…)` — com o id, que sozinho abre o vídeo não listado
     (`youtu.be/<id>`). Os dois saem antes da limpeza (revisão paralela de 25/10).
+
+    Quem tira o id é a view da 0074, que é a única que o enxerga: aqui ele já
+    chega como `[vídeo]`, porque o MCP não pode ler a coluna do id nem para
+    apagá-lo do texto. O corte da linha continua aqui além de lá: é o último
+    passo antes de o texto sair, e cortar de novo não muda nada.
     """
     if not texto:
         return None
-    if video:
-        texto = texto.replace(video, "[vídeo]")
     return _erro(_LINHA_DESPEJADA.sub(r"\1(…)", texto))
 
 
@@ -501,7 +519,9 @@ _SCHEMA_GRAVACOES = {
 _COLUNAS_DO_EVENTO = "id, titulo, data_evento, hora_evento, cancelado_em"
 
 
-def lembretes_agendados(cliente: Client, *, dias: int = 7, simulado_id: str | None = None) -> dict:
+def lembretes_agendados(
+    cliente: Client, *, dias: int = 7, simulado_id: str | None = None, limite: int = 30
+) -> dict:
     """O que o motor de lembretes vai mandar na janela, e se ele pode mandar.
 
     Só contagem e horário. Nada de `disparo` sai em linha (destinatário,
@@ -516,17 +536,13 @@ def lembretes_agendados(cliente: Client, *, dias: int = 7, simulado_id: str | No
         if erro:
             return erro
     dias = min(max(0, dias), TETO_DE_DIAS)
-    settings = get_settings()
+    limite = min(max(1, limite), TETO_DE_EVENTOS)
     agora = datetime.now(UTC)
     hoje = agora.astimezone(motor.FUSO_BRASIL).date()
 
-    configuracao = {
-        "emailConfigurado": email_ses.email_configurado(),
-        "lembretesDeAlunoLigados": settings.lembrete_aluno_ativo,
-        "horaLembreteAluno": settings.lembrete_aluno_hora,
-        "tetoDiario": settings.email_teto_diario,
-        "enviadosNasUltimas24h": despachante.enviados_nas_ultimas_24h(cliente),
-    }
+    # O que sai do ambiente do processo só vale no processo que manda o e-mail:
+    # no do MCP, `get_settings()` devolve o valor de fábrica (chat/superficie.py).
+    configuracao, hora_do_aluno = _configuracao_de_envio(cliente)
 
     if simulado_id:
         simulado = (
@@ -566,6 +582,8 @@ def lembretes_agendados(cliente: Client, *, dias: int = 7, simulado_id: str | No
             or []
         )
 
+    total_de_eventos = len(eventos)
+    eventos = eventos[:limite]
     ids = [e["id"] for e in eventos]
     simulados = (
         cliente.table("simulado")
@@ -584,7 +602,6 @@ def lembretes_agendados(cliente: Client, *, dias: int = 7, simulado_id: str | No
         or []
     ) if ids else []
 
-    hora_do_aluno = time.fromisoformat(settings.lembrete_aluno_hora)
     simulado_do_evento = {s["evento_agenda_id"]: s for s in simulados}
     regras_do_evento: dict[str, list[dict[str, Any]]] = {}
     for regra in regras:
@@ -602,8 +619,9 @@ def lembretes_agendados(cliente: Client, *, dias: int = 7, simulado_id: str | No
             if regra["destinatario_tipo"] == "aluno":
                 # Véspera, em hora fixa, um e-mail por aluno por DIA — o
                 # horário é o da aplicação do aluno, não o do evento.
-                enviar_em = aluno_simulado.momento_envio(dia, hora_do_aluno)
-                lembretes.append({"para": "alunos", "enviarEm": enviar_em.isoformat(), "cancelado": cancelado})
+                lembretes.append({
+                    "para": "alunos", "enviarEm": _envio_aos_alunos(dia, hora_do_aluno), "cancelado": cancelado,
+                })
                 if not cancelado and not evento.get("cancelado_em"):
                     dias_com_aluno.add(dia)
             else:
@@ -629,13 +647,51 @@ def lembretes_agendados(cliente: Client, *, dias: int = 7, simulado_id: str | No
         "hoje": hoje.isoformat(),
         "janelaDias": dias,
         "configuracao": configuracao,
+        "totalEventos": total_de_eventos,
+        "truncado": total_de_eventos > limite,
         "eventos": saida_eventos,
         "alunosPorDia": [_alunos_do_dia(cliente, dia, hora_do_aluno) for dia in sorted(dias_com_aluno)],
         "fila": _fila(cliente, agora, hoje, dias),
     }
 
 
-def _alunos_do_dia(cliente: Client, dia: date, hora_do_aluno: time) -> dict[str, Any]:
+def _configuracao_de_envio(cliente: Client) -> tuple[dict[str, Any], time | None]:
+    """A configuração do motor, e a hora do lembrete dos alunos.
+
+    Pelo MCP, o que mora no ambiente vem `None`, com o aviso: "desligado" e
+    "não sei daqui" são coisas diferentes, e o valor de fábrica diria que o
+    e-mail não está configurado com o SES ligado. O envio das últimas 24 h vem
+    do banco, e vale nas duas superfícies.
+    """
+    enviados = despachante.enviados_nas_ultimas_24h(cliente)
+    if superficie.pelo_mcp():
+        return {
+            "emailConfigurado": None,
+            "lembretesDeAlunoLigados": None,
+            "horaLembreteAluno": None,
+            "tetoDiario": None,
+            "enviadosNasUltimas24h": enviados,
+            "aviso": (
+                "Esta conexão não enxerga a configuração de envio, que mora no servidor do SAS: "
+                "os campos null não querem dizer desligado. A fila e os envios vêm do banco e valem."
+            ),
+        }, None
+    settings = get_settings()
+    return {
+        "emailConfigurado": email_ses.email_configurado(),
+        "lembretesDeAlunoLigados": settings.lembrete_aluno_ativo,
+        "horaLembreteAluno": settings.lembrete_aluno_hora,
+        "tetoDiario": settings.email_teto_diario,
+        "enviadosNasUltimas24h": enviados,
+    }, time.fromisoformat(settings.lembrete_aluno_hora)
+
+
+def _envio_aos_alunos(dia: date, hora_do_aluno: time | None) -> str | None:
+    """Véspera, em hora fixa. Sem a hora (pelo MCP), não se chuta o horário."""
+    return aluno_simulado.momento_envio(dia, hora_do_aluno).isoformat() if hora_do_aluno else None
+
+
+def _alunos_do_dia(cliente: Client, dia: date, hora_do_aluno: time | None) -> dict[str, Any]:
     """Os disparos de aluno já montados para o dia — só a contagem.
 
     A chave é a da própria aplicação (`chave_idempotencia` com '%' no lugar
@@ -646,7 +702,7 @@ def _alunos_do_dia(cliente: Client, dia: date, hora_do_aluno: time) -> dict[str,
     prefixo = aluno_simulado.chave_idempotencia(dia, "%")
     return {
         "dia": dia.isoformat(),
-        "enviarEm": aluno_simulado.momento_envio(dia, hora_do_aluno).isoformat(),
+        "enviarEm": _envio_aos_alunos(dia, hora_do_aluno),
         "disparosMontados": _contar(
             cliente.table("disparo")
             .select("id", count="exact")
@@ -720,7 +776,9 @@ _SCHEMA_LEMBRETES = {
         "disparosMontados ser 0. lembretesDeAlunoLigados=false = nada sai para alunos, mesmo "
         "com regra. emailConfigurado=false = nenhum e-mail sai. tetoDiario = limite de envios "
         "em 24 h; o que passar espera. desistiram = falharam em todas as tentativas e saíram "
-        "da fila. A resposta nunca traz e-mail nem nome de destinatário.\n"
+        "da fila. null na configuração, ou em enviarEm dos alunos = esta conexão não enxerga a "
+        "configuração de envio: não diga que está desligado nem cite um horário. A resposta "
+        "nunca traz e-mail nem nome de destinatário.\n"
         "Exemplo: lembretes_agendados(dias=3) → 'amanhã há 2 provas com aviso aos alunos; os "
         "e-mails saem hoje às 18:00; nenhum envio falhou nas últimas 24 h'."
     ),
@@ -736,6 +794,11 @@ _SCHEMA_LEMBRETES = {
                 "type": "string",
                 "description": "UUID de um simulado: só os lembretes dele. Use o simuladoId que esta tool devolve.",
             },
+            "limite": {
+                "type": "integer",
+                "default": 30,
+                "description": f"Quantos eventos detalhar, até {TETO_DE_EVENTOS}; a fila vem sempre inteira, contada.",
+            },
         },
         "required": [],
     },
@@ -750,3 +813,10 @@ TOOLS: list[tuple[dict, Callable]] = [
     (_SCHEMA_GRAVACOES, estado_das_gravacoes),
     (_SCHEMA_LEMBRETES, lembretes_agendados),
 ]
+
+METADADOS: dict[str, dict[str, Any]] = {
+    "estado_do_sync_canvas": {"expor_no_mcp": True},
+    "pendencias_canvas_do_ciclo": {"expor_no_mcp": True},
+    "estado_das_gravacoes": {"expor_no_mcp": True},
+    "lembretes_agendados": {"expor_no_mcp": True},
+}
