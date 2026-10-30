@@ -34,15 +34,17 @@
 --                         não entra na lista branca (é a sonda do boot do MCP,
 --                         app/mcp/dados.py). A view entrega o par (id, nome) e
 --                         mais nada: nem e-mail, nem hash, nem papel;
---   aula_gravacao_para_ia o link do vídeo NÃO LISTADO de aula com aluno menor é
---                         o acesso (`youtube_video_id`, `canvas_pagina_url`), e
---                         o S3 é onde ele mora. Nenhum dos três é lido. Mas o
---                         texto de erro da aula pode citar o id: o `Failing row
---                         contains (…)` do Postgres despeja a linha inteira, com
---                         o vídeo e o S3, e o erro da API do YouTube traz a URL
+--   aula_gravacao_para_ia o S3 é onde o vídeo de aula com aluno menor mora, e
+--                         não é lido. Mas o texto de erro da aula pode citá-lo:
+--                         o `Failing row contains (…)` do Postgres despeja a
+--                         linha inteira, e o erro da API do YouTube traz a URL
 --                         com `id=`. GRANT por coluna em `erro_detalhe`
 --                         entregaria isso cru; a view entrega o erro sem o id do
---                         vídeo e sem a linha despejada.
+--                         vídeo e sem a linha despejada. O LINK entra como
+--                         coluna, por decisão da coordenação em 30/10: a IA o
+--                         recebe como a tela o mostra (`youtube_video_id`,
+--                         `youtube_titulo`, `canvas_pagina_url`), embora ele seja
+--                         o acesso a um vídeo NÃO LISTADO.
 --
 -- As três são `security_barrier`: filtro vindo de fora (o PostgREST monta o
 -- WHERE com o que a requisição pedir) não roda antes do WHERE da view, e
@@ -151,6 +153,9 @@ SELECT a.id,
        ) AS erro_detalhe,
        a.canvas_estado,
        a.canvas_modulo_nome,
+       a.youtube_video_id,
+       a.youtube_titulo,
+       a.canvas_pagina_url,
        regexp_replace(
            CASE WHEN coalesce(a.youtube_video_id, '') = '' THEN a.canvas_erro
                 ELSE replace(a.canvas_erro, a.youtube_video_id, '[vídeo]') END,
@@ -160,7 +165,7 @@ SELECT a.id,
   FROM aula_gravacao AS a;
 
 COMMENT ON VIEW aula_gravacao_para_ia IS
-    'As aulas gravadas sem link nenhum (0074): nem youtube_video_id, nem a página do Canvas, nem o S3, e o erro sem o id do vídeo e sem a linha que o Postgres despeja. É por ela que estado_das_gravacoes lê, no chat e no MCP (docs/43 §5.2).';
+    'As aulas gravadas como a tela as mostra, com o link do YouTube e a página do Canvas (decisão da coordenação, 30/10), sem o S3, e com o erro sem o id do vídeo e sem a linha que o Postgres despeja. É por ela que estado_das_gravacoes lê, no chat e no MCP (docs/43 §5.2).';
 
 
 -- ─── 2. A lista branca cresce ─────────────────────────────────────────────
@@ -182,7 +187,8 @@ GRANT SELECT (id, nome)
 
 -- aula_gravacao_para_ia · estado_das_gravacoes (iniciada_em: ordem).
 GRANT SELECT (id, curso_id, titulo, iniciada_em, status, tentativas, erro_detalhe,
-              canvas_estado, canvas_modulo_nome, canvas_erro, atualizado_em)
+              canvas_estado, canvas_modulo_nome, canvas_erro, atualizado_em,
+              youtube_video_id, youtube_titulo, canvas_pagina_url)
     ON aula_gravacao_para_ia TO sas_leitura;
 
 -- curso_monitorado_gravacao · estado_das_gravacoes (o nome do curso e se a

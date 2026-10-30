@@ -153,8 +153,7 @@ def test_colunas_de_bastidor_ficam_fora():
         "trilha_de_alteracoes": {"ip", "request_id"},
         "nome_da_coordenacao": {"email", "senha_hash", "papel", "foto_perfil_storage"},
         "aula_gravacao_para_ia": {
-            "youtube_video_id", "youtube_titulo", "canvas_pagina_url", "canvas_pagina_slug",
-            "s3_bucket", "s3_chave_composto", "conferencia_id",
+            "canvas_pagina_slug", "s3_bucket", "s3_chave_composto", "conferencia_id",
         },
     }
     for tabela, colunas in fora.items():
@@ -563,13 +562,15 @@ def test_a_view_dos_nomes_entrega_o_par_e_mais_nada():
     assert _corpo_da_view("nome_da_coordenacao").endswith("AS SELECT u.id, u.nome FROM usuario_coordenacao AS u;")
 
 
-def test_a_view_das_aulas_so_cita_o_video_para_tira_lo_do_erro():
-    """`youtube_video_id` só pode aparecer dentro do CASE que o apaga do texto;
-    como coluna própria, seria o link do vídeo não listado saindo pelo GRANT."""
+def test_a_view_das_aulas_entrega_o_link_e_nao_o_s3():
+    """O link sai por decisão da coordenação (30/10), como a tela o mostra. O
+    S3, onde o vídeo mora, não sai, nem dentro do erro: a view corta a linha que
+    o Postgres despeja."""
     corpo = _corpo_da_view("aula_gravacao_para_ia")
     assert "[vídeo]" in corpo and "Failing row contains" in corpo
-    sem_a_limpeza = re.sub(r"regexp_replace\(.*?\) AS (?:erro_detalhe|canvas_erro)", "", corpo)
-    assert not re.search(r"youtube|canvas_pagina|s3_|conferencia", sem_a_limpeza)
+    for coluna in ("a.youtube_video_id", "a.youtube_titulo", "a.canvas_pagina_url"):
+        assert coluna in corpo
+    assert not re.search(r"s3_|conferencia|canvas_pagina_slug", corpo)
 
 
 @pytest.mark.parametrize(

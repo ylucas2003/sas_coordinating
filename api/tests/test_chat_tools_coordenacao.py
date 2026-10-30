@@ -223,7 +223,8 @@ def _nome_da_coordenacao(db: dict) -> list[dict]:
 
 def _aula_gravacao_para_ia(db: dict) -> list[dict]:
     colunas = ("id", "curso_id", "titulo", "iniciada_em", "status", "tentativas",
-               "canvas_estado", "canvas_modulo_nome", "atualizado_em")
+               "canvas_estado", "canvas_modulo_nome", "atualizado_em",
+               "youtube_video_id", "youtube_titulo", "canvas_pagina_url")
     return [
         {
             **{c: linha.get(c) for c in colunas},
@@ -1412,20 +1413,25 @@ class TestEstadoDasGravacoes:
         }
         assert r["comProblema"] == 7 and r["totalAulas"] == 10
 
-    def test_nunca_sai_link_de_video_de_menores(self, escola):
-        texto = _texto(chamar(escola.cliente(), "estado_das_gravacoes", so_problemas=False, limite=30))
-        for proibido in ("VIDEOSECRETO", "youtu", "instructure.com/courses", "youtubeTitulo", "canvasUrl",
-                         "googleapis", "ya29", "bucket-com-menores", "aulas/"):
+    def test_o_link_sai_como_na_tela_e_o_s3_nao(self, escola):
+        """Decisão da coordenação em 30/10: a IA recebe o link do vídeo, que a
+        tela mostra. O S3 e o que vem no texto de erro continuam de fora."""
+        r = chamar(escola.cliente(), "estado_das_gravacoes", so_problemas=False, limite=30)
+        com_video = [a for a in r["aulas"] if a["youtubeUrl"]]
+        assert com_video and all(a["youtubeUrl"].startswith("https://youtu.be/VIDEOSECRETO") for a in com_video)
+        assert any(a["canvasUrl"] for a in r["aulas"])
+        texto = _texto(r)
+        for proibido in ("youtubeTitulo", "googleapis", "ya29", "bucket-com-menores", "aulas/"):
             assert proibido not in texto
 
-    def test_a_tool_le_a_view_e_nao_pede_coluna_de_link(self, escola):
+    def test_a_tool_le_a_view_e_nao_pede_o_s3(self, escola):
         """O `sas_mcp` não lê `aula_gravacao` (0074): o caminho é um só, no chat
-        e no MCP, e nenhuma coluna de link ou de S3 aparece no pedido."""
+        e no MCP, e nenhuma coluna de S3 aparece no pedido."""
         cliente = escola.cliente()
         chamar(cliente, "estado_das_gravacoes", so_problemas=False)
         (aulas,) = cliente.em(gravacoes.VIEW_PARA_IA)
         assert not cliente.em("aula_gravacao")
-        assert not re.search(r"youtube|pagina|s3_|conferencia", aulas.colunas)
+        assert not re.search(r"s3_|conferencia|canvas_pagina_slug", aulas.colunas)
         (cursos,) = cliente.em("curso_monitorado_gravacao")
         assert "professor" not in cursos.colunas and "canvas_modulo_id" not in cursos.colunas
 

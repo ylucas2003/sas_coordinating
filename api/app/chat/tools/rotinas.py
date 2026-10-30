@@ -28,16 +28,17 @@ Quatro regras valem para tudo aqui:
 
 Da linha de `disparo` sai só contagem, nunca linha: ela guarda o e-mail do
 destinatário, o corpo com o primeiro nome do aluno e o contexto com o nome
-(lembretes/aplicacoes/aluno_simulado.py). Da gravação nunca sai link: o vídeo é
-NÃO LISTADO e tem aluno menor de idade — o link é o acesso (consulta.py).
+(lembretes/aplicacoes/aluno_simulado.py). Da gravação sai o link, como a tela o
+mostra: o vídeo é NÃO LISTADO e tem aluno menor de idade, e a coordenação decidiu
+em 30/10 que a IA o recebe (docs/43 §0.3). O S3 é que não sai nunca.
 
 As quatro vão ao MCP desde 30/10: a decisão de 24/10 as deixava fora (docs/43
 §6), e a coordenação a reverteu. O que muda por isso, e só isso:
 
   * o `sas_mcp` lê coluna por coluna (0074), e essas regras viraram piso no
     banco: `disparo` sem destinatário, corpo nem contexto; `evento_agenda` sem
-    `criado_por`; a aula só por `aula_gravacao_para_ia`, sem link e com o erro
-    já sem o id do vídeo;
+    `criado_por`; a aula só por `aula_gravacao_para_ia`, sem o S3 e com o erro
+    já sem a linha despejada;
   * `lembretes_agendados` lê o ambiente da API, que o processo do MCP não tem,
     e lá diz que não sabe em vez de repetir o valor de fábrica
     (chat/superficie.py).
@@ -359,8 +360,8 @@ def estado_das_gravacoes(
     O painel vem com o erro INTEIRO (`limite_do_erro=None`): a tela recebe os
     300 primeiros caracteres, e limpar depois desse corte deixaria passar meia
     credencial — `texto_seguro` limpa antes de cortar, e o corte daqui é o
-    dele (`_erro_da_aula`). E vem da view (`para_ia=True`): a tool nem pede a
-    coluna do link, nem no chat, para ter um caminho só."""
+    dele (`_erro_da_aula`). E vem da view (`para_ia=True`), a mesma no chat e
+    no MCP, para ter um caminho só."""
     painel = gravacoes.painel(cliente, limite_do_erro=None, para_ia=True)
     cursos = {str(c["cursoId"]): c for c in painel["cursos"]}
     aulas = painel["aulas"]
@@ -438,9 +439,10 @@ def _motivos(aula: dict[str, Any], corte: datetime) -> list[str]:
 
 
 def _aula(aula: dict[str, Any], cursos: dict[str, dict], motivos: list[str]) -> dict[str, Any]:
-    """A aula sem link nenhum: youtubeUrl, youtubeVideoId e canvasUrl ficam de
-    fora (vídeo não listado com menores), e youtubeTitulo também — o título da
-    aula já identifica, sem repetir o nome do professor duas vezes."""
+    """A aula como a tela a mostra, com o link do YouTube e a página do Canvas
+    (decisão da coordenação, 30/10; vídeo não listado com menores). `youtubeTitulo`
+    fica de fora: o título da aula já identifica, sem repetir o nome do professor
+    duas vezes."""
     curso = cursos.get(str(aula["cursoId"])) or {}
     return {
         "id": aula["id"],
@@ -451,6 +453,8 @@ def _aula(aula: dict[str, Any], cursos: dict[str, dict], motivos: list[str]) -> 
         "situacao": aula["situacao"],
         "tentativas": aula.get("tentativas") or 0,
         "canvasEstado": aula.get("canvasEstado"),
+        "youtubeUrl": aula.get("youtubeUrl"),
+        "canvasUrl": aula.get("canvasUrl"),
         "motivos": motivos,
         "erro": _erro_da_aula(aula.get("erroDetalhe")),
         "erroNoCanvas": _erro_da_aula(aula.get("canvasErro")),
@@ -463,12 +467,12 @@ def _erro_da_aula(texto: str | None) -> str | None:
     `texto_seguro` tira URL e credencial, não id de vídeo solto. Em
     'publicado_sem_confirmacao' o erro é o da escrita que não gravou o id
     (gravacoes_aula/rotas.py), e o Postgres cita a linha inteira no `Failing row
-    contains (…)` — com o id, que sozinho abre o vídeo não listado
-    (`youtu.be/<id>`). Os dois saem antes da limpeza (revisão paralela de 25/10).
+    contains (…)` — com o S3 e o id. Os dois saem antes da limpeza (revisão
+    paralela de 25/10): o link da aula tem campo próprio, e o texto de erro não
+    é lugar dele.
 
-    Quem tira o id é a view da 0074, que é a única que o enxerga: aqui ele já
-    chega como `[vídeo]`, porque o MCP não pode ler a coluna do id nem para
-    apagá-lo do texto. O corte da linha continua aqui além de lá: é o último
+    Quem tira o id é a view da 0074: aqui ele já chega como `[vídeo]`. O corte
+    da linha continua aqui além de lá: é o último
     passo antes de o texto sair, e cortar de novo não muda nada.
     """
     if not texto:
@@ -490,8 +494,8 @@ _SCHEMA_GRAVACOES = {
         "= esgotou as tentativas e precisa de alguém; sem_confirmacao = o vídeo subiu e o "
         "banco não confirmou — nunca sugira reprocessar, geraria uma segunda cópia; parada = "
         "etapa intermediária sem avançar há horas; canvas_ambiguo e canvas_conflito pedem mão "
-        "humana; fora_de_modulo = a página existe, mas o aluno não a encontra. O link do "
-        "vídeo não vem, de propósito: são aulas com alunos menores.\n"
+        "humana; fora_de_modulo = a página existe, mas o aluno não a encontra. youtubeUrl é o "
+        "link do vídeo NÃO LISTADO, de aula com alunos menores: entregue só a quem pediu.\n"
         "Exemplo: estado_das_gravacoes() → '38 aulas: 35 no YouTube, 1 processando, 2 com "
         "erro — uma já desistiu'."
     ),

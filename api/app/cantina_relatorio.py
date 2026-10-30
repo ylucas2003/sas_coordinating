@@ -23,7 +23,9 @@ from __future__ import annotations
 
 import io
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date
+from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
@@ -83,12 +85,8 @@ def agregados(
     planilha não bate com a tela" — que é a forma mais cara de descobrir que
     havia dois códigos.
 
-    ⚠️ `com_itens=False`: a soma é de `pedido_refeicao`, e prato não entra nela.
-    Pedir os itens aqui derrubava a tela e a tool de custos acima de ~1.770
-    pedidos no período: `_ler` os filtra com a lista de ids NA URL, e o httpx
-    recusa query com mais de 65.536 caracteres (`InvalidURL`, medido num
-    Postgres descartável em 30/10, com um mês de 900 alunos). Uma semana cheia
-    já passa disso.
+    `com_itens=False`: a soma é de `pedido_refeicao`, e prato não entra nela.
+    Num mês cheio, pular os itens poupa dezenas de idas ao banco (`_em_lotes`).
     """
     dados = _ler(cliente, de=de, ate=ate, cantina_id=cantina_id, com_itens=False)
 
@@ -124,6 +122,24 @@ def agregados(
     }
 
 
+#: Quantos ids vão num filtro `in.(...)`. O httpx recusa query com mais de
+#: 65.536 caracteres (`InvalidURL`), e um uuid com a vírgula tem 37: o teto real
+#: é ~1.770, e 500 deixa folga para o resto da URL.
+LOTE_DE_IDS = 500
+
+
+def _em_lotes(ids: list, ler_lote: Callable[[list], Any]) -> list[dict]:
+    """Junta as linhas de `ler_lote`, chamado com até LOTE_DE_IDS ids por vez.
+
+    `ler_lote` recebe a fatia e devolve a consulta pronta para o `.execute()`.
+    Sem ids, nenhuma ida ao banco: `in.()` vazio não é o que se quer perguntar.
+    """
+    linhas: list[dict] = []
+    for inicio in range(0, len(ids), LOTE_DE_IDS):
+        linhas.extend(ler_lote(ids[inicio : inicio + LOTE_DE_IDS]).execute().data or [])
+    return linhas
+
+
 def _ler(
     cliente: ClienteDados,
     *,
@@ -135,13 +151,16 @@ def _ler(
 ) -> dict:
     """Todas as consultas do relatório, em LOTE.
 
-    Uma consulta por tabela, e nenhuma dentro de laço: é o mesmo cuidado da
-    §12.1.3, e aqui ele pesa mais — este é o único lugar do produto que lê um
-    mês inteiro de pedidos de uma vez.
+    Nenhuma consulta por pedido ou por aluno: é o mesmo cuidado da §12.1.3, e
+    aqui ele pesa mais — este é o único lugar do produto que lê um mês inteiro
+    de pedidos de uma vez. O filtro por lista de ids é que vai em fatias
+    (`_em_lotes`): inteiro, ele ia todo na URL, e acima de ~1.770 pedidos o
+    httpx recusava, derrubando as exportações XLSX e CSV. Medido num Postgres
+    descartável em 30/10, com um mês de 900 alunos: uma semana cheia já passa
+    disso.
 
     `com_itens=False` não lê blocos, opções nem itens: é o caso de quem só soma
-    (`agregados`). ⚠️ Com eles, o filtro de itens leva todos os ids de pedido na
-    URL, e acima de ~1.770 pedidos o httpx recusa (ver `agregados`).
+    (`agregados`), e prato não entra na soma.
     """
     cardapios = (
         cliente.table("cardapio")
@@ -157,50 +176,32 @@ def _ler(
     ids = [c["id"] for c in cardapios]
     por_cardapio = {c["id"]: c for c in cardapios}
 
-    pedidos = (
-        (
-            cliente.table("pedido_refeicao")
-            .select(
-                "id, cardapio_id, aluno_id, modo, valor_cobrado, criado_em, retirado_em, "
-                "data, refeicao"
-            )
-            .in_("cardapio_id", ids)
-            .execute()
-            .data
-            or []
+    pedidos = _em_lotes(
+        ids,
+        lambda lote: cliente.table("pedido_refeicao")
+        .select(
+            "id, cardapio_id, aluno_id, modo, valor_cobrado, criado_em, retirado_em, "
+            "data, refeicao"
         )
-        if ids
-        else []
+        .in_("cardapio_id", lote),
     )
 
     aluno_ids = sorted({p["aluno_id"] for p in pedidos})
-    alunos = (
-        (
-            cliente.table("aluno")
-            # ⚠️ A restrição alimentar só é LIDA quando quem chama é a cantina
-            # (docs/38 §2.6). Não basta não escrevê-la na planilha: o que não é
-            # lido não tem como vazar por uma aba nova escrita às pressas.
-            .select("id, nome, restricao_alimentar" if com_restricao else "id, nome")
-            .in_("id", aluno_ids)
-            .execute()
-            .data
-            or []
-        )
-        if aluno_ids
-        else []
+    alunos = _em_lotes(
+        aluno_ids,
+        lambda lote: cliente.table("aluno")
+        # ⚠️ A restrição alimentar só é LIDA quando quem chama é a cantina
+        # (docs/38 §2.6). Não basta não escrevê-la na planilha: o que não é
+        # lido não tem como vazar por uma aba nova escrita às pressas.
+        .select("id, nome, restricao_alimentar" if com_restricao else "id, nome")
+        .in_("id", lote),
     )
-    matriculas = (
-        (
-            cliente.table("matricula_turma")
-            .select("aluno_id, turma(section_original)")
-            .in_("aluno_id", aluno_ids)
-            .is_("ativo_ate", "null")
-            .execute()
-            .data
-            or []
-        )
-        if aluno_ids
-        else []
+    matriculas = _em_lotes(
+        aluno_ids,
+        lambda lote: cliente.table("matricula_turma")
+        .select("aluno_id, turma(section_original)")
+        .in_("aluno_id", lote)
+        .is_("ativo_ate", "null"),
     )
 
     cantinas = (
@@ -208,41 +209,23 @@ def _ler(
     )
     usadas = {c["cantina_id"] for c in cardapios}
 
-    blocos = (
-        (
-            cliente.table("cardapio_bloco")
-            .select("id, cardapio_id, nome, ordem, escolhas_minimas, escolhas_maximas, observacao")
-            .in_("cardapio_id", ids)
-            .execute()
-            .data
-            or []
-        )
-        if ids and com_itens
-        else []
+    blocos = _em_lotes(
+        ids if com_itens else [],
+        lambda lote: cliente.table("cardapio_bloco")
+        .select("id, cardapio_id, nome, ordem, escolhas_minimas, escolhas_maximas, observacao")
+        .in_("cardapio_id", lote),
     )
-    opcoes = (
-        (
-            cliente.table("cardapio_opcao")
-            .select("id, bloco_id, nome, ordem")
-            .in_("bloco_id", [b["id"] for b in blocos])
-            .execute()
-            .data
-            or []
-        )
-        if blocos
-        else []
+    opcoes = _em_lotes(
+        [b["id"] for b in blocos],
+        lambda lote: cliente.table("cardapio_opcao")
+        .select("id, bloco_id, nome, ordem")
+        .in_("bloco_id", lote),
     )
-    itens = (
-        (
-            cliente.table("pedido_refeicao_item")
-            .select("pedido_id, opcao_id")
-            .in_("pedido_id", [p["id"] for p in pedidos])
-            .execute()
-            .data
-            or []
-        )
-        if pedidos and com_itens
-        else []
+    itens = _em_lotes(
+        [p["id"] for p in pedidos] if com_itens else [],
+        lambda lote: cliente.table("pedido_refeicao_item")
+        .select("pedido_id, opcao_id")
+        .in_("pedido_id", lote),
     )
 
     return {

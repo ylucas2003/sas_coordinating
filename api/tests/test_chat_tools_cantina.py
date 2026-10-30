@@ -633,6 +633,28 @@ class TestCustos:
         )
         assert maior_filtro * len("00000000-0000-0000-0000-000000000000,") < 65536
 
+    def test_as_exportacoes_leem_os_itens_em_lotes_sem_perder_nenhum(self, escola):
+        """As exportações leem os itens de CADA pedido, e o filtro com todos os
+        ids ia inteiro na URL: acima de ~1.770 pedidos, `InvalidURL` nos XLSX e
+        CSV. Em lotes, nenhum filtro passa do que a URL aguenta, e a soma dos
+        lotes é a leitura inteira — quem perde item num lote erra a planilha
+        sem erro nenhum."""
+        hoje = _hoje()
+        base = next(iter(escola.db["pedido_refeicao"].values()))
+        for n in range(2000):
+            pid = _id(35, n)
+            escola.db["pedido_refeicao"][pid] = {**base, "id": pid}
+            escola.db["pedido_refeicao_item"][_id(36, n)] = {"id": _id(36, n), "pedido_id": pid, "opcao_id": _id(37, n)}
+        cliente = escola.cliente()
+        dados = cantina_relatorio._ler(
+            cliente, de=hoje.replace(day=1), ate=tools._fim_do_mes(hoje), cantina_id=None
+        )
+        maior_filtro = max(len(valor) for c in cliente.consultas for tipo, _, valor in c.filtros if tipo == "in")
+        assert maior_filtro <= cantina_relatorio.LOTE_DE_IDS
+        assert maior_filtro * len("00000000-0000-0000-0000-000000000000,") < 65536
+        lidos = {i["pedido_id"] for i in dados["itens"]}
+        assert {_id(35, n) for n in range(2000)} <= lidos
+
     def test_a_soma_nao_le_o_prato(self, escola):
         cliente = escola.cliente()
         chamar(cliente, "custos_da_cantina")

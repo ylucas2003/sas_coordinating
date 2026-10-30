@@ -35,14 +35,14 @@ _CAMPOS = (
     "canvas_estado,canvas_pagina_url,canvas_modulo_nome,canvas_erro,criado_em,atualizado_em"
 )
 
-#: O que vai a um modelo, no chat e no MCP (0074). A view não tem `youtube_*`,
-#: `canvas_pagina_*` nem `s3_*`, e o erro já vem sem o id do vídeo e sem a
-#: linha que o Postgres despeja: o id abre o vídeo não listado, e por isso o
-#: MCP não pode nem lê-lo para tirá-lo do texto depois.
+#: O que vai a um modelo, no chat e no MCP (0074). A view não tem `s3_*`, e o
+#: erro já vem sem o id do vídeo e sem a linha que o Postgres despeja. O link
+#: vai, por decisão da coordenação em 30/10: a IA o recebe como a tela o mostra.
 VIEW_PARA_IA = "aula_gravacao_para_ia"
 _CAMPOS_PARA_IA = (
     "id,curso_id,titulo,iniciada_em,status,tentativas,erro_detalhe,"
-    "canvas_estado,canvas_modulo_nome,canvas_erro,atualizado_em"
+    "canvas_estado,canvas_modulo_nome,canvas_erro,atualizado_em,"
+    "youtube_video_id,youtube_titulo,canvas_pagina_url"
 )
 _CAMPOS_DO_CURSO = "curso_id,nome,ativo,publicar_no_canvas,canvas_modulo_id"
 _CAMPOS_DO_CURSO_PARA_IA = "curso_id,nome,ativo,publicar_no_canvas"
@@ -145,8 +145,8 @@ def painel(
 
     ⚠️ `youtubeUrl` e `youtubeVideoId` abrem vídeo NÃO LISTADO de aula com
     aluno menor de idade — o link é o acesso —, e `canvasUrl` é a página que o
-    embute. A tela é da coordenação; quem leva isto a um modelo tira os três
-    antes (docs/43 §5.4).
+    embute. A coordenação decidiu em 30/10 que eles também vão à IA dela
+    (docs/43 §0.3). O S3 é que não sai de jeito nenhum.
 
     `limite_do_erro=None` entrega `erroDetalhe` e `canvasErro` INTEIROS, para
     quem limpa o texto antes de mostrá-lo: `texto_seguro` limpa e só então
@@ -154,9 +154,9 @@ def painel(
     credencial ao meio — curta demais para o padrão, ela sairia pela metade
     (revisão paralela de 25/10). A tela continua recebendo os 300.
 
-    `para_ia=True` é a leitura de quem leva isto a um modelo: lê `VIEW_PARA_IA`
-    e nem pede a coluna do link, então os três campos acima vêm `None`. É o
-    único caminho que o MCP alcança — o `sas_mcp` não lê `aula_gravacao`.
+    `para_ia=True` é a leitura de quem leva isto a um modelo: lê `VIEW_PARA_IA`,
+    com o erro já limpo na própria view. É o único caminho que o MCP alcança — o
+    `sas_mcp` não lê `aula_gravacao`.
     """
     cursos = (
         cliente.table("curso_monitorado_gravacao")

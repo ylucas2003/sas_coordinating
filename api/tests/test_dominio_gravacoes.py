@@ -190,6 +190,10 @@ def test_para_ia_le_a_view_e_nao_a_tabela():
     assert painel["cursos"][0]["canvasModuloId"] is None
 
 
-def test_para_ia_nao_pede_coluna_de_link_nem_de_s3():
+def test_para_ia_pede_o_link_e_nunca_o_s3():
+    """O link vai à IA por decisão da coordenação em 30/10 (docs/43 §0.3), como a
+    tela o mostra. O S3, onde o vídeo mora, não vai de jeito nenhum."""
     for campos in (consulta._CAMPOS_PARA_IA, consulta._CAMPOS_DO_CURSO_PARA_IA):
-        assert not re.search(r"youtube|pagina|s3_|conferencia|professor|modulo_id", campos)
+        assert not re.search(r"s3_|conferencia|professor|modulo_id|pagina_slug", campos)
+    for coluna in ("youtube_video_id", "youtube_titulo", "canvas_pagina_url"):
+        assert coluna in consulta._CAMPOS_PARA_IA
