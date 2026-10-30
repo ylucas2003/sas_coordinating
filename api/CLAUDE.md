@@ -178,7 +178,7 @@ Depois de qualquer migration que toque `metrica_simulado`, rode
 ## Ferramentas
 
 ```sh
-./.venv/bin/python -m pytest tests/ -q   # 2623 testes (+31 pulados); 3 de test_canvas_publicacao.py falham também no main
+./.venv/bin/python -m pytest tests/ -q   # 3232 testes (+34 pulados); 3 de test_canvas_publicacao.py falham também no main
 ./.venv/bin/ruff check .                 # lint — configurado em pyproject.toml
 ./.venv/bin/ruff check . --fix
 ./.venv/bin/mypy app                     # sob demanda, fora do gate
