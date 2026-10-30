@@ -1,6 +1,6 @@
 # 43 — As ferramentas do assistente e o MCP da coordenação
 
-> Plano de 24/10/2026, com o **estado de 27/10**. Duas frentes que dividem uma
+> Plano de 24/10/2026, com o **estado de 30/10**. Duas frentes que dividem uma
 > fundação:
 >
 > 1. o **Tio Léo** (aluno, individual) e o **assistente da coordenação**
@@ -8,21 +8,23 @@
 >    respondem mais rápido;
 > 2. um **MCP** para a coordenação conectar a própria IA ao SAS.
 >
-> ⚠️ **Estado em 27/10: as Fases 0 a 3 estão no `main` (PR #115, merge
-> `ca4c68f`) e em produção desde 27/10 — menos o processo do MCP.** O
-> primeiro passo da §9 foi implantado nesse dia: o chat novo do Tio Léo e do
-> assistente, as migrations 0070 a 0073 e as telas de Conexões de IA e
-> `/conectar-ia`. O `mcp` e o `postgrest_mcp` **não estão no ar**. Eles esperam
-> o SES de produção e a decisão de ligar (§5.4). Desde o PR #117 o
-> `infra/vps` os tem, desligados (§10). As **decisões do dono de 26/10** — nome
-> real no MCP, administrador e coordenador conectando, aprovação por código no
-> e-mail da conta de IA e o nome de cada nota contra o corte — moram em §0.1. As
-> de **27/10**, sobre o que ainda faltava para o MCP, moram em §0.2. A **revisão
-> de segurança** de 26/10 está em §5.6, e a **prova de ponta a ponta de 27/10**,
-> com o MCP de verdade no modo novo, em §8.1. O que cada fase entregou está em
-> §3.4, §4.4 e §5.5; o que mudou em relação a este plano, em §7.1; o que não foi
-> verificado, em §8; a ordem do deploy, em §9; e o que a produção precisa para
-> o MCP, em §10.
+> ⚠️ **Estado em 30/10: tudo em produção, e o MCP ligado desde 29/10.** As
+> Fases 0 a 3 entraram pelo PR #115 (27/10). O SES foi ligado em 28/10, com o
+> remetente `nao-responda@portalsas.online`, e o processo do MCP subiu em 29/10
+> (§9, segundo passo). **Em 30/10 a coordenação decidiu que a IA lê no MCP tudo
+> o que o coordenador lê** (§0.3): o MCP passa de 31 para 53 tools, com régua,
+> rotinas, auditoria, cantina, captação e o banco de questões inteiro (§5.7). A
+> prova integrada dessa ampliação está em §8.2. Nenhum conector real (claude.ai,
+> ChatGPT, Claude Code) foi visto conectando ainda.
+>
+> As **decisões do dono de 26/10** — nome real no MCP, administrador e
+> coordenador conectando, aprovação por código no e-mail da conta de IA e o nome
+> de cada nota contra o corte — moram em §0.1; as de **27/10**, em §0.2; e as de
+> **30/10**, em §0.3. A **revisão de segurança** de 26/10 está em §5.6, e a
+> **prova de ponta a ponta de 27/10**, em §8.1. O que cada fase entregou está em
+> §3.4, §4.4, §5.5 e §5.7; o que mudou em relação a este plano, em §7.1; o que
+> não foi verificado, em §8; a ordem do deploy, em §9; e o `infra/vps` do MCP,
+> com como ligar e desligar, em §10.
 >
 > O **piso de anonimato das rotas `/me`** (§4.4, "Privacidade") foi ao ar antes
 > do resto, sozinho, pelo PR #114 (merge `fc461a2`), implantado em 26/10. O
@@ -93,6 +95,19 @@ da prova de ponta a ponta do mesmo dia (§8.1). Nenhuma muda código.
 | 2 | Sob que **conta do provedor** a coordenação conecta (§6) | **A conta pessoal de cada coordenador**, não uma conta do colégio | Desligar, em cada conta, o uso das conversas para treinar o modelo. O código não decide isso nem confere: qualquer cliente que fale MCP conecta com o token pessoal |
 | 3 | O **SES de produção**, por onde sai o código que aprova a conexão OAuth (§9, segundo passo) | **O dono confere**: a conta fora do sandbox, as chaves na API e `EMAIL_DESTINATARIO_TESTE` vazio | Sem o SES, o token pessoal funciona e nenhuma conexão do claude.ai ou do ChatGPT se aprova (§10) |
 | 4 | O **piso de anonimato** (10 notas) vale também no MCP? A prova de 27/10 mostrou que não vale (§8.1) | **Fica como está.** O piso protege a nota do colega quando quem olha é o **aluno** (§4.4). O MCP da coordenação mostra o mesmo que as telas da coordenação já mostram: numa prova com 3 notas, a média e cada nota com o nome | — |
+
+### 0.3 · As decisões da coordenação em 30/10 — a IA lê o que o coordenador lê
+
+Tomadas com o MCP já no ar. Revertem a decisão de 24/10 que deixava régua,
+rotinas, trilha, cantina e captação de fora (§6).
+
+| # | Pergunta | Decisão | O que ela implica |
+|---|---|---|---|
+| 1 | O que a IA lê no MCP? | **Tudo o que o coordenador lê na plataforma**: a régua, o sync do Canvas, as gravações, os lembretes, a trilha de auditoria, a cantina, a captação externa e o banco de questões inteiro | 22 tools a mais, chegando a 53 (§5.7). Continuam fora as **ações** (o MCP só lê), as contas (`usuario_coordenacao`, `usuario_cantina`) e os artefatos do app |
+| 2 | A **restrição alimentar** entra? | **Entra**, numa tool só dela, `restricoes_alimentares`, e também no assistente do SAS — o dado vai ao provedor da IA de quem conectou e à OpenAI | ⚠️ É **dado de saúde de menor** (LGPD art. 11, dado sensível). A decisão foi contra a recomendação de deixá-la fora; o aviso foi dado na hora. Para fechar: `expor_no_mcp: False` tira a tool do MCP (não do chat), e o acesso do papel só sai com um `REVOKE SELECT (restricao_alimentar) ON aluno FROM sas_leitura` numa migration nova. Tirá-la do chat pede uma chave nova no registro |
+| 3 | O **link do YouTube** vai à IA? | **Vai**, como a tela o mostra, junto com a página da aula no Canvas | ⚠️ O vídeo é **não listado** e tem aluno menor: o link é o acesso, e passa a ir ao provedor da IA. O S3, onde o vídeo mora, continua fora |
+| 4 | A **captação externa** entra? | **Entra.** São pessoas de fora, muitas menores, achadas por resultado público | Só o que a tela mostra. `observacoes`, o texto livre do funil, fica fora: é onde um telefone apareceria |
+| 5 | As exportações da cantina quebravam acima de ~1.300 pedidos no período. Conserta junto? | **Sim.** A leitura por lista de ids vai em lotes de 500 | Defeito antigo, achado na prova da cantina; estava em produção |
 
 ---
 
@@ -1109,6 +1124,83 @@ browser, nada disso foi visto (§8).
 - (f) a Jornada do aluno passa a dizer que a média é "a que conta na régua"
   (decisão 4)
 
+### 5.7 · A ampliação de 30/10 — de 31 para 53 tools
+
+Pela decisão da §0.3. Cada frente foi escrita num branch próprio, com a sua
+migration, e as quatro foram juntas no PR da ampliação.
+
+| Migration | Área | Tools novas no MCP |
+|---|---|---|
+| 0074 | Régua, rotinas e trilha | `reguas_de_corte`, `cortados_pela_regua`, `estado_do_sync_canvas`, `pendencias_canvas_do_ciclo`, `estado_das_gravacoes`, `lembretes_agendados`, `historico_de_alteracoes` |
+| 0075 | Cantina | `cantinas_e_regras`, `calendario_da_cantina`, `cardapio_da_cantina`, `pedidos_da_refeicao`, `custos_da_cantina`, `direitos_a_refeicao`, `restricoes_alimentares` |
+| 0076 | Captação externa | `buscar_candidatos_externos`, `buscar_candidatos_por_conquista`, `perfil_do_candidato_externo`, `provas_da_captacao` |
+| 0077 | Banco de questões | `abrir_questao_do_banco`, `panorama_do_banco`, `calibracao_da_importancia`, `minhas_listas_do_banco` |
+
+Fora do MCP ficam só `exportar_csv`, `gerar_grafico`, `navegar_para` e
+`roteiro_da_coordenacao` (os roteiros vão como `prompts`). As tools novas valem
+também no assistente do SAS, porque o registro é um só.
+
+**Três coisas valem para as quatro frentes:**
+- **GRANT por coluna não corta linha.** Onde a tabela guarda o que o MCP não pode
+  ler, ele lê por uma view escrita para ele, e a tabela segue dando 42501: é a
+  lista fechada `VIEWS_DO_MCP`, de cinco views. Todas rodam como o dono e são
+  `security_barrier`, porque sem a barreira um filtro de fora roda antes do
+  WHERE da view. Um `CREATE OR REPLACE VIEW` sem o `WITH` zera a opção em
+  silêncio, e `_auditar_view` o recusa; só migration do MCP toca nelas. As duas
+  views da captação são outro caso, em `VIEWS_DA_LISTA_BRANCA`: não rodam como
+  dono (uma é materializada, a outra é `security_invoker`).
+- **Nenhuma tool copia regra.** O que morava em rota desceu para o domínio, e a
+  rota e a tool chamam a mesma função. A exceção é a contagem da cantina: as
+  rotas seguem nas views da 0049 e da 0052, que rodam como o dono e o MCP não
+  lê, e o MCP faz a mesma conta nas tabelas de base.
+- **O deploy depende das migrations.** O chat e a aba Minha Lista passam a ler as
+  views, então o código não sobe sem elas: o deploy é com `--migrar`, que as
+  aplica antes do `up -d`. No rollback, o código volta antes do `down`.
+
+**Régua, rotinas e trilha (0074).** A lista branca cresceu por coluna e com três
+views: `trilha_de_alteracoes` (os canais nota, simulado, ciclo, canvas, criterio,
+cantina e captacao, sem `ip` nem `request_id`; o canal `acesso` fica fora porque
+guarda o e-mail digitado no login que falhou, e o `mcp`, por ser o uso da própria
+IA; o canal `cantina` também grava logins, e por isso a view corta as ações de
+login além dos canais; o detalhe é fechado por ação, sem o e-mail da conta da
+cantina nem o nome do candidato), `nome_da_coordenacao` (só id e nome;
+`usuario_coordenacao` segue fechada e é a sonda do boot do MCP) e
+`aula_gravacao_para_ia` (com o link, sem o S3, e o erro sem a linha que o
+Postgres despeja). `disparo` entrou só com as colunas de contagem, sem
+destinatário, corpo nem contexto. Como o processo do MCP não tem o ambiente da
+API, `lembretes_agendados` devolve `null` no que vem do ambiente, com um aviso, e
+a marca disso é `app/chat/superficie.py`.
+
+**Cantina (0075).** Sete tools em `chat/tools/cantina.py`, com a regra em
+`app/cantina_leitura.py`. São 45 colunas de sete tabelas, mais
+`aluno.restricao_alimentar` em GRANT próprio; `usuario_cantina` e as views ficam
+fora. A restrição sai só pela tool dela: as outras seis nem leem a coluna, e o
+verificador reprova qualquer outra tool que a devolva. `custos_da_cantina` e
+`restricoes_alimentares` saem do catálogo com o pseudônimo ligado. Para desligar
+`restricoes_alimentares` fechar o dado de verdade, a trilha também não entrega
+`restricao_alimentar_editada`: com o id do aluno no recurso, ela diria quem tem
+restrição. **O buraco de propósito:** a IA não lê as contas da cantina de
+`/cantina/acesso`, porque `usuario_cantina` é credencial.
+
+**Captação (0076).** Quatro tools em `chat/tools/captacao.py`, com as leituras
+em `app/captacao/consultas.py`, e a busca por nome da tela também passou a
+escapar os curingas. As três que devolvem nome saem com o pseudônimo. Não há
+paginação, de propósito: paginar devolveria a base inteira de gente de fora,
+chamada a chamada, e o modelo estreita o filtro. Ficam fora `observacoes` e o
+bastidor da raspagem, e `v_candidato_externo`, que roda como dono e cita
+`observacoes`.
+
+**Banco de questões (0077).** Quatro tools em `chat/tools/banco_questoes.py`. A
+montagem da calibração desceu para `importancia.calibracao_em_vigor`. Como a
+lista tem dono por pessoa (docs/22 §5.2), o registro passou a injetar
+`coordenador_id` da sessão, como já fazia com `aluno_id`: nenhum schema o declara
+e o modelo não o escolhe. As listas entram por `lista_questoes_da_coordenacao` e
+`lista_questoes_item_da_coordenacao`, porque as tabelas guardam também as listas
+de aluno; entre dois coordenadores, a fronteira é o código da tool. A URL da
+figura é a pública e permanente do bucket do acervo. `criado_por` de
+`parametro_importancia` entrou, revertendo a exclusão da 0071: é a coluna "Quem"
+da tela de Calibração. Ficam fora estudo, progresso e anotações, que são do aluno.
+
 ---
 
 ## 6 · Decisões em aberto
@@ -1124,8 +1216,8 @@ resposta.
 | ~~Sob que **conta de IA** a coordenação conecta (conta pessoal, conta do colégio com retenção desligada)?~~ **FECHADA em 27/10 pelo dono: a conta pessoal de cada coordenador** (§0.2, decisão 2) | Quem aprova a conexão OAuth prova a posse do e-mail da conta de IA, e a conexão nasce com o acesso do coordenador dono dele (decisão 3). O uso para treino, desligado em cada conta, o código não confere | — |
 | ~~O **piso de anonimato** vale também no MCP?~~ **FECHADA em 27/10 pelo dono: não** (§0.2, decisão 4) | O MCP mostra o que as telas da coordenação mostram, inclusive a média e as notas com nome numa prova com menos de 10 notas. O piso segue nas rotas `/me` e nas tools do Tio Léo | — |
 | ~~Quando abre o **portão de administrador** — quem mais emite, aprova e consulta?~~ **FECHADA em 26/10 pelo dono: administrador e coordenador** (decisão 2) | `MCP_EMISSAO_SO_ADMINISTRADOR=false`, o padrão; `true` volta ao só-administrador nas três pontas, e precisa do MESMO valor na API e no `mcp` | — |
-| **Captação** (dado de gente de fora) e **cantina** entram no MCP? | Não entram, e não há tool delas nem no chat do app | — |
-| **Régua, rotinas** (sync, gravações, lembretes) e **trilha** de auditoria entram no MCP? | Estão no chat da coordenação e fora do MCP (`METADADOS` dos módulos `reguas`, `rotinas` e `trilha`) | — |
+| ~~**Captação** (dado de gente de fora) e **cantina** entram no MCP?~~ **FECHADA em 30/10: entram** (§0.3) | Tools novas, no chat e no MCP (§5.7). A restrição alimentar fica numa tool só dela | — |
+| ~~**Régua, rotinas** (sync, gravações, lembretes) e **trilha** de auditoria entram no MCP?~~ **FECHADA em 30/10: entram** (§0.3) | As sete tools do chat passaram ao MCP, com a 0074 (§5.7) | — |
 | O Tio Léo continua `gpt-4o-mini`? | **Fechada em parte**: o modelo passou a ser configurável (`OPENAI_MODELO_ALUNO`, padrão `gpt-4o-mini`). Trocar é decisão de custo (docs/27 §12) | custo do chat |
 | Quando uma prova **fecha** para a comparação com a turma? | O piso de 10 protege uma leitura, não a diferença entre duas: quem lê a mesma prova com 10 e depois com 11 notas tira a 11ª. O conserto é mostrar a comparação só com a prova fechada (`aluno_dados.PISO_DE_ANONIMATO`). Vale igual em produção, onde o piso está desde 26/10 (PR #114) | privacidade do aluno |
 | ~~A Hoje e o Tio Léo mostram **a mesma nota contra o corte**?~~ **FECHADA em 26/10 pelo dono** (decisão 4): não, e cada uma diz qual é | "Notas no último simulado" na Hoje (o ciclo mais recente, de `/me/evolucao`); "Notas que contam na régua" no cartão `barras_corte` e na zona (`/me/zona`). O cálculo não mudou (`web/src/dominio/notaContraCorte.ts`) | — |
@@ -1234,6 +1326,8 @@ Atualizado em 27/10, depois da prova de ponta a ponta do MCP no modo novo
 - O OAuth apontado para o servidor no modo pseudônimo: a stack de 27/10 tinha
   um emissor para dois MCPs, e o `resource` do pseudônimo não era aceito. Lá
   ele foi provado só por token pessoal.
+- Depois da ampliação de 30/10, ver a §8.2: o chat com o modelo de verdade
+  escolhendo entre as 57 tools, o conector real e o banco de questões em volume.
 - O modo `--stdio`.
 - O `uvicorn` 0.31.1 sobe também na API (a mesma imagem), e a suíte não
   exercita o uvicorn: conferir com `./infra/vps/deploy.sh --verificar` depois
@@ -1347,6 +1441,56 @@ sem adaptar.
   o "até N" do chat pelo teto do MCP no catálogo, como as trocas de descrição
   do PR #116.
 
+### 8.2 · A prova integrada de 30/10 — as quatro frentes juntas
+
+Feita sobre o branch da ampliação, numa stack descartável: as frentes tinham
+sido escritas em separado, e esta foi a primeira vez que rodaram juntas. Só
+dados sintéticos, com semente em todas as áreas, inclusive lista de aluno e
+marcadores nas colunas sensíveis.
+
+| Prova | Resultado |
+|---|---|
+| Migrations pelo runner: banco vazio, banco em 0073 (o caminho de produção), `down` de 0077 a 0074 e `up` de novo | Sem erro. `pg_dump`, papéis, privilégios e comentários com diff zero; os dados não mudam |
+| `verificar_papeis_do_mcp --mcp --api --ferramentas` | 359 conferências, 0 falhas, 0 avisos, com as 53 tools exercitadas. Tirar o corte de ações ou o filtro de chaves da view faz o verificador reprovar |
+| A trilha pelo papel `sas_mcp` e pelo MCP real, com logins e restrição plantados no canal `cantina` | 59 de 59. Nenhuma das quatro ações volta, nenhum `@` na view, e os eventos legítimos voltam todos. Um lote de 900 alunos caiu de 36 KB para 502 caracteres |
+| O processo do MCP pelo cliente oficial do SDK, com token pessoal | `tools/list` com 53 e 45. Todas as tools chamadas nos dois modos e com conta de coordenador, sem 42501 nem erro inesperado |
+| Vazamento em 233 mil caracteres de saída | Nenhum hash, token, e-mail de coordenador, `observacoes`, S3 ou IP. A restrição alimentar só em `restricoes_alimentares`. No pseudônimo, nenhum nome de aluno nem de candidato |
+| O papel `sas_mcp` | A lista de aluno não aparece pelas views. As tabelas fechadas dão 42501, e nenhuma das 583 sondas de escrita passou |
+| As exportações da cantina, com 900 alunos e 34.650 pedidos | Saem em até 2,3 s, com a contagem do SQL. No `main`, as seis funções quebravam |
+| Volume | `cortados_pela_regua` com 900 alunos em 0,7 s; a trilha sobre 2 milhões de eventos em 0,03 s; a captação com 150 mil nomes em até 0,9 s; `calendario_da_cantina` em 0,1 s |
+| 65 GETs novo × `main`, e 66 escritas | 61 respostas idênticas. As 4 diferenças são de propósito: `criado_em` que o front não lê, o conserto dos curingas e `prova_categoria`, que o tipo já declarava |
+
+**O que ela achou e foi consertado no mesmo PR:**
+- `npm test` reprovava, porque as 15 tools novas não tinham nome legível no front. O portão do `deploy.sh` pararia nisso. Nenhuma frente mexeu em `web/`, e por isso nenhuma o viu.
+- A trilha fechava os canais antes de a cantina e a captação existirem como tools, e a tela de auditoria mostra os dois.
+- O verificador olhava coluna e quase nunca linha: sem o WHERE da trilha ou o da view dos itens, ele saía com 0 falhas. Ganhou sondas de linha.
+- Dois filtros: `uf` torta dava 500 ou zero em silêncio, e cantina inexistente em custos somava zero.
+- Na junção, `VIEWS_DO_MCP` e `_auditar_view` tinham ficado definidas duas vezes no verificador, e a última definição tirava três views da auditoria sem erro nenhum. Isso foi visto e corrigido antes da prova.
+
+**O que a repetição da prova achou nesses consertos, e foi consertado também:**
+- Abrir o canal `cantina` na trilha trouxe os logins que `routes/auth.py` grava nele, e em `login_falhou` o `ator_id` é o que a pessoa digitou. A view passou a cortar as ações de login, e o verificador ganhou a sonda. Era o defeito mais sério da rodada, e nasceu de um conserto: a lição é que canal não é fronteira de dado.
+- A edição da restrição alimentar, na trilha, diria quem tem restrição mesmo com a tool dela desligada. Saiu da view e da tool.
+- O verificador não enxergava o filtro de chaves do `detalhe`. Ganhou a sonda do e-mail no detalhe e a do e-mail no ator.
+- A descrição de `historico_de_alteracoes` ainda dizia que cantina e captação não eram consultáveis, e o modelo responderia isso.
+- `alunos` em `direito_refeicao_*` podia trazer 900 uuids por evento (36 KB). Sai como `totalDeAlunos`.
+
+**Ficam abertos, todos de gravidade baixa:**
+- A sonda do detalhe só conhece a chave `email`: acrescentar `nome_normalizado` às chaves da view passa no verificador, e só o teste do texto da migration vigia isso. Com `--api`, dá para comparar as chaves devolvidas com a lista da migration.
+- A mesma sonda não prova nada num banco sem linha com `email`, e não avisa. A ação que grava a chave é `conta_cantina_criada`.
+- O `detalhe.nome` dos eventos de conta da cantina continua alcançável pelo papel `sas_mcp` na view, embora a tool não o devolva: a lista de chaves é uma só para todas as ações. É o nome da conta, sem e-mail nem senha.
+- Os roteiros servidos como `prompts` citam tools fora do catálogo (`navegar_para`, `exportar_csv`, `gerar_grafico`). Eles trazem a regra de seguir sem elas.
+- `aula_gravacao_para_ia` só corta a linha despejada: um `s3://` escrito no texto de erro é a tool que limpa, não a view.
+- O nome parcial de aluno em texto livre (título de aula, de evento) passa pelo portão do pseudônimo, e o link do YouTube sai também nesse modo. Só importa com o pseudônimo ligado, que não é o padrão.
+- No verificador, `minhas_listas_do_banco` roda com uma sessão que não é conta, e por isso não lê lista nenhuma. O caso com conta foi provado à parte.
+- `lembretes_agendados` devolve `null` no que vem do ambiente da API. Para responder o horário, dá para passar `LEMBRETE_ALUNO_*` e `EMAIL_TETO_DIARIO` ao serviço `mcp`.
+
+**Não foi verificado:**
+- O chat com a OpenAI escolhendo entre as 57 tools da coordenação. O catálogo cresceu 15 tools, e o custo em tokens por chamada não foi medido.
+- Conector real (claude.ai, ChatGPT, Claude Code) e o OAuth neste branch: só token pessoal.
+- O `deploy.sh`, o compose de produção e o nginx com o código novo.
+- As telas no browser, e as exportações por HTTP no volume (as funções foram chamadas direto).
+- O banco de questões em volume: a semente tinha 7 questões. `panorama_do_banco` lê a tabela inteira de propósito.
+
 ---
 
 ## 9 · A ordem do deploy
@@ -1455,7 +1599,16 @@ Os itens abaixo são o roteiro que se seguiu.
    um token que nada aceita enquanto o MCP não existir e que vence em 90
    dias. O card de e-mails também funciona, e não dá acesso a nada sozinho.
 
-**Segundo passo — o MCP, quando o portão abrir**
+**Segundo passo — o MCP** *(✅ feito em 29/10)*
+
+O SES foi ligado em 28/10: a conta já estava fora do sandbox (caso
+178722538000720, aprovado), o domínio `portalsas.online` foi verificado com
+Easy DKIM, e as chaves são do usuário IAM `sas-ses-producao`, que só envia, e só
+como `nao-responda@portalsas.online`. O MCP subiu em 29/10, com o roteiro da
+§10.3: 401 com `resource_metadata`, os quatro metadados em JSON e
+`verificar_papeis_do_mcp --ferramentas` de dentro do container com 225
+conferências, 0 falhas e 0 avisos. Os itens abaixo são o roteiro que se seguiu.
+
 
 1. O que a §5.4 pedia foi decidido pelo dono em 27/10 (§0.2): a base legal
    do art. 14, afirmada (falta anexar onde a autorização está), e a conta
@@ -1517,8 +1670,11 @@ novo.
 
 ---
 
-## 10 · Para produção — o `infra/vps` do MCP *(preparado em 27/10, DESLIGADO)*
+## 10 · Para produção — o `infra/vps` do MCP *(ligado em 29/10)*
 
+> ✅ **O MCP está ligado em produção desde 29/10.** O texto abaixo é de 27/10,
+> quando ele foi preparado desligado, e segue valendo para ligar e desligar.
+>
 > ⚠️ **Reescrita em 27/10.** Até aqui esta seção era a proposta para o MCP
 > **ligado**, sem nada aplicado. Desde o branch `feat/infra-mcp-desligado` o
 > `infra/vps` tem o MCP **desligado por padrão**: os serviços estão no compose,

@@ -31,6 +31,7 @@ from mcp.shared.memory import create_connected_server_and_client_session
 from postgrest.types import ReturnMethod
 from starlette.testclient import TestClient
 
+from app.chat import superficie
 from app.chat.ferramentas import Ferramenta, Registro
 from app.mcp import auditoria_mcp
 from app.mcp.app import (
@@ -234,6 +235,24 @@ def test_chamada_passa_pelo_registro_com_cliente_novo():
     assert fabrica.criados >= 3
 
 
+def test_a_tool_sabe_que_a_chamada_veio_do_mcp():
+    """`lembretes_agendados` lê o ambiente do processo, e o do MCP não é o da
+    API (chat/superficie.py). A marca tem de chegar à THREAD da tool, e não só
+    ao event loop — e sair dela depois, para não valer na chamada seguinte."""
+
+    def marca(_cliente):
+        return {"peloMcp": superficie.pelo_mcp()}
+
+    fabrica = FabricaDeClientes(_banco())
+
+    async def corpo(s):
+        return await s.call_tool("marca", {})
+
+    r = _em_memoria(_servidor_com(fabrica, _ferramenta("marca", marca)), corpo)
+    assert json.loads(_texto(r)) == {"peloMcp": True}
+    assert superficie.pelo_mcp() is False
+
+
 def test_excecao_da_tool_vira_mensagem_generica():
     """O SDK mandaria `str(e)` — aqui com a URL do PostgREST e o nome de uma coluna."""
     db = _banco()
@@ -375,6 +394,24 @@ def test_tools_que_so_servem_com_o_nome_saem_do_catalogo_com_o_pseudonimo():
     assert sem_nome == {"listar_ciclos"}
     assert chamada.isError and "não existe" in _texto(chamada) and "SINTETIC" not in _texto(chamada)
     assert _eventos(db)[0]["detalhe"]["desfecho"] == "inexistente"
+
+
+def test_a_conta_do_token_chega_a_tool_que_pede_e_o_argumento_nao_a_troca():
+    """A lista do banco tem dono (docs/22 §5.2): no MCP, o dono é a conta dona do
+    token, a mesma `Identidade` que o chat lê do JWT como `sub`. Um `coordenador_id`
+    nos argumentos, de alucinação ou de injeção, não escolhe de quem é a lista."""
+    vistos: list = []
+
+    def com_dono(cliente, *, coordenador_id=None):
+        vistos.append(coordenador_id)
+        return {"ok": True}
+
+    async def corpo(s):
+        return await s.call_tool("com_dono", {"coordenador_id": "ffffffff-0000-4000-8000-000000000009"})
+
+    chamada = _em_memoria(_servidor_com(FabricaDeClientes(_banco()), _ferramenta("com_dono", com_dono)), corpo)
+    assert not chamada.isError
+    assert vistos == [COORDENADOR]
 
 
 class _Objeto:

@@ -28,6 +28,8 @@ from typing import Any
 from . import (
     artefato,
     banco_questoes,
+    cantina,
+    captacao,
     comparar,
     contexto,
     heuristicas,
@@ -41,11 +43,13 @@ from . import (
 
 # ─── Registry ─────────────────────────────────────────────────────────────
 
-# Os quatro do fim são a cobertura do docs/43 §4.3: banco de questões, régua
-# como objeto, rotinas automáticas (sync, gravações, lembretes) e auditoria.
+# Os quatro depois de `contexto` são a cobertura do docs/43 §4.3: banco de
+# questões, régua como objeto, rotinas automáticas (sync, gravações, lembretes)
+# e auditoria. `cantina` e `captacao` são a decisão de 30/10: o que a coordenação
+# lê nas telas, a IA dela lê também (docs/43 §5).
 _MODULOS = (
     lookup, stats, comparar, heuristicas, relatorios, artefato, contexto,
-    banco_questoes, reguas, rotinas, trilha,
+    banco_questoes, reguas, rotinas, trilha, cantina, captacao,
 )
 
 SCHEMAS: list[dict[str, Any]] = []

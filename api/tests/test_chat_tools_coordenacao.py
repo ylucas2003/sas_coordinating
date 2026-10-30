@@ -19,7 +19,12 @@ que estas tools usam e ele não tinha —
     existe é 42703 e id torto em coluna uuid é 22P02, como no PostgREST. Sem
     isso o fake devolvia `None` para a coluna inventada, e `materias_problematicas`
     — que pedia `simulado.fase`, removida na 0003 — passou na suíte enquanto
-    falhava sempre no banco de verdade (revisão paralela de 25/10).
+    falhava sempre no banco de verdade (revisão paralela de 25/10);
+  * as três VIEWS da 0074 e as duas das listas (0077), derivadas da tabela de
+    baixo a cada leitura, com as colunas do GRANT dela. São um espelho do SQL,
+    escrito de novo aqui: a prova do SQL é no Postgres
+    (scripts/verificar_papeis_do_mcp.py), e o que se trava aqui é a tool, dado o
+    que a view entrega.
 
 Dados 100% sintéticos.
 
@@ -45,20 +50,21 @@ from typing import Any, NoReturn, get_args
 import pytest
 from postgrest.exceptions import APIError
 
+from app import auditoria
 from app.banco import consultas, estatisticas, importancia
 from app.canvas_sync import estado as estado_do_sync
-from app.chat.ferramentas import REGISTRO, Sessao
+from app.chat import superficie
+from app.chat.ferramentas import REGISTRO, Sessao, parametros_do_handler
 from app.chat.tools import banco_questoes, contexto, rotinas, trilha
 from app.gravacoes_aula import consulta as gravacoes
 from app.lembretes import motor
 from app.lembretes.aplicacoes import aluno_simulado
 from app.schemas.domain import Severidade
 from app.stats import classificacao_ciclo, criterios, criterios_repo
+from scripts.verificar_papeis_do_mcp import VIEWS_DO_MCP, lista_branca
+from tests import fake_captacao
 from tests.esquema_das_migrations import esquema
 from tests.fake_postgrest import FakeCliente, Query, Resp, _ordenavel
-
-COORDENACAO = Sessao(tipo="coordenador", usuario="coord:teste", papel="coordenador")
-
 
 # ─── O fake ──────────────────────────────────────────────────────────────
 
@@ -183,6 +189,88 @@ def _algum_ramo_bate(linha: dict, filtro: str) -> bool:
 _COMPARACOES = frozenset({"eq", "neq", "in", "nao_in", "lt", "lte", "gt", "gte"})
 
 
+# ─── As views da 0074 e da 0077, como o fake as vê ───────────────────────
+
+_CHAVES_DA_TRILHA = frozenset(c for chaves in trilha.DETALHE_POR_ACAO.values() for c in chaves)
+_LINHA_DESPEJADA = re.compile(r"Failing row contains \(.*", re.S)
+
+
+def _sem_o_video(texto: str | None, video: str | None) -> str | None:
+    if not texto:
+        return texto
+    return _LINHA_DESPEJADA.sub("Failing row contains (…)", texto.replace(video, "[vídeo]") if video else texto)
+
+
+def _trilha_de_alteracoes(db: dict) -> list[dict]:
+    linhas = []
+    for linha in db.get("evento_auditoria", {}).values():
+        if linha.get("canal") not in trilha.CANAIS_DA_TRILHA or linha.get("acao") in trilha.ACOES_FORA_DA_TRILHA:
+            continue
+        bruto = linha.get("detalhe")
+        detalhe = {k: v for k, v in bruto.items() if k in _CHAVES_DA_TRILHA} if isinstance(bruto, dict) else None
+        linhas.append({
+            **{c: linha.get(c) for c in ("id", "ocorrido_em", "acao", "canal", "ator_tipo", "ator_id", "recurso")},
+            "detalhe": detalhe,
+        })
+    return linhas
+
+
+def _nome_da_coordenacao(db: dict) -> list[dict]:
+    return [{"id": l["id"], "nome": l.get("nome")} for l in db.get("usuario_coordenacao", {}).values()]
+
+
+def _aula_gravacao_para_ia(db: dict) -> list[dict]:
+    colunas = ("id", "curso_id", "titulo", "iniciada_em", "status", "tentativas",
+               "canvas_estado", "canvas_modulo_nome", "atualizado_em",
+               "youtube_video_id", "youtube_titulo", "canvas_pagina_url")
+    return [
+        {
+            **{c: linha.get(c) for c in colunas},
+            "erro_detalhe": _sem_o_video(linha.get("erro_detalhe"), linha.get("youtube_video_id")),
+            "canvas_erro": _sem_o_video(linha.get("canvas_erro"), linha.get("youtube_video_id")),
+        }
+        for linha in db.get("aula_gravacao", {}).values()
+    ]
+
+
+def _listas_da_coordenacao(db: dict) -> list[dict]:
+    return [l for l in db.get("lista_questoes", {}).values() if l.get("dono_tipo") == "coordenacao"]
+
+
+def _itens_da_coordenacao(db: dict) -> list[dict]:
+    listas = {l["id"] for l in _listas_da_coordenacao(db)}
+    return [i for i in db.get("lista_questoes_item", {}).values() if i.get("lista_id") in listas]
+
+
+_VIEWS = {
+    "trilha_de_alteracoes": _trilha_de_alteracoes,
+    "nome_da_coordenacao": _nome_da_coordenacao,
+    "aula_gravacao_para_ia": _aula_gravacao_para_ia,
+    "lista_questoes_da_coordenacao": _listas_da_coordenacao,
+    "lista_questoes_item_da_coordenacao": _itens_da_coordenacao,
+}
+#: As colunas de uma view não são lidas pelo leitor de migrations: as destas
+#: estão no GRANT dela, e pedir coluna que ele não dá é 42501 no banco. O tipo das
+#: listas vem da tabela de baixo, porque uuid torto em coluna de view também é
+#: 22P02; o teste da guarda de uuid passaria sem provar nada com o tipo vazio.
+_BASE_DAS_VIEWS = {
+    "lista_questoes_da_coordenacao": "lista_questoes",
+    "lista_questoes_item_da_coordenacao": "lista_questoes_item",
+}
+_COLUNAS_DAS_VIEWS = {
+    v: (
+        {c: esquema().colunas(_BASE_DAS_VIEWS[v])[c] for c in lista_branca()[v]}
+        if v in _BASE_DAS_VIEWS
+        else dict.fromkeys(lista_branca()[v], "")
+    )
+    for v in VIEWS_DO_MCP
+}
+
+
+def _colunas_de(tabela: str) -> dict[str, str] | None:
+    return esquema().colunas(tabela) or _COLUNAS_DAS_VIEWS.get(tabela)
+
+
 def _recusar(codigo: str, mensagem: str) -> NoReturn:
     """A mesma exceção que o postgrest-py levanta com a resposta de erro."""
     raise APIError({"code": codigo, "message": mensagem, "details": None, "hint": None})
@@ -200,7 +288,7 @@ def _tabela_do_embed(tabela: str, cabeca: str) -> str:
 
 
 def _conferir_selecao(tabela: str, selecao: str) -> None:
-    colunas = esquema().colunas(tabela)
+    colunas = _colunas_de(tabela)
     if colunas is None:
         return  # view: o leitor não sabe as colunas, e o fake não as inventa
     for item in _partes(selecao or "*"):
@@ -221,7 +309,7 @@ def _conferir_no_esquema(consulta: ConsultaRica) -> None:
     if not esquema().existe(consulta.tabela):
         _recusar("PGRST205", f"Could not find the table 'public.{consulta.tabela}' in the schema cache")
     _conferir_selecao(consulta.tabela, consulta.colunas)
-    colunas = esquema().colunas(consulta.tabela)
+    colunas = _colunas_de(consulta.tabela)
     if colunas is None:
         return
     for tipo, coluna, valor in consulta.filtros:
@@ -304,7 +392,9 @@ class ConsultaRica(Query):
         if self.op != "select":
             raise AssertionError(f"tool da coordenação tentou {self.op} em {self.tabela}")
         _conferir_no_esquema(self)
-        linhas = [l for l in self.db.get(self.tabela, {}).values() if self._bate(l)]
+        visao = _VIEWS.get(self.tabela)
+        fonte = visao(self.db) if visao else self.db.get(self.tabela, {}).values()
+        linhas = [l for l in fonte if self._bate(l)]
         for coluna, desc in reversed(self._order):
             linhas.sort(key=lambda l, c=coluna: _ordenavel(l.get(c)), reverse=desc)
         n = len(linhas)
@@ -335,6 +425,23 @@ class TabelaRica:
     insert = upsert = update = delete = _escrita
 
 
+class _Rpc:
+    def __init__(self, linhas: list[dict]):
+        self.linhas = linhas
+
+    def execute(self) -> Resp:
+        return Resp(self.linhas)
+
+
+#: As RPC que uma tool pode chamar: leitura, SECURITY INVOKER, emuladas em
+#: tests/fake_captacao.py. Qualquer outra é escrita proibida, como sempre foi.
+RPCS_DE_LEITURA = {
+    "buscar_candidatos_por_conquista": lambda db, params: fake_captacao.buscar_candidatos_por_conquista(
+        db, params, casa_like=_casa_like
+    ),
+}
+
+
 class FakeRico(FakeCliente):
     """O fake de sempre com projeção, embed, os filtros que faltavam e escrita
     proibida. `consultas` guarda cada leitura, para conferir limite e formato."""
@@ -344,11 +451,15 @@ class FakeRico(FakeCliente):
         self.falhar_em = frozenset(falhar_em)
         self.consultas: list[ConsultaRica] = []
         self.escritas: list[str] = []
+        self.rpcs: list[tuple[str, dict]] = []
 
     def table(self, nome):
         return TabelaRica(self, nome)
 
-    def rpc(self, funcao, *_a, **_k):
+    def rpc(self, funcao, params=None, *_a, **_k):
+        if funcao in RPCS_DE_LEITURA:
+            self.rpcs.append((funcao, params))
+            return _Rpc(RPCS_DE_LEITURA[funcao](self.db, params or {}))
         self.escritas.append(f"rpc:{funcao}")
         raise AssertionError(f"tool da coordenação chamou rpc {funcao}")
 
@@ -379,6 +490,11 @@ MATRICULA = {aid: v[1] for aid, v in ALUNOS_SINTETICOS.items()}
 C1, C2, C3, C4 = (_id(3, n) for n in range(1, 5))
 K1, K2 = _id(7, 1), _id(7, 2)
 NOME_DA_COORDENACAO = {K1: "COORDENADORA SINTETICA", K2: "COORDENADOR OUTRO"}
+#: A sessão dos testes é a conta K1: as listas do banco têm dono, e o registro
+#: injeta o `sub` dela (`Sessao.coordenador_id`) na tool que o pede. `coord:teste`
+#: não é uuid, e para o domínio dono que não é uuid não tem lista.
+COORDENACAO = Sessao(tipo="coordenador", usuario=f"coord:{K1}", papel="coordenador")
+LISTA_OPTICA, LISTA_DO_ALUNO, LISTA_DE_OUTRA_CONTA, LISTA_PESSOAL = (_id(14, n) for n in range(1, 5))
 SEDE_AD, SEDE_ON = _id(5, 1), _id(5, 2)
 T1, T2 = _id(4, 1), _id(4, 2)
 ANO = _id(8, 1)
@@ -574,6 +690,22 @@ def nova_escola() -> Escola:
             por("questao_vestibular_topico", questao_id=qid, materia=materia, topico_codigo=codigo,
                 confianca="alta", observacao=None)
 
+    # Listas do banco, que têm dono (0029): duas da conta da sessão, uma de outra
+    # conta da coordenação e uma de aluno. As duas últimas nunca podem aparecer.
+    for lista_id, titulo, dono_tipo, dono_id, atras, itens in (
+        (LISTA_OPTICA, "Revisão de óptica", "coordenacao", K1, {"days": 1},
+         (("ita_2023_fase1_q07", 5), ("ita_2019_fase1_q01", 2), ("ita_2023_fase2_q03", 9))),
+        (LISTA_DO_ALUNO, f"Reforço para {NOME[A]}", "coordenacao", K1, {"days": 2}, ()),
+        (LISTA_DE_OUTRA_CONTA, "Lista da outra conta", "coordenacao", K2, {"hours": 1},
+         (("ita_2021_fase1_q02", 0),)),
+        (LISTA_PESSOAL, "Lista pessoal de aluno", "aluno", A, {"minutes": 1},
+         (("ita_2021_fase1_q02", 0),)),
+    ):
+        por("lista_questoes", id=lista_id, titulo=titulo, dono_tipo=dono_tipo, dono_id=dono_id,
+            criada_em=ts(days=30), atualizada_em=ts(**atras))
+        for questao_id, posicao in itens:
+            por("lista_questoes_item", lista_id=lista_id, questao_id=questao_id, posicao=posicao)
+
     # Réguas criadas e quem as criou
     for k, nome in NOME_DA_COORDENACAO.items():
         por("usuario_coordenacao", id=k, nome=nome, email=f"{k[-4:]}@escola.invalid",
@@ -704,6 +836,9 @@ def nova_escola() -> Escola:
     ), start=1):
         por("evento_auditoria", id=n, ocorrido_em=ts(**atras), acao=acao, canal=canal, ator_tipo=ator_tipo,
             ator_id=ator, recurso=recurso, ip="10.0.0.1", detalhe=detalhe, request_id=f"req-{n}")
+
+    # A captação externa: gente de fora, que nada tem a ver com os alunos acima.
+    fake_captacao.semear(por)
 
     return Escola(db=db, agora=agora, hoje_brt=hoje_brt)
 
@@ -1092,6 +1227,275 @@ class TestRecorrenciaNoBanco:
         assert "falta materia" in chamar(escola.cliente(), "recorrencia_no_banco")["erro"]
 
 
+class TestAbrirQuestaoDoBanco:
+    def _questao(self, escola, questao_id):
+        return chamar(escola.cliente(), "abrir_questao_do_banco", questao_id=questao_id)["questao"]
+
+    def test_o_recorte_e_o_enunciado_e_o_link_e_o_do_professor(self, escola):
+        q = self._questao(escola, " ita_2023_fase1_q07 ")
+        assert q["imagem"] == {"url": "https://bucket.invalid/q7.png", "papel": "enunciado"}
+        assert q["resolucao"] == {
+            "origem": "professor", "link": "https://youtu.be/RESOLUCAODOARI",
+            "texto": None, "textoCortado": False,
+        }
+        assert q["alternativas"] == {letra: f"opção {letra}" for letra in "ABCDE"}
+        assert (q["gabarito"], q["gabaritoOrigem"], q["colecao"]) == ("A", "banca", "recentes")
+
+    def test_a_resolucao_escrita_vem_em_texto_e_sem_link(self, escola):
+        q = self._questao(escola, "ita_2023_fase2_q03")
+        assert q["resolucao"] == {
+            "origem": "ia", "link": None, "texto": "Resolução escrita.", "textoCortado": False,
+        }
+        assert q["alternativas"] is None and q["imagem"] is None
+
+    def test_sem_resolucao_e_null_e_nao_um_objeto_vazio(self, escola):
+        assert self._questao(escola, "ita_2019_fase1_q01")["resolucao"] is None
+
+    @pytest.mark.parametrize(("colunas", "esperado"), [
+        ({"extraido_por": "pagina", "usa_imagem_no_render": True}, "pagina_inteira"),
+        ({"extraido_por": "visao", "usa_imagem_no_render": False}, "pagina_digitalizada"),
+        ({"extraido_por": "pipeline", "usa_imagem_no_render": False}, None),
+    ])
+    def test_a_figura_e_a_que_o_cartao_oferece(self, escola, colunas, esperado):
+        linha = escola.db["questao_vestibular"]["ita_2023_fase1_q07"]
+        linha.update(colunas)
+        imagem = self._questao(escola, "ita_2023_fase1_q07")["imagem"]
+        assert (imagem["papel"] if imagem else None) == esperado
+
+    def test_a_confianca_da_classificacao_vem_junto(self, escola):
+        ligacao = next(
+            l for l in escola.db["questao_vestibular_topico"].values()
+            if l["questao_id"] == "ita_2023_fase1_q07"
+        )
+        ligacao.update(confianca="baixa", observacao="pode ser ondas")
+        assert self._questao(escola, "ita_2023_fase1_q07")["topicos"] == [{
+            "codigo": "8.1", "nome": "Óptica Geométrica", "bloco": "Óptica",
+            "confianca": "baixa", "observacao": "pode ser ondas",
+        }]
+
+    def test_texto_longo_e_cortado_e_diz_que_foi(self, escola):
+        limite = banco_questoes.LIMITE_DO_TEXTO_NO_CARTAO
+        escola.db["questao_vestibular"]["ita_2019_fase1_q01"]["enunciado_md"] = "x" * (limite + 1)
+        q = self._questao(escola, "ita_2019_fase1_q01")
+        assert len(q["enunciado"]) == limite and q["enunciadoCortado"] is True
+
+    @pytest.mark.parametrize("questao_id", ["ita_1900_fase1_q01", "   "])
+    def test_questao_que_nao_existe(self, escola, questao_id):
+        assert "erro" in chamar(escola.cliente(), "abrir_questao_do_banco", questao_id=questao_id)
+
+    def test_exige_o_id(self, escola):
+        assert "falta questao_id" in chamar(escola.cliente(), "abrir_questao_do_banco")["erro"]
+
+
+class TestPanoramaDoBanco:
+    def _recorte(self, resposta, materia, vestibular):
+        return next(
+            r for r in resposta["recortes"] if (r["materia"], r["vestibular"]) == (materia, vestibular)
+        )
+
+    def test_conta_por_materia_e_vestibular(self, escola):
+        r = chamar(escola.cliente(), "panorama_do_banco")
+        assert [(c["materia"], c["vestibular"]) for c in r["recortes"]] == [
+            ("Física", "ITA"), ("Física", "IME"), ("Química", "ITA"), ("Química", "IME"),
+        ]
+        assert (r["totalQuestoes"], r["semClassificacao"]) == (8, 1)
+        fisica_ita = self._recorte(r, "Física", "ITA")
+        assert {k: v for k, v in fisica_ita.items() if k != "porAno"} == {
+            "materia": "Física", "vestibular": "ITA", "totalQuestoes": 5, "semClassificacao": 1,
+            "dissertativas": 1, "gabaritoDaBanca": 2, "gabaritoSugerido": 1,
+            "resolucaoDoProfessor": 1, "resolucaoEscrita": 1, "recentes": 5, "arquivo": 0,
+        }
+
+    def test_ano_a_ano_e_so_com_os_anos_que_o_acervo_tem(self, escola):
+        r = chamar(escola.cliente(), "panorama_do_banco", materia="Física", vestibular="ITA")
+        assert self._recorte(r, "Física", "ITA")["porAno"] == [
+            {"ano": 2019, "fase1": 1, "fase2": 0, "semClassificacao": 0},
+            {"ano": 2021, "fase1": 1, "fase2": 0, "semClassificacao": 0},
+            {"ano": 2023, "fase1": 1, "fase2": 1, "semClassificacao": 0},
+            {"ano": 2024, "fase1": 1, "fase2": 0, "semClassificacao": 1},
+        ]
+
+    def test_a_colecao_e_a_do_dominio(self, escola):
+        r = chamar(escola.cliente(), "panorama_do_banco", materia="Física", vestibular="IME")
+        recorte = self._recorte(r, "Física", "IME")
+        assert (recorte["recentes"], recorte["arquivo"]) == (0, 1)
+
+    def test_bate_com_a_arvore_de_assuntos(self, escola):
+        """O mesmo acervo não pode ter dois `semClassificacao`: a árvore da tela
+        é o oráculo, e os dois leem a ligação na mesma matéria."""
+        for arvore in consultas.listar_taxonomia(escola.cliente()):
+            r = chamar(escola.cliente(), "panorama_do_banco", materia=arvore.materia)
+            assert (r["totalQuestoes"], r["semClassificacao"]) == (arvore.totalQuestoes, arvore.semClassificacao)
+
+    def test_ligacao_de_outra_materia_nao_classifica(self, escola):
+        """Metade da FK composta: a ligação guarda a matéria por conta própria."""
+        ligacao = next(
+            l for l in escola.db["questao_vestibular_topico"].values()
+            if l["questao_id"] == "ita_2019_fase1_q01"
+        )
+        ligacao["materia"] = "Química"
+        r = chamar(escola.cliente(), "panorama_do_banco", materia="Física", vestibular="ITA")
+        assert self._recorte(r, "Física", "ITA")["semClassificacao"] == 2
+
+    def test_a_leitura_nao_tem_teto(self, escola):
+        cliente = escola.cliente()
+        chamar(cliente, "panorama_do_banco")
+        for tabela in ("questao_vestibular", "questao_vestibular_topico"):
+            assert all(c._limit is None and c._range is None for c in cliente.em(tabela))
+
+    def test_recorte_sem_acervo_nao_aparece(self, escola):
+        r = chamar(escola.cliente(), "panorama_do_banco", materia="Matemática")
+        assert (r["totalQuestoes"], r["recortes"]) == (0, [])
+
+
+class TestCalibracaoDaImportancia:
+    def _com_versoes(self, escola, quantas=2):
+        for versao in range(1, quantas + 1):
+            ativa = versao == quantas
+            escola.db.setdefault("parametro_importancia", {})[versao] = {
+                "versao": versao, "meia_vida_anos": 3.0 if ativa else 5.0, "janela_tendencia_anos": 4,
+                "ativo": ativa, "criado_em": f"2026-0{versao}-01T12:00:00+00:00",
+                "criado_por": NOME_DA_COORDENACAO[K2] if ativa else "migration 0044",
+            }
+
+    def test_o_quadro_e_o_do_dominio(self, escola):
+        self._com_versoes(escola)
+        oraculo = importancia.calibracao_em_vigor(escola.cliente())
+        r = chamar(escola.cliente(), "calibracao_da_importancia")
+        assert (r["meiaVidaAnos"], r["janelaTendenciaAnos"], r["versao"]) == (3.0, 4, 2)
+        assert r["deFabrica"] is False
+        assert r["padrao"] == {
+            "meiaVidaAnos": oraculo["meiaVidaPadrao"], "janelaTendenciaAnos": oraculo["janelaTendenciaPadrao"],
+        }
+        assert r["meiaVidaMaxima"] == oraculo["meiaVidaMaxima"]
+
+    def test_o_historico_diz_quem_e_quando_da_mais_nova_para_a_mais_velha(self, escola):
+        self._com_versoes(escola)
+        r = chamar(escola.cliente(), "calibracao_da_importancia")
+        assert r["historico"] == [
+            {"versao": 2, "meiaVidaAnos": 3.0, "janelaTendenciaAnos": 4, "ativa": True,
+             "criadaEm": "2026-02-01T12:00:00+00:00", "criadaPor": NOME_DA_COORDENACAO[K2]},
+            {"versao": 1, "meiaVidaAnos": 5.0, "janelaTendenciaAnos": 4, "ativa": False,
+             "criadaEm": "2026-01-01T12:00:00+00:00", "criadaPor": "migration 0044"},
+        ]
+
+    def test_de_fabrica_sem_nenhuma_versao(self, escola):
+        r = chamar(escola.cliente(), "calibracao_da_importancia")
+        assert (r["versao"], r["deFabrica"], r["historico"]) == (None, True, [])
+        assert r["meiaVidaAnos"] == importancia.MEIA_VIDA_PADRAO
+
+    def test_o_efeito_e_o_peso_do_dominio(self, escola):
+        r = chamar(escola.cliente(), "calibracao_da_importancia")
+        assert r["efeito"] == [
+            {"anosAtras": 1, "pesoPct": 87.1}, {"anosAtras": 3, "pesoPct": 66.0},
+            {"anosAtras": 5, "pesoPct": 50.0}, {"anosAtras": 10, "pesoPct": 25.0},
+            {"anosAtras": 15, "pesoPct": 12.5},
+        ]
+
+    def test_limite_corta_o_historico_e_diz_que_cortou(self, escola):
+        self._com_versoes(escola, quantas=4)
+        r = chamar(escola.cliente(), "calibracao_da_importancia", limite=3)
+        assert [v["versao"] for v in r["historico"]] == [4, 3, 2]
+        assert (r["totalDeVersoes"], r["truncado"]) == (4, True)
+
+    def test_historico_ilegivel_e_falha_e_nao_lista_vazia(self, escola):
+        """`carregar_parametro` engole a falha e cai no valor de fábrica; o
+        histórico não pode engolir: vazio diria que ninguém mexeu no botão."""
+        r = chamar(escola.cliente(falhar_em=["parametro_importancia"]), "calibracao_da_importancia")
+        assert "falhou do nosso lado" in r["erro"]
+
+
+class TestMinhasListasDoBanco:
+    def _como(self, escola, coordenador, ferramenta="minhas_listas_do_banco", **args):
+        sessao = Sessao(tipo="coordenador", usuario=f"coord:{coordenador}", papel="coordenador")
+        return REGISTRO.despachar(sessao, ferramenta, escola.cliente(), args)
+
+    def test_so_as_listas_da_conta_da_mexida_mais_recente_para_a_mais_antiga(self, escola):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco")
+        assert [(l["id"], l["totalQuestoes"]) for l in r["listas"]] == [(LISTA_OPTICA, 3), (LISTA_DO_ALUNO, 0)]
+        assert (r["total"], r["truncado"]) == (2, False)
+        assert "Lista da outra conta" not in _texto(r) and "Lista pessoal" not in _texto(r)
+
+    def test_a_outra_conta_ve_as_dela(self, escola):
+        r = self._como(escola, K2)
+        assert [l["id"] for l in r["listas"]] == [LISTA_DE_OUTRA_CONTA]
+
+    def test_nao_devolve_o_dono(self, escola):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco")
+        assert K1 not in _texto(r) and "dono" not in _texto(r)
+
+    def test_as_questoes_vem_na_ordem_de_quem_montou(self, escola):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco", lista_id=f" {LISTA_OPTICA} ")
+        assert r["lista"]["titulo"] == "Revisão de óptica"
+        assert [(q["posicao"], q["id"]) for q in r["questoes"]] == [
+            (1, "ita_2019_fase1_q01"), (2, "ita_2023_fase1_q07"), (3, "ita_2023_fase2_q03"),
+        ]
+        assert "enunciadoResumo" in r["questoes"][0] and (r["mostradas"], r["truncado"]) == (3, False)
+
+    def test_limite_corta_a_saida_e_diz_que_cortou(self, escola):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco", lista_id=LISTA_OPTICA, limite=2)
+        assert len(r["questoes"]) == 2 and (r["lista"]["totalQuestoes"], r["truncado"]) == (3, True)
+        indice = chamar(escola.cliente(), "minhas_listas_do_banco", limite=1)
+        assert len(indice["listas"]) == 1 and (indice["total"], indice["truncado"]) == (2, True)
+
+    @pytest.mark.parametrize("lista_id", [LISTA_DE_OUTRA_CONTA, LISTA_PESSOAL, _id(14, 99), "nao-e-uuid"])
+    def test_lista_alheia_e_lista_inexistente_dao_o_mesmo_erro(self, escola, lista_id):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco", lista_id=lista_id)
+        assert r == {
+            "erro": (
+                f"não existe a lista '{lista_id}' entre as suas. O id vem de "
+                "minhas_listas_do_banco chamada sem lista_id."
+            )
+        }
+
+    def test_o_modelo_nao_escolhe_o_dono(self, escola, caplog):
+        with caplog.at_level("WARNING", logger="sas.chat.ferramentas"):
+            r = chamar(escola.cliente(), "minhas_listas_do_banco", coordenador_id=K2)
+        assert [l["id"] for l in r["listas"]] == [LISTA_OPTICA, LISTA_DO_ALUNO]
+        assert "identidade no argumento descartada: coordenador_id" in caplog.text
+
+    def test_sessao_que_nao_e_conta_nao_tem_lista(self, escola):
+        """O verificador do MCP entra com `coord:verificacao-mcp`: sem a guarda
+        do domínio, o `.eq("dono_id", ...)` seria 22P02 (uuid torto)."""
+        assert self._como(escola, "verificacao-mcp")["listas"] == []
+        assert "erro" in self._como(escola, "verificacao-mcp", lista_id=LISTA_OPTICA)
+
+    def test_le_pela_view_e_nunca_pela_tabela(self, escola):
+        """No MCP, a tabela é 42501: uma leitura direta aqui só cairia em produção."""
+        for args in ({}, {"lista_id": LISTA_OPTICA}):
+            cliente = escola.cliente()
+            assert "erro" not in chamar(cliente, "minhas_listas_do_banco", **args)
+            assert cliente.em("lista_questoes_da_coordenacao")
+            assert cliente.em("lista_questoes_item_da_coordenacao")
+            assert not cliente.em("lista_questoes") and not cliente.em("lista_questoes_item")
+
+    def test_sem_identidade_e_erro_e_nao_le_nada(self):
+        cliente = FakeRico({})
+        assert "erro" in banco_questoes.minhas_listas_do_banco(cliente)
+        assert cliente.consultas == []
+
+
+class TestIdentidadeDaCoordenacao:
+    def test_o_sub_sai_de_usuario(self):
+        assert Sessao(tipo="coordenador", usuario=f"coord:{K1}").coordenador_id == K1
+        assert Sessao(tipo="coordenador", usuario="coord:").coordenador_id is None
+        assert Sessao(tipo="aluno", usuario=f"aluno:{A}", aluno_id=A).coordenador_id is None
+
+    def test_nenhuma_tool_da_coordenacao_declara_a_identidade(self):
+        """Como `aluno_id` no outro escopo: no schema, o modelo a veria como
+        algo que se pode escolher."""
+        assert not [f.nome for f in REGISTRO.catalogo("coordenacao") if "coordenador_id" in f.propriedades]
+
+    def test_so_a_tool_que_pede_recebe(self):
+        """Quase toda tool da coordenação não aceita `coordenador_id`: injetá-lo
+        em todas seria `TypeError` no catálogo inteiro."""
+        pedem = {
+            f.nome for f in REGISTRO.catalogo("coordenacao")
+            if "coordenador_id" in parametros_do_handler(f.handler)[0]
+        }
+        assert pedem == {"minhas_listas_do_banco"}
+
+
 # ─── Réguas ──────────────────────────────────────────────────────────────
 
 
@@ -1122,6 +1526,19 @@ class TestReguasDeCorte:
         texto = _texto(r)
         assert K1 not in texto and K2 not in texto and "@escola.invalid" not in texto
         assert "http" not in texto and all("[endereço]" in p["fonte"] for p in r["predicados"])
+
+    def test_o_nome_de_quem_criou_nao_vem_da_tabela_da_credencial(self, escola):
+        cliente = escola.cliente()
+        chamar(cliente, "reguas_de_corte", slug=REGUA_CRIADA)
+        assert cliente.em(auditoria.VIEW_DOS_NOMES) and not cliente.em("usuario_coordenacao")
+
+    def test_a_lista_e_as_versoes_tem_limite(self, escola):
+        """Sem o parâmetro, o teto do MCP não alcançaria a lista (catalogo.py)."""
+        lista = chamar(escola.cliente(), "reguas_de_corte", limite=2)
+        assert len(lista["reguas"]) == 2 and lista["total"] == 6 and lista["truncado"] is True
+        assert chamar(escola.cliente(), "reguas_de_corte")["truncado"] is False
+        detalhe = chamar(escola.cliente(), "reguas_de_corte", slug=REGUA_CRIADA, limite=1)
+        assert [v["versao"] for v in detalhe["versoes"]] == [2] and detalhe["totalVersoes"] == 2
 
     def test_slug_que_nao_existe(self, escola):
         r = chamar(escola.cliente(), "reguas_de_corte", slug="nao-existe")
@@ -1308,11 +1725,27 @@ class TestEstadoDasGravacoes:
         }
         assert r["comProblema"] == 7 and r["totalAulas"] == 10
 
-    def test_nunca_sai_link_de_video_de_menores(self, escola):
-        texto = _texto(chamar(escola.cliente(), "estado_das_gravacoes", so_problemas=False, limite=30))
-        for proibido in ("VIDEOSECRETO", "youtu", "instructure.com/courses", "youtubeTitulo", "canvasUrl",
-                         "googleapis", "ya29", "bucket-com-menores", "aulas/"):
+    def test_o_link_sai_como_na_tela_e_o_s3_nao(self, escola):
+        """Decisão da coordenação em 30/10: a IA recebe o link do vídeo, que a
+        tela mostra. O S3 e o que vem no texto de erro continuam de fora."""
+        r = chamar(escola.cliente(), "estado_das_gravacoes", so_problemas=False, limite=30)
+        com_video = [a for a in r["aulas"] if a["youtubeUrl"]]
+        assert com_video and all(a["youtubeUrl"].startswith("https://youtu.be/VIDEOSECRETO") for a in com_video)
+        assert any(a["canvasUrl"] for a in r["aulas"])
+        texto = _texto(r)
+        for proibido in ("youtubeTitulo", "googleapis", "ya29", "bucket-com-menores", "aulas/"):
             assert proibido not in texto
+
+    def test_a_tool_le_a_view_e_nao_pede_o_s3(self, escola):
+        """O `sas_mcp` não lê `aula_gravacao` (0074): o caminho é um só, no chat
+        e no MCP, e nenhuma coluna de S3 aparece no pedido."""
+        cliente = escola.cliente()
+        chamar(cliente, "estado_das_gravacoes", so_problemas=False)
+        (aulas,) = cliente.em(gravacoes.VIEW_PARA_IA)
+        assert not cliente.em("aula_gravacao")
+        assert not re.search(r"s3_|conferencia|canvas_pagina_slug", aulas.colunas)
+        (cursos,) = cliente.em("curso_monitorado_gravacao")
+        assert "professor" not in cursos.colunas and "canvas_modulo_id" not in cursos.colunas
 
     def test_o_video_nao_sai_nem_dentro_do_erro(self, escola):
         """O `Failing row contains (…)` do Postgres despeja a linha da aula, com
@@ -1438,6 +1871,34 @@ class TestLembretesAgendados:
         assert chamar(escola.cliente(), "lembretes_agendados", dias=1000)["janelaDias"] == rotinas.TETO_DE_DIAS
         assert chamar(escola.cliente(), "lembretes_agendados", dias=-3)["janelaDias"] == 0
 
+    def test_os_eventos_tem_limite_e_a_fila_nao(self, escola, ligado):
+        """O limite corta o detalhe, não a conta: a fila é uma contagem da tabela."""
+        r = chamar(escola.cliente(), "lembretes_agendados", dias=30, limite=1)
+        assert [e["eventoId"] for e in r["eventos"]] == [EV1]
+        assert r["totalEventos"] == 3 and r["truncado"] is True
+        assert r["fila"]["agendadosNaJanela"] >= 2
+
+    def test_pelo_mcp_nao_repete_o_ambiente_de_um_processo_que_nao_manda_email(self, escola, monkeypatch):
+        """O processo do MCP não tem o ambiente da API: `get_settings()` lá
+        devolve o valor de fábrica, e `emailConfigurado=false` faria a IA dizer
+        que nenhum e-mail sai com o SES ligado. Tudo o que vem do banco fica."""
+        monkeypatch.setattr(rotinas, "get_settings", lambda: pytest.fail("leu o ambiente do processo do MCP"))
+        with superficie.chamada_pelo_mcp():
+            r = chamar(escola.cliente(), "lembretes_agendados", dias=7)
+        configuracao = r["configuracao"]
+        assert configuracao.pop("aviso").startswith("Esta conexão não enxerga")
+        assert configuracao == {
+            "emailConfigurado": None, "lembretesDeAlunoLigados": None, "horaLembreteAluno": None,
+            "tetoDiario": None, "enviadosNasUltimas24h": 1,
+        }
+        para_alunos = [l for e in r["eventos"] for l in e["lembretes"] if l["para"] == "alunos"]
+        assert para_alunos and all(l["enviarEm"] is None for l in para_alunos)
+        # O do coordenador sai da hora do evento, que é dado do banco.
+        coordenador = next(l for l in r["eventos"][0]["lembretes"] if l["para"] == "coordenador")
+        assert coordenador["enviarEm"] is not None
+        assert r["alunosPorDia"][0]["enviarEm"] is None and r["alunosPorDia"][0]["disparosMontados"] == 2
+        assert r["fila"]["agendadosNaJanela"] == 2
+
 
 # ─── Trilha de auditoria ─────────────────────────────────────────────────
 
@@ -1446,10 +1907,54 @@ class TestHistoricoDeAlteracoes:
     def test_so_os_canais_da_trilha(self, escola):
         r = chamar(escola.cliente(), "historico_de_alteracoes")
         assert [e["acao"] for e in r["eventos"]] == [
-            "ciclo_criado", "criterio_criado", "enviado_ao_canvas", "simulado_editado",
-            "nota_editada", "nota_editada",
+            "ciclo_criado", "busca", "pedido_criado", "criterio_criado", "enviado_ao_canvas",
+            "simulado_editado", "nota_editada", "nota_editada",
         ]
         assert {e["canal"] for e in r["eventos"]} <= set(trilha.CANAIS_DA_TRILHA)
+
+    def test_cantina_e_captacao_entram_com_o_detalhe_fechado(self, escola):
+        """Decisão de 30/10: a tela de auditoria mostra os dois canais, e a IA lê
+        o que o coordenador lê. O detalhe é que não vem inteiro: a conta da
+        cantina leva o e-mail, e o nome do candidato voltaria pelo pseudônimo."""
+        ts = escola.hoje_brt.isoformat() + "T12:00:00+00:00"
+        base = {"ocorrido_em": ts, "ator_tipo": "coordenador", "ator_id": K1, "ip": "10.0.0.9", "request_id": "req-x"}
+        semente = {
+            901: ("cantina", "conta_cantina_criada", "usuario_cantina/1", {"email": "conta@cantina.invalid", "nome": "CONTA"}),
+            902: ("cantina", "direito_refeicao_concedido", None, {"refeicao": "almoco", "alunos": [A, B]}),
+            903: ("captacao", "captacao_perfil_criado", "candidato_externo/1", {"nome_normalizado": "candidato de fora"}),
+            904: ("captacao", "captacao_status_alterado", "candidato_externo/1", {"valor_antes": "novo", "valor_depois": "contatado"}),
+        }
+        for n, (canal, acao, recurso, detalhe) in semente.items():
+            escola.db["evento_auditoria"][n] = {**base, "id": n, "canal": canal, "acao": acao, "recurso": recurso, "detalhe": detalhe}
+        r = chamar(escola.cliente(), "historico_de_alteracoes", canal="cantina")
+        por_acao = {e["acao"]: e for e in r["eventos"]}
+        assert por_acao["conta_cantina_criada"]["detalhe"] == {}
+        assert por_acao["direito_refeicao_concedido"]["detalhe"] == {"refeicao": "almoco", "totalDeAlunos": 2}
+        r = chamar(escola.cliente(), "historico_de_alteracoes", canal="captacao")
+        por_acao = {e["acao"]: e for e in r["eventos"]}
+        assert por_acao["captacao_perfil_criado"]["detalhe"] == {}
+        assert por_acao["captacao_status_alterado"]["detalhe"] == {"valor_antes": "novo", "valor_depois": "contatado"}
+        texto = _texto(r)
+        for proibido in ("candidato de fora", "conta@cantina", "10.0.0.9"):
+            assert proibido not in texto
+
+    @pytest.mark.parametrize("acao", trilha.ACOES_FORA_DA_TRILHA)
+    def test_login_da_cantina_e_restricao_nao_entram_pelo_canal_aberto(self, escola, acao):
+        """O canal `cantina` grava também os logins, e em `login_falhou` o
+        `ator_id` é o que a pessoa digitou (prova integrada de 30/10). E a edição
+        da restrição, com o id do aluno, diria quem a tem com a tool dela desligada."""
+        ts = escola.hoje_brt.isoformat() + "T12:00:00+00:00"
+        escola.db["evento_auditoria"][950] = {
+            "id": 950, "ocorrido_em": ts, "canal": "cantina", "acao": acao, "ator_tipo": "cantina",
+            "ator_id": "digitado@cantina.invalid", "recurso": f"aluno/{A}", "ip": "10.0.0.9",
+            "detalhe": {"preenchida": True}, "request_id": "req-y",
+        }
+        texto = _texto(chamar(escola.cliente(), "historico_de_alteracoes", canal="cantina"))
+        assert acao not in texto and "digitado@cantina" not in texto
+
+    @pytest.mark.parametrize("canal", ["acesso", "mcp"])
+    def test_os_canais_de_login_e_do_proprio_mcp_continuam_fora(self, escola, canal):
+        assert "erro" in chamar(escola.cliente(), "historico_de_alteracoes", canal=canal)
 
     def test_nada_de_ip_request_id_ator_cru_nem_chave_fora_da_lista(self, escola):
         texto = _texto(chamar(escola.cliente(), "historico_de_alteracoes"))
@@ -1474,13 +1979,13 @@ class TestHistoricoDeAlteracoes:
         ({"aluno_id": A, "simulado_id": S["FIS_F2"]}, [7, 4]),
         ({"ciclo_id": C2}, [11]),
         ({"regua_slug": REGUA_CRIADA}, [8]),
-        ({"ator_nome": "coordenadora"}, [6, 4]),
+        ({"ator_nome": "coordenadora"}, [10, 6, 4]),
         ({"acao": "nota_editada"}, [5, 4]),
     ])
     def test_filtros_montados_de_id_validado(self, escola, filtro, esperadas):
         cliente = escola.cliente()
         r = chamar(cliente, "historico_de_alteracoes", **filtro)
-        ids = [linha["id"] for c in cliente.em("evento_auditoria") for linha in c.execute().data]
+        ids = [linha["id"] for c in cliente.em(auditoria.VIEW_DAS_ALTERACOES) for linha in c.execute().data]
         assert ids == esperadas, r
 
     def test_periodo_no_calendario_da_escola_e_em_z(self, escola):
@@ -1488,12 +1993,12 @@ class TestHistoricoDeAlteracoes:
         desde = (escola.hoje_brt - timedelta(days=1)).isoformat()
         recentes = chamar(cliente, "historico_de_alteracoes", desde=desde)
         assert {e["acao"] for e in recentes["eventos"]} == {
-            "ciclo_criado", "criterio_criado", "enviado_ao_canvas", "simulado_editado",
+            "ciclo_criado", "busca", "pedido_criado", "criterio_criado", "enviado_ao_canvas", "simulado_editado",
         }
         ate = (escola.hoje_brt - timedelta(days=5)).isoformat()
         antigos = chamar(escola.cliente(), "historico_de_alteracoes", ate=ate)
         assert [e["acao"] for e in antigos["eventos"]] == ["nota_editada", "nota_editada"]
-        for consulta in cliente.em("evento_auditoria"):
+        for consulta in cliente.em(auditoria.VIEW_DAS_ALTERACOES):
             for tipo, _, valor in consulta.filtros:
                 if tipo in ("gte", "lte"):
                     assert valor.endswith("Z") and "+" not in valor
@@ -1505,7 +2010,7 @@ class TestHistoricoDeAlteracoes:
     def test_entrada_torta_e_erro_sem_ler(self, escola, args):
         cliente = escola.cliente()
         assert "erro" in chamar(cliente, "historico_de_alteracoes", **args)
-        assert not cliente.em("evento_auditoria")
+        assert not cliente.em(auditoria.VIEW_DAS_ALTERACOES)
 
     def test_canal_de_acesso_nem_e_opcao(self, escola):
         assert "erro" in chamar(escola.cliente(), "historico_de_alteracoes", canal="acesso")
@@ -1517,7 +2022,22 @@ class TestHistoricoDeAlteracoes:
     def test_limite(self, escola):
         cliente = escola.cliente()
         chamar(cliente, "historico_de_alteracoes", limite=1000)
-        assert cliente.em("evento_auditoria")[0]._limit == trilha.TETO_DE_EVENTOS
+        assert cliente.em(auditoria.VIEW_DAS_ALTERACOES)[0]._limit == trilha.TETO_DE_EVENTOS
+
+    def test_le_as_views_e_nunca_as_tabelas(self, escola):
+        """O `sas_mcp` não lê `evento_auditoria` nem `usuario_coordenacao` (0074):
+        pela tabela, a tool passaria aqui e daria 42501 no MCP."""
+        cliente = escola.cliente()
+        r = chamar(cliente, "historico_de_alteracoes", ator_nome="coordenadora")
+        assert r["eventos"] and r["eventos"][0]["quem"] == "COORDENADORA SINTETICA"
+        assert cliente.em(auditoria.VIEW_DOS_NOMES)
+        assert not cliente.em("evento_auditoria") and not cliente.em("usuario_coordenacao")
+
+    def test_a_consulta_nao_pede_ip_nem_request_id(self, escola):
+        cliente = escola.cliente()
+        chamar(cliente, "historico_de_alteracoes")
+        (consulta,) = cliente.em(auditoria.VIEW_DAS_ALTERACOES)
+        assert "ip" not in _partes(consulta.colunas) and "request_id" not in _partes(consulta.colunas)
 
 
 # ─── O que vale para todas as tools novas ────────────────────────────────
@@ -1527,6 +2047,10 @@ NOVAS = {
     "topicos_do_edital": {},
     "buscar_questoes_do_banco": {"materia": "Física"},
     "recorrencia_no_banco": {"materia": "Física"},
+    "abrir_questao_do_banco": {"questao_id": "ita_2023_fase1_q07"},
+    "panorama_do_banco": {},
+    "calibracao_da_importancia": {},
+    "minhas_listas_do_banco": {},
     "reguas_de_corte": {"slug": REGUA_CRIADA},
     "cortados_pela_regua": {"ciclo_id": C2},
     "estado_do_sync_canvas": {},
@@ -1605,6 +2129,8 @@ class TestOFakeConfereOEsquema:
         """Coluna inventada na semente engana do mesmo jeito que a pedida pela
         tool: o `fase=None` dos simulados daqui era isso."""
         for tabela, linhas in escola.db.items():
+            if tabela in esquema().views:
+                continue  # as colunas de view não são lidas, e o fake não as inventa
             colunas = esquema().colunas(tabela)
             assert colunas is not None, tabela
             for linha in linhas.values():
@@ -1650,6 +2176,19 @@ EXEMPLOS: dict[str, dict[str, Any]] = {
     "questoes_do_simulado": {"simulado_id": S["FIS_F2"]},
     "navegar_para": {"tipo": "aluno", "id": A},
     "roteiro_da_coordenacao": {"nome": "diagnostico_do_ciclo"},
+    # A cantina (decisão de 30/10): aqui sem cardápio nenhum, o caminho do vazio.
+    # O caminho cheio está em test_chat_tools_cantina.py.
+    "cantinas_e_regras": {},
+    "calendario_da_cantina": {},
+    "cardapio_da_cantina": {},
+    "pedidos_da_refeicao": {"refeicao": "almoco"},
+    "custos_da_cantina": {},
+    "direitos_a_refeicao": {},
+    "restricoes_alimentares": {},
+    "buscar_candidatos_externos": {"uf": "CE", "conquistas_min": 1},
+    "buscar_candidatos_por_conquista": {"provas": ["OBF"], "faixas": ["ouro"], "publicos": ["medio"]},
+    "perfil_do_candidato_externo": {"nome_normalizado": fake_captacao.ANA},
+    "provas_da_captacao": {},
 }
 
 

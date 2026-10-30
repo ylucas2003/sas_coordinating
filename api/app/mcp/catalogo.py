@@ -43,14 +43,20 @@ log = logging.getLogger("sas.mcp.catalogo")
 ESCOPO = "coordenacao"
 
 #: Os nomes de parâmetro que são TETO de linhas nas tools do registro (todos
-#: inteiros: `limite` em dez tools, `k` em `alunos_similares`). Tool nova com
+#: inteiros: `limite` na maioria das tools, `k` em `alunos_similares`). Tool nova com
 #: outro nome de limite entra aqui — `test_mcp_catalogo` quebra se um inteiro
 #: de tool exposta não estiver aqui nem em `INTEIROS_QUE_NAO_SAO_LIMITE`.
 NOMES_DE_LIMITE = frozenset({"limite", "k"})
 
 #: Inteiros de tool exposta que NÃO limitam linhas (um ano, um número de
-#: ciclo). Vazia hoje; declarar aqui é dizer, por escrito, que não é teto.
-INTEIROS_QUE_NAO_SAO_LIMITE: frozenset[str] = frozenset()
+#: ciclo); declarar aqui é dizer, por escrito, que não é teto. Os da captação
+#: externa (30/10, chat/tools/captacao.py) são ano de conquista, ano letivo de
+#: referência do público e o mínimo de conquistas de um nome — filtros, que
+#: com teto mudariam a pergunta em vez de encurtar a resposta. `dias` é a
+#: janela de `lembretes_agendados`, com o teto próprio de 30 no handler.
+INTEIROS_QUE_NAO_SAO_LIMITE: frozenset[str] = frozenset(
+    {"ano", "ano_min", "ano_max", "ano_ingresso", "conquistas_min", "dias"}
+)
 
 #: As tools expostas que só servem com o NOME do aluno saindo do SAS. Entraram
 #: em 26/10, quando o dono decidiu que o MCP mostra o nome
@@ -60,7 +66,29 @@ INTEIROS_QUE_NAO_SAO_LIMITE: frozenset[str] = frozenset()
 #: provedor o par nome ↔ matrícula que o pseudônimo existe para não entregar,
 #: e `listar_alertas` traz o nome interpolado no título, gravado uma vez — o
 #: portão do pseudônimo (passada 3) recusaria toda chamada.
-SO_COM_NOME_DO_ALUNO: frozenset[str] = frozenset({"buscar_aluno_por_nome", "listar_alertas"})
+#:
+#: As duas da cantina (30/10): `custos_da_cantina` traz o nome do aluno como
+#: rótulo da soma (`porAluno`), sem identidade ao lado, e o portão a recusaria
+#: inteira; e `restricoes_alimentares` passaria pelo portão, mas é dado de saúde
+#: de menor (LGPD art. 11), e "Aluno <matrícula>" ao lado dele continua dado
+#: pessoal sensível: o modo conservador não o manda.
+#:
+#: E as três da captação externa que devolvem nome de pessoa (30/10,
+#: chat/tools/captacao.py). Não é nome de ALUNO — é gente de fora, muitas
+#: vezes menor, que nunca se cadastrou no SAS —, mas o nome é o próprio objeto
+#: delas, e não há matrícula por que trocá-lo: com a opção que esconde o nome
+#: de quem é da escola ligada, o de quem é de fora também não sai.
+#: `provas_da_captacao` não tem pessoa e fica nos dois modos.
+#:
+#: `minhas_listas_do_banco` (30/10) entra pela dúvida, não pela certeza: o
+#: título da lista é texto livre de quem a montou ("Revisão do <aluno>"), e o
+#: portão só pega o nome ATUAL e inteiro — apelido e primeiro nome passariam.
+SO_COM_NOME_DO_ALUNO: frozenset[str] = frozenset({
+    "buscar_aluno_por_nome", "listar_alertas",
+    "custos_da_cantina", "restricoes_alimentares",
+    "buscar_candidatos_externos", "buscar_candidatos_por_conquista", "perfil_do_candidato_externo",
+    "minhas_listas_do_banco",
+})
 
 #: Os trechos da descrição do CHAT que o tools/list publica trocados, por
 #: tool: (o trecho como está no chat, o que o MCP publica no lugar). Cada um
@@ -80,6 +108,14 @@ TROCAS_NOS_DOIS_MODOS: dict[str, tuple[tuple[str, str], ...]] = {
             "— a resposta diz o total e se a lista foi cortada (truncado); a lista inteira fica no SAS.",
         ),
     ),
+    # Aqui o trecho não cita a tool, mas manda oferecer o que ela faz: a IA de
+    # fora prometeria um CSV que esta conexão não tem como gerar.
+    "cortados_pela_regua": (
+        (
+            "Se a lista for longa, diga o total e ofereça exportar.",
+            "Se a lista for longa, diga o total e se ela foi cortada (truncado); a lista inteira fica no SAS.",
+        ),
+    ),
 }
 
 #: Só com o pseudônimo, que tira `buscar_aluno_por_nome` do catálogo
@@ -92,6 +128,7 @@ TROCAS_COM_PSEUDONIMO: dict[str, tuple[tuple[str, str], ...]] = {
         ("'compare a Ana com o Pedro'", "'compare o Aluno 2026001 com o Aluno 2026002'"),
         ("buscar_aluno_por_nome", "buscar_aluno_por_matricula"),
     ),
+    "historico_de_alteracoes": (("buscar_aluno_por_nome", "buscar_aluno_por_matricula"),),
 }
 
 _INTEIRO = re.compile(r"[+-]?\d+")

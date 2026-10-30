@@ -207,6 +207,33 @@ def historico(cliente) -> list[dict]:
     return resposta.data or []
 
 
+def calibracao_em_vigor(cliente) -> dict:
+    """O que a tela de Calibração lê: o valor em vigor, os de fábrica, o teto da
+    meia-vida e o histórico de quem já girou o botão.
+
+    Nasceu montada em `GET /banco/importancia/parametro` e desceu para cá em
+    30/10, quando a tool `calibracao_da_importancia` passou a ler o mesmo
+    (docs/43 §4.4): duas montagens do mesmo quadro divergiriam no primeiro
+    campo novo que entrasse só de um lado.
+
+    ⚠️ A leitura do valor em vigor nunca levanta (`carregar_parametro`); a do
+    histórico, sim — e é de propósito: a tela já trata a falha dela como
+    "edição indisponível", e um histórico vazio por erro diria que ninguém
+    nunca mexeu no botão.
+    """
+    atual = carregar_parametro(cliente)
+    return {
+        "meiaVidaAnos": atual.meia_vida_anos,
+        "janelaTendenciaAnos": atual.janela_tendencia_anos,
+        # Nulo = de fábrica. A tela diz isso em vez de fingir que é a versão 1.
+        "versao": atual.versao,
+        "meiaVidaPadrao": MEIA_VIDA_PADRAO,
+        "janelaTendenciaPadrao": JANELA_TENDENCIA_PADRAO,
+        "meiaVidaMaxima": MEIA_VIDA_MAXIMA,
+        "historico": historico(cliente),
+    }
+
+
 class ParametroInvalido(ValueError):
     """Valor que o CHECK do banco recusaria — barrado antes de chegar lá, para
     a tela poder dizer o que está errado em vez de devolver um 500."""

@@ -84,11 +84,11 @@ sas/
 │                 são o modelo vigente, o resto é histórico; 42 é o horário
 │                 de estudos do aluno (em produção); **43 é o das ferramentas
 │                 do assistente e do MCP da coordenação** (nasceu 42 e passou a
-│                 43 em 27/10) — Fases 0 a 3 em produção desde 27/10, menos
-│                 o processo do MCP; o §0.1 e o §0.2 dele são as decisões do
-│                 dono de 26 e 27/10, o §8 o que NÃO foi verificado (o §8.1,
-│                 a prova de ponta a ponta de 27/10), o §9 a ordem do deploy
-│                 e o §10 o MCP no `infra/vps` e como ligá-lo
+│                 43 em 27/10) — em produção, com o MCP ligado desde 29/10;
+│                 o §0.1 a §0.3 dele são as decisões de 26, 27 e 30/10, o §5.7
+│                 a ampliação para 53 tools, o §8 o que NÃO foi verificado, o
+│                 §9 a ordem do deploy e o §10 o MCP no `infra/vps` e como
+│                 ligá-lo e desligá-lo
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no
@@ -109,7 +109,7 @@ docker compose up                        # front :8080 · API :8000 · postgrest
 docker compose run --rm migrate status   # ver migrations aplicadas/pendentes
 docker compose run --rm migrate up       # aplicar
 
-cd api && ./.venv/bin/python -m pytest tests/ -q   # 2623 testes (+31 pulados); 3 de test_canvas_publicacao.py falham também no main
+cd api && ./.venv/bin/python -m pytest tests/ -q   # 3232 testes (+34 pulados); 3 de test_canvas_publicacao.py falham também no main
 cd api && ./.venv/bin/ruff check .                 # lint
 cd web && npm test && npm run lint && npm run typecheck
 
@@ -128,8 +128,8 @@ reprovava em 24/10), e com eles o portão do `deploy.sh`: os deploys saem com
 clone limpo no commit do merge, nunca de um worktree com trabalho por
 commitar.
 
-O MCP da coordenação, local (docs/43 §5). Em produção estão as tabelas e a
-tela de Conexões de IA; o processo do MCP, não (docs/43 §10):
+O MCP da coordenação, local (docs/43 §5). Em produção ele está ligado desde
+29/10 (docs/43 §10):
 
 ```sh
 docker compose run --rm migrate up             # 0071–0073: papéis, token, OAuth

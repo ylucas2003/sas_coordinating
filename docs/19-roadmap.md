@@ -722,13 +722,18 @@ v1, de propósito: lembrete por e-mail, assunto sugerido e aderência.
 O PDF sai numa página A4 só (verificado até com 60 blocos) e o Excel vem da API
 (`GET /me/horario-estudos/planilha`). Decisões, o que foi e o que NÃO foi verificado: §10 do 42.
 
-### 🔨 Ferramentas do assistente e MCP da coordenação *(24/10; em produção desde 27/10, menos o processo do MCP)* — [43](43-plano-ferramentas-e-mcp.md)
+### ✅ Ferramentas do assistente e MCP da coordenação *(24/10; MCP no ar desde 29/10)* — [43](43-plano-ferramentas-e-mcp.md)
 
-> **Fases 0 a 3 no `main` (PR #115, merge `ca4c68f`) e em produção desde
-> 27/10, menos o processo do MCP.** Foram ao ar o chat novo do Tio Léo e do
-> assistente, as migrations 0070 a 0073 e as telas de Conexões de IA e
-> `/conectar-ia` (43 §9, primeiro passo). O `mcp` e o `postgrest_mcp` **não
-> estão no ar**: desde o PR #117 o `infra/vps` os tem, desligados (43 §10).
+> **Tudo em produção, e o MCP ligado desde 29/10.** As Fases 0 a 3 foram ao ar
+> em 27/10 (PR #115): o chat novo do Tio Léo e do assistente, as migrations 0070
+> a 0073 e as telas de Conexões de IA e `/conectar-ia`. O SES foi ligado em 28/10
+> (remetente `nao-responda@portalsas.online`), e o `mcp` e o `postgrest_mcp`
+> subiram em 29/10 (43 §9). A tela ganhou o passo a passo "Como conectar a sua
+> IA" (PR #119). **Em 30/10 a coordenação decidiu que a IA lê no MCP tudo o que o
+> coordenador lê** (43 §0.3): de 31 para 53 tools, com régua, rotinas, auditoria,
+> cantina, captação e o banco de questões inteiro (43 §5.7). Nenhum conector real
+> foi visto conectando ainda.
+>
 > Duas frentes com uma fundação comum: o Tio Léo e o assistente da coordenação lendo a
 > plataforma inteira, cada um no seu escopo, e um MCP para a coordenação
 > conectar a própria IA. Decidido em 24/10: quem conecta é a coordenação, e a
@@ -746,12 +751,11 @@ O PDF sai numa página A4 só (verificado até com 60 blocos) e o Excel vem da A
 >   autorização está e de quem ela é: para menor de 18, ela tem de vir de um
 >   dos pais ou do responsável;
 > - a conta do provedor: a **pessoal de cada coordenador**;
-> - o SES de produção: o dono confere;
+> - o SES de produção: ligado em 28/10;
 > - o piso de anonimato: fica de fora do MCP, que mostra o que as telas da
 >   coordenação já mostram.
 >
-> Para ligar o MCP falta o SES e a decisão de ligar (43 §5.4, §10). ⚠️ O
-> desenho do banco do MCP é o do 43 §5.2 reescrito
+> ⚠️ O desenho do banco do MCP é o do 43 §5.2 reescrito
 > em 26/10 — PostgREST e login próprios, sem JWT —, não o da primeira versão do
 > plano.
 >
@@ -1032,7 +1036,7 @@ A fase 6 — o tour de seis passos — está sendo escrita em paralelo.
 | Regra de "zero = provável ausência" — **metade fechada em 03/09**: o Problema A (não marcou nada) está em produção, derivado de evidência direta. Falta só o aval das **8 provas de 2023** do Problema B, prova a prova ([32 §1](32-plano-sprint-4.md)) | Sprint 3 · P3 | coordenação |
 | **Busca é da tela ou global (`⌘K`)?** | Polimento | Yan + coordenação |
 | **Papéis dentro da coordenação** — *parcialmente fechada.* Existem dois papéis desde 04/09 ([35 §11](35-plano-correcoes.md)): criar conta e alterar nota pelo painel são do administrador, e desde 05/09 promover/rebaixar também. Segue aberto se **ler a auditoria** deve ser dele — hoje `/auditoria` é de qualquer coordenador | Polimento | coordenação |
-| **Servidor MCP do SAS para uso fora da plataforma?** Expõe dado de menor a cliente fora da nossa infra — *parcialmente fechada.* Em 24/10: a coordenação conecta. Em 26/10 o dono decidiu o nome real do aluno (contra a recomendação de matrícula), administrador e coordenador conectando, e a aprovação OAuth por código no e-mail da conta de IA ([43 §0.1](43-plano-ferramentas-e-mcp.md)). Em 27/10 decidiu a base legal do art. 14 ("os alunos já autorizaram"; falta anexar onde a autorização está e de quem ela é) e a conta pessoal de cada coordenador ([43 §0.2](43-plano-ferramentas-e-mcp.md)). Segue aberto: o SES de produção, que o dono confere, e a decisão de ligar | MCP em produção ([43 §5.4](43-plano-ferramentas-e-mcp.md)) | Yan + LGPD |
+| **Servidor MCP do SAS para uso fora da plataforma?** Expõe dado de menor a cliente fora da nossa infra — *parcialmente fechada.* Em 24/10: a coordenação conecta. Em 26/10 o dono decidiu o nome real do aluno (contra a recomendação de matrícula), administrador e coordenador conectando, e a aprovação OAuth por código no e-mail da conta de IA ([43 §0.1](43-plano-ferramentas-e-mcp.md)). Em 27/10 decidiu a base legal do art. 14 ("os alunos já autorizaram"; falta anexar onde a autorização está e de quem ela é) e a conta pessoal de cada coordenador ([43 §0.2](43-plano-ferramentas-e-mcp.md)). O MCP está ligado desde 29/10, e em 30/10 a coordenação decidiu que ele lê tudo o que ela lê, inclusive a restrição alimentar e o link dos vídeos ([43 §0.3](43-plano-ferramentas-e-mcp.md)). Segue aberto: anexar onde a autorização está e de quem ela é, e rever a restrição alimentar, que é dado de saúde de menor (LGPD art. 11) | conector real ([43 §5.4](43-plano-ferramentas-e-mcp.md)) | Yan + LGPD |
 | **Parecer de LGPD sobre a Esquadrilha** — um menor compartilhando desempenho com outro, por escolha própria | Esquadrilha | Yan + LGPD |
 | **Temporada:** o que zera na virada do ano letivo (XP, liga, esquadrilha) | Sprint 7 | Yan + coordenação |
 | **Simulado anulado e nota corrigida:** estorna XP? A liga já fechada muda? | arquitetura do XP | Yan |

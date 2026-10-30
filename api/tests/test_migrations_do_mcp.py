@@ -30,19 +30,32 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.chat.tools.trilha import ACOES_FORA_DA_TRILHA, CANAIS_DA_TRILHA, DETALHE_POR_ACAO
+from app.mcp.dados import TABELA_DA_SONDA
 from scripts.verificar_papeis_do_mcp import (
+    ACOES_FORA_DA_TRILHA_NA_VIEW,
+    CANAIS_DA_TRILHA_NA_VIEW,
     COLUNAS_DA_TRILHA,
+    COLUNAS_PROIBIDAS_DA_CAPTACAO,
     COLUNAS_PROIBIDAS_DO_ALUNO,
+    COLUNAS_PROIBIDAS_POR_TABELA,
     LOGIN_DO_MCP,
     PAPEIS_DO_MCP,
     PREFIXOS_PROIBIDOS,
     TABELAS_PROIBIDAS,
+    VIEWS_DA_LISTA_BRANCA,
+    VIEWS_DO_MCP,
+    _auditar_view,
+    _chaves_sensiveis,
     _comandos,
     _evento,
+    _julgar,
     _separar,
+    _views,
     auditar_funcoes,
     auditar_migrations,
     lista_branca,
+    tabela_proibida,
 )
 from tests.test_mcp_tokens import ACOES_DO_SAS_MCP, gatilho_da_0072_aceita
 
@@ -82,7 +95,7 @@ def test_toda_migration_tem_down():
 
 
 def test_as_migrations_do_mcp_existem_com_down():
-    for prefixo in ("0071_", "0072_", "0073_"):
+    for prefixo in ("0071_", "0072_", "0073_", "0074_", "0075_", "0076_", "0077_"):
         up = _arquivo(prefixo)
         assert up.with_name(up.name.replace(".sql", ".down.sql")).exists()
 
@@ -94,7 +107,7 @@ def test_lista_branca_nao_tem_tabela_sensivel():
     branca = lista_branca(DIR_MIGRATIONS)
     assert branca, "nenhum GRANT SELECT ao sas_leitura — a 0071 sumiu?"
     assert set(branca) & set(TABELAS_PROIBIDAS) == set()
-    assert [t for t in branca if t.startswith(PREFIXOS_PROIBIDOS)] == []
+    assert [t for t in branca if tabela_proibida(t)] == []
 
 
 def test_aluno_so_por_coluna_e_sem_as_proibidas():
@@ -115,15 +128,37 @@ def test_toda_tabela_da_lista_vai_por_coluna():
 def test_colunas_de_bastidor_ficam_fora():
     branca = lista_branca(DIR_MIGRATIONS)
     fora = {
-        "nota": {"editada_por", "grader_canvas_user_id", "pontuacao_canvas", "pontuacao_sas"},
+        # As duas origens da pontuação e o estado do Canvas entraram em 30/10,
+        # com `pendencias_canvas_do_ciclo` no MCP (0074). Quem lançou, não.
+        "nota": {"editada_por", "grader_canvas_user_id"},
         "matricula_turma": {"last_activity_at", "last_attended_at", "canvas_enrollment_id"},
         "questao_resposta_aluno": {"aluno_id", "alternativa_id"},
-        "simulado": {"arquivo_storage_path", "canvas_erro", "motivo_zero_e_ausencia"},
-        "ciclo": {"canvas_erro"},
-        "parametro_importancia": {"criado_por"},
+        "simulado": {"arquivo_storage_path", "motivo_zero_e_ausencia"},
+        "ciclo": {"canvas_assignment_group_id"},
+        # `criado_por` saiu daqui em 30/10 (0077): é a coluna "Quem" da tela de
+        # Calibração, e `calibracao_da_importancia` a lê. O `id` continua fora.
+        "parametro_importancia": {"id"},
         "questao_vestibular": {"fonte_pdf", "arquivo_origem", "classificado_por"},
         # Entrou em 26/10 (listar_alertas, com o nome liberado): só o que a tool lê.
         "alerta": {"dados_brutos", "hash_dedup", "resolvido_em"},
+        # A cantina (0075): sem a conta que lançou e sem carimbo de bastidor.
+        "cantina": {"criado_em"},
+        "cardapio": {"criado_por", "criado_em", "atualizado_em"},
+        "pedido_refeicao": {"atualizado_em"},
+        # A captação (0076): gente de fora, só o que a tela mostra. `observacoes`
+        # é o texto livre do funil, onde um telefone anotado à mão apareceria.
+        "candidato_externo": {"observacoes", "retrato_editado_a_mao", "atualizado_em"},
+        "conquista_externa": {"nome_informado", "raspado_em", "serie_referencia_min", "serie_referencia_max"},
+        "prova_externa": {"abrangencia", "fonte_resultado"},
+        # A 0074: `disparo` só se conta, e o resto é e-mail, corpo e nome.
+        "disparo": {"destinatario", "assunto", "corpo", "contexto", "erro", "regra_lembrete_id"},
+        "evento_agenda": {"criado_por"},
+        "curso_monitorado_gravacao": {"professor_padrao", "canvas_modulo_id", "canvas_modulo_generico_id"},
+        "trilha_de_alteracoes": {"ip", "request_id"},
+        "nome_da_coordenacao": {"email", "senha_hash", "papel", "foto_perfil_storage"},
+        "aula_gravacao_para_ia": {
+            "canvas_pagina_slug", "s3_bucket", "s3_chave_composto", "conferencia_id",
+        },
     }
     for tabela, colunas in fora.items():
         assert tabela in branca, tabela
@@ -135,6 +170,167 @@ def test_sas_mcp_nao_recebe_select_direto():
     assert lista_branca(DIR_MIGRATIONS, papel="sas_mcp") == {}
     # E o login nem isso: é NOINHERIT, e não lê nada por si (0071).
     assert lista_branca(DIR_MIGRATIONS, papel=LOGIN_DO_MCP) == {}
+
+
+# ─── A 0075: a cantina ───────────────────────────────────────────────────
+
+
+def test_a_cantina_entra_sem_a_conta_de_acesso_nem_as_views():
+    branca = lista_branca(DIR_MIGRATIONS)
+    # A conta segue proibida pelo nome e pelo prefixo: é ela que guarda e-mail,
+    # último login e senha_hash (0047).
+    assert "usuario_cantina" in TABELAS_PROIBIDAS and "usuario_cantina".startswith(PREFIXOS_PROIBIDOS)
+    assert "usuario_cantina" not in branca
+    # View roda com o privilégio do dono: o MCP faz a conta nas tabelas (0071).
+    assert {"v_pedidos_por_cardapio", "v_contagem_pedidos_por_opcao"} & set(branca) == set()
+
+
+def test_a_restricao_alimentar_entra_so_pela_0075_e_em_grant_proprio():
+    # Dado de saúde de menor (LGPD art. 11): ela sai sozinha por um REVOKE, sem
+    # desfazer o resto, e nenhum outro GRANT a arrasta junto.
+    com_ela = [c for c in _todos_os_comandos() if c.startswith("GRANT") and "restricao_alimentar" in c]
+    assert com_ela == ["GRANT SELECT (restricao_alimentar) ON aluno TO sas_leitura"]
+    assert "GRANT SELECT (restricao_alimentar) ON aluno TO sas_leitura" in _comandos_de(_arquivo("0075_"))
+
+
+def test_o_comment_da_coluna_deixa_de_dizer_em_lugar_nenhum_mais():
+    texto = " ".join(_arquivo("0075_").read_text(encoding="utf-8").split())
+    assert "restricoes_alimentares, e só nela" in texto
+    assert "LGPD art. 11" in texto
+
+
+def test_o_down_da_0075_devolve_cada_grant_e_o_comment_da_0049():
+    up = _arquivo("0075_")
+    down = up.with_name(up.name.replace(".sql", ".down.sql"))
+    # O que a 0075 concede: (tabela, colunas), lido do GRANT.
+    concedido = {}
+    for c in _comandos_de(up):
+        m = re.fullmatch(r"GRANT SELECT \((?P<colunas>[^)]+)\) ON (?P<tabela>\w+) TO sas_leitura", c)
+        if m:
+            concedido[m["tabela"]] = {x.strip() for x in m["colunas"].split(",")}
+    revogado = {}
+    for c in _comandos_de(down):
+        m = re.fullmatch(r"REVOKE SELECT \((?P<colunas>[^)]+)\) ON (?P<tabela>\w+) FROM sas_leitura", c)
+        if m:
+            revogado[m["tabela"]] = {x.strip() for x in m["colunas"].split(",")}
+    assert concedido and revogado == concedido
+    # Por coluna: em `aluno`, o que a 0071 deu continua valendo depois do down.
+    assert revogado["aluno"] == {"restricao_alimentar"}
+    texto_0049 = next(p for p in _ups() if p.name.startswith("0049_")).read_text(encoding="utf-8")
+    trecho = "e em lugar nenhum mais — não entra em ficha, painel, dossiê nem chat (docs/38 §2.6)."
+    assert trecho in texto_0049 and trecho in down.read_text(encoding="utf-8")
+
+
+def test_a_chave_de_saude_segue_sensivel_para_toda_tool_menos_a_dela():
+    # O GRANT é do papel, e não da tool: tirar a coluna de
+    # COLUNAS_PROIBIDAS_DO_ALUNO não pode desligar o vigia das outras 37.
+    resultado = {"alunos": [{"nome": "x", "restricaoAlimentar": "y"}]}
+
+    class Registro:
+        def __init__(self):
+            self.falhas: list[str] = []
+            self.oks: list[str] = []
+
+        def falha(self, texto):
+            self.falhas.append(texto)
+
+        def ok(self, texto):
+            self.oks.append(texto)
+
+    outra = Registro()
+    _julgar(outra, "pedidos_da_refeicao", resultado, [], [], ferramenta="pedidos_da_refeicao")
+    assert len(outra.falhas) == 1 and "alunos[0].restricaoAlimentar" in outra.falhas[0]
+    sem_nome = Registro()
+    _julgar(sem_nome, "qualquer", resultado, [], [])
+    assert len(sem_nome.falhas) == 1
+
+    a_dela = Registro()
+    _julgar(a_dela, "restricoes_alimentares", resultado, [], [], ferramenta="restricoes_alimentares")
+    assert a_dela.falhas == [] and len(a_dela.oks) == 1
+
+
+def test_a_excecao_da_tool_de_saude_nao_abre_as_outras_chaves():
+    assert _chaves_sensiveis({"senha_hash": "x", "restricao_alimentar": "y"}, permitidas=frozenset({"restricaoalimentar"})) == [
+        "senha_hash"
+    ]
+
+
+def test_as_tabelas_da_cantina_nao_sao_mais_proibidas():
+    # O que mudou em 30/10, e só isso: sem esta conferência, um prefixo esquecido
+    # reprovaria a 0075, e um removido a mais abriria outra coisa.
+    for tabela in ("cantina", "cardapio", "cardapio_bloco", "cardapio_opcao",
+                   "direito_refeicao_aluno", "pedido_refeicao", "pedido_refeicao_item"):
+        assert tabela not in TABELAS_PROIBIDAS and not tabela.startswith(PREFIXOS_PROIBIDOS), tabela
+    assert "oauth_pedido_mcp" in TABELAS_PROIBIDAS and "oauth_pedido_mcp".startswith(PREFIXOS_PROIBIDOS)
+
+
+# ─── As views das listas (0077) ──────────────────────────────────────────
+
+
+def _corpo_da_view_das_listas(nome: str) -> str:
+    """O CREATE VIEW da 0077, sem comentário e com o espaço normalizado, mas com
+    os literais: o `_comandos` os esvazia, e aqui o literal é o que importa."""
+    texto = re.sub(r"--[^\n]*", "", _arquivo("0077_").read_text(encoding="utf-8"))
+    (corpo,) = re.findall(rf"CREATE VIEW {nome}\b.*?;", texto, re.S)
+    return " ".join(corpo.split())
+
+
+def test_as_views_das_listas_trazem_so_o_lado_da_coordenacao():
+    """O WHERE é o que segura a linha, e nem coluna nem GRANT o denunciam: uma view
+    mais larga passaria por todo o resto desta suíte. Por isso o corpo vai inteiro."""
+    assert _corpo_da_view_das_listas("lista_questoes_da_coordenacao") == (
+        "CREATE VIEW lista_questoes_da_coordenacao WITH (security_barrier = true) AS "
+        "SELECT l.id, l.titulo, l.dono_tipo, l.dono_id, l.criada_em, l.atualizada_em "
+        "FROM lista_questoes AS l WHERE l.dono_tipo = 'coordenacao';"
+    )
+    assert _corpo_da_view_das_listas("lista_questoes_item_da_coordenacao") == (
+        "CREATE VIEW lista_questoes_item_da_coordenacao WITH (security_barrier = true) AS "
+        "SELECT i.lista_id, i.questao_id, i.posicao FROM lista_questoes_item AS i "
+        "WHERE i.lista_id IN (SELECT l.id FROM lista_questoes AS l WHERE l.dono_tipo = 'coordenacao');"
+    )
+
+
+def test_as_views_das_listas_rodam_como_o_dono():
+    """O sas_mcp não tem acesso às tabelas: com `security_invoker`, a view voltaria
+    42501 em toda leitura. É o oposto das views da captação, e é de propósito."""
+    for nome in VIEWS_DO_MCP:
+        if nome.startswith("lista_questoes"):
+            assert "security_invoker" not in _corpo_da_view_das_listas(nome)
+
+
+def test_o_mcp_le_a_view_e_a_tabela_de_baixo_continua_proibida():
+    branca = lista_branca(DIR_MIGRATIONS)
+    for tabela in ("lista_questoes", "lista_questoes_item"):
+        assert tabela in TABELAS_PROIBIDAS and tabela not in branca
+    assert branca["lista_questoes_da_coordenacao"] == {
+        "id", "titulo", "dono_tipo", "dono_id", "criada_em", "atualizada_em",
+    }
+    assert branca["lista_questoes_item_da_coordenacao"] == {"lista_id", "questao_id", "posicao"}
+
+
+def test_as_views_do_mcp_nao_caem_na_regra_do_prefixo():
+    """Sem `v_` de propósito: a trava do prefixo segue valendo para toda outra view."""
+    for nome in VIEWS_DO_MCP:
+        assert nome not in TABELAS_PROIBIDAS and not nome.startswith(PREFIXOS_PROIBIDOS)
+
+
+@pytest.mark.parametrize(
+    "comando",
+    [
+        # `CREATE OR REPLACE` sem o WITH zera as opções: a barreira sai calada.
+        "CREATE OR REPLACE VIEW lista_questoes_da_coordenacao AS SELECT 1",
+        "CREATE VIEW lista_questoes_item_da_coordenacao AS SELECT 1",
+        "ALTER VIEW lista_questoes_da_coordenacao RESET (security_barrier)",
+        "ALTER TABLE lista_questoes_item_da_coordenacao OWNER TO postgres",
+    ],
+)
+def test_nem_migration_do_mcp_tira_a_barreira(comando):
+    assert _auditar_view(comando, do_mcp=True)
+
+
+def test_a_view_da_lista_recriada_com_a_barreira_passa_na_migration_do_mcp():
+    comando = "CREATE OR REPLACE VIEW lista_questoes_da_coordenacao WITH (security_barrier = true) AS SELECT 1"
+    assert _auditar_view(comando, do_mcp=True) == []
 
 
 # ─── A auditoria: o que o leitor não entende falha ───────────────────────
@@ -195,6 +391,12 @@ MUTACOES: dict[str, str] = {
     ),
     "apostrofo_em_comentario": "-- it's a trap\nGRANT UPDATE ON nota TO sas_leitura;\nCOMMENT ON TABLE nota IS 'x';",
     "select_numa_view": "GRANT SELECT (aluno_id) ON v_nota_dimensoes TO sas_leitura;",
+    # A captação (0076): a liberação é pelo NOME e por coluna, não pelo prefixo.
+    "observacoes_do_funil": "GRANT SELECT (observacoes) ON candidato_externo TO sas_leitura;",
+    "nome_como_a_fonte_escreveu": "GRANT SELECT (nome_informado) ON conquista_externa TO sas_leitura;",
+    "view_do_perfil_que_cita_observacoes": "GRANT SELECT (id) ON v_candidato_externo TO sas_leitura;",
+    "tabela_nova_da_captacao": "GRANT SELECT (telefone) ON candidato_externo_contato TO sas_leitura;",
+    "tabela_inteira_da_captacao": "GRANT SELECT ON candidato_externo TO sas_leitura;",
     "select_na_tabela_inteira": "GRANT SELECT ON materia TO sas_leitura;",
     "with_grant_option": "GRANT SELECT (nome) ON aluno TO sas_leitura WITH GRANT OPTION;",
     "dono_da_tabela": "ALTER TABLE nota OWNER TO sas_mcp;",
@@ -239,6 +441,36 @@ MUTACOES: dict[str, str] = {
     "teto_de_duracao_acima_do_prazo": "ALTER ROLE autenticador_mcp SET statement_timeout = '10min';",
     "select_direto_ao_login": "GRANT SELECT (nome) ON aluno TO autenticador_mcp;",
     "login_ganha_o_sas_leitura": "GRANT sas_leitura TO autenticador_mcp;",
+    # As tabelas e as views que a 0074 abriu: coluna proibida em tabela aberta,
+    # a tabela de baixo pela porta da frente, e a view do MCP mexida fora dele.
+    "email_do_destinatario": "GRANT SELECT (destinatario) ON disparo TO sas_leitura;",
+    "corpo_do_lembrete": "GRANT SELECT (corpo, contexto) ON disparo TO sas_leitura;",
+    "quem_agendou": "GRANT SELECT (criado_por) ON evento_agenda TO sas_leitura;",
+    "trilha_pela_tabela": "GRANT SELECT (ip, detalhe) ON evento_auditoria TO sas_leitura;",
+    "aula_pela_tabela": "GRANT SELECT (youtube_video_id) ON aula_gravacao TO sas_leitura;",
+    "nome_pela_tabela": "GRANT SELECT (id, nome) ON usuario_coordenacao TO sas_leitura;",
+    "view_do_mcp_alargada_fora_dele": (
+        "CREATE OR REPLACE VIEW trilha_de_alteracoes WITH (security_barrier = true) AS "
+        "SELECT * FROM evento_auditoria;"
+    ),
+    "view_do_mcp_derrubada_fora_dele": "DROP VIEW nome_da_coordenacao;",
+    "view_do_mcp_perde_a_barreira": "ALTER VIEW trilha_de_alteracoes RESET (security_barrier);",
+    "view_do_mcp_troca_de_dono": "ALTER TABLE aula_gravacao_para_ia OWNER TO sas_service;",
+    # As views das listas (0077): a tabela de baixo pela porta da frente, a view
+    # mexida fora de uma migration do MCP, e outra view tentando entrar igual.
+    "lista_de_aluno_pela_tabela": "GRANT SELECT (titulo) ON lista_questoes TO sas_leitura;",
+    "itens_de_aluno_pela_tabela": "GRANT SELECT (questao_id) ON lista_questoes_item TO sas_leitura;",
+    "view_das_listas_alargada_fora_do_mcp": (
+        "CREATE OR REPLACE VIEW lista_questoes_da_coordenacao WITH (security_barrier = true) AS "
+        "SELECT id FROM lista_questoes;"
+    ),
+    "view_das_listas_derrubada_fora_do_mcp": "DROP VIEW lista_questoes_item_da_coordenacao;",
+    "view_das_listas_perde_a_barreira": "ALTER VIEW lista_questoes_da_coordenacao RESET (security_barrier);",
+    "view_das_listas_vira_invoker": "ALTER VIEW lista_questoes_da_coordenacao SET (security_invoker = true);",
+    "view_das_listas_troca_de_dono": "ALTER TABLE lista_questoes_item_da_coordenacao OWNER TO sas_service;",
+    "outra_view_na_lista_branca": (
+        "CREATE VIEW outra_lista AS SELECT 1 AS a;\nGRANT SELECT (a) ON outra_lista TO sas_leitura;"
+    ),
 }
 
 
@@ -255,6 +487,97 @@ def test_auditoria_recusa_concessao_perigosa(tmp_path, mutacao):
     problemas = auditar_migrations(_migrations_com(tmp_path, up=MUTACOES[mutacao]), dir_init=None)
     # A base é limpa (teste acima): o problema tem de ser o da mutação.
     assert any(p.startswith(("0099_mutante.sql:", "funções:")) for p in problemas), problemas
+
+
+@pytest.mark.parametrize(
+    "mutacao",
+    [
+        # Sem o WITH, o CREATE OR REPLACE DESLIGA a opção (provado em 30/10).
+        "CREATE OR REPLACE VIEW v_prova_externa_resumo AS SELECT p.nome FROM prova_externa p;",
+        "ALTER VIEW v_prova_externa_resumo RESET (security_invoker);",
+        "ALTER VIEW v_prova_externa_resumo SET (security_invoker = false);",
+    ],
+)
+def test_a_view_da_lista_branca_nao_volta_a_rodar_como_dono(tmp_path, mutacao):
+    """A 0076 dá GRANT numa view só porque ela lê com o privilégio de quem
+    chama. A auditoria olha o ESTADO FINAL: quem a devolve ao dono reprova no
+    GRANT da 0076, que é o comando que passa a expor o que ela lê."""
+    problemas = auditar_migrations(_migrations_com(tmp_path, up=mutacao), dir_init=None)
+    assert any("v_prova_externa_resumo é view" in p for p in problemas), problemas
+
+
+def test_recriar_a_view_com_a_opcao_mantem_a_view_fora_da_regua_do_dono(tmp_path):
+    recriada = (
+        "CREATE OR REPLACE VIEW v_prova_externa_resumo WITH (security_invoker = true) AS "
+        "SELECT p.nome FROM prova_externa p;"
+    )
+    assert auditar_migrations(_migrations_com(tmp_path, up=recriada), dir_init=None) == []
+
+
+def test_as_views_da_lista_branca_nao_rodam_como_dono():
+    comandos = [c for p in _ups() for c in _separar(p.read_text(encoding="utf-8"))]
+    do_dono = _views(comandos)
+    assert VIEWS_DA_LISTA_BRANCA - set(lista_branca(DIR_MIGRATIONS)) == set()
+    assert VIEWS_DA_LISTA_BRANCA & do_dono == set()
+    # E as que ficaram de fora continuam sendo do dono: a do perfil cita
+    # `observacoes`, e por isso a ficha lê `candidato_externo` direto.
+    assert "v_candidato_externo" in do_dono
+
+
+def test_recriar_a_view_materializada_tira_ela_da_lista_branca(tmp_path):
+    """O GRANT morre com o objeto: foi o que a 0065 e a 0068 fizeram com ela.
+    O leitor segue o DROP, e `test_lista_branca_cobre_as_tabelas_das_tools_expostas`
+    reprova a migration que recriar a view sem repetir o GRANT."""
+    recriada = (
+        "DROP MATERIALIZED VIEW v_candidato_externo_por_nome;\n"
+        "CREATE MATERIALIZED VIEW v_candidato_externo_por_nome AS SELECT c.nome FROM candidato_externo c;"
+    )
+    migrations = _migrations_com(tmp_path, up=recriada)
+    assert "v_candidato_externo_por_nome" not in lista_branca(migrations)
+
+    regrant = f"{recriada}\nGRANT SELECT (nome) ON v_candidato_externo_por_nome TO sas_leitura;"
+    (migrations / "0099_mutante.sql").write_text(f"BEGIN;\n{regrant}\nCOMMIT;\n", encoding="utf-8")
+    assert lista_branca(migrations)["v_candidato_externo_por_nome"] == frozenset({"nome"})
+
+
+def test_a_regua_da_captacao_libera_tres_tabelas_e_nao_o_prefixo():
+    assert not tabela_proibida("candidato_externo")
+    assert tabela_proibida("candidato_externo_contato")
+    assert tabela_proibida("conquista_externa_rascunho")
+    assert tabela_proibida("v_candidato_externo")
+    assert not tabela_proibida("v_candidato_externo_por_nome")
+    assert set(COLUNAS_PROIBIDAS_DA_CAPTACAO) == {"candidato_externo", "conquista_externa"}
+
+
+def test_a_funcao_da_busca_por_conquista_so_cita_coluna_da_lista_branca():
+    """Ela é SECURITY INVOKER: roda com o privilégio do sas_mcp, e o Postgres
+    exige SELECT em toda coluna citada. Coluna nova no corpo dela, sem GRANT,
+    seria 42501 só em produção, numa tool que a suíte diz que funciona."""
+    corpo = next(
+        c.corpos[0]
+        for c in _separar(_arquivo("0068_").read_text(encoding="utf-8"))
+        if c.texto.startswith("CREATE FUNCTION buscar_candidatos_por_conquista")
+    )
+    apelidos = {
+        "ce": "conquista_externa", "c": "candidato_externo", "p": "prova_externa",
+        "v": "v_candidato_externo_por_nome",
+    }
+    citadas = {(apelidos[a], coluna) for a, coluna in re.findall(r"\b(ce|c|p|v)\.(\w+)", corpo)}
+    branca = lista_branca(DIR_MIGRATIONS)
+    assert len(citadas) > 20  # senão o regex parou de achar o corpo
+    assert [(t, c) for t, c in sorted(citadas) if c not in (branca[t] or frozenset())] == []
+
+
+def test_a_0076_so_concede_select_e_o_down_a_espelha():
+    up = _comandos_de(_arquivo("0076_"))
+    down = _comandos_de(_arquivo("0076_").with_name(_arquivo("0076_").name.replace(".sql", ".down.sql")))
+    concessoes = [c for c in up if c.startswith("GRANT")]
+    assert len(concessoes) == 5
+    assert all(c.startswith("GRANT SELECT (") and c.endswith(" TO sas_leitura") for c in concessoes)
+    # Coluna a coluna: o .down tira exatamente o que o up deu, sem tocar no resto.
+    espelho = sorted(c.replace("GRANT ", "REVOKE ", 1).replace(" TO sas_leitura", " FROM sas_leitura") for c in concessoes)
+    assert sorted(c for c in down if c.startswith("REVOKE")) == espelho
+    assert "ALTER VIEW v_prova_externa_resumo RESET (security_invoker)" in down
 
 
 def test_auditoria_le_os_downs_tambem(tmp_path):
@@ -279,6 +602,115 @@ def test_auditoria_le_o_init_dos_papeis(tmp_path, linha):
         arquivo.write(f"\n# it's: apóstrofo de comentário de shell\n{linha}\n")
     assert auditar_migrations(DIR_MIGRATIONS, init)
     assert auditar_migrations(DIR_MIGRATIONS, DIR_INIT) == []
+
+
+def _corpo_da_view(nome: str) -> str:
+    """O CREATE VIEW da 0074, sem comentário e com o espaço normalizado, mas com
+    os literais: `_separar` os troca por `''`, e aqui eles são a regra."""
+    texto = re.sub(r"--[^\n]*", "", _arquivo("0074_").read_text(encoding="utf-8"))
+    (corpo,) = re.findall(rf"CREATE VIEW {nome}\b.*?;", texto, re.S)
+    return " ".join(corpo.split())
+
+
+def test_o_verificador_sonda_os_mesmos_canais_que_a_trilha_le():
+    assert set(CANAIS_DA_TRILHA_NA_VIEW) == set(CANAIS_DA_TRILHA)
+    assert set(ACOES_FORA_DA_TRILHA_NA_VIEW) == set(ACOES_FORA_DA_TRILHA)
+
+
+def test_a_view_da_trilha_corta_os_logins_que_o_canal_da_cantina_grava():
+    """O canal não basta: `cantina` grava `login_falhou`, com o que a pessoa digitou
+    em `ator_id`. Abrir o canal sem isto reabria o motivo de a view existir."""
+    corpo = _corpo_da_view("trilha_de_alteracoes")
+    achado = re.search(r"e\.acao NOT IN \((?P<lista>[^)]*)\)", corpo)
+    assert achado and set(re.findall(r"'(\w+)'", achado["lista"])) == set(ACOES_FORA_DA_TRILHA)
+
+
+#: As duas das listas estão na 0077, com o corpo e o down travados em testes próprios.
+VIEWS_DA_0074 = VIEWS_DO_MCP - {"lista_questoes_da_coordenacao", "lista_questoes_item_da_coordenacao"}
+
+
+def test_as_views_do_mcp_sao_as_da_0074_com_barreira_e_com_grant_por_coluna():
+    branca = lista_branca(DIR_MIGRATIONS)
+    for nome in VIEWS_DA_0074:
+        assert f"CREATE VIEW {nome} WITH (security_barrier = true) AS" in _corpo_da_view(nome)
+        assert branca[nome], nome
+        assert nome not in TABELAS_PROIBIDAS and not nome.startswith(PREFIXOS_PROIBIDOS)
+
+
+def test_o_que_o_mcp_le_por_view_continua_fechado_como_tabela():
+    """A view é o caminho; a tabela segue dando 42501. `usuario_coordenacao` é
+    também a sonda do boot: o GRANT nela impediria o MCP de subir (dados.py)."""
+    branca = lista_branca(DIR_MIGRATIONS)
+    assert TABELA_DA_SONDA == "usuario_coordenacao"
+    for tabela in ("usuario_coordenacao", "evento_auditoria", "aula_gravacao"):
+        assert tabela in TABELAS_PROIBIDAS and tabela not in branca
+
+
+def test_a_view_da_trilha_e_a_lista_da_tool_nao_divergem():
+    """Dois lados da mesma regra: o da tool é o que ela mostra; o da view, o que
+    o MCP consegue ler. Canal novo na tool sem a view volta vazio; chave nova na
+    view sem revisão sai do banco para quem não devia ler."""
+    corpo = _corpo_da_view("trilha_de_alteracoes")
+    canais = re.search(r"WHERE e\.canal IN \((?P<lista>[^)]*)\)", corpo)
+    assert canais and set(re.findall(r"'(\w+)'", canais["lista"])) == set(CANAIS_DA_TRILHA)
+    chaves = re.search(r"WHERE d\.chave IN \((?P<lista>[^)]*)\)", corpo)
+    assert chaves
+    assert set(re.findall(r"'(\w+)'", chaves["lista"])) == {c for lista in DETALHE_POR_ACAO.values() for c in lista}
+
+
+def test_a_view_da_trilha_nao_tem_a_coluna_do_ip():
+    corpo = _corpo_da_view("trilha_de_alteracoes").split(" FROM evento_auditoria")[0]
+    assert not re.search(r"\be\.(?:ip|request_id)\b", corpo)
+
+
+def test_a_view_dos_nomes_entrega_o_par_e_mais_nada():
+    assert _corpo_da_view("nome_da_coordenacao").endswith("AS SELECT u.id, u.nome FROM usuario_coordenacao AS u;")
+
+
+def test_a_view_das_aulas_entrega_o_link_e_nao_o_s3():
+    """O link sai por decisão da coordenação (30/10), como a tela o mostra. O
+    S3, onde o vídeo mora, não sai, nem dentro do erro: a view corta a linha que
+    o Postgres despeja."""
+    corpo = _corpo_da_view("aula_gravacao_para_ia")
+    assert "[vídeo]" in corpo and "Failing row contains" in corpo
+    for coluna in ("a.youtube_video_id", "a.youtube_titulo", "a.canvas_pagina_url"):
+        assert coluna in corpo
+    assert not re.search(r"s3_|conferencia|canvas_pagina_slug", corpo)
+
+
+@pytest.mark.parametrize(
+    "comando",
+    [
+        "CREATE VIEW nome_da_coordenacao AS SELECT 1",
+        "CREATE OR REPLACE VIEW aula_gravacao_para_ia AS SELECT 1",
+        "ALTER VIEW trilha_de_alteracoes SET (security_barrier = true)",
+    ],
+)
+def test_nem_a_migration_do_mcp_tira_a_barreira(comando):
+    assert _auditar_view(comando, do_mcp=True)
+
+
+def test_a_regra_das_views_nao_alcanca_a_view_comum():
+    assert _auditar_view("CREATE VIEW v_qualquer AS SELECT 1", do_mcp=False) == []
+    assert _auditar_view("DROP VIEW IF EXISTS trilha_de_alteracoes", do_mcp=True) == []
+
+
+def test_as_colunas_proibidas_das_tabelas_abertas_nao_estao_na_lista():
+    branca = lista_branca(DIR_MIGRATIONS)
+    for tabela, colunas in COLUNAS_PROIBIDAS_POR_TABELA.items():
+        assert branca[tabela] & set(colunas) == set(), tabela
+
+
+def test_o_down_da_0074_tira_so_o_que_ela_deu():
+    """Em `simulado`, `ciclo` e `nota` a 0071 já concedia colunas: o down revoga
+    por coluna, e um REVOKE na tabela inteira tiraria a lista dela junto."""
+    up = _arquivo("0074_")
+    down = _comandos_de(up.with_name(up.name.replace(".sql", ".down.sql")))
+    for tabela in ("simulado", "ciclo", "nota"):
+        fim = f") ON {tabela} FROM sas_leitura"
+        assert len([c for c in down if c.startswith("REVOKE SELECT (") and c.endswith(fim)]) == 1, tabela
+    for nome in VIEWS_DA_0074:
+        assert f"DROP VIEW IF EXISTS {nome}" in down
 
 
 def test_o_que_o_sas_mcp_recebe_direto_e_so_o_da_0071_e_da_0072():
@@ -791,10 +1223,10 @@ def test_leitor_aplica_grant_e_revoke_em_ordem(tmp_path):
 
 
 def test_lista_branca_cobre_as_tabelas_das_tools_expostas():
-    # As tabelas que as 31 tools expostas leem (0071), inclusive as do banco
-    # de questões e `alerta`, de listar_alertas — exposta em 26/10, quando o
-    # dono liberou o nome do aluno no MCP. Tirar uma daqui quebra uma tool no
-    # MCP com 42501.
+    # As tabelas que as tools expostas leem (0071, 0074, 0075 e 0076), inclusive
+    # as do banco de questões e `alerta`, de listar_alertas — exposta em 26/10,
+    # quando o dono liberou o nome do aluno no MCP. Tirar uma daqui quebra uma
+    # tool no MCP com 42501.
     esperadas = {
         "alerta",
         "aluno", "ano_letivo", "ciclo", "classificacao_aluno", "criterio_classificacao",
@@ -803,6 +1235,17 @@ def test_lista_branca_cobre_as_tabelas_das_tools_expostas():
         "simulado", "turma", "vestibular_alvo_aluno", "questao_vestibular",
         "questao_vestibular_alternativa", "questao_vestibular_topico",
         "topico_taxonomia", "topico_taxonomia_assunto", "parametro_importancia",
+        # A régua, as rotinas e a trilha (0074), as três últimas por view.
+        "canvas_sync_execucao", "curso_monitorado_gravacao", "disparo", "evento_agenda",
+        "regra_lembrete", "trilha_de_alteracoes", "nome_da_coordenacao", "aula_gravacao_para_ia",
+        # A cantina (0075, decisão de 30/10): tudo o que as sete tools leem.
+        "cantina", "cardapio", "cardapio_bloco", "cardapio_opcao",
+        "direito_refeicao_aluno", "pedido_refeicao", "pedido_refeicao_item",
+        "prova_externa", "candidato_externo", "conquista_externa",
+        "v_candidato_externo_por_nome", "v_prova_externa_resumo",
+        # 0077 (30/10): as listas da coordenação, de minhas_listas_do_banco. São as
+        # VIEWS, e não as tabelas: lá está o lado do aluno também.
+        "lista_questoes_da_coordenacao", "lista_questoes_item_da_coordenacao",
     }
     assert set(lista_branca(DIR_MIGRATIONS)) == esperadas
 
