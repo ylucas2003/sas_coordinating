@@ -287,6 +287,11 @@ class _ConsultaVazia:
     def __getattr__(self, _nome):
         return lambda *a, **k: self
 
+    @property
+    def not_(self):
+        # No cliente de verdade é propriedade, não método: `q.not_.in_(...)`.
+        return self
+
     def execute(self):
         return self
 
@@ -510,6 +515,15 @@ def test_o_tools_list_nao_manda_usar_tool_que_nao_esta_nele(com_nome_do_aluno):
         for achado in citacao.finditer(texto)
     ]
     assert citadas == []
+
+
+@pytest.mark.parametrize("com_nome_do_aluno", [True, False], ids=["nome-real", "pseudonimo"])
+def test_a_ia_de_fora_nao_promete_o_csv_que_a_conexao_nao_gera(com_nome_do_aluno):
+    """A frase de `cortados_pela_regua` não cita `exportar_csv` pelo nome, e o
+    teste das citações não a vê; mas manda oferecer o que o MCP não tem."""
+    tool = next(t for t in _tools_list(com_nome_do_aluno) if t.name == "cortados_pela_regua")
+    assert "ofereça exportar" not in tool.description
+    assert "a lista inteira fica no SAS" in tool.description
 
 
 def test_a_troca_e_so_no_mcp_e_aponta_para_a_tool_que_ele_tem():

@@ -19,7 +19,11 @@ que estas tools usam e ele não tinha —
     existe é 42703 e id torto em coluna uuid é 22P02, como no PostgREST. Sem
     isso o fake devolvia `None` para a coluna inventada, e `materias_problematicas`
     — que pedia `simulado.fase`, removida na 0003 — passou na suíte enquanto
-    falhava sempre no banco de verdade (revisão paralela de 25/10).
+    falhava sempre no banco de verdade (revisão paralela de 25/10);
+  * as três VIEWS da 0074, derivadas da tabela de baixo a cada leitura, com
+    as colunas do GRANT dela. São um espelho do SQL, escrito de novo aqui: a
+    prova do SQL é no Postgres (scripts/verificar_papeis_do_mcp.py), e o que se
+    trava aqui é a tool, dado o que a view entrega.
 
 Dados 100% sintéticos.
 
@@ -45,8 +49,10 @@ from typing import Any, NoReturn, get_args
 import pytest
 from postgrest.exceptions import APIError
 
+from app import auditoria
 from app.banco import consultas, estatisticas, importancia
 from app.canvas_sync import estado as estado_do_sync
+from app.chat import superficie
 from app.chat.ferramentas import REGISTRO, Sessao
 from app.chat.tools import banco_questoes, contexto, rotinas, trilha
 from app.gravacoes_aula import consulta as gravacoes
@@ -54,6 +60,7 @@ from app.lembretes import motor
 from app.lembretes.aplicacoes import aluno_simulado
 from app.schemas.domain import Severidade
 from app.stats import classificacao_ciclo, criterios, criterios_repo
+from scripts.verificar_papeis_do_mcp import VIEWS_DO_MCP, lista_branca
 from tests import fake_captacao
 from tests.esquema_das_migrations import esquema
 from tests.fake_postgrest import FakeCliente, Query, Resp, _ordenavel
@@ -184,6 +191,63 @@ def _algum_ramo_bate(linha: dict, filtro: str) -> bool:
 _COMPARACOES = frozenset({"eq", "neq", "in", "nao_in", "lt", "lte", "gt", "gte"})
 
 
+# ─── As views da 0074, como o fake as vê ─────────────────────────────────
+
+_CHAVES_DA_TRILHA = frozenset(c for chaves in trilha.DETALHE_POR_ACAO.values() for c in chaves)
+_LINHA_DESPEJADA = re.compile(r"Failing row contains \(.*", re.S)
+
+
+def _sem_o_video(texto: str | None, video: str | None) -> str | None:
+    if not texto:
+        return texto
+    return _LINHA_DESPEJADA.sub("Failing row contains (…)", texto.replace(video, "[vídeo]") if video else texto)
+
+
+def _trilha_de_alteracoes(db: dict) -> list[dict]:
+    linhas = []
+    for linha in db.get("evento_auditoria", {}).values():
+        if linha.get("canal") not in trilha.CANAIS_DA_TRILHA:
+            continue
+        bruto = linha.get("detalhe")
+        detalhe = {k: v for k, v in bruto.items() if k in _CHAVES_DA_TRILHA} if isinstance(bruto, dict) else None
+        linhas.append({
+            **{c: linha.get(c) for c in ("id", "ocorrido_em", "acao", "canal", "ator_tipo", "ator_id", "recurso")},
+            "detalhe": detalhe,
+        })
+    return linhas
+
+
+def _nome_da_coordenacao(db: dict) -> list[dict]:
+    return [{"id": l["id"], "nome": l.get("nome")} for l in db.get("usuario_coordenacao", {}).values()]
+
+
+def _aula_gravacao_para_ia(db: dict) -> list[dict]:
+    colunas = ("id", "curso_id", "titulo", "iniciada_em", "status", "tentativas",
+               "canvas_estado", "canvas_modulo_nome", "atualizado_em")
+    return [
+        {
+            **{c: linha.get(c) for c in colunas},
+            "erro_detalhe": _sem_o_video(linha.get("erro_detalhe"), linha.get("youtube_video_id")),
+            "canvas_erro": _sem_o_video(linha.get("canvas_erro"), linha.get("youtube_video_id")),
+        }
+        for linha in db.get("aula_gravacao", {}).values()
+    ]
+
+
+_VIEWS = {
+    "trilha_de_alteracoes": _trilha_de_alteracoes,
+    "nome_da_coordenacao": _nome_da_coordenacao,
+    "aula_gravacao_para_ia": _aula_gravacao_para_ia,
+}
+#: As colunas de uma view não são lidas pelo leitor de migrations; as destas
+#: três estão no GRANT dela, e pedir coluna que ele não dá é 42501 no banco.
+_COLUNAS_DAS_VIEWS = {v: dict.fromkeys(lista_branca()[v], "") for v in VIEWS_DO_MCP}
+
+
+def _colunas_de(tabela: str) -> dict[str, str] | None:
+    return esquema().colunas(tabela) or _COLUNAS_DAS_VIEWS.get(tabela)
+
+
 def _recusar(codigo: str, mensagem: str) -> NoReturn:
     """A mesma exceção que o postgrest-py levanta com a resposta de erro."""
     raise APIError({"code": codigo, "message": mensagem, "details": None, "hint": None})
@@ -201,7 +265,7 @@ def _tabela_do_embed(tabela: str, cabeca: str) -> str:
 
 
 def _conferir_selecao(tabela: str, selecao: str) -> None:
-    colunas = esquema().colunas(tabela)
+    colunas = _colunas_de(tabela)
     if colunas is None:
         return  # view: o leitor não sabe as colunas, e o fake não as inventa
     for item in _partes(selecao or "*"):
@@ -222,7 +286,7 @@ def _conferir_no_esquema(consulta: ConsultaRica) -> None:
     if not esquema().existe(consulta.tabela):
         _recusar("PGRST205", f"Could not find the table 'public.{consulta.tabela}' in the schema cache")
     _conferir_selecao(consulta.tabela, consulta.colunas)
-    colunas = esquema().colunas(consulta.tabela)
+    colunas = _colunas_de(consulta.tabela)
     if colunas is None:
         return
     for tipo, coluna, valor in consulta.filtros:
@@ -305,7 +369,9 @@ class ConsultaRica(Query):
         if self.op != "select":
             raise AssertionError(f"tool da coordenação tentou {self.op} em {self.tabela}")
         _conferir_no_esquema(self)
-        linhas = [l for l in self.db.get(self.tabela, {}).values() if self._bate(l)]
+        visao = _VIEWS.get(self.tabela)
+        fonte = visao(self.db) if visao else self.db.get(self.tabela, {}).values()
+        linhas = [l for l in fonte if self._bate(l)]
         for coluna, desc in reversed(self._order):
             linhas.sort(key=lambda l, c=coluna: _ordenavel(l.get(c)), reverse=desc)
         n = len(linhas)
@@ -1148,6 +1214,19 @@ class TestReguasDeCorte:
         assert K1 not in texto and K2 not in texto and "@escola.invalid" not in texto
         assert "http" not in texto and all("[endereço]" in p["fonte"] for p in r["predicados"])
 
+    def test_o_nome_de_quem_criou_nao_vem_da_tabela_da_credencial(self, escola):
+        cliente = escola.cliente()
+        chamar(cliente, "reguas_de_corte", slug=REGUA_CRIADA)
+        assert cliente.em(auditoria.VIEW_DOS_NOMES) and not cliente.em("usuario_coordenacao")
+
+    def test_a_lista_e_as_versoes_tem_limite(self, escola):
+        """Sem o parâmetro, o teto do MCP não alcançaria a lista (catalogo.py)."""
+        lista = chamar(escola.cliente(), "reguas_de_corte", limite=2)
+        assert len(lista["reguas"]) == 2 and lista["total"] == 6 and lista["truncado"] is True
+        assert chamar(escola.cliente(), "reguas_de_corte")["truncado"] is False
+        detalhe = chamar(escola.cliente(), "reguas_de_corte", slug=REGUA_CRIADA, limite=1)
+        assert [v["versao"] for v in detalhe["versoes"]] == [2] and detalhe["totalVersoes"] == 2
+
     def test_slug_que_nao_existe(self, escola):
         r = chamar(escola.cliente(), "reguas_de_corte", slug="nao-existe")
         assert "não existe" in r["erro"] and REGUA_CRIADA in r["erro"]
@@ -1339,6 +1418,17 @@ class TestEstadoDasGravacoes:
                          "googleapis", "ya29", "bucket-com-menores", "aulas/"):
             assert proibido not in texto
 
+    def test_a_tool_le_a_view_e_nao_pede_coluna_de_link(self, escola):
+        """O `sas_mcp` não lê `aula_gravacao` (0074): o caminho é um só, no chat
+        e no MCP, e nenhuma coluna de link ou de S3 aparece no pedido."""
+        cliente = escola.cliente()
+        chamar(cliente, "estado_das_gravacoes", so_problemas=False)
+        (aulas,) = cliente.em(gravacoes.VIEW_PARA_IA)
+        assert not cliente.em("aula_gravacao")
+        assert not re.search(r"youtube|pagina|s3_|conferencia", aulas.colunas)
+        (cursos,) = cliente.em("curso_monitorado_gravacao")
+        assert "professor" not in cursos.colunas and "canvas_modulo_id" not in cursos.colunas
+
     def test_o_video_nao_sai_nem_dentro_do_erro(self, escola):
         """O `Failing row contains (…)` do Postgres despeja a linha da aula, com
         o id do vídeo (que sozinho abre o não listado) e o lugar dele no S3; o
@@ -1463,6 +1553,34 @@ class TestLembretesAgendados:
         assert chamar(escola.cliente(), "lembretes_agendados", dias=1000)["janelaDias"] == rotinas.TETO_DE_DIAS
         assert chamar(escola.cliente(), "lembretes_agendados", dias=-3)["janelaDias"] == 0
 
+    def test_os_eventos_tem_limite_e_a_fila_nao(self, escola, ligado):
+        """O limite corta o detalhe, não a conta: a fila é uma contagem da tabela."""
+        r = chamar(escola.cliente(), "lembretes_agendados", dias=30, limite=1)
+        assert [e["eventoId"] for e in r["eventos"]] == [EV1]
+        assert r["totalEventos"] == 3 and r["truncado"] is True
+        assert r["fila"]["agendadosNaJanela"] >= 2
+
+    def test_pelo_mcp_nao_repete_o_ambiente_de_um_processo_que_nao_manda_email(self, escola, monkeypatch):
+        """O processo do MCP não tem o ambiente da API: `get_settings()` lá
+        devolve o valor de fábrica, e `emailConfigurado=false` faria a IA dizer
+        que nenhum e-mail sai com o SES ligado. Tudo o que vem do banco fica."""
+        monkeypatch.setattr(rotinas, "get_settings", lambda: pytest.fail("leu o ambiente do processo do MCP"))
+        with superficie.chamada_pelo_mcp():
+            r = chamar(escola.cliente(), "lembretes_agendados", dias=7)
+        configuracao = r["configuracao"]
+        assert configuracao.pop("aviso").startswith("Esta conexão não enxerga")
+        assert configuracao == {
+            "emailConfigurado": None, "lembretesDeAlunoLigados": None, "horaLembreteAluno": None,
+            "tetoDiario": None, "enviadosNasUltimas24h": 1,
+        }
+        para_alunos = [l for e in r["eventos"] for l in e["lembretes"] if l["para"] == "alunos"]
+        assert para_alunos and all(l["enviarEm"] is None for l in para_alunos)
+        # O do coordenador sai da hora do evento, que é dado do banco.
+        coordenador = next(l for l in r["eventos"][0]["lembretes"] if l["para"] == "coordenador")
+        assert coordenador["enviarEm"] is not None
+        assert r["alunosPorDia"][0]["enviarEm"] is None and r["alunosPorDia"][0]["disparosMontados"] == 2
+        assert r["fila"]["agendadosNaJanela"] == 2
+
 
 # ─── Trilha de auditoria ─────────────────────────────────────────────────
 
@@ -1505,7 +1623,7 @@ class TestHistoricoDeAlteracoes:
     def test_filtros_montados_de_id_validado(self, escola, filtro, esperadas):
         cliente = escola.cliente()
         r = chamar(cliente, "historico_de_alteracoes", **filtro)
-        ids = [linha["id"] for c in cliente.em("evento_auditoria") for linha in c.execute().data]
+        ids = [linha["id"] for c in cliente.em(auditoria.VIEW_DAS_ALTERACOES) for linha in c.execute().data]
         assert ids == esperadas, r
 
     def test_periodo_no_calendario_da_escola_e_em_z(self, escola):
@@ -1518,7 +1636,7 @@ class TestHistoricoDeAlteracoes:
         ate = (escola.hoje_brt - timedelta(days=5)).isoformat()
         antigos = chamar(escola.cliente(), "historico_de_alteracoes", ate=ate)
         assert [e["acao"] for e in antigos["eventos"]] == ["nota_editada", "nota_editada"]
-        for consulta in cliente.em("evento_auditoria"):
+        for consulta in cliente.em(auditoria.VIEW_DAS_ALTERACOES):
             for tipo, _, valor in consulta.filtros:
                 if tipo in ("gte", "lte"):
                     assert valor.endswith("Z") and "+" not in valor
@@ -1530,7 +1648,7 @@ class TestHistoricoDeAlteracoes:
     def test_entrada_torta_e_erro_sem_ler(self, escola, args):
         cliente = escola.cliente()
         assert "erro" in chamar(cliente, "historico_de_alteracoes", **args)
-        assert not cliente.em("evento_auditoria")
+        assert not cliente.em(auditoria.VIEW_DAS_ALTERACOES)
 
     def test_canal_de_acesso_nem_e_opcao(self, escola):
         assert "erro" in chamar(escola.cliente(), "historico_de_alteracoes", canal="acesso")
@@ -1542,7 +1660,22 @@ class TestHistoricoDeAlteracoes:
     def test_limite(self, escola):
         cliente = escola.cliente()
         chamar(cliente, "historico_de_alteracoes", limite=1000)
-        assert cliente.em("evento_auditoria")[0]._limit == trilha.TETO_DE_EVENTOS
+        assert cliente.em(auditoria.VIEW_DAS_ALTERACOES)[0]._limit == trilha.TETO_DE_EVENTOS
+
+    def test_le_as_views_e_nunca_as_tabelas(self, escola):
+        """O `sas_mcp` não lê `evento_auditoria` nem `usuario_coordenacao` (0074):
+        pela tabela, a tool passaria aqui e daria 42501 no MCP."""
+        cliente = escola.cliente()
+        r = chamar(cliente, "historico_de_alteracoes", ator_nome="coordenadora")
+        assert r["eventos"] and r["eventos"][0]["quem"] == "COORDENADORA SINTETICA"
+        assert cliente.em(auditoria.VIEW_DOS_NOMES)
+        assert not cliente.em("evento_auditoria") and not cliente.em("usuario_coordenacao")
+
+    def test_a_consulta_nao_pede_ip_nem_request_id(self, escola):
+        cliente = escola.cliente()
+        chamar(cliente, "historico_de_alteracoes")
+        (consulta,) = cliente.em(auditoria.VIEW_DAS_ALTERACOES)
+        assert "ip" not in _partes(consulta.colunas) and "request_id" not in _partes(consulta.colunas)
 
 
 # ─── O que vale para todas as tools novas ────────────────────────────────

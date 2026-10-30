@@ -15,6 +15,9 @@ PostgREST, que é onde um filtro errado mora sem dar erro. O que se trava:
   4. **A leitura do MCP fica fora da linha do tempo padrão**, como os logins:
      é uma linha por chamada de tool, e misturada às edições humanas ela as
      soterraria (revisão paralela de 25/10).
+  5. **A tool lê as views da 0074**, com os mesmos filtros da tela, e nunca
+     pede `ip` nem `request_id`; o nome de quem fez não vem da tabela da
+     credencial, e a tela continua nas tabelas.
 """
 
 from __future__ import annotations
@@ -206,6 +209,45 @@ class TestLeituraDoMcp:
 
     def test_com_logins_a_leitura_volta(self):
         assert not [p for p in _consulta(incluir_logins=True) if p[0] == "acao"]
+
+
+# ─── 5 · O que a tool lê (0074) ──────────────────────────────────────────
+
+
+class TestSoAlteracoes:
+    def test_le_a_view_sem_ip_nem_request_id(self):
+        gravador = _Gravador()
+        auditoria.consultar(gravador, so_alteracoes=True)
+        assert gravador.tabelas_lidas() == [auditoria.VIEW_DAS_ALTERACOES]
+        select = dict(gravador.parametros(auditoria.VIEW_DAS_ALTERACOES))["select"]
+        assert "ip" not in select.replace(" ", "").split(",") and "request_id" not in select
+
+    def test_os_filtros_sao_os_mesmos_da_tela(self):
+        filtros = {"canais": ["nota", "simulado"], "acao": "nota_editada", "recurso_prefixos": ["nota/x"],
+                   "ator_ids": [COORD], "desde": "2026-10-01T00:00:00Z", "limite": 7}
+        gravador = _Gravador()
+        auditoria.consultar(gravador, so_alteracoes=True, **filtros)
+        pela_view = [p for p in gravador.parametros(auditoria.VIEW_DAS_ALTERACOES) if p[0] != "select"]
+        assert pela_view == [p for p in _consulta(**filtros) if p[0] != "select"]
+
+    def test_sem_a_opcao_a_tela_continua_na_tabela(self):
+        assert ("select", COLUNAS) in _consulta()
+
+
+class TestNomesDaCoordenacao:
+    def test_le_a_view_e_so_o_par(self):
+        gravador = _Gravador({auditoria.VIEW_DOS_NOMES: [{"id": COORD, "nome": "Leo"}]})
+        assert auditoria.nomes_da_coordenacao(gravador, [COORD, COORD, None]) == {COORD: "Leo"}
+        assert gravador.tabelas_lidas() == [auditoria.VIEW_DOS_NOMES]
+        assert gravador.parametros(auditoria.VIEW_DOS_NOMES) == [("select", "id, nome"), ("id", f"in.({COORD})")]
+
+    def test_email_digitado_nunca_vai_a_consulta(self):
+        gravador = _Gravador()
+        assert auditoria.nomes_da_coordenacao(gravador, ["alguem@aridesa.com.br", "", None]) == {}
+        assert gravador.pedidos == []
+
+    def test_a_conta_que_sumiu_fica_de_fora(self):
+        assert auditoria.nomes_da_coordenacao(_Gravador(), [COORD]) == {}
 
 
 # ─── 3 · Nomes dos atores ────────────────────────────────────────────────

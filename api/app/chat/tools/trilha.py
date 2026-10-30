@@ -2,8 +2,9 @@
 
 "Quem mudou a nota da aluna no P22?" é pergunta de coordenação que só a
 trilha (`evento_auditoria`, migration 0022) responde. A leitura é a da tela
-de auditoria (`auditoria.consultar` e `auditoria.nomes_dos_atores`), e a tool
-só faz duas coisas que a tela não precisa fazer:
+de auditoria, pelas mesmas funções (`auditoria.consultar`, com `so_alteracoes`,
+e `auditoria.nomes_da_coordenacao`), e a tool só faz duas coisas que a tela não
+precisa fazer:
 
   * FECHA OS CANAIS numa lista positiva — nota, simulado, ciclo, canvas e
     criterio. O canal 'acesso' nunca entra: em `login_falhou` o `ator_id` é o
@@ -23,7 +24,14 @@ o prefixo é LIKE, e um '%' vindo do modelo alargaria a busca
 A trilha é melhor-esforço (`auditoria.py`): a falta de evento não prova que a
 ação não aconteceu, e a descrição diz isso ao modelo.
 
-Fora do MCP: decisão aberta (docs/43 §6).
+Vai ao MCP desde 30/10: a decisão de 24/10 a deixava fora (docs/43 §6), e a
+coordenação a reverteu. As duas listas acima continuam valendo, e ganharam um
+piso no banco: GRANT por coluna não corta linha, e a tabela tem o canal
+'acesso', então o MCP não a lê. Lê `trilha_de_alteracoes`, a view da 0074, com
+os canais de `CANAIS_DA_TRILHA` e o detalhe na união de `DETALHE_POR_ACAO`;
+tests/test_migrations_do_mcp.py reprova se a view e este módulo divergirem. O
+nome de quem fez vem de `nome_da_coordenacao`, da mesma migration. Nome de aluno
+só sai em `alunoNome`, com `alunoId` ao lado, e passa pelo pseudônimo.
 """
 
 from __future__ import annotations
@@ -152,15 +160,16 @@ def historico_de_alteracoes(
         # `ate` inclusivo: até o fim do dia pedido, em BRT.
         ate=_instante(fim, fim_do_dia=True) if fim else None,
         limite=limite,
+        so_alteracoes=True,
     )
     # Defesa em profundidade: a lista de canais vai na consulta, e um canal
     # fora dela não sai nem que a leitura mude por baixo.
     linhas = [linha for linha in linhas if linha.get("canal") in CANAIS_DA_TRILHA]
 
-    # Só nome de COORDENADOR: `nomes_dos_atores` também resolve aluno, e
-    # ator aluno nesses canais seria dado de menor que ninguém pediu.
-    nomes, _ = auditoria.nomes_dos_atores(
-        cliente, [("coordenador", l.get("ator_id")) for l in linhas if l.get("ator_tipo") == "coordenador"]
+    # Só nome de COORDENADOR: ator aluno nesses canais seria dado de menor
+    # que ninguém pediu, e a view nem o resolve.
+    nomes = auditoria.nomes_da_coordenacao(
+        cliente, [l.get("ator_id") for l in linhas if l.get("ator_tipo") == "coordenador"]
     )
     eventos = [_evento(linha, nomes) for linha in linhas]
     saida: dict[str, Any] = {"total": len(eventos), "haMais": len(linhas) >= limite, "eventos": eventos}
@@ -207,7 +216,7 @@ def _ids_da_coordenacao(cliente: Client, nome: str) -> list[str] | None:
     if len(termo) < 2:
         return None
     linhas = (
-        cliente.table("usuario_coordenacao")
+        cliente.table(auditoria.VIEW_DOS_NOMES)
         .select("id, nome")
         .ilike("nome", f"%{termo}%")
         .limit(20)
@@ -304,3 +313,7 @@ _SCHEMA_HISTORICO = {
 TOOLS: list[tuple[dict, Callable]] = [
     (_SCHEMA_HISTORICO, historico_de_alteracoes),
 ]
+
+METADADOS: dict[str, dict[str, Any]] = {
+    "historico_de_alteracoes": {"expor_no_mcp": True},
+}

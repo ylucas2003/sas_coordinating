@@ -11,6 +11,11 @@ de um evento não prova que a ação não aconteceu.
 A leitura também mora aqui (`consultar`, `nomes_dos_atores`): nasceu em
 `routes/auditoria.py` e desceu quando a tool do assistente que conta "quem
 mudou o quê" (docs/43 §4.3) passou a precisar da mesma consulta.
+
+Desde 30/10 a tool também vai ao MCP, e o MCP não lê `evento_auditoria` nem
+`usuario_coordenacao`: lê as duas views que a 0074 escreveu para ele —
+`trilha_de_alteracoes` (`consultar(..., so_alteracoes=True)`) e
+`nome_da_coordenacao` (`nomes_da_coordenacao`). A tela continua nas tabelas.
 """
 
 from __future__ import annotations
@@ -45,6 +50,19 @@ ACOES_SEM_ALTERACAO = (*ACOES_DE_ACESSO, ACAO_LEITURA_DO_MCP)
 LIMITE_MAXIMO = 500
 
 _COLUNAS = "id, ocorrido_em, acao, canal, ator_tipo, ator_id, recurso, ip, detalhe, request_id"
+
+#: A trilha que as tools leem, no chat e no MCP (migration 0074): só os canais
+#: de alteração (nota, simulado, ciclo, canvas, criterio), sem `ip` nem
+#: `request_id`, e o detalhe só com as chaves que a tool mostra. GRANT por
+#: coluna não corta LINHA, e a tabela tem o canal `acesso`, com o e-mail
+#: digitado no login que falhou — por isso a view, e não a tabela.
+VIEW_DAS_ALTERACOES = "trilha_de_alteracoes"
+_COLUNAS_DAS_ALTERACOES = "id, ocorrido_em, acao, canal, ator_tipo, ator_id, recurso, detalhe"
+
+#: O nome de cada conta da coordenação e só ele (0074): sem e-mail, hash nem
+#: papel. `usuario_coordenacao` continua fora da lista branca do MCP — é a
+#: sonda de privilégio do boot dele (app/mcp/dados.py).
+VIEW_DOS_NOMES = "nome_da_coordenacao"
 
 
 def registrar(
@@ -94,6 +112,7 @@ def consultar(
     limite: int = 100,
     antes_de_id: int | None = None,
     incluir_logins: bool = False,
+    so_alteracoes: bool = False,
 ) -> list[dict[str, Any]]:
     """Eventos da trilha, do mais recente para o mais antigo (por `id`).
 
@@ -120,10 +139,17 @@ def consultar(
 
     O que sai é a linha crua — com `ip` e, em `login_falhou`, o e-mail
     DIGITADO em `ator_id` (routes/auth.py). A tela é da coordenação; quem leva
-    isto a um modelo escolhe as colunas e os canais antes.
+    isto a um modelo lê com `so_alteracoes`:
+
+      * `so_alteracoes` — lê `VIEW_DAS_ALTERACOES` (0074) em vez da tabela: os
+        cinco canais de alteração, sem `ip` nem `request_id`, e o detalhe só
+        com as chaves revisadas. É o que a tool lê no chat e no MCP — e o
+        único jeito de o MCP ler a trilha, que ele não lê como tabela. Os
+        filtros são os mesmos; canal fora dos cinco simplesmente não vem.
     """
     limite = min(max(1, limite), LIMITE_MAXIMO)
-    q = cliente.table("evento_auditoria").select(_COLUNAS).order("id", desc=True).limit(limite)
+    origem, colunas = (VIEW_DAS_ALTERACOES, _COLUNAS_DAS_ALTERACOES) if so_alteracoes else ("evento_auditoria", _COLUNAS)
+    q = cliente.table(origem).select(colunas).order("id", desc=True).limit(limite)
     if not incluir_logins:
         q = q.not_.in_("acao", list(ACOES_SEM_ALTERACAO))
     canais = [c for c in canais or () if c]
@@ -185,7 +211,7 @@ def nomes_dos_atores(
     coord_ids: set[str] = set()
     aluno_ids: set[str] = set()
     for tipo, ator_id in ids:
-        if not ator_id or len(ator_id) != 36:
+        if not _e_id_de_conta(ator_id):
             continue
         if tipo == "coordenador":
             coord_ids.add(ator_id)
@@ -209,3 +235,25 @@ def nomes_dos_atores(
             nomes[linha["id"]] = linha["nome"]
             tem_foto[linha["id"]] = linha.get("foto_perfil_storage") is not None
     return nomes, tem_foto
+
+
+def _e_id_de_conta(ator_id: str | None) -> bool:
+    """Só id de 36 caracteres vai à consulta: em `login_falhou` o `ator_id` é o
+    e-mail digitado, e e-mail num `in` de coluna uuid derrubaria a leitura."""
+    return bool(ator_id) and len(ator_id) == 36
+
+
+def nomes_da_coordenacao(cliente, ids: Iterable[str | None]) -> dict[str, str]:
+    """O nome de cada conta da coordenação, por id — o "quem fez" das tools.
+
+    Lê `VIEW_DOS_NOMES` (0074), e não `usuario_coordenacao`: as tools que dizem
+    quem mudou a nota ou criou a régua rodam também no MCP, que não lê a
+    tabela da credencial. Sem foto, que é sinal de tela (`nomes_dos_atores`).
+    A mesma regra de id da tela; a conta que não existe mais fica fora do
+    dicionário, e quem desenha decide o que dizer no lugar.
+    """
+    alvo = sorted({i for i in ids if _e_id_de_conta(i)})
+    if not alvo:
+        return {}
+    linhas = cliente.table(VIEW_DOS_NOMES).select("id, nome").in_("id", alvo).execute().data or []
+    return {linha["id"]: linha["nome"] for linha in linhas}

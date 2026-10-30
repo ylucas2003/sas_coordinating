@@ -99,10 +99,13 @@ _PADRAO_DOWN = re.compile(r"^\d{4}_[a-z0-9_]+\.down\.sql$")
 #: tests/test_migrations_do_mcp.py. `alerta` saiu daqui em 26/10: com o nome do
 #: aluno liberado no MCP (decisão do dono), `listar_alertas` é exposta e a 0071
 #: dá o GRANT por coluna. Em 30/10 a coordenação decidiu que a IA lê o que o
-#: coordenador lê, e saíram as tabelas da cantina (0075, por coluna — menos
-#: `usuario_cantina`, que é conta de acesso e fica) e `prova_externa`,
+#: coordenador lê, e saíram `disparo` e `canvas_sync_execucao` (0074; a primeira
+#: só pelas colunas de contagem), as tabelas da cantina (0075, por coluna —
+#: menos `usuario_cantina`, que é conta de acesso e fica) e `prova_externa`,
 #: `candidato_externo` e `conquista_externa` (0076, por coluna; o que continua
-#: fechado da captação está em COLUNAS_PROIBIDAS_DA_CAPTACAO).
+#: fechado da captação está em COLUNAS_PROIBIDAS_DA_CAPTACAO). `aula_gravacao`,
+#: `evento_auditoria` e `usuario_coordenacao` FICAM: o MCP as alcança só pelas
+#: views de `VIEWS_DO_MCP`, e a tabela em si continua dando 42501.
 TABELAS_PROIBIDAS: tuple[str, ...] = (
     "usuario_coordenacao",
     "usuario_cantina",
@@ -117,11 +120,9 @@ TABELAS_PROIBIDAS: tuple[str, ...] = (
     "chat_thread",
     "chat_mensagem",
     "chat_artefato",
-    "disparo",
     "email_invalido",
     "upload",
     "upload_evento",
-    "canvas_sync_execucao",
     "aula_gravacao",
     "questao_estudo_aluno",
 )
@@ -156,6 +157,25 @@ COLUNAS_PROIBIDAS_DA_CAPTACAO: dict[str, tuple[str, ...]] = {
     "candidato_externo": ("observacoes", "retrato_editado_a_mao"),
     "conquista_externa": ("nome_informado", "raspado_em"),
 }
+
+#: Colunas que nunca entram no GRANT das tabelas abertas pela 0074, pelo mesmo
+#: motivo das de `aluno`: `disparo` só se conta — o destinatário é e-mail, o
+#: corpo traz o primeiro nome do aluno e o link de descadastro, e o contexto, o
+#: nome; `evento_agenda.criado_por` é o e-mail de quem agendou (0018).
+COLUNAS_PROIBIDAS_POR_TABELA: dict[str, tuple[str, ...]] = {
+    "disparo": ("destinatario", "assunto", "corpo", "contexto", "erro"),
+    "evento_agenda": ("criado_por",),
+    "curso_monitorado_gravacao": ("professor_padrao",),
+}
+
+#: As únicas views que entram na lista branca. Toda outra continua proibida:
+#: view roda com o privilégio do dono e expõe o que lê (0071). Estas três foram
+#: escritas PARA o MCP na 0074 e são o caminho até o que ele não lê como tabela:
+#: a trilha sem o canal `acesso`, o nome da coordenação sem o resto da conta, e a
+#: aula sem link. Por isso a regra é de quem as mexe: `_auditar_view`.
+VIEWS_DO_MCP: frozenset[str] = frozenset(
+    {"trilha_de_alteracoes", "nome_da_coordenacao", "aula_gravacao_para_ia"}
+)
 
 #: As únicas funções que o sas_mcp pode executar. `buscar_candidatos_por_conquista`
 #: é SECURITY INVOKER (0068) e vem de PUBLIC: roda com o privilégio de quem
@@ -461,17 +481,17 @@ LOGIN_DO_MCP = "autenticador_mcp"
 #: login. Toda regra de concessão vale para os três.
 PAPEIS_DO_MCP: tuple[str, ...] = ("sas_leitura", "sas_mcp", LOGIN_DO_MCP)
 _VIGIADOS: frozenset[str] = frozenset({*PAPEIS_DO_MCP, "public"})
-_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_", "0075_", "0076_")
+_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_", "0074_", "0075_", "0076_")
 DIR_INIT = Path(__file__).resolve().parent.parent.parent / "infra" / "postgres" / "init"
 
 #: Prefixos de tabela que nunca entram na lista branca, além das nomeadas em
-#: TABELAS_PROIBIDAS: conversa, credencial, token, OAuth (0073), captação,
-#: disparo e e-mail (o das contas de IA inclusive) — e `v_`, porque view comum
-#: roda com o privilégio do dono (0071). Os prefixos da cantina saíram em 30/10
-#: (0075); `usuario_` é o que segue segurando `usuario_cantina`.
+#: TABELAS_PROIBIDAS: conversa, credencial, token, OAuth (0073), captação e
+#: e-mail (o das contas de IA inclusive) — e `v_`, porque view comum roda com o
+#: privilégio do dono (0071). Os prefixos da cantina saíram em 30/10 (0075), e o
+#: de `disparo`, com a 0074; `usuario_` é o que segue segurando `usuario_cantina`.
 PREFIXOS_PROIBIDOS: tuple[str, ...] = (
     "chat_", "usuario_", "token_", "oauth_",
-    "candidato_", "conquista_", "prova_externa", "disparo", "email_", "v_",
+    "candidato_", "conquista_", "prova_externa", "email_", "v_",
 )
 
 #: As views que a lista branca pode ter, pelo nome (0076). A trava do prefixo
@@ -580,7 +600,8 @@ def auditar_migrations(
         down = _PADRAO_DOWN.match(caminho.name) is not None
         do_mcp = caminho.name.startswith(_MIGRATIONS_DO_MCP)
         for comando in comandos:
-            for motivo in _auditar_comando(comando, down=down, do_mcp=do_mcp, views=views):
+            motivos = _auditar_comando(comando, down=down, do_mcp=do_mcp, views=views)
+            for motivo in (*motivos, *_auditar_view(comando.texto, do_mcp=do_mcp)):
                 problemas.append(f"{caminho.name}: {motivo} — {comando.texto[:160]}")
     problemas += [f"funções: {motivo}" for motivo in auditar_funcoes(ups)]
     if dir_init is not None and dir_init.is_dir():
@@ -642,6 +663,35 @@ def _views(comandos: Iterable[Comando]) -> frozenset[str]:
             for nome in m["nomes"].split(","):
                 do_dono.pop(nome.strip().lower().removeprefix("public."), None)
     return frozenset(nome for nome, dono in do_dono.items() if dono)
+
+
+_RE_MEXE_EM_VIEW = re.compile(
+    r"(?P<verbo>create(?: or replace)?|alter|drop)(?: materialized)? (?:view|table) "
+    r"(?:if (?:not )?exists )?(?:public\.)?(?P<nome>\w+)\b(?P<resto>.*)",
+    re.S,
+)
+
+
+def _auditar_view(texto: str, *, do_mcp: bool) -> list[str]:
+    """Quem mexe numa view de `VIEWS_DO_MCP`.
+
+    O GRANT sobrevive ao CREATE OR REPLACE: uma view recriada numa migration
+    qualquer, com o WHERE mais largo, entregaria ao MCP as linhas que ela existe
+    para esconder, sem GRANT novo nenhum para a auditoria ver. Daí as três
+    regras: só migration do MCP as toca; nasce com `security_barrier`, senão
+    filtro de fora roda antes do WHERE dela; e ALTER nenhum, em nenhum arquivo —
+    ALTER TABLE também alcança view, e é por ele que saem a barreira e o dono.
+    """
+    m = _RE_MEXE_EM_VIEW.match(texto.lower())
+    if m is None or m["nome"] not in VIEWS_DO_MCP:
+        return []
+    if not do_mcp:
+        return [f"{m['nome']} é view do MCP: só uma migration do MCP a toca"]
+    if m["verbo"] == "alter":
+        return [f"ALTER em {m['nome']}: tiraria a barreira ou trocaria o dono da view do MCP"]
+    if m["verbo"].startswith("create") and not re.search(r"\bsecurity_barrier = true\b", m["resto"]):
+        return [f"{m['nome']} é view do MCP e nasce com security_barrier = true"]
+    return []
 
 
 def _auditar_init(dir_init: Path) -> list[str]:
@@ -744,12 +794,14 @@ def _forma_permitida(
             motivos = []
             if tabela_proibida(tabela):
                 motivos.append(f"{tabela} nunca entra na lista branca")
-            if tabela in views:
+            if tabela in views and tabela not in VIEWS_DO_MCP:
                 motivos.append(f"{tabela} é view: roda com o privilégio do dono e expõe o que lê (0071)")
             if tabela == "aluno" and (proibidas := colunas & set(COLUNAS_PROIBIDAS_DO_ALUNO)):
                 motivos.append(f"coluna proibida de aluno: {', '.join(sorted(proibidas))}")
             if proibidas := colunas & set(COLUNAS_PROIBIDAS_DA_CAPTACAO.get(tabela, ())):
                 motivos.append(f"coluna proibida da captação: {', '.join(sorted(proibidas))}")
+            if proibidas := colunas & set(COLUNAS_PROIBIDAS_POR_TABELA.get(tabela, ())):
+                motivos.append(f"coluna proibida de {tabela}: {', '.join(sorted(proibidas))}")
             return motivos
         if priv.upper() == "SELECT":
             return ["GRANT SELECT ao sas_leitura é por coluna: coluna nova nasce invisível (0071)"]
@@ -1276,6 +1328,18 @@ _SO_DEFAULT = "428C9"
 #: (a 0076 deixou a do rodapé da captação com security_invoker): numa tabela,
 #: este código seria uma sonda que não exercitou privilégio nenhum.
 _VIEW_NAO_ATUALIZAVEL = "55000"
+#: A mesma coisa na coluna CALCULADA de view (o `detalhe` filtrado da trilha, o
+#: erro sem o vídeo da aula, 0074): o Postgres a recusa ao reescrever o comando,
+#: antes de chegar ao privilégio, e as colunas simples da mesma view dão 42501.
+_COLUNA_CALCULADA_DE_VIEW = "0A000"
+
+
+def _escrita_recusada(r: Resposta, tabela: str) -> bool:
+    if r.negada or r.codigo == _SO_DEFAULT:
+        return True
+    if tabela in VIEWS_DA_LISTA_BRANCA and r.codigo == _VIEW_NAO_ATUALIZAVEL:
+        return True
+    return tabela in VIEWS_DO_MCP and r.codigo == _COLUNA_CALCULADA_DE_VIEW
 
 
 def conferir_sem_escrita(
@@ -1324,13 +1388,13 @@ def conferir_sem_escrita(
             if tabela == "evento_auditoria" and coluna in COLUNAS_DA_TRILHA:
                 if r.status != 201:
                     abertas.append(f"INSERT ({coluna}) é da 0072 e deu {r.resumo()}")
-            elif not (r.negada or r.codigo in recusas):
+            elif not _escrita_recusada(r, tabela):
                 abertas.append(f"INSERT ({coluna}): {r.resumo()}")
         if legiveis:
             filtro = _contraditorio(legiveis[0])
             for coluna in todas:
                 r = mcp.pedir("PATCH", tabela, params=filtro, corpo={coluna: None}, cabecalhos=_SO_O_MINIMO)
-                if not (r.negada or r.codigo in recusas):
+                if not _escrita_recusada(r, tabela):
                     abertas.append(f"UPDATE ({coluna}): {r.resumo()}")
             r = mcp.pedir("DELETE", tabela, params=filtro, cabecalhos=_SO_O_MINIMO)
             if not (r.negada or r.codigo in recusas - {_SO_DEFAULT}):
@@ -1522,7 +1586,16 @@ def _descobrir_valores(cliente: Any) -> dict[str, Any]:
         v["data"] = cardapios[0]["data"]
     reguas = linhas("criterio_classificacao", "slug", eq={"embutido": False, "ativo": True})
     if reguas:
-        v["criterio"] = reguas[0]["slug"]
+        # `slug` é o ramo que lê as versões, e nelas o nome de quem criou (0074).
+        v["criterio"] = v["slug"] = v["regua_slug"] = reguas[0]["slug"]
+    cursos = linhas("curso_monitorado_gravacao", "curso_id")
+    if cursos:
+        v["curso_id"] = cursos[0]["curso_id"]
+    pessoas = linhas("nome_da_coordenacao", "nome")
+    if pessoas:
+        palavras = (pessoas[0].get("nome") or "").split()
+        if palavras and len(palavras[0]) >= 2:
+            v["ator_nome"] = palavras[0]
     ligacoes = linhas("questao_vestibular_topico", "questao_id, materia, topico_codigo")
     if ligacoes:
         v["questao_id"] = ligacoes[0]["questao_id"]

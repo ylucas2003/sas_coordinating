@@ -10,7 +10,9 @@ continuam iguais se alguém reprovar quando divergirem. O que se trava:
   2. todo `status` que o banco aceita tem situação — senão ele cairia calado
      em "aguardando";
   3. o painel devolve o que a tela sempre recebeu, mais `situacao`, e a rota é
-     o painel.
+     o painel;
+  4. quem leva o painel a um modelo lê a view da 0074, e nem pede a coluna do
+     link.
 """
 
 from __future__ import annotations
@@ -155,3 +157,39 @@ def test_a_rota_e_o_painel(monkeypatch):
     cliente = _cliente()
     monkeypatch.setattr(consulta, "get_supabase", lambda: cliente)
     assert consulta.listar_gravacoes() == consulta.painel(cliente)
+
+
+# ─── 4 · A leitura para um modelo ────────────────────────────────────────
+
+
+def _cliente_da_ia() -> FakeCliente:
+    return FakeCliente(
+        {
+            "curso_monitorado_gravacao": {
+                "580": {"curso_id": "580", "nome": "Turma 1", "ativo": True, "publicar_no_canvas": True},
+            },
+            consulta.VIEW_PARA_IA: {
+                "a-1": {
+                    "id": "a-1", "curso_id": "580", "titulo": "Física", "status": "erro",
+                    "iniciada_em": "2026-10-20T09:00:00+00:00", "tentativas": 2,
+                    "erro_detalhe": "falhou em [vídeo]", "canvas_estado": "pendente",
+                    "canvas_modulo_nome": None, "canvas_erro": None,
+                    "atualizado_em": "2026-10-20T11:00:00+00:00",
+                },
+            },
+        }
+    )
+
+
+def test_para_ia_le_a_view_e_nao_a_tabela():
+    painel = consulta.painel(_cliente_da_ia(), limite_do_erro=None, para_ia=True)
+    (aula,) = painel["aulas"]
+    assert (aula["id"], aula["situacao"], aula["erroDetalhe"]) == ("a-1", "erro", "falhou em [vídeo]")
+    assert aula["youtubeVideoId"] is None and aula["youtubeUrl"] is None and aula["canvasUrl"] is None
+    assert aula["conferenciaId"] is None
+    assert painel["cursos"][0]["canvasModuloId"] is None
+
+
+def test_para_ia_nao_pede_coluna_de_link_nem_de_s3():
+    for campos in (consulta._CAMPOS_PARA_IA, consulta._CAMPOS_DO_CURSO_PARA_IA):
+        assert not re.search(r"youtube|pagina|s3_|conferencia|professor|modulo_id", campos)

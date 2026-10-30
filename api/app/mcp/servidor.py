@@ -47,6 +47,7 @@ from mcp.server.lowlevel import Server
 from mcp.shared.exceptions import McpError
 
 from ..auth import PAPEIS_DE_COORDENACAO
+from ..chat import superficie
 from ..chat.ferramentas import REGISTRO, Ferramenta, Registro, Sessao, serializar_para_modelo
 from ..observabilidade import request_id_aceito, request_id_atual
 from ..supabase_client import criar_cliente_supabase
@@ -386,7 +387,10 @@ def montar_servidor(
         cliente = await asyncio.to_thread(criar_cliente)
         inicio = time.perf_counter()
         try:
-            resultado = await registro.despachar_async(sessao, f.nome, cliente, args)
+            # A marca é para a tool que lê o ambiente do processo: o deste não
+            # é o da API (chat/superficie.py).
+            with superficie.chamada_pelo_mcp():
+                resultado = await registro.despachar_async(sessao, f.nome, cliente, args)
         finally:
             # Passou do prazo, a thread da tool continua rodando com este
             # cliente (o registro a abandona, não a mata): fechá-lo agora

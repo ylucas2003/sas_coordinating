@@ -52,9 +52,10 @@ NOMES_DE_LIMITE = frozenset({"limite", "k"})
 #: ciclo); declarar aqui é dizer, por escrito, que não é teto. Os da captação
 #: externa (30/10, chat/tools/captacao.py) são ano de conquista, ano letivo de
 #: referência do público e o mínimo de conquistas de um nome — filtros, que
-#: com teto mudariam a pergunta em vez de encurtar a resposta.
+#: com teto mudariam a pergunta em vez de encurtar a resposta. `dias` é a
+#: janela de `lembretes_agendados`, com o teto próprio de 30 no handler.
 INTEIROS_QUE_NAO_SAO_LIMITE: frozenset[str] = frozenset(
-    {"ano", "ano_min", "ano_max", "ano_ingresso", "conquistas_min"}
+    {"ano", "ano_min", "ano_max", "ano_ingresso", "conquistas_min", "dias"}
 )
 
 #: As tools expostas que só servem com o NOME do aluno saindo do SAS. Entraram
@@ -102,6 +103,14 @@ TROCAS_NOS_DOIS_MODOS: dict[str, tuple[tuple[str, str], ...]] = {
             "— a resposta diz o total e se a lista foi cortada (truncado); a lista inteira fica no SAS.",
         ),
     ),
+    # Aqui o trecho não cita a tool, mas manda oferecer o que ela faz: a IA de
+    # fora prometeria um CSV que esta conexão não tem como gerar.
+    "cortados_pela_regua": (
+        (
+            "Se a lista for longa, diga o total e ofereça exportar.",
+            "Se a lista for longa, diga o total e se ela foi cortada (truncado); a lista inteira fica no SAS.",
+        ),
+    ),
 }
 
 #: Só com o pseudônimo, que tira `buscar_aluno_por_nome` do catálogo
@@ -114,6 +123,7 @@ TROCAS_COM_PSEUDONIMO: dict[str, tuple[tuple[str, str], ...]] = {
         ("'compare a Ana com o Pedro'", "'compare o Aluno 2026001 com o Aluno 2026002'"),
         ("buscar_aluno_por_nome", "buscar_aluno_por_matricula"),
     ),
+    "historico_de_alteracoes": (("buscar_aluno_por_nome", "buscar_aluno_por_matricula"),),
 }
 
 _INTEIRO = re.compile(r"[+-]?\d+")

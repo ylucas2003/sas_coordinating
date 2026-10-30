@@ -35,6 +35,7 @@ _COM_TETO_NO_HANDLER = frozenset({
     "estado_das_gravacoes", "historico_de_alteracoes",
     "cantinas_e_regras", "calendario_da_cantina", "cardapio_da_cantina", "pedidos_da_refeicao",
     "custos_da_cantina", "direitos_a_refeicao", "restricoes_alimentares",
+    "reguas_de_corte", "lembretes_agendados",
 })
 
 
