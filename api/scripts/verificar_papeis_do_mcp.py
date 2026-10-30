@@ -185,6 +185,13 @@ VIEWS_DO_MCP: frozenset[str] = frozenset({
     "lista_questoes_da_coordenacao", "lista_questoes_item_da_coordenacao",
 })
 
+#: Os canais que `trilha_de_alteracoes` deixa passar: os mesmos de
+#: `trilha.CANAIS_DA_TRILHA` (tests/test_migrations_do_mcp.py reprova se
+#: divergirem). Aqui, repetidos, para o verificador não importar o app.
+CANAIS_DA_TRILHA_NA_VIEW: tuple[str, ...] = (
+    "nota", "simulado", "ciclo", "canvas", "criterio", "cantina", "captacao",
+)
+
 #: As únicas funções que o sas_mcp pode executar. `buscar_candidatos_por_conquista`
 #: é SECURITY INVOKER (0068) e vem de PUBLIC: roda com o privilégio de quem
 #: chama, então só alcança as colunas que a 0076 lhe deu — é uma das tools da
@@ -203,6 +210,8 @@ _CHAVES_SENSIVEIS: frozenset[str] = frozenset(
         *(c.replace("_", "") for colunas in COLUNAS_PROIBIDAS_DA_CAPTACAO.values() for c in colunas),
         "fotourl",
         "hashacesso",
+        "s3bucket",
+        "s3chavecomposto",
         "ip",
     }
 )
@@ -1267,21 +1276,45 @@ def conferir_lista_branca(
         rel.conferir(r.status == 200, f"{tabela} ({len(colunas)} colunas)", r.resumo())
 
 
-def conferir_lado_das_listas(rel: Relatorio, mcp: PostgREST) -> None:
-    """Pela view, só o lado da coordenação (0077).
+def conferir_linhas_das_views(rel: Relatorio, mcp: PostgREST, api: PostgREST | None) -> None:
+    """Pela view, só as linhas que ela existe para deixar passar (0074 e 0077).
 
     O resto do script confere coluna, e aqui o que importa é a LINHA: um WHERE
     alargado passaria pelas seções 1 e 2 sem uma falha, porque nem coluna nem GRANT
-    mudam. Num banco sem lista de aluno a conferência passa sem provar muito; a
-    prova com a linha de aluno semeada foi feita em 30/10 (docs/43).
+    mudam. A prova integrada de 30/10 mostrou isso: sem o WHERE da trilha ou o da
+    view dos itens, o verificador saía com 0 falhas. Num banco sem a linha proibida
+    a conferência passa sem provar muito, e por isso a dos itens, que precisa
+    saber quais listas são de aluno, usa o PostgREST da API.
     """
-    rel.secao("1b · A lista de aluno não aparece pela view")
+    rel.secao("1b · As views só trazem as linhas permitidas")
     r = mcp.pedir(
         "GET",
         "lista_questoes_da_coordenacao",
         params={"select": "id", "dono_tipo": "neq.coordenacao", "limit": "1"},
     )
     rel.conferir(r.status == 200 and r.corpo == [], "lista_questoes_da_coordenacao: só coordenação", r.resumo())
+
+    r = mcp.pedir(
+        "GET",
+        "trilha_de_alteracoes",
+        params={"select": "id", "canal": f"not.in.({','.join(CANAIS_DA_TRILHA_NA_VIEW)})", "limit": "1"},
+    )
+    rel.conferir(r.status == 200 and r.corpo == [], "trilha_de_alteracoes: só os canais da tool", r.resumo())
+
+    if api is None:
+        rel.aviso("sem --api: a view dos itens das listas não foi conferida por linha")
+        return
+    r = api.pedir("GET", "lista_questoes", params={"select": "id", "dono_tipo": "neq.coordenacao", "limit": "200"})
+    de_aluno = [linha["id"] for linha in r.corpo] if r.status == 200 and isinstance(r.corpo, list) else []
+    if not de_aluno:
+        rel.conferir(r.status == 200, "lista_questoes_item_da_coordenacao: não há lista de aluno a sondar", r.resumo())
+        return
+    r = mcp.pedir(
+        "GET",
+        "lista_questoes_item_da_coordenacao",
+        params={"select": "lista_id", "lista_id": f"in.({','.join(de_aluno)})", "limit": "1"},
+    )
+    rel.conferir(r.status == 200 and r.corpo == [], "lista_questoes_item_da_coordenacao: só coordenação", r.resumo())
 
 
 def conferir_nada_alem(
@@ -1861,7 +1894,7 @@ def main(argv: list[str] | None = None) -> int:
         origem = superficie_da_api or superficie
         colunas_de = origem[0] if origem else {}
         conferir_lista_branca(rel, mcp, branca)
-        conferir_lado_das_listas(rel, mcp)
+        conferir_linhas_das_views(rel, mcp, api)
         conferir_nada_alem(rel, mcp, branca, superficie, superficie_da_api)
         conferir_sem_escrita(rel, mcp, branca, colunas_de, api)
         conferir_auditoria(rel, mcp)

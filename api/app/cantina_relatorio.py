@@ -122,9 +122,9 @@ def agregados(
     }
 
 
-#: Quantos ids vão num filtro `in.(...)`. O httpx recusa query com mais de
-#: 65.536 caracteres (`InvalidURL`), e um uuid com a vírgula tem 37: o teto real
-#: é ~1.770, e 500 deixa folga para o resto da URL.
+#: Quantos ids vão num filtro `in.(...)`. Medido em 30/10, com o PostgREST
+#: v12.2.3 de verdade: 1.300 ids passam, 1.340 já dão HTTP 400 dele, e acima de
+#: ~1.770 o httpx recusa a URL (`InvalidURL`, 65.536 caracteres). 500 tem folga.
 LOTE_DE_IDS = 500
 
 
@@ -154,8 +154,8 @@ def _ler(
     Nenhuma consulta por pedido ou por aluno: é o mesmo cuidado da §12.1.3, e
     aqui ele pesa mais — este é o único lugar do produto que lê um mês inteiro
     de pedidos de uma vez. O filtro por lista de ids é que vai em fatias
-    (`_em_lotes`): inteiro, ele ia todo na URL, e acima de ~1.770 pedidos o
-    httpx recusava, derrubando as exportações XLSX e CSV. Medido num Postgres
+    (`_em_lotes`): inteiro, ele ia todo na URL, e acima de ~1.300 pedidos a
+    leitura quebrava, derrubando as exportações XLSX e CSV. Medido num Postgres
     descartável em 30/10, com um mês de 900 alunos: uma semana cheia já passa
     disso.
 

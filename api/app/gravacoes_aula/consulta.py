@@ -7,7 +7,7 @@ arquivo só é como se esquece um guard numa rota nova.
 A leitura é `painel(cliente)`, síncrona e sem `get_supabase()` por dentro, para
 a tool do assistente que acompanha as gravações (docs/43 §4.3) ler o mesmo que
 a tela, com o cliente dela. A tool lê com `para_ia=True`, que vai à view da 0074
-em vez da tabela: a mesma leitura, sem nenhum link de vídeo pelo caminho.
+em vez da tabela: a mesma leitura, sem as colunas do S3 pelo caminho.
 """
 
 from __future__ import annotations

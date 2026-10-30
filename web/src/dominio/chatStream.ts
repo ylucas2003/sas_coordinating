@@ -374,6 +374,23 @@ export const NOME_LEGIVEL_DA_TOOL: Readonly<Record<string, string>> = {
   estado_das_gravacoes: 'Conferindo as gravações',
   lembretes_agendados: 'Conferindo os lembretes agendados',
   historico_de_alteracoes: 'Lendo o histórico de alterações',
+  abrir_questao_do_banco: 'Abrindo a questão do banco',
+  panorama_do_banco: 'Vendo o panorama do banco',
+  calibracao_da_importancia: 'Conferindo a calibração da importância',
+  minhas_listas_do_banco: 'Abrindo as suas listas do banco',
+  // ── Coordenação · cantina ──
+  cantinas_e_regras: 'Conferindo as cantinas',
+  calendario_da_cantina: 'Vendo o calendário da cantina',
+  cardapio_da_cantina: 'Abrindo o cardápio',
+  pedidos_da_refeicao: 'Contando os pedidos da refeição',
+  custos_da_cantina: 'Somando os custos da cantina',
+  direitos_a_refeicao: 'Conferindo os direitos a refeição',
+  restricoes_alimentares: 'Conferindo as restrições alimentares',
+  // ── Coordenação · captação externa ──
+  buscar_candidatos_externos: 'Buscando candidatos externos',
+  buscar_candidatos_por_conquista: 'Buscando candidatos por conquista',
+  perfil_do_candidato_externo: 'Abrindo o perfil do candidato',
+  provas_da_captacao: 'Listando as provas da captação',
   roteiro_da_coordenacao: 'Abrindo o roteiro',
 
   // ── Aluno · o Tio Léo ──

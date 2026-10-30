@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.chat.tools.trilha import CANAIS_DA_TRILHA, DETALHE_POR_ACAO
 from app.mcp.dados import TABELA_DA_SONDA
 from scripts.verificar_papeis_do_mcp import (
+    CANAIS_DA_TRILHA_NA_VIEW,
     COLUNAS_DA_TRILHA,
     COLUNAS_PROIBIDAS_DA_CAPTACAO,
     COLUNAS_PROIBIDAS_DO_ALUNO,
@@ -608,6 +609,10 @@ def _corpo_da_view(nome: str) -> str:
     texto = re.sub(r"--[^\n]*", "", _arquivo("0074_").read_text(encoding="utf-8"))
     (corpo,) = re.findall(rf"CREATE VIEW {nome}\b.*?;", texto, re.S)
     return " ".join(corpo.split())
+
+
+def test_o_verificador_sonda_os_mesmos_canais_que_a_trilha_le():
+    assert set(CANAIS_DA_TRILHA_NA_VIEW) == set(CANAIS_DA_TRILHA)
 
 
 #: As duas das listas estão na 0077, com o corpo e o down travados em testes próprios.

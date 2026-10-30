@@ -588,9 +588,12 @@ def custos_da_cantina(
         return erro
     cid = None
     if cantina_id is not None:
-        cid, erro = _uuid(cantina_id, "cantina_id", "use o id que cantinas_e_regras devolve")
+        # O recorte, e não só o formato: um uuid que não é de cantina nenhuma
+        # somava zero, e a IA diria que a cantina não custou nada.
+        ids, _, erro = _recorte_de_cantinas(cliente, cantina_id)
         if erro:
             return erro
+        cid = ids[0]
 
     # O MESMO agregador da tela e da planilha (docs/40 §12.11.4): a soma é de
     # `valor_cobrado`, o preço carimbado no pedido (0054), não o de hoje.

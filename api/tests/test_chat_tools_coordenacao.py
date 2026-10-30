@@ -1907,10 +1907,40 @@ class TestHistoricoDeAlteracoes:
     def test_so_os_canais_da_trilha(self, escola):
         r = chamar(escola.cliente(), "historico_de_alteracoes")
         assert [e["acao"] for e in r["eventos"]] == [
-            "ciclo_criado", "criterio_criado", "enviado_ao_canvas", "simulado_editado",
-            "nota_editada", "nota_editada",
+            "ciclo_criado", "busca", "pedido_criado", "criterio_criado", "enviado_ao_canvas",
+            "simulado_editado", "nota_editada", "nota_editada",
         ]
         assert {e["canal"] for e in r["eventos"]} <= set(trilha.CANAIS_DA_TRILHA)
+
+    def test_cantina_e_captacao_entram_com_o_detalhe_fechado(self, escola):
+        """Decisão de 30/10: a tela de auditoria mostra os dois canais, e a IA lê
+        o que o coordenador lê. O detalhe é que não vem inteiro: a conta da
+        cantina leva o e-mail, e o nome do candidato voltaria pelo pseudônimo."""
+        ts = escola.hoje_brt.isoformat() + "T12:00:00+00:00"
+        base = {"ocorrido_em": ts, "ator_tipo": "coordenador", "ator_id": K1, "ip": "10.0.0.9", "request_id": "req-x"}
+        semente = {
+            901: ("cantina", "conta_cantina_criada", "usuario_cantina/1", {"email": "conta@cantina.invalid", "nome": "CONTA"}),
+            902: ("cantina", "restricao_alimentar_editada", f"aluno/{A}", {"preenchida": True}),
+            903: ("captacao", "captacao_perfil_criado", "candidato_externo/1", {"nome_normalizado": "candidato de fora"}),
+            904: ("captacao", "captacao_status_alterado", "candidato_externo/1", {"valor_antes": "novo", "valor_depois": "contatado"}),
+        }
+        for n, (canal, acao, recurso, detalhe) in semente.items():
+            escola.db["evento_auditoria"][n] = {**base, "id": n, "canal": canal, "acao": acao, "recurso": recurso, "detalhe": detalhe}
+        r = chamar(escola.cliente(), "historico_de_alteracoes", canal="cantina")
+        por_acao = {e["acao"]: e for e in r["eventos"]}
+        assert por_acao["conta_cantina_criada"]["detalhe"] == {}
+        assert por_acao["restricao_alimentar_editada"]["detalhe"] == {"preenchida": True}
+        r = chamar(escola.cliente(), "historico_de_alteracoes", canal="captacao")
+        por_acao = {e["acao"]: e for e in r["eventos"]}
+        assert por_acao["captacao_perfil_criado"]["detalhe"] == {}
+        assert por_acao["captacao_status_alterado"]["detalhe"] == {"valor_antes": "novo", "valor_depois": "contatado"}
+        texto = _texto(r)
+        for proibido in ("candidato de fora", "conta@cantina", "10.0.0.9"):
+            assert proibido not in texto
+
+    @pytest.mark.parametrize("canal", ["acesso", "mcp"])
+    def test_os_canais_de_login_e_do_proprio_mcp_continuam_fora(self, escola, canal):
+        assert "erro" in chamar(escola.cliente(), "historico_de_alteracoes", canal=canal)
 
     def test_nada_de_ip_request_id_ator_cru_nem_chave_fora_da_lista(self, escola):
         texto = _texto(chamar(escola.cliente(), "historico_de_alteracoes"))
@@ -1935,7 +1965,7 @@ class TestHistoricoDeAlteracoes:
         ({"aluno_id": A, "simulado_id": S["FIS_F2"]}, [7, 4]),
         ({"ciclo_id": C2}, [11]),
         ({"regua_slug": REGUA_CRIADA}, [8]),
-        ({"ator_nome": "coordenadora"}, [6, 4]),
+        ({"ator_nome": "coordenadora"}, [10, 6, 4]),
         ({"acao": "nota_editada"}, [5, 4]),
     ])
     def test_filtros_montados_de_id_validado(self, escola, filtro, esperadas):
@@ -1949,7 +1979,7 @@ class TestHistoricoDeAlteracoes:
         desde = (escola.hoje_brt - timedelta(days=1)).isoformat()
         recentes = chamar(cliente, "historico_de_alteracoes", desde=desde)
         assert {e["acao"] for e in recentes["eventos"]} == {
-            "ciclo_criado", "criterio_criado", "enviado_ao_canvas", "simulado_editado",
+            "ciclo_criado", "busca", "pedido_criado", "criterio_criado", "enviado_ao_canvas", "simulado_editado",
         }
         ate = (escola.hoje_brt - timedelta(days=5)).isoformat()
         antigos = chamar(escola.cliente(), "historico_de_alteracoes", ate=ate)

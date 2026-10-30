@@ -6,13 +6,14 @@ de auditoria, pelas mesmas funções (`auditoria.consultar`, com `so_alteracoes`
 e `auditoria.nomes_da_coordenacao`), e a tool só faz duas coisas que a tela não
 precisa fazer:
 
-  * FECHA OS CANAIS numa lista positiva — nota, simulado, ciclo, canvas e
-    criterio. O canal 'acesso' nunca entra: em `login_falhou` o `ator_id` é o
-    e-mail DIGITADO (e há quem digite a senha no campo errado), em
+  * FECHA OS CANAIS numa lista positiva — nota, simulado, ciclo, canvas,
+    criterio e, desde 30/10, cantina e captacao (a IA lê o que o coordenador
+    lê). O canal 'acesso' nunca entra: em `login_falhou` o `ator_id` é o e-mail
+    DIGITADO (e há quem digite a senha no campo errado), em
     `coordenador_criado` o detalhe leva e-mail e nome, e toda linha tem IP
-    (routes/auth.py, routes/administracao.py). Cantina, captação e MCP também
-    ficam fora. A constante `CANAIS` da rota é a lista da tela, não lista
-    permitida;
+    (routes/auth.py, routes/administracao.py). O canal `mcp` também fica fora:
+    é o uso da própria IA. A constante `CANAIS` da rota é a lista da tela, não
+    lista permitida;
   * FECHA O DETALHE numa lista de chaves por ação. `detalhe` é jsonb livre e
     cada ponto de chamada grava o seu; o que não está na lista não sai. Nunca
     saem `ip`, `request_id` nem `ator_id` cru.
@@ -49,11 +50,19 @@ from ...stats import criterios_repo
 from ...texto_seguro import texto_seguro
 
 #: Os canais que esta tool lê — e só estes, por construção.
-CANAIS_DA_TRILHA = ("nota", "simulado", "ciclo", "canvas", "criterio")
+CANAIS_DA_TRILHA = ("nota", "simulado", "ciclo", "canvas", "criterio", "cantina", "captacao")
 
 #: As chaves de `detalhe` que saem, por ação, tiradas de quem grava cada uma
-#: (routes/notas.py, simulados.py, ciclos.py, criterios.py e banco.py). Ação
-#: fora daqui aparece com o detalhe vazio: o que ninguém revisou não sai.
+#: (routes/notas.py, simulados.py, ciclos.py, criterios.py, banco.py, cantina.py
+#: e captacao.py). Ação fora daqui aparece com o detalhe vazio: o que ninguém
+#: revisou não sai.
+#:
+#: Da cantina, as contas ficam com o detalhe vazio de propósito: o de
+#: `conta_cantina_criada` leva o e-mail. `restricao_alimentar_editada` só diz se
+#: foi preenchida, e nunca o texto, que é dado de saúde e sai só por
+#: `restricoes_alimentares`. Da captação, o `nome_normalizado` fica fora: a
+#: trilha continua no catálogo com o pseudônimo, e o nome de gente de fora
+#: voltaria por aqui.
 DETALHE_POR_ACAO: dict[str, tuple[str, ...]] = {
     "nota_editada": (
         "aluno", "valor_antes", "valor_depois", "valor_canvas", "presente",
@@ -68,6 +77,23 @@ DETALHE_POR_ACAO: dict[str, tuple[str, ...]] = {
     "criterio_versionado": ("versao", "requisitos"),
     "criterio_desativado": (),
     "importancia_recalibrada": ("versao", "de", "para"),
+    "cardapio_criado": ("data", "refeicao"),
+    "cardapio_editado": ("data", "blocos"),
+    "cardapio_publicado": ("data", "refeicao"),
+    "cardapio_copiado": ("origem",),
+    "retirada_confirmada": ("aluno_id", "cardapio_id", "refeicao"),
+    "direito_refeicao_concedido": ("refeicao", "alunos"),
+    "direito_refeicao_revogado": ("refeicao", "alunos"),
+    "restricao_alimentar_editada": ("preenchida",),
+    "cantina_criada": ("nome",),
+    "cantina_editada": (),
+    "conta_cantina_criada": (),
+    "conta_cantina_editada": (),
+    "senha_cantina_redefinida": (),
+    "captacao_status_alterado": ("valor_antes", "valor_depois"),
+    "captacao_perfil_criado": (),
+    "captacao_conquista_movida": ("conquista_id", "de", "para"),
+    "captacao_perfil_removido": (),
 }
 
 #: Texto de exceção gravado no detalhe (o `str(exc)` da escrita no Canvas).

@@ -155,6 +155,19 @@ class TestListaBranca:
 # ─── O que não sai ───────────────────────────────────────────────────────
 
 
+class TestFiltroDeUf:
+    """`uf` ia direto ao filtro `cs` da view: `}` dava 22P02 (500 na rota), e
+    "CE,SP" virava dois valores e voltava zero, em silêncio (prova de 30/10)."""
+
+    @pytest.mark.parametrize("uf", ["}", "{", '"', "CE,SP", "C", "CEA", "1E"])
+    def test_uf_torta_e_erro_que_o_modelo_le(self, escola, uf):
+        assert "uf deve ser a sigla" in chamar(escola.cliente(), "buscar_candidatos_externos", uf=uf)["erro"]
+
+    @pytest.mark.parametrize("uf", ["CE", "ce", " ce "])
+    def test_a_sigla_passa_em_qualquer_caixa(self, escola, uf):
+        assert "erro" not in chamar(escola.cliente(), "buscar_candidatos_externos", uf=uf)
+
+
 class TestOQueNaoSai:
     def test_nem_o_funil_escrito_nem_o_bastidor(self, escola):
         cliente = escola.cliente()

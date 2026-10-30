@@ -25,7 +25,7 @@
 --                         senha no campo errado), em `coordenador_criado` o
 --                         detalhe leva e-mail e nome, e toda linha tem `ip`
 --                         (routes/auth.py, routes/administracao.py). A view
---                         entrega só os cinco canais que a tool lê, sem `ip`
+--                         entrega só os canais que a tool lê, sem `ip`
 --                         nem `request_id`, e o detalhe só com as chaves que a
 --                         tool mostra;
 --   nome_da_coordenacao   `historico_de_alteracoes` e `reguas_de_corte` dizem
@@ -113,13 +113,15 @@ SELECT e.id,
                               'sincronizar_canvas', 'canvas_ok', 'canvas_erro', 'nome',
                               'data_aplicacao', 'canvas_estado', 'campos', 'origem',
                               'apagado_no_canvas', 'ok', 'erro', 'enviados', 'falhas', 'total',
-                              'versao', 'requisitos', 'de', 'para')
+                              'versao', 'requisitos', 'de', 'para', 'data', 'refeicao',
+                              'blocos', 'aluno_id', 'cardapio_id', 'alunos', 'preenchida',
+                              'conquista_id')
        ) END AS detalhe
   FROM evento_auditoria AS e
- WHERE e.canal IN ('nota', 'simulado', 'ciclo', 'canvas', 'criterio');
+ WHERE e.canal IN ('nota', 'simulado', 'ciclo', 'canvas', 'criterio', 'cantina', 'captacao');
 
 COMMENT ON VIEW trilha_de_alteracoes IS
-    'A trilha que as tools leem (0074): só os canais nota, simulado, ciclo, canvas e criterio, sem ip nem request_id, e o detalhe só com as chaves que historico_de_alteracoes mostra. É por ela, e nunca pela tabela, que o MCP lê evento_auditoria (docs/43 §5.2).';
+    'A trilha que as tools leem (0074): só os canais nota, simulado, ciclo, canvas, criterio, cantina e captacao, sem ip nem request_id, e o detalhe só com as chaves que historico_de_alteracoes mostra. É por ela, e nunca pela tabela, que o MCP lê evento_auditoria (docs/43 §5.2).';
 
 -- Quem fez, pelo nome. `auditoria.nomes_da_coordenacao` e a busca por nome de
 -- `historico_de_alteracoes` leem daqui.
@@ -165,7 +167,7 @@ SELECT a.id,
   FROM aula_gravacao AS a;
 
 COMMENT ON VIEW aula_gravacao_para_ia IS
-    'As aulas gravadas como a tela as mostra, com o link do YouTube e a página do Canvas (decisão da coordenação, 30/10), sem o S3, e com o erro sem o id do vídeo e sem a linha que o Postgres despeja. É por ela que estado_das_gravacoes lê, no chat e no MCP (docs/43 §5.2).';
+    'As aulas gravadas como a tela as mostra, com o link do YouTube e a página do Canvas (decisão da coordenação, 30/10), sem as colunas do S3, e com o erro sem o id do vídeo e sem a linha que o Postgres despeja (a tool ainda limpa URL e credencial do texto). É por ela que estado_das_gravacoes lê, no chat e no MCP (docs/43 §5.2).';
 
 
 -- ─── 2. A lista branca cresce ─────────────────────────────────────────────

@@ -618,7 +618,7 @@ class TestCustos:
 
     def test_um_periodo_cheio_nao_vira_uma_url_que_o_httpx_recusa(self, escola):
         """Com a lista de ids de pedido na URL, a tela e a tool de custos caíam
-        com `InvalidURL` acima de ~1.770 pedidos. Só aparece no volume: o fake
+        com erro acima de ~1.300 pedidos. Só aparece no volume: o fake
         não tem URL, e por isso a conta aqui é a do tamanho do filtro."""
         hoje = _hoje()
         base = next(iter(escola.db["pedido_refeicao"].values()))
@@ -635,7 +635,7 @@ class TestCustos:
 
     def test_as_exportacoes_leem_os_itens_em_lotes_sem_perder_nenhum(self, escola):
         """As exportações leem os itens de CADA pedido, e o filtro com todos os
-        ids ia inteiro na URL: acima de ~1.770 pedidos, `InvalidURL` nos XLSX e
+        ids ia inteiro na URL: acima de ~1.300 pedidos, erro nos XLSX e
         CSV. Em lotes, nenhum filtro passa do que a URL aguenta, e a soma dos
         lotes é a leitura inteira — quem perde item num lote erra a planilha
         sem erro nenhum."""
@@ -664,6 +664,11 @@ class TestCustos:
     @pytest.mark.parametrize("args", [{"ate": "ontem"}, {"de": "ontem"}, {"cantina_id": "Ari"}])
     def test_argumento_torto(self, escola, args):
         assert "erro" in chamar(escola.cliente(), "custos_da_cantina", **args)
+
+    def test_cantina_que_nao_existe_e_erro_e_nao_zero(self, escola):
+        """Um uuid que não é de cantina nenhuma somava zero: a IA diria que a
+        cantina não custou nada (prova de 30/10)."""
+        assert "não existe" in chamar(escola.cliente(), "custos_da_cantina", cantina_id=_id(30, 99))["erro"]
 
 
 class TestDireitos:

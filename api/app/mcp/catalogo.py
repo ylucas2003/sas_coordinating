@@ -43,7 +43,7 @@ log = logging.getLogger("sas.mcp.catalogo")
 ESCOPO = "coordenacao"
 
 #: Os nomes de parâmetro que são TETO de linhas nas tools do registro (todos
-#: inteiros: `limite` em dez tools, `k` em `alunos_similares`). Tool nova com
+#: inteiros: `limite` na maioria das tools, `k` em `alunos_similares`). Tool nova com
 #: outro nome de limite entra aqui — `test_mcp_catalogo` quebra se um inteiro
 #: de tool exposta não estiver aqui nem em `INTEIROS_QUE_NAO_SAO_LIMITE`.
 NOMES_DE_LIMITE = frozenset({"limite", "k"})

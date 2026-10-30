@@ -25,6 +25,7 @@ handler `def` (api/CLAUDE.md, convenção de 29/09/2026).
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -82,6 +83,11 @@ COLUNAS_CONQUISTA = (
 class FiltroInvalido(ValueError):
     """O filtro pedido não existe no vocabulário. A mensagem sai pronta para
     quem pediu: o 400 da rota, o `{"erro": ...}` da tool."""
+
+
+#: A sigla do estado. `uf` vai direto ao filtro `cs` da view: `}` ou `"` davam
+#: 22P02 (500 na rota), e "CE,SP" virava dois valores e voltava zero, em silêncio.
+_FORMA_DA_UF = re.compile(r"[A-Za-z]{2}")
 
 
 def ano_ingresso_padrao() -> int:
@@ -206,6 +212,8 @@ def listar_candidatos(
     termo = termo_de_busca(busca)
     ingresso = ano_ingresso or ano_ingresso_padrao()
     uf_normalizada = uf.strip().upper() if uf and uf.strip() else None
+    if uf_normalizada is not None and not _FORMA_DA_UF.fullmatch(uf_normalizada):
+        raise FiltroInvalido("uf deve ser a sigla de um estado, como CE")
 
     if tem_criterio_de_conquista(prova=prova, faixa=faixa, ano_min=ano_min, ano_max=ano_max, publico=publico):
         linhas = (
