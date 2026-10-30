@@ -105,8 +105,14 @@ def _linha_da_lista(
     que se quer ser: distinguir os dois casos confirmaria a existência da lista
     alheia para quem estivesse varrendo uuids (docs/22 §5.2 — "um aluno nunca
     enxerga lista de outro").
+
+    O `dono_id` também passa pela guarda do uuid desde 30/10. Pela rota ele é
+    sempre o `sub` de uma conta, mas a tool da coordenação recebe o dela da
+    sessão do registro, e há sessão de coordenação que não é conta — a do
+    verificador do MCP (`coord:verificacao-mcp`) e a dos testes. Sem a guarda,
+    o 22P02 do PostgREST virava falha da tool; com ela, é "nenhuma lista".
     """
-    if not _uuid_valido(lista_id):
+    if not _uuid_valido(lista_id) or not _uuid_valido(dono_id):
         return None
     linhas = (
         cliente.table("lista_questoes")
@@ -228,7 +234,13 @@ def _exigir_questoes(cliente: Client, ids: list[str]) -> dict[str, QuestaoVestib
 
 
 def listar(cliente: Client, dono_tipo: DonoLista, dono_id: str) -> list[ListaResumo]:
-    """Os resumos das listas do dono, da mexida mais recente para a mais antiga."""
+    """Os resumos das listas do dono, da mexida mais recente para a mais antiga.
+
+    Dono que não é uuid não tem lista — a mesma guarda de `_linha_da_lista`, e
+    pelo mesmo motivo (a sessão da tool que não é conta).
+    """
+    if not _uuid_valido(dono_id):
+        return []
     linhas = (
         cliente.table("lista_questoes")
         .select(_COLUNAS_LISTA)

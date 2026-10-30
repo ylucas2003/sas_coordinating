@@ -47,7 +47,7 @@ from postgrest.exceptions import APIError
 
 from app.banco import consultas, estatisticas, importancia
 from app.canvas_sync import estado as estado_do_sync
-from app.chat.ferramentas import REGISTRO, Sessao
+from app.chat.ferramentas import REGISTRO, Sessao, parametros_do_handler
 from app.chat.tools import banco_questoes, contexto, rotinas, trilha
 from app.gravacoes_aula import consulta as gravacoes
 from app.lembretes import motor
@@ -56,9 +56,6 @@ from app.schemas.domain import Severidade
 from app.stats import classificacao_ciclo, criterios, criterios_repo
 from tests.esquema_das_migrations import esquema
 from tests.fake_postgrest import FakeCliente, Query, Resp, _ordenavel
-
-COORDENACAO = Sessao(tipo="coordenador", usuario="coord:teste", papel="coordenador")
-
 
 # ─── O fake ──────────────────────────────────────────────────────────────
 
@@ -379,6 +376,11 @@ MATRICULA = {aid: v[1] for aid, v in ALUNOS_SINTETICOS.items()}
 C1, C2, C3, C4 = (_id(3, n) for n in range(1, 5))
 K1, K2 = _id(7, 1), _id(7, 2)
 NOME_DA_COORDENACAO = {K1: "COORDENADORA SINTETICA", K2: "COORDENADOR OUTRO"}
+#: A sessão dos testes é a conta K1: as listas do banco têm dono, e o registro
+#: injeta o `sub` dela (`Sessao.coordenador_id`) na tool que o pede. `coord:teste`
+#: não é uuid, e para o domínio dono que não é uuid não tem lista.
+COORDENACAO = Sessao(tipo="coordenador", usuario=f"coord:{K1}", papel="coordenador")
+LISTA_OPTICA, LISTA_DO_ALUNO, LISTA_DE_OUTRA_CONTA, LISTA_PESSOAL = (_id(14, n) for n in range(1, 5))
 SEDE_AD, SEDE_ON = _id(5, 1), _id(5, 2)
 T1, T2 = _id(4, 1), _id(4, 2)
 ANO = _id(8, 1)
@@ -573,6 +575,22 @@ def nova_escola() -> Escola:
         for codigo in topicos:
             por("questao_vestibular_topico", questao_id=qid, materia=materia, topico_codigo=codigo,
                 confianca="alta", observacao=None)
+
+    # Listas do banco, que têm dono (0029): duas da conta da sessão, uma de outra
+    # conta da coordenação e uma de aluno. As duas últimas nunca podem aparecer.
+    for lista_id, titulo, dono_tipo, dono_id, atras, itens in (
+        (LISTA_OPTICA, "Revisão de óptica", "coordenacao", K1, {"days": 1},
+         (("ita_2023_fase1_q07", 5), ("ita_2019_fase1_q01", 2), ("ita_2023_fase2_q03", 9))),
+        (LISTA_DO_ALUNO, f"Reforço para {NOME[A]}", "coordenacao", K1, {"days": 2}, ()),
+        (LISTA_DE_OUTRA_CONTA, "Lista da outra conta", "coordenacao", K2, {"hours": 1},
+         (("ita_2021_fase1_q02", 0),)),
+        (LISTA_PESSOAL, "Lista pessoal de aluno", "aluno", A, {"minutes": 1},
+         (("ita_2021_fase1_q02", 0),)),
+    ):
+        por("lista_questoes", id=lista_id, titulo=titulo, dono_tipo=dono_tipo, dono_id=dono_id,
+            criada_em=ts(days=30), atualizada_em=ts(**atras))
+        for questao_id, posicao in itens:
+            por("lista_questoes_item", lista_id=lista_id, questao_id=questao_id, posicao=posicao)
 
     # Réguas criadas e quem as criou
     for k, nome in NOME_DA_COORDENACAO.items():
@@ -1092,6 +1110,266 @@ class TestRecorrenciaNoBanco:
         assert "falta materia" in chamar(escola.cliente(), "recorrencia_no_banco")["erro"]
 
 
+class TestAbrirQuestaoDoBanco:
+    def _questao(self, escola, questao_id):
+        return chamar(escola.cliente(), "abrir_questao_do_banco", questao_id=questao_id)["questao"]
+
+    def test_o_recorte_e_o_enunciado_e_o_link_e_o_do_professor(self, escola):
+        q = self._questao(escola, " ita_2023_fase1_q07 ")
+        assert q["imagem"] == {"url": "https://bucket.invalid/q7.png", "papel": "enunciado"}
+        assert q["resolucao"] == {
+            "origem": "professor", "link": "https://youtu.be/RESOLUCAODOARI",
+            "texto": None, "textoCortado": False,
+        }
+        assert q["alternativas"] == {letra: f"opção {letra}" for letra in "ABCDE"}
+        assert (q["gabarito"], q["gabaritoOrigem"], q["colecao"]) == ("A", "banca", "recentes")
+
+    def test_a_resolucao_escrita_vem_em_texto_e_sem_link(self, escola):
+        q = self._questao(escola, "ita_2023_fase2_q03")
+        assert q["resolucao"] == {
+            "origem": "ia", "link": None, "texto": "Resolução escrita.", "textoCortado": False,
+        }
+        assert q["alternativas"] is None and q["imagem"] is None
+
+    def test_sem_resolucao_e_null_e_nao_um_objeto_vazio(self, escola):
+        assert self._questao(escola, "ita_2019_fase1_q01")["resolucao"] is None
+
+    @pytest.mark.parametrize(("colunas", "esperado"), [
+        ({"extraido_por": "pagina", "usa_imagem_no_render": True}, "pagina_inteira"),
+        ({"extraido_por": "visao", "usa_imagem_no_render": False}, "pagina_digitalizada"),
+        ({"extraido_por": "pipeline", "usa_imagem_no_render": False}, None),
+    ])
+    def test_a_figura_e_a_que_o_cartao_oferece(self, escola, colunas, esperado):
+        linha = escola.db["questao_vestibular"]["ita_2023_fase1_q07"]
+        linha.update(colunas)
+        imagem = self._questao(escola, "ita_2023_fase1_q07")["imagem"]
+        assert (imagem["papel"] if imagem else None) == esperado
+
+    def test_a_confianca_da_classificacao_vem_junto(self, escola):
+        ligacao = next(
+            l for l in escola.db["questao_vestibular_topico"].values()
+            if l["questao_id"] == "ita_2023_fase1_q07"
+        )
+        ligacao.update(confianca="baixa", observacao="pode ser ondas")
+        assert self._questao(escola, "ita_2023_fase1_q07")["topicos"] == [{
+            "codigo": "8.1", "nome": "Óptica Geométrica", "bloco": "Óptica",
+            "confianca": "baixa", "observacao": "pode ser ondas",
+        }]
+
+    def test_texto_longo_e_cortado_e_diz_que_foi(self, escola):
+        limite = banco_questoes.LIMITE_DO_TEXTO_NO_CARTAO
+        escola.db["questao_vestibular"]["ita_2019_fase1_q01"]["enunciado_md"] = "x" * (limite + 1)
+        q = self._questao(escola, "ita_2019_fase1_q01")
+        assert len(q["enunciado"]) == limite and q["enunciadoCortado"] is True
+
+    @pytest.mark.parametrize("questao_id", ["ita_1900_fase1_q01", "   "])
+    def test_questao_que_nao_existe(self, escola, questao_id):
+        assert "erro" in chamar(escola.cliente(), "abrir_questao_do_banco", questao_id=questao_id)
+
+    def test_exige_o_id(self, escola):
+        assert "falta questao_id" in chamar(escola.cliente(), "abrir_questao_do_banco")["erro"]
+
+
+class TestPanoramaDoBanco:
+    def _recorte(self, resposta, materia, vestibular):
+        return next(
+            r for r in resposta["recortes"] if (r["materia"], r["vestibular"]) == (materia, vestibular)
+        )
+
+    def test_conta_por_materia_e_vestibular(self, escola):
+        r = chamar(escola.cliente(), "panorama_do_banco")
+        assert [(c["materia"], c["vestibular"]) for c in r["recortes"]] == [
+            ("Física", "ITA"), ("Física", "IME"), ("Química", "ITA"), ("Química", "IME"),
+        ]
+        assert (r["totalQuestoes"], r["semClassificacao"]) == (8, 1)
+        fisica_ita = self._recorte(r, "Física", "ITA")
+        assert {k: v for k, v in fisica_ita.items() if k != "porAno"} == {
+            "materia": "Física", "vestibular": "ITA", "totalQuestoes": 5, "semClassificacao": 1,
+            "dissertativas": 1, "gabaritoDaBanca": 2, "gabaritoSugerido": 1,
+            "resolucaoDoProfessor": 1, "resolucaoEscrita": 1, "recentes": 5, "arquivo": 0,
+        }
+
+    def test_ano_a_ano_e_so_com_os_anos_que_o_acervo_tem(self, escola):
+        r = chamar(escola.cliente(), "panorama_do_banco", materia="Física", vestibular="ITA")
+        assert self._recorte(r, "Física", "ITA")["porAno"] == [
+            {"ano": 2019, "fase1": 1, "fase2": 0, "semClassificacao": 0},
+            {"ano": 2021, "fase1": 1, "fase2": 0, "semClassificacao": 0},
+            {"ano": 2023, "fase1": 1, "fase2": 1, "semClassificacao": 0},
+            {"ano": 2024, "fase1": 1, "fase2": 0, "semClassificacao": 1},
+        ]
+
+    def test_a_colecao_e_a_do_dominio(self, escola):
+        r = chamar(escola.cliente(), "panorama_do_banco", materia="Física", vestibular="IME")
+        recorte = self._recorte(r, "Física", "IME")
+        assert (recorte["recentes"], recorte["arquivo"]) == (0, 1)
+
+    def test_bate_com_a_arvore_de_assuntos(self, escola):
+        """O mesmo acervo não pode ter dois `semClassificacao`: a árvore da tela
+        é o oráculo, e os dois leem a ligação na mesma matéria."""
+        for arvore in consultas.listar_taxonomia(escola.cliente()):
+            r = chamar(escola.cliente(), "panorama_do_banco", materia=arvore.materia)
+            assert (r["totalQuestoes"], r["semClassificacao"]) == (arvore.totalQuestoes, arvore.semClassificacao)
+
+    def test_ligacao_de_outra_materia_nao_classifica(self, escola):
+        """Metade da FK composta: a ligação guarda a matéria por conta própria."""
+        ligacao = next(
+            l for l in escola.db["questao_vestibular_topico"].values()
+            if l["questao_id"] == "ita_2019_fase1_q01"
+        )
+        ligacao["materia"] = "Química"
+        r = chamar(escola.cliente(), "panorama_do_banco", materia="Física", vestibular="ITA")
+        assert self._recorte(r, "Física", "ITA")["semClassificacao"] == 2
+
+    def test_a_leitura_nao_tem_teto(self, escola):
+        cliente = escola.cliente()
+        chamar(cliente, "panorama_do_banco")
+        for tabela in ("questao_vestibular", "questao_vestibular_topico"):
+            assert all(c._limit is None and c._range is None for c in cliente.em(tabela))
+
+    def test_recorte_sem_acervo_nao_aparece(self, escola):
+        r = chamar(escola.cliente(), "panorama_do_banco", materia="Matemática")
+        assert (r["totalQuestoes"], r["recortes"]) == (0, [])
+
+
+class TestCalibracaoDaImportancia:
+    def _com_versoes(self, escola, quantas=2):
+        for versao in range(1, quantas + 1):
+            ativa = versao == quantas
+            escola.db.setdefault("parametro_importancia", {})[versao] = {
+                "versao": versao, "meia_vida_anos": 3.0 if ativa else 5.0, "janela_tendencia_anos": 4,
+                "ativo": ativa, "criado_em": f"2026-0{versao}-01T12:00:00+00:00",
+                "criado_por": NOME_DA_COORDENACAO[K2] if ativa else "migration 0044",
+            }
+
+    def test_o_quadro_e_o_do_dominio(self, escola):
+        self._com_versoes(escola)
+        oraculo = importancia.calibracao_em_vigor(escola.cliente())
+        r = chamar(escola.cliente(), "calibracao_da_importancia")
+        assert (r["meiaVidaAnos"], r["janelaTendenciaAnos"], r["versao"]) == (3.0, 4, 2)
+        assert r["deFabrica"] is False
+        assert r["padrao"] == {
+            "meiaVidaAnos": oraculo["meiaVidaPadrao"], "janelaTendenciaAnos": oraculo["janelaTendenciaPadrao"],
+        }
+        assert r["meiaVidaMaxima"] == oraculo["meiaVidaMaxima"]
+
+    def test_o_historico_diz_quem_e_quando_da_mais_nova_para_a_mais_velha(self, escola):
+        self._com_versoes(escola)
+        r = chamar(escola.cliente(), "calibracao_da_importancia")
+        assert r["historico"] == [
+            {"versao": 2, "meiaVidaAnos": 3.0, "janelaTendenciaAnos": 4, "ativa": True,
+             "criadaEm": "2026-02-01T12:00:00+00:00", "criadaPor": NOME_DA_COORDENACAO[K2]},
+            {"versao": 1, "meiaVidaAnos": 5.0, "janelaTendenciaAnos": 4, "ativa": False,
+             "criadaEm": "2026-01-01T12:00:00+00:00", "criadaPor": "migration 0044"},
+        ]
+
+    def test_de_fabrica_sem_nenhuma_versao(self, escola):
+        r = chamar(escola.cliente(), "calibracao_da_importancia")
+        assert (r["versao"], r["deFabrica"], r["historico"]) == (None, True, [])
+        assert r["meiaVidaAnos"] == importancia.MEIA_VIDA_PADRAO
+
+    def test_o_efeito_e_o_peso_do_dominio(self, escola):
+        r = chamar(escola.cliente(), "calibracao_da_importancia")
+        assert r["efeito"] == [
+            {"anosAtras": 1, "pesoPct": 87.1}, {"anosAtras": 3, "pesoPct": 66.0},
+            {"anosAtras": 5, "pesoPct": 50.0}, {"anosAtras": 10, "pesoPct": 25.0},
+            {"anosAtras": 15, "pesoPct": 12.5},
+        ]
+
+    def test_limite_corta_o_historico_e_diz_que_cortou(self, escola):
+        self._com_versoes(escola, quantas=4)
+        r = chamar(escola.cliente(), "calibracao_da_importancia", limite=3)
+        assert [v["versao"] for v in r["historico"]] == [4, 3, 2]
+        assert (r["totalDeVersoes"], r["truncado"]) == (4, True)
+
+    def test_historico_ilegivel_e_falha_e_nao_lista_vazia(self, escola):
+        """`carregar_parametro` engole a falha e cai no valor de fábrica; o
+        histórico não pode engolir: vazio diria que ninguém mexeu no botão."""
+        r = chamar(escola.cliente(falhar_em=["parametro_importancia"]), "calibracao_da_importancia")
+        assert "falhou do nosso lado" in r["erro"]
+
+
+class TestMinhasListasDoBanco:
+    def _como(self, escola, coordenador, ferramenta="minhas_listas_do_banco", **args):
+        sessao = Sessao(tipo="coordenador", usuario=f"coord:{coordenador}", papel="coordenador")
+        return REGISTRO.despachar(sessao, ferramenta, escola.cliente(), args)
+
+    def test_so_as_listas_da_conta_da_mexida_mais_recente_para_a_mais_antiga(self, escola):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco")
+        assert [(l["id"], l["totalQuestoes"]) for l in r["listas"]] == [(LISTA_OPTICA, 3), (LISTA_DO_ALUNO, 0)]
+        assert (r["total"], r["truncado"]) == (2, False)
+        assert "Lista da outra conta" not in _texto(r) and "Lista pessoal" not in _texto(r)
+
+    def test_a_outra_conta_ve_as_dela(self, escola):
+        r = self._como(escola, K2)
+        assert [l["id"] for l in r["listas"]] == [LISTA_DE_OUTRA_CONTA]
+
+    def test_nao_devolve_o_dono(self, escola):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco")
+        assert K1 not in _texto(r) and "dono" not in _texto(r)
+
+    def test_as_questoes_vem_na_ordem_de_quem_montou(self, escola):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco", lista_id=f" {LISTA_OPTICA} ")
+        assert r["lista"]["titulo"] == "Revisão de óptica"
+        assert [(q["posicao"], q["id"]) for q in r["questoes"]] == [
+            (1, "ita_2019_fase1_q01"), (2, "ita_2023_fase1_q07"), (3, "ita_2023_fase2_q03"),
+        ]
+        assert "enunciadoResumo" in r["questoes"][0] and (r["mostradas"], r["truncado"]) == (3, False)
+
+    def test_limite_corta_a_saida_e_diz_que_cortou(self, escola):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco", lista_id=LISTA_OPTICA, limite=2)
+        assert len(r["questoes"]) == 2 and (r["lista"]["totalQuestoes"], r["truncado"]) == (3, True)
+        indice = chamar(escola.cliente(), "minhas_listas_do_banco", limite=1)
+        assert len(indice["listas"]) == 1 and (indice["total"], indice["truncado"]) == (2, True)
+
+    @pytest.mark.parametrize("lista_id", [LISTA_DE_OUTRA_CONTA, LISTA_PESSOAL, _id(14, 99), "nao-e-uuid"])
+    def test_lista_alheia_e_lista_inexistente_dao_o_mesmo_erro(self, escola, lista_id):
+        r = chamar(escola.cliente(), "minhas_listas_do_banco", lista_id=lista_id)
+        assert r == {
+            "erro": (
+                f"não existe a lista '{lista_id}' entre as suas. O id vem de "
+                "minhas_listas_do_banco chamada sem lista_id."
+            )
+        }
+
+    def test_o_modelo_nao_escolhe_o_dono(self, escola, caplog):
+        with caplog.at_level("WARNING", logger="sas.chat.ferramentas"):
+            r = chamar(escola.cliente(), "minhas_listas_do_banco", coordenador_id=K2)
+        assert [l["id"] for l in r["listas"]] == [LISTA_OPTICA, LISTA_DO_ALUNO]
+        assert "identidade no argumento descartada: coordenador_id" in caplog.text
+
+    def test_sessao_que_nao_e_conta_nao_tem_lista(self, escola):
+        """O verificador do MCP entra com `coord:verificacao-mcp`: sem a guarda
+        do domínio, o `.eq("dono_id", ...)` seria 22P02 (uuid torto)."""
+        assert self._como(escola, "verificacao-mcp")["listas"] == []
+        assert "erro" in self._como(escola, "verificacao-mcp", lista_id=LISTA_OPTICA)
+
+    def test_sem_identidade_e_erro_e_nao_le_nada(self):
+        cliente = FakeRico({})
+        assert "erro" in banco_questoes.minhas_listas_do_banco(cliente)
+        assert cliente.consultas == []
+
+
+class TestIdentidadeDaCoordenacao:
+    def test_o_sub_sai_de_usuario(self):
+        assert Sessao(tipo="coordenador", usuario=f"coord:{K1}").coordenador_id == K1
+        assert Sessao(tipo="coordenador", usuario="coord:").coordenador_id is None
+        assert Sessao(tipo="aluno", usuario=f"aluno:{A}", aluno_id=A).coordenador_id is None
+
+    def test_nenhuma_tool_da_coordenacao_declara_a_identidade(self):
+        """Como `aluno_id` no outro escopo: no schema, o modelo a veria como
+        algo que se pode escolher."""
+        assert not [f.nome for f in REGISTRO.catalogo("coordenacao") if "coordenador_id" in f.propriedades]
+
+    def test_so_a_tool_que_pede_recebe(self):
+        """Quase toda tool da coordenação não aceita `coordenador_id`: injetá-lo
+        em todas seria `TypeError` no catálogo inteiro."""
+        pedem = {
+            f.nome for f in REGISTRO.catalogo("coordenacao")
+            if "coordenador_id" in parametros_do_handler(f.handler)[0]
+        }
+        assert pedem == {"minhas_listas_do_banco"}
+
+
 # ─── Réguas ──────────────────────────────────────────────────────────────
 
 
@@ -1527,6 +1805,10 @@ NOVAS = {
     "topicos_do_edital": {},
     "buscar_questoes_do_banco": {"materia": "Física"},
     "recorrencia_no_banco": {"materia": "Física"},
+    "abrir_questao_do_banco": {"questao_id": "ita_2023_fase1_q07"},
+    "panorama_do_banco": {},
+    "calibracao_da_importancia": {},
+    "minhas_listas_do_banco": {},
     "reguas_de_corte": {"slug": REGUA_CRIADA},
     "cortados_pela_regua": {"ciclo_id": C2},
     "estado_do_sync_canvas": {},

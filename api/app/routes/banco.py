@@ -404,19 +404,12 @@ async def atualizar_estudo(
 async def obter_parametro_de_importancia(
     _coordenador: dict = Depends(get_current_coordenador),
 ) -> dict:
-    """O valor em vigor e o histórico de quem já girou o botão."""
-    cliente = get_supabase()
-    atual = importancia.carregar_parametro(cliente)
-    return {
-        "meiaVidaAnos": atual.meia_vida_anos,
-        "janelaTendenciaAnos": atual.janela_tendencia_anos,
-        # Nulo = de fábrica. A tela diz isso em vez de fingir que é a versão 1.
-        "versao": atual.versao,
-        "meiaVidaPadrao": importancia.MEIA_VIDA_PADRAO,
-        "janelaTendenciaPadrao": importancia.JANELA_TENDENCIA_PADRAO,
-        "meiaVidaMaxima": importancia.MEIA_VIDA_MAXIMA,
-        "historico": importancia.historico(cliente),
-    }
+    """O valor em vigor e o histórico de quem já girou o botão.
+
+    A montagem é do domínio (`importancia.calibracao_em_vigor`): a tool
+    `calibracao_da_importancia` lê o mesmo quadro (docs/43 §4.4).
+    """
+    return importancia.calibracao_em_vigor(get_supabase())
 
 
 @router.put("/importancia/parametro")

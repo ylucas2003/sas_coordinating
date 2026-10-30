@@ -111,7 +111,8 @@ def test_com_o_pseudonimo_as_que_so_servem_com_o_nome_ficam_fora():
     com_pseudonimo = Catalogo(registro, teto_de_linhas=50, com_nome_do_aluno=False)
     assert {t.name for t in com_pseudonimo.listar()} == {"exposta"}
     assert all(com_pseudonimo.obter(nome) is None for nome in SO_COM_NOME_DO_ALUNO)
-    assert {"buscar_aluno_por_nome", "listar_alertas"} == SO_COM_NOME_DO_ALUNO
+    # A de 30/10 entra pelo título livre da lista (ver o comentário da lista).
+    assert {"buscar_aluno_por_nome", "listar_alertas", "minhas_listas_do_banco"} == SO_COM_NOME_DO_ALUNO
 
 
 def test_toda_tool_vai_anotada_como_leitura_sem_mundo_aberto():

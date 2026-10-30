@@ -404,6 +404,37 @@ def anexar_estudo_do_aluno(
     return anexar_estudo(questoes, estudo)
 
 
+# ─── O que o cartão decide de cada questão ───────────────────────────────
+
+
+def origem_da_resolucao(
+    resolucao_url: str | None, resolucao_md: str | None, resolucao_origem: str | None
+) -> str | None:
+    """'professor' = o link do Ari; senão a origem do texto escrito no cartão
+    (`resolucao_origem`, ou 'escrita' se não foi registrada); senão None.
+
+    É a escolha do cartão (`CartaoQuestao.tsx::Resolucao`): o link vence o
+    texto. Os dois nunca coexistem pelo caminho normal (CHECK da 0031), mas a
+    ordem decide se um dia coexistirem. Desceu da tool `buscar_questoes_do_banco`
+    em 30/10, quando o panorama e o cartão inteiro da coordenação passaram a
+    fazer a mesma leitura (docs/43 §4.4).
+    """
+    if resolucao_url:
+        return "professor"
+    if resolucao_md:
+        return resolucao_origem or "escrita"
+    return None
+
+
+def colecao_da_questao(extraido_por: str | None) -> str | None:
+    """'recentes' ou 'arquivo', lido de `MODOS_DA_COLECAO`; None se o modo de
+    extração não está em coleção nenhuma (o que o comentário de lá impede)."""
+    return next(
+        (nome for nome, modos in MODOS_DA_COLECAO.items() if extraido_por in modos),
+        None,
+    )
+
+
 # ─── Tradução da fronteira ───────────────────────────────────────────────
 
 

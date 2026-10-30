@@ -182,3 +182,31 @@ class TestARotaSoAnexaParaAluno:
         assert [(q.id, q.resolvida, q.anotacao) for q in pagina.questoes] == [
             ("q1", True, "refazer a conta")
         ]
+
+
+# ─── 3 · A calibração desceu da rota sem mudar o contrato ────────────────
+
+
+def test_a_rota_da_calibracao_devolve_o_contrato_da_tela(monkeypatch):
+    """`GET /banco/importancia/parametro` montava o quadro na rota, e desceu para
+    `importancia.calibracao_em_vigor` (docs/43 §4.4). As chaves são as de
+    `ParametroImportancia` em `web/src/tipos/banco.ts`; `historico` segue cru,
+    em snake_case, porque é o que `Calibracao.tsx` lê."""
+    versao = {
+        "versao": 2, "meia_vida_anos": 3, "janela_tendencia_anos": 4, "ativo": True,
+        "criado_em": "2026-10-01T12:00:00+00:00", "criado_por": "Coordenadora",
+    }
+    db = {"parametro_importancia": {1: versao}}
+    monkeypatch.setattr(rota_banco, "get_supabase", lambda: FakeCliente(db))
+
+    resposta = asyncio.run(rota_banco.obter_parametro_de_importancia(_coordenador={}))
+
+    assert resposta == {
+        "meiaVidaAnos": 3.0,
+        "janelaTendenciaAnos": 4,
+        "versao": 2,
+        "meiaVidaPadrao": 5.0,
+        "janelaTendenciaPadrao": 5,
+        "meiaVidaMaxima": 100.0,
+        "historico": [versao],
+    }

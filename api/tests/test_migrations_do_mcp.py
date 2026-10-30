@@ -82,7 +82,7 @@ def test_toda_migration_tem_down():
 
 
 def test_as_migrations_do_mcp_existem_com_down():
-    for prefixo in ("0071_", "0072_", "0073_"):
+    for prefixo in ("0071_", "0072_", "0073_", "0077_"):
         up = _arquivo(prefixo)
         assert up.with_name(up.name.replace(".sql", ".down.sql")).exists()
 
@@ -120,7 +120,9 @@ def test_colunas_de_bastidor_ficam_fora():
         "questao_resposta_aluno": {"aluno_id", "alternativa_id"},
         "simulado": {"arquivo_storage_path", "canvas_erro", "motivo_zero_e_ausencia"},
         "ciclo": {"canvas_erro"},
-        "parametro_importancia": {"criado_por"},
+        # `criado_por` saiu daqui em 30/10 (0077): é a coluna "Quem" da tela de
+        # Calibração, e `calibracao_da_importancia` a lê. O `id` continua fora.
+        "parametro_importancia": {"id"},
         "questao_vestibular": {"fonte_pdf", "arquivo_origem", "classificado_por"},
         # Entrou em 26/10 (listar_alertas, com o nome liberado): só o que a tool lê.
         "alerta": {"dados_brutos", "hash_dedup", "resolvido_em"},
@@ -803,6 +805,8 @@ def test_lista_branca_cobre_as_tabelas_das_tools_expostas():
         "simulado", "turma", "vestibular_alvo_aluno", "questao_vestibular",
         "questao_vestibular_alternativa", "questao_vestibular_topico",
         "topico_taxonomia", "topico_taxonomia_assunto", "parametro_importancia",
+        # 0077 (30/10): as listas da coordenação, de minhas_listas_do_banco.
+        "lista_questoes", "lista_questoes_item",
     }
     assert set(lista_branca(DIR_MIGRATIONS)) == esperadas
 

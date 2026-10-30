@@ -434,7 +434,9 @@ LOGIN_DO_MCP = "autenticador_mcp"
 #: login. Toda regra de concessão vale para os três.
 PAPEIS_DO_MCP: tuple[str, ...] = ("sas_leitura", "sas_mcp", LOGIN_DO_MCP)
 _VIGIADOS: frozenset[str] = frozenset({*PAPEIS_DO_MCP, "public"})
-_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_")
+#: As migrations que existem PARA o MCP. 0077 (30/10): o banco de questões
+#: inteiro — listas da coordenação e a calibração da importância.
+_MIGRATIONS_DO_MCP: tuple[str, ...] = ("0071_", "0072_", "0077_")
 DIR_INIT = Path(__file__).resolve().parent.parent.parent / "infra" / "postgres" / "init"
 
 #: Prefixos de tabela que nunca entram na lista branca, além das nomeadas em

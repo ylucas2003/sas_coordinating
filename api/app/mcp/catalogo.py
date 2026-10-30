@@ -60,7 +60,13 @@ INTEIROS_QUE_NAO_SAO_LIMITE: frozenset[str] = frozenset()
 #: provedor o par nome ↔ matrícula que o pseudônimo existe para não entregar,
 #: e `listar_alertas` traz o nome interpolado no título, gravado uma vez — o
 #: portão do pseudônimo (passada 3) recusaria toda chamada.
-SO_COM_NOME_DO_ALUNO: frozenset[str] = frozenset({"buscar_aluno_por_nome", "listar_alertas"})
+#:
+#: `minhas_listas_do_banco` (30/10) entra pela dúvida, não pela certeza: o
+#: título da lista é texto livre de quem a montou ("Revisão do <aluno>"), e o
+#: portão só pega o nome ATUAL e inteiro — apelido e primeiro nome passariam.
+SO_COM_NOME_DO_ALUNO: frozenset[str] = frozenset(
+    {"buscar_aluno_por_nome", "listar_alertas", "minhas_listas_do_banco"}
+)
 
 #: Os trechos da descrição do CHAT que o tools/list publica trocados, por
 #: tool: (o trecho como está no chat, o que o MCP publica no lugar). Cada um
