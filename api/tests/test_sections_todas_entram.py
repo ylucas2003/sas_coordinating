@@ -158,6 +158,13 @@ class TestTodaSectionViraTurma:
         assert len({t["sede_id"] for t in turmas}) == 2
         assert len(turmas) == 2
 
+    def test_o_curso_de_simulados_fica_ligado_a_serie_3(self):
+        """O vínculo que sucede `ano_letivo.canvas_course_id` (0078, docs/44 §3).
+        Sem ele, o curso de um ano novo nasceria fora de `curso_canvas`."""
+        db, _ = _rodar_sync([], [])
+        cursos = list(db["curso_canvas"].values())
+        assert [(c["serie"], c["canvas_course_id"]) for c in cursos] == [(3, "577")]
+
     def test_section_default_do_curso_nao_vira_sede_com_o_nome_do_ano(self):
         """Ela herda o nome do curso; sem tratamento nasceria uma sede
         "2026_3O_ITA_IME_SIMULADOS" — e outra no ano que vem."""

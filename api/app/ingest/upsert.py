@@ -9,7 +9,8 @@ para que reupload da mesma planilha não duplique nada:
   - turma              → (sede_id, ano_letivo_id, serie, trilha)
   - materia            → codigo
   - aluno              → matricula
-  - ciclo              → (ano_letivo_id, ordem)
+  - ciclo              → (ano_letivo_id, serie, ordem)
+  - curso_canvas       → (ano_letivo_id, serie)
   - simulado           → external_id
   - nota               → (aluno_id, simulado_id)
   - matricula_turma    → (aluno_id, turma_id, ativo_desde)
@@ -23,6 +24,12 @@ from typing import Any
 from supabase import Client
 
 # ─── Helpers ──────────────────────────────────────────────────────────────
+
+
+#: A série de tudo o que a planilha e o curso de simulados trazem. O curso
+#: "{ano} 3o ITA/IME Simulados" reúne o 3º e o cursinho (docs/44 §1), e até a
+#: etapa 3 nenhuma outra série entra no SAS.
+SERIE_DO_CURSO_DE_SIMULADOS = 3
 
 
 def _executar_upsert(
@@ -83,6 +90,23 @@ def upsert_ano_letivo(
     if canvas_course_id is not None:
         valores["canvas_course_id"] = canvas_course_id
     linha = _executar_upsert(cliente, "ano_letivo", valores, on_conflict="ano")
+    return linha["id"]
+
+
+def upsert_curso_canvas(
+    cliente: Client, *, ano_letivo_id: str, serie: int, canvas_course_id: str
+) -> str:
+    """O curso de provas de uma série num ano (0078, docs/44 §3).
+
+    A chave é (ano, série), e não o id do curso: recriar o curso no Canvas troca
+    o ponteiro, como `upsert_ano_letivo` sempre fez com `canvas_course_id`.
+    """
+    valores = {
+        "ano_letivo_id": ano_letivo_id,
+        "serie": serie,
+        "canvas_course_id": canvas_course_id,
+    }
+    linha = _executar_upsert(cliente, "curso_canvas", valores, on_conflict="ano_letivo_id,serie")
     return linha["id"]
 
 
@@ -227,9 +251,11 @@ def upsert_ciclo(
     nome: str,
     vestibular_alvo: str | None = None,
     canvas_assignment_group_id: str | None = None,
+    serie: int = SERIE_DO_CURSO_DE_SIMULADOS,
 ) -> str:
     valores = {
         "ano_letivo_id": ano_letivo_id,
+        "serie": serie,
         "ordem": ordem,
         "nome": nome,
         "vestibular_alvo": vestibular_alvo,
@@ -242,7 +268,7 @@ def upsert_ciclo(
         cliente,
         "ciclo",
         valores,
-        on_conflict="ano_letivo_id,ordem",
+        on_conflict="ano_letivo_id,serie,ordem",
     )
     return linha["id"]
 

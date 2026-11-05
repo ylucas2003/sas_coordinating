@@ -51,6 +51,13 @@ O erro de leitura mais provável do schema hoje:
 As duas vão se encontrar num sprint futuro: a taxonomia da 0028 é a que preenche
 o gancho `questao.assunto`, vazio desde a 0015.
 
+### ⚠️ `turma.serie` não diz em que bloco o aluno está
+
+Ela é o que o NOME da section declara, e vale 0 em "AD Online", "PB" e "Escolas
+Parceiras SAS": filtrar por ela esconde centenas de alunos do 3º. O bloco da
+coordenação é `turma.serie_do_curso`, `ciclo.serie` e `curso_canvas.serie`
+(0078, [docs/44](../docs/44-plano-turmas-1o-2o-ano.md)).
+
 ## Autenticação
 
 Quatro tipos de credencial, um JWT (HS256, 8h) — [app/auth.py](app/auth.py).

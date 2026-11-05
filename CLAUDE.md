@@ -89,6 +89,8 @@ sas/
 │                 a ampliação para 53 tools, o §8 o que NÃO foi verificado, o
 │                 §9 a ordem do deploy e o §10 o MCP no `infra/vps` e como
 │                 ligá-lo e desligá-lo
+│                 **44 é a entrada de 1º e 2º ano** (um bloco por série no rail, só
+│                 AP e AG, sem conceito novo de etapa), planejada em 05/11
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no
