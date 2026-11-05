@@ -12,6 +12,7 @@ from ..canvas_sync.pendencias import (
     TETO_NOTAS_POR_LOTE as TETO_NOTAS_POR_LOTE,  # test_envio_lote_canvas lê daqui
 )
 from ..canvas_sync.pendencias import pendencias_do_ciclo
+from ..ingest.upsert import SERIE_DO_CURSO_DE_SIMULADOS
 from ..schemas.domain import Ciclo, VestibularAlvo
 from ..stats import (
     ciclo_estatisticas,
@@ -97,6 +98,9 @@ async def criar_ciclo(
         cliente.table("ciclo")
         .select("id, vestibular_alvo")
         .eq("ano_letivo_id", ano_letivo["id"])
+        # Só o 3º cria ciclo por esta rota: o de 1º e 2º ano vem das AP e AG do
+        # Canvas, e pode repetir a mesma ordem no mesmo ano (0078, docs/44 §3).
+        .eq("serie", SERIE_DO_CURSO_DE_SIMULADOS)
         .eq("ordem", body.ordem)
         .limit(1)
         .execute()

@@ -29,11 +29,13 @@ from ..ingest.header import (
     parsear_section,
 )
 from ..ingest.upsert import (
+    SERIE_DO_CURSO_DE_SIMULADOS,
     atualizar_periodo_ciclo,
     buscar_materia_por_codigo,
     upsert_alunos_em_lote,
     upsert_ano_letivo,
     upsert_ciclo,
+    upsert_curso_canvas,
     upsert_matriculas_em_lote,
     upsert_notas_em_lote,
     upsert_sede,
@@ -125,6 +127,14 @@ async def _sincronizar_curso_simulados(
     # canvas_course_id: é aqui que o agendamento (P1) descobre em que curso
     # criar Assignments — o sync é quem mantém o vínculo atualizado.
     ano_letivo_id = upsert_ano_letivo(cliente, ano=ano, canvas_course_id=course_id)
+    # O vínculo por série, que sucede o de cima na etapa 3 (docs/44 §4). Gravado
+    # desde já para o curso de um ano novo não nascer sem ele.
+    upsert_curso_canvas(
+        cliente,
+        ano_letivo_id=ano_letivo_id,
+        serie=SERIE_DO_CURSO_DE_SIMULADOS,
+        canvas_course_id=course_id,
+    )
 
     # ── (1) Sections → sede/turma ──
     sections = await canvas.listar_sections(course_id)

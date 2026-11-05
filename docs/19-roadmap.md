@@ -37,6 +37,9 @@
 > ([41](41-plano-captacao-externa.md)) — hoje em produção, com 10 provas e
 > busca nos dois sentidos (nome → conquistas e, desde 07/10, conquista →
 > nomes; ver o bloco no fim da §3).
+>
+> Em **05/11** foi planejada a entrada de 1º e 2º ano ([44](44-plano-turmas-1o-2o-ano.md)):
+> decisões de produto fechadas e etapa 1 em branch, sem nada em produção.
 
 ---
 

@@ -36,8 +36,11 @@ PADRAO_ASSIGNMENT_SIMULADO = re.compile(
 
 # "2026 3o ITA/IME Simulados" → ano 2026. O curso legado sem prefixo de ano
 # ("3o ITA/IME SIMULADOS") não casa — decisão: só sincronizamos cursos com ano.
+# O "3o" é literal de propósito: o sync pega o curso de MAIOR ano, e o desempate
+# entre cursos do mesmo ano é a ordem em que o Canvas os lista. Um "2027 2o ITA/IME
+# Simulados" poderia tomar o lugar do curso do 3º sem erro nenhum (docs/44 §5).
 PADRAO_CURSO_SIMULADOS = re.compile(
-    r"^(?P<ano>\d{4})\s+\d+o\s+ITA/IME\s+Simulados\s*$",
+    r"^(?P<ano>\d{4})\s+3o\s+ITA/IME\s+Simulados\s*$",
     re.IGNORECASE,
 )
 

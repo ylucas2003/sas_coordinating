@@ -42,6 +42,7 @@ from typing import Any
 
 from supabase import Client
 
+from ..ingest.upsert import SERIE_DO_CURSO_DE_SIMULADOS
 from . import criterios
 from .utils import (
     como_float,
@@ -166,7 +167,7 @@ def calcular(
 def _carregar_ciclo(cliente: Client, ciclo_id: str) -> dict | None:
     resp = (
         cliente.table("ciclo")
-        .select("id, nome, ordem, vestibular_alvo, ano_letivo_id")
+        .select("id, nome, ordem, serie, vestibular_alvo, ano_letivo_id")
         .eq("id", ciclo_id)
         .limit(1)
         .execute()
@@ -183,6 +184,9 @@ def _carregar_ciclo_anterior(cliente: Client, ciclo_atual: dict) -> dict | None:
         .select("id, nome, ordem, vestibular_alvo, ano_letivo_id")
         .eq("vestibular_alvo", ciclo_atual["vestibular_alvo"])
         .eq("ano_letivo_id", ciclo_atual["ano_letivo_id"])
+        # Sem isto, o "anterior" de um ciclo do 3º poderia ser um do 1º ano, com a
+        # mesma ordem e outras provas (0078, docs/44 §3).
+        .eq("serie", ciclo_atual.get("serie", SERIE_DO_CURSO_DE_SIMULADOS))
         .eq("ordem", ordem - 1)
         .limit(1)
         .execute()
