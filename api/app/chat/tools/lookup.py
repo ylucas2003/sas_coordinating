@@ -203,7 +203,7 @@ def listar_ciclos(cliente: Client) -> dict:
     """Lista todos os ciclos ordenados por ano e ordem (mais antigos primeiro)."""
     resp = (
         cliente.table("ciclo")
-        .select("id, nome, ordem, vestibular_alvo, periodo_inicio, periodo_fim, ano_letivo(ano)")
+        .select("id, nome, ordem, serie, vestibular_alvo, periodo_inicio, periodo_fim, ano_letivo(ano)")
         .order("ordem")
         .execute()
     )
@@ -214,6 +214,9 @@ def listar_ciclos(cliente: Client) -> dict:
                 "id": c["id"],
                 "nome": c["nome"],
                 "ordem": c["ordem"],
+                # 3 = "3º e cursinho", 1 e 2 = 1º e 2º ano. Ciclos de séries
+                # diferentes não se comparam (docs/44 §1).
+                "serie": c.get("serie") or 3,
                 "ano": (c.get("ano_letivo") or {}).get("ano"),
                 "vestibularAlvo": c.get("vestibular_alvo"),
                 "periodoInicio": c.get("periodo_inicio"),
