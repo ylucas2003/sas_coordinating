@@ -11,6 +11,7 @@ import asyncio
 from pathlib import Path
 
 from app.canvas_sync import mapeador
+from app.chat.tools import lookup
 from app.ingest.upsert import upsert_ciclo, upsert_curso_canvas
 from app.routes import alertas as rota_alertas
 from app.routes import ciclos as rota_ciclos
@@ -69,6 +70,27 @@ class TestCicloPorSerie:
 
         assert anterior["id"] == do_3o_ano
         assert anterior["id"] != do_1o_ano
+
+
+class TestCicloAnteriorPorEtapa:
+    def test_no_1o_ano_o_anterior_do_mesmo_vestibular_e_a_etapa_de_tras(self):
+        """A AG da 2ª etapa (ordem 4, ITA) compara com a AG da 1ª (ordem 2), e não
+        com a AP da 2ª (ordem 3, IME), que é de outro vestibular (docs/44 §3)."""
+        db: dict = {}
+        cliente = FakeCliente(db)
+        ag_1a = _ciclo(cliente, ordem=2, serie=1, vestibular_alvo="ITA")
+        _ciclo(cliente, ordem=3, serie=1, vestibular_alvo="IME")
+        atual = {"ordem": 4, "serie": 1, "vestibular_alvo": "ITA", "ano_letivo_id": "ano-2026"}
+        assert ciclo_estatisticas._carregar_ciclo_anterior(cliente, atual)["id"] == ag_1a
+
+    def test_a_primeira_ap_do_ano_nao_tem_anterior(self):
+        atual = {"ordem": 1, "serie": 2, "vestibular_alvo": "IME", "ano_letivo_id": "ano-2026"}
+        assert ciclo_estatisticas._carregar_ciclo_anterior(FakeCliente({}), atual) is None
+
+    def test_a_tool_de_ciclos_diz_a_serie(self):
+        db = {"ciclo": {"c": {"id": "c", "nome": "n", "ordem": 2, "serie": 1}}}
+        (ciclo,) = lookup.listar_ciclos(FakeCliente(db))["ciclos"]
+        assert ciclo["serie"] == 1
 
 
 class TestCursoCanvas:
