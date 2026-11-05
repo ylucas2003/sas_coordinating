@@ -121,6 +121,7 @@ def upsert_turma(
     serie: int,
     trilha: str,
     section_original: str,
+    serie_do_curso: int = SERIE_DO_CURSO_DE_SIMULADOS,
 ) -> str:
     valores = {
         "sede_id": sede_id,
@@ -128,6 +129,7 @@ def upsert_turma(
         "serie": serie,
         "trilha": trilha,
         "section_original": section_original,
+        "serie_do_curso": serie_do_curso,
     }
     linha = _executar_upsert(
         cliente,
