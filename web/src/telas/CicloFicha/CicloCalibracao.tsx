@@ -13,7 +13,7 @@ import type { BlocoDoMapa, Mapa, OrdemDoMapa } from '../../dominio/mapaDoCiclo';
 import {
   useCiclo, useCriteriosDisponiveis, useEstatisticasCiclo, useSimulados,
 } from '../../hooks/consultas';
-import { useRecorteDaTela, useTituloDaTela } from '../../componentes/layout/migalhas';
+import { useRecorteDaTela, useSerieDaFicha, useTituloDaTela } from '../../componentes/layout/migalhas';
 import type { RecorteMateria } from '../../tipos/dominio';
 import { fmtNota } from '../../util/formato';
 
@@ -68,6 +68,7 @@ export function CicloCalibracao() {
   const { data: stats, isPending, isError } = useEstatisticasCiclo(id, criterio);
 
   useTituloDaTela('Calibração');
+  useSerieDaFicha(ciclo?.serie);
   useRecorteDaTela(null);
 
   const doCiclo = useMemo(() => todos.filter((s) => s.cicloId === id), [todos, id]);

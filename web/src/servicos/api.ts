@@ -5,7 +5,9 @@
 // invalida é o hook que chama (ver src/hooks/).
 
 import { ErroApi, del, get, patch, post, put, qs, streamSSE } from './http';
+import type { SerieDoBloco } from '../dominio/blocos';
 import type { ContextoDaTela } from '../dominio/contextoDaTela';
+import type { BlocoDaCoordenacao } from '../tipos/dominio';
 import type { EventoSSE, OpcoesDeRequisicao } from './http';
 import type {
   Alerta, Aluno, Ciclo, ClassificacaoCiclo, CriterioClassificacao, Materia, PaginaAuditoria,
@@ -59,7 +61,9 @@ export const login = (corpo: { tipo: string; usuario: string; senha: string }) =
 
 // ─── Alertas ─────────────────────────────────────────────────────────────
 
-export const listarAlertas = () => get<Alerta[]>('/alertas');
+/** Com `serie`, o servidor filtra antes do limite de 100 (docs/44 §4). */
+export const listarAlertas = (serie?: SerieDoBloco) =>
+  get<Alerta[]>(`/alertas${qs(serie ? { serie } : {})}`);
 export const resolverAlerta = (id: string) => post<unknown>(`/alertas/${enc(id)}/resolver`);
 /** O desfazer do cartão resolvido (docs/39 §3, fase 1). Não cria alerta novo:
     reabre a MESMA linha e limpa a hora do resolver. */
@@ -306,6 +310,8 @@ export const criarCiclo = (corpo: { ordem: number; vestibular: string; ano?: num
 
 export const listarSedes = () => get<Sede[]>('/sedes');
 export const listarTurmas = () => get<Turma[]>('/turmas');
+/** Os blocos do rail: só as séries que têm aluno, e sempre o 3º. */
+export const listarBlocos = () => get<BlocoDaCoordenacao[]>('/blocos');
 export const listarMaterias = () => get<Materia[]>('/materias');
 
 // ─── Uploads de planilha — só leitura ────────────────────────────────────

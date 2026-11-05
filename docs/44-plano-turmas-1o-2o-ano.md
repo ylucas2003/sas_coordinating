@@ -1,8 +1,9 @@
 # 44 — Turmas de 1º e 2º ano na plataforma
 
-> **Estado em 05/11/2026:** planejado, com as decisões de produto fechadas. A etapa 1
-> está no branch `feat/turmas-1o-2o-ano`. Nada disto está em produção, e nenhum aluno
-> de 1º ou 2º ano entrou no SAS.
+> **Estado em 05/11/2026:** decisões de produto fechadas. A etapa 1 está no PR #121
+> (`feat/turmas-1o-2o-ano`) e a etapa 2 no branch `feat/turmas-rail-em-blocos`, que
+> parte dele. Nada disto está em produção, e nenhum aluno de 1º ou 2º ano entrou no
+> SAS: até a etapa 3, o rail continua com os cinco destinos de sempre.
 >
 > Protótipo clicável, com dados fictícios:
 > [prancheta, linha D](https://claude.ai/artifact/AYowaAdL4BwWMSGdJZ5sU1).
@@ -81,7 +82,21 @@ Tudo o que existe nasce 3. **Um bloco é uma série, então não há coluna de b
 
 **1. Dados.** A migration acima e o sync gravando `curso_canvas`. Nada muda na tela.
 
-**2. Casco.**
+**2. Casco.** *Feita em 05/11, no branch `feat/turmas-rail-em-blocos`.*
+
+- `GET /blocos` diz quais séries têm aluno, com as contagens do cabeçalho. Com uma série
+  só, o rail é o de sempre: por isso a etapa pode ir ao ar antes da importação.
+- `alerta.serie` (0079) e `GET /alertas?serie=`. A série é marcada na emissão, em
+  `stats/alertas.py::_marcar_serie`.
+- A última lista de blocos fica no navegador (`useBlocos`), senão todo recarregamento
+  pintava o rail antigo por um instante.
+- "+ Novo ciclo" e "+ Novo simulado" só aparecem no 3º: os dois escrevem no curso de
+  `ano_letivo.canvas_course_id`, que é o do 3º.
+- Conferido no navegador com dados fictícios, em 1440×900 e 390×844. Com os três blocos
+  abertos numa tela de 860px de altura, a lista do rail rola 39px e Administração fica
+  logo abaixo da dobra.
+
+O que estava planejado para a etapa:
 
 - Rail em blocos, com a lista rolando para o Sair não sair da tela em notebook. O rail é
   `height: 100dvh` e, com tudo aberto, passa da altura de uma tela de notebook.
@@ -114,6 +129,10 @@ Tudo o que existe nasce 3. **Um bloco é uma série, então não há coluna de b
 - Importar 2026 e depois 2025, conferindo os números contra o Canvas.
 
 **4. Ajustes.**
+
+- "Ciclo N" ainda é montado a partir da ordem em `componentes/ui/Heatmap.tsx` (ficha do
+  aluno) e na área do aluno (`telas/Aluno/Provas.tsx`, `dados/aluno/reais.ts`). Painel e
+  ficha da prova já usam `dominio/blocos.ts::nomeCurtoDoCiclo`, que diz "3ª etapa · AG".
 
 - Dar lugar a Geografia, Biologia e História na tabela do ciclo: o `ESQUEMA` de
   `dominio/painel.ts` é fixo por vestibular e não tem essas colunas.

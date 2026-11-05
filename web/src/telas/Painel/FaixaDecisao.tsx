@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import { useSerieDaTela } from '../../componentes/layout/migalhas';
+
 import { AlertCard } from '../../componentes/ui/AlertCard';
 import { useAlertas } from '../../hooks/consultas';
 import { useReabrirAlerta, useResolverAlerta } from '../../hooks/mutacoes';
@@ -40,7 +42,8 @@ export function FaixaDecisao({
   /** O corte majoritário da régua em vigor, para a sparkline dos cartões (R2). */
   corte?: number;
 }) {
-  const { data: alertas = [] } = useAlertas();
+  // Só os do bloco, e filtrados no servidor (docs/44 §4).
+  const { data: alertas = [] } = useAlertas(useSerieDaTela());
   const resolver = useResolverAlerta();
   const reabrir = useReabrirAlerta();
   const [verTodos, setVerTodos] = useState(false);

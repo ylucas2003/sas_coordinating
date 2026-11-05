@@ -8,8 +8,9 @@ disparado_em desc. Monta o payload no formato esperado pelo frontend
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ..auth import exigir_scheduler_secret, get_current_coordenador
 from ..schemas.domain import Alerta
@@ -93,16 +94,18 @@ def _linha_para_alerta(linha: dict) -> Alerta:
 # A proteção aqui é por endpoint (não no router): POST /alertas/verificar é
 # rota de máquina do scheduler e usa X-Scheduler-Secret, não JWT.
 @router.get("", response_model=list[Alerta], dependencies=[Depends(get_current_coordenador)])
-async def listar_alertas() -> list[Alerta]:
+async def listar_alertas(serie: Annotated[int | None, Query(ge=1, le=3)] = None) -> list[Alerta]:
     cliente = get_supabase()
-    resp = (
+    consulta = (
         cliente.table("alerta")
         .select("id, categoria, severidade, entidade_tipo, entidade_id, titulo, subtitulo, dados_brutos, disparado_em, resolvido")
         .eq("resolvido", False)
-        .order("disparado_em", desc=True)
-        .limit(100)
-        .execute()
     )
+    # Antes do `limit`, e por isso aqui e não na tela: filtrar os 100 mais recentes
+    # sumiria com alertas de um bloco sem aviso nenhum (0079, docs/44 §4).
+    if serie is not None:
+        consulta = consulta.eq("serie", serie)
+    resp = consulta.order("disparado_em", desc=True).limit(100).execute()
     linhas = resp.data or []
     linhas.sort(key=lambda r: (_PESO_SEVERIDADE.get(r["severidade"], 99), r.get("disparado_em") or ""))
     return [_linha_para_alerta(linha) for linha in linhas]

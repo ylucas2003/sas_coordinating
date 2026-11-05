@@ -31,7 +31,7 @@ import {
   useSimulados, useTrajetoriaAluno, useTurmas,
 } from '../../hooks/consultas';
 import { useEditarNota } from '../../hooks/mutacoes';
-import { useTituloDaTela } from '../../componentes/layout/migalhas';
+import { useCaminhoDoBloco, useSerieDaFicha, useTituloDaTela } from '../../componentes/layout/migalhas';
 import type { AlunoSimilar, Simulado } from '../../tipos/dominio';
 import { fmtNota, iniciais } from '../../util/formato';
 
@@ -203,6 +203,8 @@ export function AlunoFicha() {
 
   // Antes de qualquer return: hook não pode ficar atrás de saída antecipada.
   useTituloDaTela(aluno?.nome);
+  useSerieDaFicha(aluno?.serie);
+  const noBloco = useCaminhoDoBloco();
 
   if (isPending) {
     return (
@@ -219,7 +221,7 @@ export function AlunoFicha() {
           <div className="empty-state">
             {`Aluno ${id} não encontrado.`}
             <div className="empty-state__hint">
-              <Link to="/alunos">← Voltar para a lista</Link>
+              <Link to={noBloco('/alunos')}>← Voltar para a lista</Link>
             </div>
           </div>
         </section>
@@ -266,7 +268,7 @@ export function AlunoFicha() {
 
   const ciclosAcompanhados = new Set(simuladosDoAluno.map((s) => s.cicloId)).size;
   const ultimoCiclo = aluno.medias?.ultimoCiclo;
-  const voltaPara = revisao?.volta ?? '/alunos';
+  const voltaPara = revisao?.volta ?? noBloco('/alunos');
 
   return (
     // A ficha é TELA DE LEITURA, e por isso ganha a coluna lateral de 320px
@@ -611,6 +613,7 @@ function Classificacao({ rotulo, valor, explica }: { rotulo: string; valor: stri
 function SemSimuladoNenhum(
   { nome, voltaPara, temRecorte }: { nome: string; voltaPara: string; temRecorte: boolean },
 ) {
+  const noBloco = useCaminhoDoBloco();
   // 24 células tracejadas: a grade de matérias por ciclo, sem uma preenchida.
   // Desenha a ausência com a MESMA forma que o heatmap usa para o vazado (R1),
   // então quem já leu a tela cheia entende esta sem legenda.
@@ -630,7 +633,7 @@ function SemSimuladoNenhum(
           lançada.
         </p>
         <div className="ficha-vazia__acoes">
-          <Link className="btn btn--primary" to="/provas/simulados">Ver a agenda de provas</Link>
+          <Link className="btn btn--primary" to={noBloco('/provas/simulados')}>Ver a agenda de provas</Link>
           <Link className="btn btn--ghost" to={voltaPara}>
             {temRecorte ? 'Voltar ao recorte' : 'Voltar para Alunos'}
           </Link>

@@ -21,6 +21,7 @@
 // sobre o que o servidor resolveu (docs/18 §1.2).
 
 import type { NotaSimulado, Simulado } from '../tipos/dominio';
+import { nomeCurtoDoCiclo } from './blocos';
 
 /** `2026-09-04` → `04/09/2026`. */
 export function dataPorExtenso(iso: string): string {
@@ -60,7 +61,7 @@ export function contextoDaProva(
   hoje: string,
 ): string {
   const partes: string[] = [];
-  if (simulado.cicloOrdem != null) partes.push(`Ciclo ${simulado.cicloOrdem}`);
+  if (simulado.cicloOrdem != null) partes.push(nomeCurtoDoCiclo(simulado.cicloOrdem, simulado.serie));
   if (simulado.vestibularAlvo) partes.push(simulado.vestibularAlvo);
   if (simulado.dataAplicacao) {
     const verbo = simulado.dataAplicacao > hoje ? 'previsto para' : 'aplicado em';

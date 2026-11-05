@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react';
+
+import { useSerieDaTela } from '../../componentes/layout/migalhas';
+import { daSerie, SERIE_PADRAO } from '../../dominio/blocos';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { OrdenarNoCelular, TheadOrdenavel } from '../../componentes/ui/TabelaOrdenavel';
@@ -32,7 +35,9 @@ const COLUNAS: Array<ColunaTabela<Ciclo>> = [
 /** Lista de ciclos com filtros laterais (vestibular, ano letivo, período). */
 export function Ciclos() {
   const navegar = useNavigate();
-  const { data: ciclos = [], isPending, isError, error } = useCiclos();
+  const serie = useSerieDaTela();
+  const { data: todosOsCiclos = [], isPending, isError, error } = useCiclos();
+  const ciclos = useMemo(() => daSerie(todosOsCiclos, serie), [todosOsCiclos, serie]);
 
   const [filtro, setFiltro] = useState<FiltroCiclos>(FILTRO_CICLOS_VAZIO);
   // A busca fica FORA de `FiltroCiclos` de propósito: aquele tipo é o recorte
@@ -138,9 +143,12 @@ export function Ciclos() {
             {isPending ? 'Carregando…' : `${filtrados.length} de ${ciclos.length} ciclos`}
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setDialogoAberto(true)}>
-          + Novo ciclo
-        </button>
+        {/* Só o 3º cria ciclo aqui: o de 1º e 2º ano vem das AP e AG do Canvas. */}
+        {serie === SERIE_PADRAO && (
+          <button className="btn btn-primary" onClick={() => setDialogoAberto(true)}>
+            + Novo ciclo
+          </button>
+        )}
       </div>
 
       <section className="card">

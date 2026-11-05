@@ -7,7 +7,7 @@ import { EdicaoNota } from '../../componentes/dialogos/EdicaoNota';
 import { EdicaoSimulado } from '../../componentes/dialogos/EdicaoSimulado';
 import type { PatchSimulado } from '../../componentes/dialogos/EdicaoSimulado';
 import type { ValoresNota } from '../../componentes/dialogos/formularioNota';
-import { useTituloDaTela } from '../../componentes/layout/migalhas';
+import { useCaminhoDoBloco, useSerieDaFicha, useTituloDaTela } from '../../componentes/layout/migalhas';
 import { CabecaDeCampo } from '../../componentes/ui/Campo';
 import { GraficoEmCamadas } from '../../componentes/ui/GraficoEmCamadas';
 import { Histograma } from '../../componentes/ui/Histograma';
@@ -109,6 +109,8 @@ export function SimuladoFicha() {
   const enviarCanvas = useRetrySimuladoCanvas();
   const cancelar = useCancelarSimulado();
   const navegar = useNavigate();
+  useSerieDaFicha(simulado?.serie);
+  const noBloco = useCaminhoDoBloco();
   const [desmarcando, setDesmarcando] = useState(false);
   const editarNota = useEditarNota();
 
@@ -143,7 +145,7 @@ export function SimuladoFicha() {
           <div className="empty-state">
             {`Simulado ${id} não encontrado.`}
             <div className="empty-state__hint">
-              <Link to="/provas/simulados">← Voltar para a lista</Link>
+              <Link to={noBloco('/provas/simulados')}>← Voltar para a lista</Link>
             </div>
           </div>
         </section>
@@ -210,7 +212,7 @@ export function SimuladoFicha() {
       <div className="prova-identidade">
         <CabecaDeCampo
           titulo={identidadeDaProva(simulado)}
-          para="/provas/simulados"
+          para={noBloco('/provas/simulados')}
           destino="Provas específicas"
           // A barra de ações não dança de tamanho porque aqui há UM botão, e
           // ele está sempre presente. O que é condicional desce para a faixa
@@ -433,7 +435,7 @@ export function SimuladoFicha() {
             setErroSalvar('');
             try {
               await cancelar.mutateAsync({ id, sincronizarCanvas });
-              navegar('/provas/simulados');
+              navegar(noBloco('/provas/simulados'));
             } catch (e) {
               setErroSalvar((e as Error).message || 'Falha ao desmarcar.');
             }

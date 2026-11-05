@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 
 import { AberturaDoTour } from '../../componentes/onboarding/AberturaDoTour';
 import { CartaoDeCampo } from '../../componentes/ui/Campo';
-import { useRecorteDaTela } from '../../componentes/layout/migalhas';
+import { useCaminhoDoBloco, useRecorteDaTela, useSerieDaTela } from '../../componentes/layout/migalhas';
+import { daSerie, nomeCurtoDoCiclo } from '../../dominio/blocos';
 import { dataLocal, isoDoDia, quebraDaContagem, rotuloDaContagem } from '../../dominio/cantina';
 import { corteDaMateria } from '../../dominio/criterios';
 import { cicloPadrao, ciclosNoRecorte, recorteCompleto } from '../../dominio/painelFiltros';
@@ -119,7 +120,7 @@ function haQuanto(iso: string, hoje: string): string {
  * estivesse na planilha — e aí a garantia se perde em silêncio.
  */
 function identidadeDoCiclo(ciclo: Ciclo): string {
-  const partes = [ciclo.ordem ? `Ciclo ${ciclo.ordem}` : ciclo.nome];
+  const partes = [ciclo.ordem ? nomeCurtoDoCiclo(ciclo.ordem, ciclo.serie) : ciclo.nome];
   if (ciclo.vestibularAlvo) partes.push(ciclo.vestibularAlvo);
   if (ciclo.anoLetivo) partes.push(String(ciclo.anoLetivo));
   return partes.join(' · ');
@@ -162,8 +163,14 @@ export function Painel() {
   // meia-noite passar sem a tela perceber.
   const hoje = isoDoDia(new Date());
 
-  const { data: ciclos = [], isPending: carregandoCiclos, isError: erroCiclos } = useCiclos();
-  const { data: simulados = [], isPending: carregandoSimulados } = useSimulados();
+  // Cada bloco tem o próprio Painel (docs/44 §1): o ciclo em foco e a última prova
+  // são os da série, e 1º e 2º ano nunca se misturam.
+  const serie = useSerieDaTela();
+  const noBloco = useCaminhoDoBloco();
+  const { data: todosOsCiclos = [], isPending: carregandoCiclos, isError: erroCiclos } = useCiclos();
+  const { data: todasAsProvas = [], isPending: carregandoSimulados } = useSimulados();
+  const ciclos = useMemo(() => daSerie(todosOsCiclos, serie), [todosOsCiclos, serie]);
+  const simulados = useMemo(() => daSerie(todasAsProvas, serie), [todasAsProvas, serie]);
 
   // A fileira de ciclos sumiu, mas a ORDENAÇÃO dela não podia sumir junto: o
   // último recurso de `cicloPadrao` é `ciclos[0]`, e a API ordena só por
@@ -320,7 +327,7 @@ export function Painel() {
         <CartaoDeCampo
           olho="Ciclo"
           titulo="Como está fechando?"
-          para={cartaoCiclo?.para ?? '/provas'}
+          para={cartaoCiclo?.para ?? noBloco('/provas')}
           carregando={carregandoCiclos || (!!cicloAtivo && classificacao.isPending)}
           // ⚠️ `null` e ausente não são a mesma coisa: `null` reserva o vão do
           // numeral e a grade não pula quando o número chega. Este card SEMPRE
@@ -338,7 +345,7 @@ export function Painel() {
           compacto
           olho="Simulado"
           titulo="A prova estava boa?"
-          para={cartaoSimulado?.para ?? '/provas?aba=simulados'}
+          para={cartaoSimulado?.para ?? noBloco('/provas?aba=simulados')}
           carregando={carregandoSimulados}
           subtitulo={cartaoSimulado?.subtitulo ?? null}
           marca={cartaoSimulado?.marca ?? null}
@@ -389,6 +396,7 @@ export function Painel() {
  * agrupa as provas e aplica a régua —, então a tela diz isso e leva lá.
  */
 function PrimeiroDia() {
+  const noBloco = useCaminhoDoBloco();
   return (
     <div className="tela">
       <section className="painel-primeiro">
@@ -400,8 +408,8 @@ function PrimeiroDia() {
             nada. O ano começa pelo ciclo: é ele que agrupa as provas e aplica a régua.
           </p>
           <div className="painel-primeiro__acoes">
-            <Link className="btn btn-primary" to="/provas">Criar o primeiro ciclo</Link>
-            <Link className="btn" to="/alunos">Conferir os alunos importados</Link>
+            <Link className="btn btn-primary" to={noBloco('/provas')}>Criar o primeiro ciclo</Link>
+            <Link className="btn" to={noBloco('/alunos')}>Conferir os alunos importados</Link>
           </div>
         </div>
         {/* Três portas fechadas, no arranjo dos três cards que ainda não têm o

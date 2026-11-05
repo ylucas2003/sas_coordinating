@@ -12,6 +12,8 @@
 // terceira refeição.
 import type { Refeicao } from './cantina';
 
+import type { SerieDoBloco } from '../dominio/blocos';
+
 export type Modalidade = 'presencial' | 'online';
 export type Vestibular = 'ITA' | 'IME' | 'AFA' | 'EsPCEx' | 'EFOMM';
 /** Apenas os 2 vestibulares no escopo do MVP. */
@@ -31,6 +33,13 @@ export type CategoriaAlerta =
   | 'PANORAMA_CICLO'
   | 'ZONA_TRANSICAO';
 
+/** Um bloco do rail: a série e o que o cabeçalho dele mostra (docs/44 §4). */
+export interface BlocoDaCoordenacao {
+  serie: SerieDoBloco;
+  alunos: number;
+  alertas: number;
+}
+
 export interface Sede {
   id: string;
   nome: string;
@@ -42,6 +51,8 @@ export interface Turma {
   nome: string;
   sedeId: string;
   anoLetivo: number;
+  /** O bloco da coordenação (docs/44 §3). Ausente = 3º: ver `dominio/blocos.ts::daSerie`. */
+  serie?: SerieDoBloco;
 }
 
 export interface Materia {
@@ -110,6 +121,8 @@ export interface MediasDoAluno {
 export interface Aluno {
   id: string;
   nome: string;
+  /** O bloco da coordenação, o da turma ativa. Só a coordenação recebe. */
+  serie?: SerieDoBloco;
   turmaId: string;
   sedeId: string;
   vestibularesAlvo: Vestibular[];
@@ -152,6 +165,8 @@ export interface Aluno {
 export interface Ciclo {
   id: string;
   nome: string;
+  /** O bloco da coordenação (docs/44 §3). */
+  serie?: SerieDoBloco;
   /** O número do ciclo dentro do ano — `4` em "Ciclo 4 · ITA · 2026". */
   ordem: number;
   anoLetivo: number;
@@ -171,6 +186,8 @@ export interface Ciclo {
 
 export interface Simulado {
   id: string;
+  /** O bloco da coordenação, herdado do ciclo (docs/44 §3). */
+  serie?: SerieDoBloco;
   /** Nome original vindo do Canvas — preservado para debug e para a ficha. */
   nome: string;
   /** "P38", "P22". */
