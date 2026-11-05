@@ -15,6 +15,7 @@ from supabase import Client
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
 from ..canvas_sync import escrita, mapeador
+from ..canvas_sync.cursos import curso_do_ciclo
 from ..config import get_settings
 from ..lembretes import motor as lembretes
 from ..lembretes.aplicacoes import aluno_simulado
@@ -720,7 +721,7 @@ async def cancelar_simulado(
     resp = (
         cliente.table("simulado")
         .select("id, origem, external_id, evento_agenda_id, "
-                "ciclo(ano_letivo(canvas_course_id))")
+                "ciclo(serie, ano_letivo_id, ano_letivo(canvas_course_id))")
         .eq("id", simulado_id)
         .limit(1)
         .execute()
@@ -749,9 +750,7 @@ async def cancelar_simulado(
     # Canvas primeiro, quando pedido (DELETE é idempotente; 404 lá = já não
     # existe = ok). Falha aqui aborta ANTES de mexer no banco — senão o
     # Assignment ficaria órfão SEM o coordenador ter escolhido isso.
-    course_id = (
-        (simulado.get("ciclo") or {}).get("ano_letivo") or {}
-    ).get("canvas_course_id")
+    course_id = curso_do_ciclo(cliente, simulado.get("ciclo") or {})
     apagado_no_canvas = False
     if sincronizar_canvas and simulado.get("external_id"):
         if not course_id:

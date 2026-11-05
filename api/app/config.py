@@ -110,6 +110,14 @@ class Settings(BaseSettings):
     canvas_account_id: str = "1"                # conta "Colégio Ari de Sá"
     canvas_ano_vigente: str = ""                # vazio = auto-detecta (maior ano encontrado)
     canvas_sync_lookback_minutos: str = "20"    # janela do graded_since no sync incremental
+    # As séries que o sync traz do Canvas (docs/44 §4). "3" é o curso de simulados
+    # de sempre; "1,2,3" traz também os cursos de avaliações do 1º e do 2º ano. O
+    # padrão é só o 3º, para o deploy do código não importar ninguém sozinho.
+    canvas_series_importadas: str = "3"
+    # As séries cujos alunos ENTRAM pelo Canvas. Separada da de cima de propósito:
+    # importar, conferir os números na coordenação e só então abrir o acesso
+    # (docs/44 §4, etapa 5). São alunos menores de idade.
+    series_com_acesso_do_aluno: str = "3"
 
     # Canvas como provedor de identidade — OAuth2 por redirect (docs/18 §4.2).
     # É OUTRA credencial, não o token acima: o token autentica o SAS *como o
@@ -187,8 +195,24 @@ class Settings(BaseSettings):
         return self.lembrete_token_secret or self.jwt_secret_key
 
     @property
+    def series_importadas(self) -> frozenset[int]:
+        return _series_da_lista(self.canvas_series_importadas)
+
+    @property
+    def series_com_acesso(self) -> frozenset[int]:
+        return _series_da_lista(self.series_com_acesso_do_aluno)
+
+    @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
+
+
+def _series_da_lista(texto: str) -> frozenset[int]:
+    """"1, 3" → {1, 3}. O 3º está sempre: um erro de digitação na variável não pode
+    tirar o curso de simulados do sync nem o acesso de quem já entra. Valor que não é
+    1, 2 ou 3 é descartado em silêncio, como série que não existe."""
+    lidas = {int(p) for p in texto.replace(";", ",").split(",") if p.strip() in {"1", "2", "3"}}
+    return frozenset(lidas | {3})
 
 
 @lru_cache

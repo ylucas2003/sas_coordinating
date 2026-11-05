@@ -19,6 +19,7 @@ from ..ingest.header import (
     PADRAO_CICLO_VESTIBULAR,
     codigo_materia,
     parse_data_br,
+    remover_acentos,
 )
 
 # "1_P1 - Matemática - 08/02/2026" (sem "(id)" no fim — vem de assignment["id"]).
@@ -42,6 +43,28 @@ PADRAO_ASSIGNMENT_SIMULADO = re.compile(
 PADRAO_CURSO_SIMULADOS = re.compile(
     r"^(?P<ano>\d{4})\s+3o\s+ITA/IME\s+Simulados\s*$",
     re.IGNORECASE,
+)
+
+# "2026 1o ITA/IME Avaliações" → (2026, 1). O curso de provas do 1º e do 2º ano
+# (docs/44 §2). O 3º tem outro nome, e por isso o padrão aceita só 1 e 2.
+PADRAO_CURSO_AVALIACOES = re.compile(
+    r"^(?P<ano>\d{4})\s+(?P<serie>[12])o\s+ITA/IME\s+Avalia[cç][oõ]es\s*$",
+    re.IGNORECASE,
+)
+
+# "2026 - 1ª ETAPA - AP's" → (2026, 1, "AP"), lido do nome SEM acento e em
+# minúsculas: "º" vira "o" e "ª" vira "a" ao tirar o acento, e o Canvas tem os
+# dois ("3ª ETAPA" e "3º ETAPA" no mesmo curso).
+PADRAO_GRUPO_ETAPA = re.compile(
+    r"^(?P<ano>\d{4})\s*-\s*(?P<etapa>[1-3])\s*[ao°]?\s*etapa\s*-\s*(?P<tipo>ap|ag)\b"
+)
+
+# "1_AP1 - Matemática - 09/02/2026", também sem acento e em minúsculas. Tolera o
+# que o Canvas tem de verdade: "1_ AP2" e "Inglês- 12/03". Qualquer coisa depois
+# da data recusa o nome, e é assim que a Atividade de Resolução fica de fora.
+PADRAO_PROVA_ETAPA = re.compile(
+    r"^(?P<etapa>[1-3])_\s*(?P<tipo>ap|ag)(?P<numero>\d+)\s*-\s*(?P<materia>[a-z ]+?)"
+    r"\s*-\s*(?P<data>\d{2}/\d{2}/\d{4})\s*$"
 )
 
 # "course files/1° CICLO" → 1 (só o ÚLTIMO segmento do full_name importa —
@@ -74,6 +97,55 @@ _PADRAO_SEPARADOR_MATERIAS = re.compile(r"\s*,\s*|\s+[Ee]\s+")
 def parsear_ano_curso_simulados(nome_curso: str) -> int | None:
     m = PADRAO_CURSO_SIMULADOS.match(nome_curso.strip())
     return int(m.group("ano")) if m else None
+
+
+def parsear_curso_avaliacoes(nome_curso: str) -> tuple[int, int] | None:
+    """'2026 1o ITA/IME Avaliações' → (2026, 1). None para qualquer outro curso."""
+    m = PADRAO_CURSO_AVALIACOES.match(nome_curso.strip())
+    return (int(m.group("ano")), int(m.group("serie"))) if m else None
+
+
+def parsear_grupo_etapa(nome_grupo: str) -> tuple[int, int, str] | None:
+    """"2026 - 1ª ETAPA - AP's" → (2026, 1, 'AP').
+
+    None para tudo que não é AP nem AG: ASC, NTD, AR, listas e simulados
+    nacionais ficam de fora por decisão da coordenação (docs/44 §1).
+    """
+    m = PADRAO_GRUPO_ETAPA.match(remover_acentos(nome_grupo))
+    if not m:
+        return None
+    return int(m.group("ano")), int(m.group("etapa")), m.group("tipo").upper()
+
+
+def ciclo_da_etapa(etapa: int, tipo: str) -> tuple[int, str]:
+    """(3, 'AG') → (6, 'ITA'). Cada etapa tem dois ciclos, a AP antes da AG, e a AP
+    é no estilo do IME e a AG no do ITA (Manual do Aluno 2026; docs/44 §3). O front
+    desfaz a conta em `dominio/blocos.ts::nomeCurtoDoCiclo`."""
+    return (etapa - 1) * 2 + (1 if tipo == "AP" else 2), "IME" if tipo == "AP" else "ITA"
+
+
+def e_atividade_de_resolucao(nome: str) -> bool:
+    """A "prova recorrigida" vale 0,5 ponto e não é prova (docs/44 §5). O Canvas
+    escreve RESOLUÇÃO e também RESOLÇÃO."""
+    return "resol" in remover_acentos(nome)
+
+
+def parsear_nome_avaliacao(nome: str) -> dict[str, Any] | None:
+    """'1_AP1 - Matemática - 09/02/2026' → etapa, tipo, rótulo, matéria e data.
+
+    None para nome fora da gramática; o chamador decide se registra aviso.
+    """
+    m = PADRAO_PROVA_ETAPA.match(remover_acentos(nome))
+    if not m:
+        return None
+    tipo = m.group("tipo").upper()
+    return {
+        "etapa": int(m.group("etapa")),
+        "tipo": tipo,
+        "rotulo_curto": f"{tipo}{int(m.group('numero'))}",
+        "materia_codigo": codigo_materia(m.group("materia")),
+        "data_aplicacao": parse_data_br(m.group("data")),
+    }
 
 
 def parsear_grupo_ciclo(nome_grupo: str) -> tuple[int, str] | None:
@@ -220,7 +292,11 @@ def mapear_simulado(
     rotulo_curto: str | None,
     data_aplicacao: date,
     tipo: str | None,
+    nota_maxima: float | None = None,
 ) -> dict[str, Any]:
+    """`nota_maxima` substitui o `points_possible` do Canvas. Serve à prova
+    discursiva do 1º e do 2º ano, lançada com 0 ponto e nota direta de 0 a 10:
+    com máximo 0, `nota_real` devolveria None e a prova sumiria (docs/44 §5)."""
     return {
         "external_id": str(assignment["id"]),
         "ciclo_id": ciclo_id,
@@ -228,7 +304,10 @@ def mapear_simulado(
         "nome": assignment["name"].strip(),
         "rotulo_curto": rotulo_curto,
         "data_aplicacao": data_aplicacao.isoformat(),
-        "nota_maxima": float(assignment.get("points_possible") or 0.0),
+        "nota_maxima": (
+            nota_maxima if nota_maxima is not None
+            else float(assignment.get("points_possible") or 0.0)
+        ),
         "e_agregado": False,
         "tipo": tipo,
         "quiz_id": str(assignment["quiz_id"]) if assignment.get("quiz_id") else None,

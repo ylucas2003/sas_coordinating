@@ -181,6 +181,23 @@ def _eventos_do_dia(cliente: Client, dia: date) -> list[dict[str, Any]]:
     )
 
 
+def _series_dos_eventos(cliente: Client, evento_ids: list[str]) -> set[int]:
+    """evento → simulado → ciclo → série. Ciclo sem a coluna é do 3º."""
+    simulados = (
+        cliente.table("simulado")
+        .select("ciclo_id, evento_agenda_id")
+        .in_("evento_agenda_id", evento_ids)
+        .execute()
+    ).data or []
+    ciclo_ids = {s["ciclo_id"] for s in simulados if s.get("ciclo_id")}
+    if not ciclo_ids:
+        return set()
+    ciclos = (
+        cliente.table("ciclo").select("id, serie").in_("id", list(ciclo_ids)).execute()
+    ).data or []
+    return {c.get("serie") or 3 for c in ciclos}
+
+
 def _anos_letivos_dos_eventos(cliente: Client, evento_ids: list[str]) -> set[str]:
     """evento → simulado → ciclo → ano letivo. É o único ponto em que esta
     aplicação toca o domínio de simulado — e é por isso que ela não mora no
@@ -204,7 +221,11 @@ def _anos_letivos_dos_eventos(cliente: Client, evento_ids: list[str]) -> set[str
 
 
 def resolver_audiencia(
-    cliente: Client, *, ano_letivo_ids: set[str], invalidos: set[str]
+    cliente: Client,
+    *,
+    ano_letivo_ids: set[str],
+    invalidos: set[str],
+    series: set[int] | None = None,
 ) -> list[dict[str, str]]:
     """Alunos que recebem o lembrete dos simulados desses anos letivos.
 
@@ -217,11 +238,17 @@ def resolver_audiencia(
         return []
     turmas = (
         cliente.table("turma")
-        .select("id, ano_letivo_id")
+        .select("id, ano_letivo_id, serie_do_curso")
         .in_("ano_letivo_id", list(ano_letivo_ids))
         .execute()
     ).data or []
-    turma_ids = {t["id"] for t in turmas}
+    # Só as turmas da série das provas: o lembrete do simulado do 3º não vai para o
+    # 1º e o 2º ano, que estão no mesmo ano letivo (docs/44 §4).
+    turma_ids = {
+        t["id"]
+        for t in turmas
+        if series is None or (t.get("serie_do_curso") or 3) in series
+    }
     if not turma_ids:
         return []
 
@@ -326,7 +353,10 @@ def materializar(cliente: Client) -> dict[str, Any]:
         cliente, [e["evento"]["id"] for e in eventos]
     )
     audiencia = resolver_audiencia(
-        cliente, ano_letivo_ids=ano_letivo_ids, invalidos=invalidos
+        cliente,
+        ano_letivo_ids=ano_letivo_ids,
+        invalidos=invalidos,
+        series=_series_dos_eventos(cliente, [e["evento"]["id"] for e in eventos]),
     )
 
     ja_tem = {aluno_id_da_chave(d.get("chave_idempotencia") or "") for d in ocupados}

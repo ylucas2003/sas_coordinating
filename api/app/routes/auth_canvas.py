@@ -58,6 +58,7 @@ from jose import JWTError, jwt
 from ..auditoria import registrar as auditar
 from ..auth import ALGORITHM, criar_token
 from ..config import get_settings
+from ..stats.aluno_jornada import series_atuais_do_aluno
 from ..supabase_client import get_supabase
 
 log = logging.getLogger("sas.auth.canvas")
@@ -212,6 +213,10 @@ async def callback(
         auditar(cliente, "login_falhou", canal="acesso", ator_tipo="canvas",
                 ator_id=canvas_user_id, ip=ip, detalhe={"motivo": "sem_conta_no_sas"})
         return RedirectResponse("/login?canvas=sem-conta")
+    if tipo == "aluno" and not _acesso_liberado(cliente, str(ator_id)):
+        auditar(cliente, "login_falhou", canal="acesso", ator_tipo="aluno",
+                ator_id=ator_id, ip=ip, detalhe={"motivo": "serie_sem_acesso"})
+        return RedirectResponse("/login?canvas=em-breve")
 
     # ⚠️ `ator_id` é o id do aluno NO SAS, nunca o número do Canvas. A trilha é
     # cruzada por esse id em dois lugares — a coluna "Último login" da tela de
@@ -226,6 +231,17 @@ async def callback(
     # O front lê o token do fragmento (#), que não vai ao servidor nem fica
     # em log de acesso, grava na sessão e limpa a URL.
     return RedirectResponse(f"/login/canvas#token={token}&tipo={tipo}&proximo={proximo}")
+
+
+def _acesso_liberado(cliente, aluno_id: str) -> bool:
+    """O aluno é de uma série que já entra? (`SERIES_COM_ACESSO_DO_ALUNO`, docs/44 §4)
+
+    O sync traz o 1º e o 2º ano antes de o acesso abrir: a coordenação confere os
+    números primeiro. Sem matrícula ativa, decide como sempre decidiu (entra), e o
+    3º está sempre liberado: esta trava não tira o acesso de ninguém que já tinha.
+    """
+    series = series_atuais_do_aluno(cliente, aluno_id)
+    return not series or bool(series & get_settings().series_com_acesso)
 
 
 def _sessao_para(

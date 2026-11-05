@@ -64,6 +64,11 @@ export function Login() {
       'Sua conta do Canvas não está na lista de alunos do SAS. A lista vem da sua matrícula no '
       + 'curso de simulados do ITA/IME no Canvas: matrícula nova leva alguns minutos para chegar '
       + 'aqui. Se a sua já está lá, fale com a coordenação.',
+    // A conta existe, mas a turma ainda não foi aberta (docs/44 §4): a
+    // coordenação confere os números antes de liberar o 1º e o 2º ano.
+    'em-breve':
+      'O SAS da sua turma ainda não foi aberto para os alunos. A coordenação avisa quando '
+      + 'estiver liberado.',
   }[params.get('canvas') ?? ''] ?? null;
 
   // A VOLTA: `RotaProtegida` manda para cá quem chegou sem sessão, com o

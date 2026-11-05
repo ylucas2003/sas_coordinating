@@ -85,6 +85,10 @@ MATERIAS_CANONICAS: dict[str, str] = {
     "portugues":  "portugues",
     "ingles":     "ingles",
     "redacao":    "redacao",
+    # AP6 e AG6 do 1º e do 2º ano (docs/44 §1). O 3º não tem prova delas.
+    "biologia":   "biologia",
+    "historia":   "historia",
+    "geografia":  "geografia",
 }
 
 # Matérias "core" — sua presença/agrupamento determina Fase 1 vs Fase 2.

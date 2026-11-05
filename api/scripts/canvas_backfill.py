@@ -37,7 +37,9 @@ from app.ingest.upsert import (  # noqa: E402
 from app.supabase_client import criar_cliente_supabase  # noqa: E402
 
 
-async def _rodar(ano: str | None) -> ResumoSincronizacao:
+async def _rodar(
+    ano: str | None, series: frozenset[int], desde: int | None
+) -> ResumoSincronizacao:
     settings = get_settings()
     cliente = criar_cliente_supabase()
     async with ClienteCanvas(
@@ -52,18 +54,32 @@ async def _rodar(ano: str | None) -> ResumoSincronizacao:
                 account_id=settings.canvas_account_id,
                 override_ano=ano,
                 lookback_minutos=60 * 24 * 365 * 10,
+                series=series,
             )
         return await sincronizar_historico_completo(
             cliente=cliente,
             canvas=canvas,
             account_id=settings.canvas_account_id,
+            series=series,
+            desde_ano=desde,
         )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Backfill histórico do Canvas.")
     parser.add_argument("--ano", help="Restringe a um ano específico (ex.: 2026).")
+    parser.add_argument(
+        "--series",
+        help="Séries a trazer, ex.: '1,2' (docs/44 §4). Padrão: CANVAS_SERIES_IMPORTADAS.",
+    )
+    parser.add_argument("--desde", type=int, help="Só os anos a partir deste (ex.: 2025).")
     args = parser.parse_args()
+    if args.series:
+        # Aqui o 3º NÃO entra sozinho: `--series 1,2` existe para trazer o histórico
+        # das séries novas sem refazer o curso mais pesado.
+        series = frozenset(int(s) for s in args.series.split(",") if s.strip() in {"1", "2", "3"})
+    else:
+        series = get_settings().series_importadas
 
     cliente = criar_cliente_supabase()
     execucao_id = criar_execucao_sync(cliente, tipo="backfill")
@@ -71,7 +87,7 @@ def main() -> None:
     t0 = time.monotonic()
 
     try:
-        resumo = asyncio.run(_rodar(args.ano))
+        resumo = asyncio.run(_rodar(args.ano, series, args.desde))
     except Exception as exc:
         finalizar_execucao_sync(
             cliente, execucao_id=execucao_id, status="erro", erro_mensagem=str(exc)

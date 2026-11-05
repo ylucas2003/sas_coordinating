@@ -23,6 +23,7 @@ from typing import Any
 from supabase import Client
 
 from .cliente import ClienteCanvas
+from .cursos import curso_do_ciclo
 
 MAX_TENTATIVAS = 5
 
@@ -93,7 +94,7 @@ async def sincronizar_simulado_no_canvas(
 
     `simulado` precisa vir com os joins:
         id, external_id, nome, nota_maxima, data_aplicacao,
-        ciclo(canvas_assignment_group_id, ano_letivo(canvas_course_id)),
+        ciclo(canvas_assignment_group_id, serie, ano_letivo_id, ano_letivo(canvas_course_id)),
         evento_agenda(hora_evento)
 
     Devolve o canvas_estado final ('sincronizado' | 'falhou'). Nunca levanta:
@@ -103,7 +104,7 @@ async def sincronizar_simulado_no_canvas(
     simulado_id = simulado["id"]
     ciclo = simulado.get("ciclo") or {}
     group_id = ciclo.get("canvas_assignment_group_id")
-    course_id = ((ciclo.get("ano_letivo") or {}) or {}).get("canvas_course_id")
+    course_id = curso_do_ciclo(cliente, ciclo)
 
     if not course_id or not group_id:
         # Sem destino não há o que tentar — e não é falha transitória, então
@@ -170,7 +171,8 @@ async def sincronizar_simulado_no_canvas(
 
 _SELECT_SIMULADO_CANVAS = (
     "id, external_id, nome, nota_maxima, data_aplicacao, canvas_tentativas, "
-    "ciclo(canvas_assignment_group_id, canvas_estado, ano_letivo(canvas_course_id)), "
+    "ciclo(canvas_assignment_group_id, canvas_estado, serie, ano_letivo_id, "
+    "ano_letivo(canvas_course_id)), "
     "evento_agenda(hora_evento)"
 )
 
