@@ -3,7 +3,9 @@
 > **Estado em 05/11/2026:** decisões de produto fechadas. A etapa 1 está no PR #121
 > (`feat/turmas-1o-2o-ano`) e a etapa 2 no branch `feat/turmas-rail-em-blocos`, que
 > parte dele. Nada disto está em produção, e nenhum aluno de 1º ou 2º ano entrou no
-> SAS: até a etapa 3, o rail continua com os cinco destinos de sempre.
+> SAS: até a importação ser ligada, o rail continua com os cinco destinos de sempre.
+> As etapas 3 e 4 estão nos branches `feat/turmas-importacao` e `feat/turmas-ajustes`, e o
+> que a importação pede para ir ao ar está no fim da etapa 3, no §4.
 >
 > Protótipo clicável, com dados fictícios:
 > [prancheta, linha D](https://claude.ai/artifact/AYowaAdL4BwWMSGdJZ5sU1).
@@ -112,39 +114,72 @@ O que estava planejado para a etapa:
   a respeitar a série.
 - Os blocos de 1º e 2º ano ficam escondidos enquanto não houver aluno neles.
 
-**3. Importação, com o acesso fechado.**
+**3. Importação, com o acesso fechado.** *Feita em 05/11, no branch `feat/turmas-importacao`.*
 
-- Descobrir os cursos `{ano} {1|2}o ITA/IME Avaliações`.
-- Trocar as leituras de `ano_letivo(canvas_course_id)` por `curso_canvas` em agendamento,
-  escrita, simulados, notas e ciclos.
-- Ler grupo e prova conforme o §5.
-- Cadastrar Biologia, História e Geografia em `materia`, `MATERIAS_CANONICAS` e
-  `criterios.MATERIAS_CONHECIDAS`. Fica nesta etapa, e não na 1, porque `GET /materias`
-  alimenta filtros: antes da hora, as três apareceriam nas telas do 3º.
-- Passar a série do curso em `upsert_turma`, senão 1º e 2º caem na mesma turma `SEM_SECTION`.
-- Criar um portão de acesso. Hoje o login abre no instante em que o sync grava o aluno, e
-  é preciso poder importar e conferir antes.
-- Restringir por série a audiência de lembretes e o próximo simulado do aluno, que hoje são
-  por ano letivo.
-- Importar 2026 e depois 2025, conferindo os números contra o Canvas.
+- O núcleo do sync do 3º lê também o curso `{ano} {1|2}o ITA/IME Avaliações`
+  (`_sincronizar_curso_simulados(serie=...)`), com os leitores de grupo e prova de
+  `mapeador.py` (`parsear_grupo_etapa`, `parsear_nome_avaliacao`).
+- Duas chaves, as duas começando só com o 3º: `CANVAS_SERIES_IMPORTADAS` (o que o sync
+  traz) e `SERIES_COM_ACESSO_DO_ALUNO` (quem entra pelo Canvas). A trava olha as turmas do
+  ano letivo mais recente do aluno, e quem é barrado vê "o SAS da sua turma ainda não foi
+  aberto" (`/login?canvas=em-breve`).
+- Escrita no Canvas (nota, simulado, grupo do ciclo) pelo curso da série do ciclo
+  (`canvas_sync/cursos.py`). O 3º continua lendo `ano_letivo.canvas_course_id`, que o
+  curso de outra série nunca sobrescreve.
+- Lembrete e próximo simulado do aluno respeitam a série.
+- Migration 0080: Biologia, História e Geografia. Elas aparecem também no formulário de
+  agendamento do 3º, que lista `GET /materias` inteiro.
+- `canvas_backfill --series 1,2 --desde 2025` traz o histórico sem refazer o 3º.
 
-**4. Ajustes.**
+Conferido contra o Canvas de verdade (só leitura) num banco descartável, em 05/11:
 
-- "Ciclo N" ainda é montado a partir da ordem em `componentes/ui/Heatmap.tsx` (ficha do
-  aluno) e na área do aluno (`telas/Aluno/Provas.tsx`, `dados/aluno/reais.ts`). Painel e
-  ficha da prova já usam `dominio/blocos.ts::nomeCurtoDoCiclo`, que diz "3ª etapa · AG".
+| Curso | Alunos | Ciclos | Provas | Notas | Tempo |
+|---|---|---|---|---|---|
+| 2025 1º (552) | 48 | 6 | 72 | 3.456 | 209 s |
+| 2025 2º (553) | 45 | 6 | 72 | 3.240 | 193 s |
+| 2026 1º (578) | 53 | 6 | 72 | 3.816 | 238 s |
+| 2026 2º (579) | 65 | 6 | 72 | 4.680 | 241 s |
 
-- Dar lugar a Geografia, Biologia e História na tabela do ciclo: o `ESQUEMA` de
-  `dominio/painel.ts` é fixo por vestibular e não tem essas colunas.
-- Na régua Tio Léo, o corte 4 vale para qualquer matéria (`TODAS`), então as três contam.
-  Nas réguas ITA e IME elas não existem, e `inferir_fase_simulados` marca AP6 e AG6 como
-  2ª fase. Conferir com a coordenação se a leitura faz sentido na tela.
-- `_carregar_ciclo_anterior` busca `ordem - 1` com o mesmo vestibular. Nas séries novas, o
-  anterior de mesmo vestibular é `ordem - 2`.
-- O prompt do Tio Léo diz que o aluno tem 16 a 18 anos.
-- A missão do dia cobre o edital inteiro, então o 1º ano recebe conteúdo que não viu.
-- Chat e MCP precisam aceitar a série, com `GRANT` por coluna no papel do MCP.
-- O nome da sede vem da section, que no 1º e no 2º ano é o nome do curso.
+Todos os 24 ciclos têm as 12 provas esperadas, todas com matéria, e o ano letivo continua
+apontando para o curso do 3º. O tempo é quase todo das estatísticas por questão, uma
+chamada por quiz: é o custo do backfill, e não o da rodada de 5 minutos, que só busca as
+notas corrigidas na janela e no máximo 3 quizzes atrasados por curso. Os avisos são as
+cópias do ano anterior e as NTD que ficam dentro dos grupos de AP e AG em 2025.
+
+Para ligar em produção, nesta ordem:
+
+1. Deploy com `./infra/vps/deploy.sh --migrar` (0079 e 0080).
+2. `CANVAS_SERIES_IMPORTADAS=1,2,3` em `infra/vps/.env` e reinício da `api`. A próxima
+   rodada do sync traz 2026.
+3. Histórico: `python -m scripts.canvas_backfill --series 1,2 --desde 2025` no container
+   da `api`, com `-T </dev/null` (armadilha 6 do CLAUDE.md). Uns 15 minutos.
+4. Conferir os números nos blocos de 1º e 2º ano.
+5. Etapa 5, quando a coordenação decidir: `SERIES_COM_ACESSO_DO_ALUNO=1,2,3` e reinício.
+
+**4. Ajustes.** *Feita em 05/11, no branch `feat/turmas-ajustes`.*
+
+- A tabela do ciclo do 1º e do 2º ano ganha coluna para as provas que o esquema do
+  vestibular não prevê (Biologia, História e Geografia), antes da média final e fora dela
+  (`dominio/painel.ts::comColunasDasOutrasProvas`). No 3º nada muda.
+- O ciclo anterior do mesmo vestibular, no 1º e no 2º ano, está duas ordens atrás: a AG da
+  2ª etapa compara com a AG da 1ª.
+- O mapa de calor da ficha do aluno diz "3ª etapa · AG" no 1º e no 2º ano.
+- Os prompts do chat explicam as etapas e os três blocos, e `listar_ciclos` diz a série.
+
+Ficou para depois, porque só pesa quando o aluno entrar (etapa 5) ou quando a coordenação
+pedir:
+
+- Na área do aluno, a corrente de presença ainda diz "Ciclo N" (`dados/aluno/reais.ts`).
+- A missão do dia cobre o edital inteiro, e o 1º ano recebe conteúdo que ainda não viu.
+- As outras tools do chat e do MCP (`listar_alunos`, `alunos_em_risco`…) não filtram por
+  série. Coluna nova que uma tool exposta passar a ler precisa de `GRANT` por coluna.
+- Na régua Tio Léo, o corte 4 vale para qualquer matéria (`TODAS`), então Biologia,
+  História e Geografia contam. Nas réguas ITA e IME elas não existem, e
+  `inferir_fase_simulados` marca AP6 e AG6 como 2ª fase.
+- A sede do 1º e do 2º ano é "Sem section no Canvas", porque a section é o próprio curso.
+- O rótulo das médias da lista de alunos repete o vestibular ("Ciclo 11 · IME · 2026 ·
+  IME"): `routes/alunos.py::_rotulo_de_ciclo` acrescenta o vestibular a um nome que já o
+  traz. Isso já acontece hoje no 3º.
 
 **5. Abertura.** Mostrar os blocos à coordenação e, depois, liberar o acesso aos alunos.
 

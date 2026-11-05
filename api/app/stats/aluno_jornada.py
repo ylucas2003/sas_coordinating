@@ -51,6 +51,40 @@ def _matriculas_ativas(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
     return resp.data or []
 
 
+def series_atuais_do_aluno(cliente: Client, aluno_id: str) -> set[int]:
+    """As séries do aluno no ano letivo mais recente das matrículas ativas (docs/44 §4).
+
+    Mais recente, e não todas, porque matrícula não fecha (docs/44 §5): quem fez o
+    1º em 2025 e está no 2º em 2026 tem as duas abertas, e é a de 2026 que vale. E
+    todas as do ano, e não só uma, porque há aluno no curso do 2º e no do 3º ao
+    mesmo tempo. Vazio quando não há matrícula ativa.
+    """
+    return _series_das_turmas(_turmas_ativas_do_aluno(cliente, aluno_id))
+
+
+def _turmas_ativas_do_aluno(cliente: Client, aluno_id: str) -> list[dict[str, Any]]:
+    """As turmas das matrículas ativas, com o ano e a série. Uma leitura só para
+    quem precisa dos dois, como `proximo_simulado_do_aluno`: o número de idas ao
+    banco do preâmbulo do Tio Léo tem teto (tests/test_chat_tools_aluno.py)."""
+    turma_ids = [m["turma_id"] for m in _matriculas_ativas(cliente, aluno_id)]
+    if not turma_ids:
+        return []
+    return (
+        cliente.table("turma")
+        .select("id, ano_letivo_id, serie_do_curso, ano_letivo(ano)")
+        .in_("id", turma_ids)
+        .execute()
+    ).data or []
+
+
+def _series_das_turmas(turmas: list[dict[str, Any]]) -> set[int]:
+    if not turmas:
+        return set()
+    ano_de = [((t.get("ano_letivo") or {}).get("ano") or 0, t) for t in turmas]
+    mais_recente = max(ano for ano, _ in ano_de)
+    return {t.get("serie_do_curso") or 3 for ano, t in ano_de if ano == mais_recente}
+
+
 def aplicar_regra_da_falta(
     itens: list[dict[str, Any]], matriculas: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -211,14 +245,8 @@ def sequencia_do_historico(
 # ─── Agenda (GET /me/agenda) ──────────────────────────────────────────────
 
 
-def _anos_letivos_do_aluno(cliente: Client, aluno_id: str) -> set[str]:
-    turma_ids = [m["turma_id"] for m in _matriculas_ativas(cliente, aluno_id)]
-    if not turma_ids:
-        return set()
-    resp = (
-        cliente.table("turma").select("id, ano_letivo_id").in_("id", turma_ids).execute()
-    )
-    return {t["ano_letivo_id"] for t in (resp.data or []) if t.get("ano_letivo_id")}
+def _anos_das_turmas(turmas: list[dict[str, Any]]) -> set[str]:
+    return {t["ano_letivo_id"] for t in turmas if t.get("ano_letivo_id")}
 
 
 def proximo_simulado_do_aluno(
@@ -246,16 +274,25 @@ def proximo_simulado_do_aluno(
     `historico` é `historico_com_presenca` já lido, para quem o tem não pagar a
     mesma leitura de novo; sem ele, é lido aqui, como sempre.
     """
-    anos = _anos_letivos_do_aluno(cliente, aluno_id)
+    turmas = _turmas_ativas_do_aluno(cliente, aluno_id)
+    anos = _anos_das_turmas(turmas)
     if not anos:
         return None
 
-    ciclos = (
-        cliente.table("ciclo")
-        .select("id, vestibular_alvo")
-        .in_("ano_letivo_id", list(anos))
-        .execute()
-    ).data or []
+    # Só os ciclos da série do aluno: o simulado agendado do 3º não é a próxima
+    # prova de quem está no 1º ano (docs/44 §4). Filtrado aqui, e não na consulta,
+    # porque ciclo sem a coluna é do 3º.
+    series = _series_das_turmas(turmas) or {3}
+    ciclos = [
+        c
+        for c in (
+            cliente.table("ciclo")
+            .select("id, vestibular_alvo, serie")
+            .in_("ano_letivo_id", list(anos))
+            .execute()
+        ).data or []
+        if (c.get("serie") or 3) in series
+    ]
     if not ciclos:
         return None
     vestibular_por_ciclo = {c["id"]: c.get("vestibular_alvo") for c in ciclos}

@@ -191,6 +191,31 @@ export function buildColunasDinamicas(sims: readonly Simulado[]): DefColuna[] {
   return colunas;
 }
 
+/**
+ * As provas que o esquema do vestibular não prevê ganham coluna própria, antes da
+ * média final e fora dela. São Biologia, História e Geografia das AP6 e AG6 do 1º e
+ * do 2º ano (docs/44 §1): sem isto a prova existe e a tabela não a mostra.
+ *
+ * Só fora do 3º: lá o esquema fixo é a régua do vestibular, e uma prova que ele
+ * não prevê fica de fora de propósito, como sempre ficou.
+ */
+export function comColunasDasOutrasProvas(
+  defs: readonly DefColuna[],
+  sims: readonly Simulado[],
+): DefColuna[] {
+  const previstas = new Set(
+    defs.flatMap((d) => (d.simKey ? [`${d.simKey.normNome}_${d.simKey.tipo}`] : [])),
+  );
+  const extras = buildColunasDinamicas(sims).filter(
+    (d) => d.simKey && !previstas.has(`${d.simKey.normNome}_${d.simKey.tipo}`),
+  );
+  if (extras.length === 0) return [...defs];
+  // Antes das médias do fim, que são virtuais: a média segue a fórmula do edital.
+  let corte = defs.length;
+  while (corte > 0 && defs[corte - 1]?.virtual) corte -= 1;
+  return [...defs.slice(0, corte), ...extras, ...defs.slice(corte)];
+}
+
 /** Liga cada definição de coluna ao simulado correspondente do ciclo. */
 export function resolverColunas(
   defs: readonly DefColuna[],
@@ -447,7 +472,12 @@ export function montarPainel({
   const temF1 = sims.some((s) => s.tipo === 'fase_1');
   const temF2 = sims.some((s) => s.tipo === 'fase_2');
 
-  const defs = obterEsquema(ciclo.vestibularAlvo, temF1, temF2) ?? buildColunasDinamicas(sims);
+  const fixas = obterEsquema(ciclo.vestibularAlvo, temF1, temF2);
+  const defs = !fixas
+    ? buildColunasDinamicas(sims)
+    : (ciclo.serie ?? 3) === 3
+      ? fixas
+      : comColunasDasOutrasProvas(fixas, sims);
   if (defs.length === 0) {
     return { ...vazio, erro: 'Nenhum simulado com matéria e fase definidos neste ciclo.' };
   }

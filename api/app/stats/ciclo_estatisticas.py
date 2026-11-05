@@ -176,8 +176,16 @@ def _carregar_ciclo(cliente: Client, ciclo_id: str) -> dict | None:
 
 
 def _carregar_ciclo_anterior(cliente: Client, ciclo_atual: dict) -> dict | None:
+    """O ciclo de antes, do mesmo vestibular e da mesma série.
+
+    No 3º é a ordem de trás. No 1º e no 2º ano cada etapa tem dois ciclos, a AP
+    (IME) e a AG (ITA), então o anterior do mesmo vestibular está duas ordens
+    atrás: a AG da 2ª etapa compara com a AG da 1ª (docs/44 §3).
+    """
+    serie = ciclo_atual.get("serie", SERIE_DO_CURSO_DE_SIMULADOS)
+    passo = 1 if serie == SERIE_DO_CURSO_DE_SIMULADOS else 2
     ordem = ciclo_atual.get("ordem")
-    if ordem is None or ordem <= 1:
+    if ordem is None or ordem <= passo:
         return None
     resp = (
         cliente.table("ciclo")
@@ -186,8 +194,8 @@ def _carregar_ciclo_anterior(cliente: Client, ciclo_atual: dict) -> dict | None:
         .eq("ano_letivo_id", ciclo_atual["ano_letivo_id"])
         # Sem isto, o "anterior" de um ciclo do 3º poderia ser um do 1º ano, com a
         # mesma ordem e outras provas (0078, docs/44 §3).
-        .eq("serie", ciclo_atual.get("serie", SERIE_DO_CURSO_DE_SIMULADOS))
-        .eq("ordem", ordem - 1)
+        .eq("serie", serie)
+        .eq("ordem", ordem - passo)
         .limit(1)
         .execute()
     )

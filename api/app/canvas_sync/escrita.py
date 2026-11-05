@@ -26,6 +26,7 @@ from ..config import get_settings
 from . import mapeador
 from .agendamento import carregar_simulado_para_canvas, sincronizar_simulado_no_canvas
 from .cliente import ClienteCanvas
+from .cursos import curso_do_ciclo
 
 log = logging.getLogger("sas.canvas.escrita")
 
@@ -59,7 +60,10 @@ async def criar_grupo_do_ciclo(cliente: Client, ciclo_id: str) -> dict[str, Any]
     falhou). Devolve {canvas_estado, canvas_assignment_group_id?, erro?}."""
     linha = (
         cliente.table("ciclo")
-        .select("id, ordem, vestibular_alvo, canvas_assignment_group_id, ano_letivo(canvas_course_id)")
+        .select(
+            "id, ordem, serie, ano_letivo_id, vestibular_alvo, canvas_assignment_group_id, "
+            "ano_letivo(canvas_course_id)"
+        )
         .eq("id", ciclo_id)
         .limit(1)
         .execute()
@@ -74,7 +78,7 @@ async def criar_grupo_do_ciclo(cliente: Client, ciclo_id: str) -> dict[str, Any]
         return {"canvas_estado": "sincronizado",
                 "canvas_assignment_group_id": ciclo["canvas_assignment_group_id"]}
 
-    course_id = (ciclo.get("ano_letivo") or {}).get("canvas_course_id")
+    course_id = curso_do_ciclo(cliente, ciclo)
     if not course_id:
         erro = "ano letivo sem canvas_course_id — rode o sync"
         cliente.table("ciclo").update({"canvas_estado": "falhou", "canvas_erro": erro}).eq(
@@ -155,7 +159,8 @@ async def enviar_nota(
         .select(
             "pontuacao, pontuacao_sas, presente, "
             "aluno:aluno_id(canvas_user_id), "
-            "simulado:simulado_id(external_id, ciclo:ciclo_id(ano_letivo(canvas_course_id)))"
+            "simulado:simulado_id(external_id, "
+            "ciclo:ciclo_id(serie, ano_letivo_id, ano_letivo(canvas_course_id)))"
         )
         .eq("aluno_id", aluno_id)
         .eq("simulado_id", simulado_id)
@@ -168,7 +173,7 @@ async def enviar_nota(
     canvas_user_id = (nota.get("aluno") or {}).get("canvas_user_id")
     simulado = nota.get("simulado") or {}
     external_id = simulado.get("external_id")
-    course_id = ((simulado.get("ciclo") or {}).get("ano_letivo") or {}).get("canvas_course_id")
+    course_id = curso_do_ciclo(cliente, simulado.get("ciclo") or {})
 
     faltando = [
         rotulo

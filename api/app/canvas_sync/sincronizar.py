@@ -107,6 +107,22 @@ async def _curso_do_ano_vigente(
     return cursos[-1]  # maior ano encontrado — autodetecção
 
 
+async def _descobrir_cursos_avaliacoes(
+    canvas: ClienteCanvas, account_id: str, *, series: frozenset[int]
+) -> list[tuple[int, int, dict[str, Any]]]:
+    """[(ano, série, curso)] dos cursos "{ano} {1|2}o ITA/IME Avaliações" das séries
+    pedidas, por ano. Uma lista vazia quando só o 3º é importado: nenhuma chamada."""
+    if not series - {SERIE_DO_CURSO_DE_SIMULADOS}:
+        return []
+    cursos = await canvas.listar_cursos_da_conta(account_id, search_term="Avalia")
+    encontrados: list[tuple[int, int, dict[str, Any]]] = []
+    for curso in cursos:
+        lido = mapeador.parsear_curso_avaliacoes(curso.get("name", ""))
+        if lido is not None and lido[1] in series:
+            encontrados.append((lido[0], lido[1], curso))
+    return sorted(encontrados, key=lambda trio: (trio[0], trio[1]))
+
+
 # ─── Núcleo: um curso "Simulados" inteiro ─────────────────────────────────
 
 
@@ -118,22 +134,26 @@ async def _sincronizar_curso_simulados(
     ano: int,
     graded_since: str | None,
     resumo: ResumoSincronizacao,
+    serie: int = SERIE_DO_CURSO_DE_SIMULADOS,
 ) -> dict[str, str]:
     """Sincroniza turma/aluno/matrícula/ciclo/simulado/nota de um curso.
+
+    O mesmo núcleo serve o curso de simulados do 3º e o de avaliações do 1º e do
+    2º ano (docs/44 §3). O que muda com a `serie` é só como se leem grupo e prova:
+    no 3º, "1° CICLO - ITA" e "1_P1 - …"; no 1º e no 2º, as AP e AG de cada etapa.
 
     Devolve {canvas_user_id: aluno_id} — o backfill usa pra buscar e-mails.
     """
     course_id = str(curso["id"])
+    do_3o = serie == SERIE_DO_CURSO_DE_SIMULADOS
     # canvas_course_id: é aqui que o agendamento (P1) descobre em que curso
-    # criar Assignments — o sync é quem mantém o vínculo atualizado.
-    ano_letivo_id = upsert_ano_letivo(cliente, ano=ano, canvas_course_id=course_id)
-    # O vínculo por série, que sucede o de cima na etapa 3 (docs/44 §4). Gravado
-    # desde já para o curso de um ano novo não nascer sem ele.
+    # criar Assignments — o sync é quem mantém o vínculo atualizado. É o curso do
+    # 3º, e só ele escreve ali: o de outra série tomaria o lugar.
+    ano_letivo_id = upsert_ano_letivo(
+        cliente, ano=ano, canvas_course_id=course_id if do_3o else None
+    )
     upsert_curso_canvas(
-        cliente,
-        ano_letivo_id=ano_letivo_id,
-        serie=SERIE_DO_CURSO_DE_SIMULADOS,
-        canvas_course_id=course_id,
+        cliente, ano_letivo_id=ano_letivo_id, serie=serie, canvas_course_id=course_id
     )
 
     # ── (1) Sections → sede/turma ──
@@ -166,11 +186,15 @@ async def _sincronizar_curso_simulados(
             cliente,
             sede_id=sede_id,
             ano_letivo_id=ano_letivo_id,
-            serie=parsed.serie or 0,
+            # No 1º e no 2º ano a section é a do próprio curso: sem a série do
+            # curso aqui, as duas cairiam na mesma turma (SEM_SECTION, ano, 0,
+            # INDEFINIDA) que a section padrão do 3º já usa.
+            serie=parsed.serie or (0 if do_3o else serie),
             # "INDEFINIDA" é o mesmo default do ingest — série e trilha só
             # existem quando o nome da section as declara.
             trilha=parsed.trilha or "INDEFINIDA",
             section_original=nome_section,
+            serie_do_curso=serie,
         )
         turma_por_section_id[str(section["id"])] = turma_id
     resumo.turmas_processadas += len(turma_por_section_id)
@@ -220,18 +244,37 @@ async def _sincronizar_curso_simulados(
     grupos = await canvas.listar_grupos_de_avaliacao(course_id)
     ciclo_por_group_id: dict[str, str] = {}
     ordem_por_group_id: dict[str, int] = {}
+    #: Etapa e tipo de cada grupo do 1º e do 2º ano, para conferir o nome da prova.
+    etapa_por_group_id: dict[str, tuple[int, str]] = {}
     for grupo in grupos:
-        parsed_grupo = mapeador.parsear_grupo_ciclo(grupo.get("name") or "")
-        if parsed_grupo is None:
-            continue  # SAS/ENEM/Imported Assignments — descartado por definição
-        ordem, vestibular = parsed_grupo
+        nome_grupo = grupo.get("name") or ""
+        if do_3o:
+            parsed_grupo = mapeador.parsear_grupo_ciclo(nome_grupo)
+            if parsed_grupo is None:
+                continue  # SAS/ENEM/Imported Assignments — descartado por definição
+            ordem, vestibular = parsed_grupo
+            nome_ciclo = f"Ciclo {ordem} · {vestibular} · {ano}"
+        else:
+            # Só AP e AG (docs/44 §1). Grupo de outro ano é resto de cópia de
+            # curso, e o "2025 - AR's" do curso de 2026 é o exemplo real.
+            lido = mapeador.parsear_grupo_etapa(nome_grupo)
+            if lido is None:
+                continue
+            ano_do_grupo, etapa, tipo = lido
+            if ano_do_grupo != ano:
+                resumo.avisos.append(f"Grupo '{nome_grupo}' é de {ano_do_grupo} — ignorado.")
+                continue
+            ordem, vestibular = mapeador.ciclo_da_etapa(etapa, tipo)
+            nome_ciclo = f"{etapa}ª etapa · {tipo} · {serie}º ano · {ano}"
+            etapa_por_group_id[str(grupo["id"])] = (etapa, tipo)
         ciclo_id = upsert_ciclo(
             cliente,
             ano_letivo_id=ano_letivo_id,
             ordem=ordem,
-            nome=f"Ciclo {ordem} · {vestibular} · {ano}",
+            nome=nome_ciclo,
             vestibular_alvo=vestibular,
             canvas_assignment_group_id=str(grupo["id"]),
+            serie=serie,
         )
         group_id = str(grupo["id"])
         ciclo_por_group_id[group_id] = ciclo_id
@@ -290,12 +333,30 @@ async def _sincronizar_curso_simulados(
         ciclo_id = ciclo_por_group_id.get(group_id)
         if ciclo_id is None or not assignment.get("published"):
             continue
-        info = mapeador.parsear_nome_assignment(assignment.get("name") or "")
+        nome_prova = assignment.get("name") or ""
+        if do_3o:
+            info = mapeador.parsear_nome_assignment(nome_prova)
+        elif mapeador.e_atividade_de_resolucao(nome_prova):
+            continue  # vale 0,5 ponto e não é prova (docs/44 §5), sem aviso
+        else:
+            info = mapeador.parsear_nome_avaliacao(nome_prova)
         if info is None or info["data_aplicacao"] is None:
             resumo.avisos.append(
-                f"Assignment '{assignment.get('name')}' fora da gramática — ignorado."
+                f"Assignment '{nome_prova}' fora da gramática — ignorado."
             )
             continue
+        if not do_3o:
+            # A cópia de curso traz provas do ano anterior para dentro dos grupos
+            # deste ano ("1_AP5 - Português - 12/03/2025" no curso de 2026). E o
+            # nome tem de concordar com o grupo, que é a fonte da etapa e do tipo.
+            if info["data_aplicacao"].year != ano:
+                resumo.avisos.append(f"Assignment '{nome_prova}' é de outro ano — ignorado.")
+                continue
+            if etapa_por_group_id.get(group_id) != (info["etapa"], info["tipo"]):
+                resumo.avisos.append(
+                    f"Assignment '{nome_prova}' não bate com o grupo — ignorado."
+                )
+                continue
 
         codigo = info["materia_codigo"]
         if codigo and codigo not in cache_materia:
@@ -321,6 +382,11 @@ async def _sincronizar_curso_simulados(
             "ciclo_id": ciclo_id,
             "materia_id": materia_id,
             "data_aplicacao": info["data_aplicacao"],
+            # A prova discursiva do 1º e do 2º ano vem com 0 ponto e nota direta
+            # de 0 a 10 (docs/44 §5). No 3º, o Canvas manda e nada muda.
+            "nota_maxima": (
+                10.0 if not do_3o and not assignment.get("points_possible") else None
+            ),
         }
 
     inferir_fase_simulados(colunas_fase)
@@ -337,6 +403,7 @@ async def _sincronizar_curso_simulados(
                 rotulo_curto=col.rotulo_curto,
                 data_aplicacao=ctx["data_aplicacao"],
                 tipo=col.fase,
+                nota_maxima=ctx["nota_maxima"],
             )
         )
         datas_por_ciclo.setdefault(ctx["ciclo_id"], []).append(ctx["data_aplicacao"])
@@ -388,13 +455,16 @@ async def _sincronizar_curso_simulados(
     )
 
     # ── (7) Arquivo (PDF) da prova — gated, casado por nome contra Course Files ──
-    await _sincronizar_arquivos_gated(
-        cliente=cliente,
-        canvas=canvas,
-        course_id=course_id,
-        simulado_ids_do_curso=set(external_para_simulado_id.values()),
-        resumo=resumo,
-    )
+    # Só no 3º: o nome dos PDFs que o leitor entende é o dos simulados ("P8 -
+    # MATEMÁTICA (3º CICLO)"), e o curso de avaliações não segue essa gramática.
+    if do_3o:
+        await _sincronizar_arquivos_gated(
+            cliente=cliente,
+            canvas=canvas,
+            course_id=course_id,
+            simulado_ids_do_curso=set(external_para_simulado_id.values()),
+            resumo=resumo,
+        )
 
     resumo.cursos_processados += 1
     return aluno_por_canvas_user
@@ -636,8 +706,13 @@ async def sincronizar_ano_atual(
     account_id: str,
     override_ano: str | None,
     lookback_minutos: int,
+    series: frozenset[int] = frozenset({SERIE_DO_CURSO_DE_SIMULADOS}),
 ) -> ResumoSincronizacao:
-    """Sync incremental (POST /canvas-sync/run, a cada 5 min)."""
+    """Sync incremental (POST /canvas-sync/run, a cada 5 min).
+
+    `series` vem de `CANVAS_SERIES_IMPORTADAS`. O padrão é só o 3º, e com ele a
+    rodada é exatamente a de antes: nenhum curso a mais, nenhuma chamada a mais.
+    """
     resumo = ResumoSincronizacao()
     ano, curso = await _curso_do_ano_vigente(
         canvas, account_id=account_id, override_ano=override_ano
@@ -665,6 +740,20 @@ async def sincronizar_ano_atual(
     await _preencher_emails_incremental(
         cliente=cliente, canvas=canvas, course_id=str(curso["id"]), resumo=resumo,
     )
+    # O 1º e o 2º ano do MESMO ano do 3º: o ano vigente é o do curso do 3º, que é
+    # quem a configuração e a autodetecção sempre escolheram.
+    for ano_do_curso, serie, curso_da_serie in await _descobrir_cursos_avaliacoes(
+        canvas, account_id, series=series
+    ):
+        if ano_do_curso != ano:
+            continue
+        await _sincronizar_curso_simulados(
+            cliente=cliente, canvas=canvas, curso=curso_da_serie, ano=ano,
+            graded_since=graded_since, resumo=resumo, serie=serie,
+        )
+        await _preencher_emails_incremental(
+            cliente=cliente, canvas=canvas, course_id=str(curso_da_serie["id"]), resumo=resumo,
+        )
     # Recompute-ALVO: recalcula só os simulados/alunos tocados nesta rodada,
     # em vez do cache multi-ano inteiro (que era ~3300 round-trips → 60-100 min
     # na instância free do Render). Sem notas novas, ambos os conjuntos são
@@ -697,18 +786,39 @@ async def sincronizar_historico_completo(
     cliente: Client,
     canvas: ClienteCanvas,
     account_id: str,
+    series: frozenset[int] = frozenset({SERIE_DO_CURSO_DE_SIMULADOS}),
+    desde_ano: int | None = None,
 ) -> ResumoSincronizacao:
-    """Backfill único: todos os anos encontrados + e-mail dos alunos."""
-    resumo = ResumoSincronizacao()
-    cursos = await _descobrir_cursos_simulados(canvas, account_id)
-    if not cursos:
-        raise RuntimeError("Nenhum curso '{ano} 3o ITA/IME Simulados' encontrado na conta.")
+    """Backfill único: todos os anos encontrados + e-mail dos alunos.
 
+    `series` e `desde_ano` existem para trazer o histórico do 1º e do 2º ano aos
+    poucos (docs/44 §4): `--series 1,2 --desde 2025` importa 2025 e 2026 sem
+    refazer o 3º, que é o curso mais pesado.
+    """
+    resumo = ResumoSincronizacao()
     aluno_por_canvas_user: dict[str, str] = {}
-    for ano, curso in cursos:
+
+    if SERIE_DO_CURSO_DE_SIMULADOS in series:
+        cursos = await _descobrir_cursos_simulados(canvas, account_id)
+        if not cursos:
+            raise RuntimeError("Nenhum curso '{ano} 3o ITA/IME Simulados' encontrado na conta.")
+        for ano, curso in cursos:
+            if desde_ano is not None and ano < desde_ano:
+                continue
+            mapa = await _sincronizar_curso_simulados(
+                cliente=cliente, canvas=canvas, curso=curso, ano=ano,
+                graded_since=None, resumo=resumo,
+            )
+            aluno_por_canvas_user.update(mapa)
+
+    for ano, serie, curso in await _descobrir_cursos_avaliacoes(
+        canvas, account_id, series=series
+    ):
+        if desde_ano is not None and ano < desde_ano:
+            continue
         mapa = await _sincronizar_curso_simulados(
             cliente=cliente, canvas=canvas, curso=curso, ano=ano,
-            graded_since=None, resumo=resumo,
+            graded_since=None, resumo=resumo, serie=serie,
         )
         aluno_por_canvas_user.update(mapa)
 

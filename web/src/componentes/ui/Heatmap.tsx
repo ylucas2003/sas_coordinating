@@ -8,6 +8,8 @@
 //
 // Bandas verticais alternadas separam ciclos visualmente.
 
+import { nomeCurtoDoCiclo } from '../../dominio/blocos';
+import type { SerieDoBloco } from '../../dominio/blocos';
 import { seloDaNota } from '../../dominio/selo';
 
 const CELL_W = 50;
@@ -148,9 +150,11 @@ interface Props {
   notaMaxima?: number;
   /** O corte da régua em vigor. Sem ele a célula não tem onde ancorar (R2). */
   corte?: number | null;
+  /** A série do aluno: no 1º e no 2º ano o ciclo é uma etapa (docs/44 §3). */
+  serie?: SerieDoBloco;
 }
 
-export function Heatmap({ payload, notaMaxima = 10, corte = null }: Props) {
+export function Heatmap({ payload, notaMaxima = 10, corte = null, serie }: Props) {
   if (!payload || !Array.isArray(payload.materias) || payload.materias.length === 0) {
     return <div className="empty-state">Sem notas suficientes para o heatmap.</div>;
   }
@@ -182,7 +186,7 @@ export function Heatmap({ payload, notaMaxima = 10, corte = null }: Props) {
                 className={`heatmap__th-ciclo ${classeFaixa(g)}`}
                 colSpan={g.fases.reduce((acc, f) => acc + f.simulados.length, 0)}
               >
-                {g.cicloOrdem != null ? `Ciclo ${g.cicloOrdem}` : g.cicloNome || 'Sem ciclo'}
+                {g.cicloOrdem != null ? nomeCurtoDoCiclo(g.cicloOrdem, serie) : g.cicloNome || 'Sem ciclo'}
                 {g.vestibularAlvo && (
                   <span className="heatmap__th-vestibular">{` · ${g.vestibularAlvo}`}</span>
                 )}

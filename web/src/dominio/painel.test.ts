@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildColunasDinamicas, buildNotasAluno, buildNotasIgnoradas,
+  buildColunasDinamicas, buildNotasAluno, buildNotasIgnoradas, comColunasDasOutrasProvas,
   calcularMediasVirtuais, colunasExibidas,
   estatisticasDoSimulado, linhaVisivel, mediaGeralAluno, mediaPonderada, montarPainel,
   nomeSede, normMateria, obterEsquema, resolverColunas,
@@ -411,5 +411,33 @@ describe('estatisticasDoSimulado', () => {
     const e = estatisticasDoSimulado(notas, 'A5')!;
     expect(e.posicao).toBeNull();
     expect(e.totalPresentes).toBe(4);
+  });
+});
+
+describe('comColunasDasOutrasProvas', () => {
+  const ime = obterEsquema('IME', true, true)!;
+
+  it('dá coluna à prova que o esquema do vestibular não prevê, antes da média final', () => {
+    const sims = [sim('ap1', 'Matemática', 'fase_1'), sim('ap6', 'Biologia', 'fase_2')];
+    const ids = comColunasDasOutrasProvas(ime, sims).map((c) => c.id);
+    expect(ids.slice(-2)).toEqual(['biologia_fase_2', 'MED_FINAL']);
+    expect(ids).toHaveLength(ime.length + 1);
+  });
+
+  it('não repete coluna que o esquema já tem', () => {
+    const sims = [sim('ap1', 'Matemática', 'fase_1'), sim('ap2', 'Matemática', 'fase_2')];
+    expect(comColunasDasOutrasProvas(ime, sims).map((c) => c.id)).toEqual(ime.map((c) => c.id));
+  });
+
+  it('no ciclo do 3º a tabela continua só com o esquema do vestibular', () => {
+    const sims = [sim('m', 'Matemática', 'fase_2'), sim('b', 'Biologia', 'fase_2')];
+    const montado = (serie?: 1 | 2 | 3) =>
+      montarPainel({
+        ciclo: { ...ciclo('IME', ['m', 'b']), serie },
+        simulados: sims, alunos: [], notasPorSim: {}, fase: '2', ordenacao: 'alfabetica',
+        classificacao: {},
+      }).colunasFull.map((c) => c.id);
+    expect(montado(3)).not.toContain('biologia_fase_2');
+    expect(montado(1)).toContain('biologia_fase_2');
   });
 });

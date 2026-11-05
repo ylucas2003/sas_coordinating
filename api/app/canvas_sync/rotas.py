@@ -47,6 +47,7 @@ async def _executar() -> ResumoSincronizacao:
             account_id=settings.canvas_account_id,
             override_ano=settings.canvas_ano_vigente or None,
             lookback_minutos=int(settings.canvas_sync_lookback_minutos),
+            series=settings.series_importadas,
         )
 
 
