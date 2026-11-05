@@ -36,6 +36,7 @@ from .. import storage
 from ..auditoria import registrar as auditar
 from ..auth import get_current_coordenador
 from ..banco.missao import hoje_na_escola
+from ..ingest.upsert import SERIE_DO_CURSO_DE_SIMULADOS
 from ..schemas.domain import Aluno
 from ..stats import aluno_dados
 from ..stats import classificacao as _classif
@@ -61,6 +62,16 @@ router = APIRouter(
 def _mapa_turma_para_sede(cliente) -> dict[str, str]:
     resp = cliente.table("turma").select("id, sede_id").execute()
     return {linha["id"]: linha["sede_id"] for linha in (resp.data or [])}
+
+
+def _mapa_turma_para_serie(cliente) -> dict[str, int]:
+    """O bloco de cada turma: `serie_do_curso`, e não `serie`, que vale 0 nas
+    sections que não declaram série (0078, docs/44 §3)."""
+    resp = cliente.table("turma").select("id, serie_do_curso").execute()
+    return {
+        linha["id"]: linha.get("serie_do_curso") or SERIE_DO_CURSO_DE_SIMULADOS
+        for linha in (resp.data or [])
+    }
 
 
 def _mapa_aluno_para_turma_ativa(cliente) -> dict[str, str]:
@@ -155,6 +166,10 @@ class AlunoDaCoordenacao(Aluno):
     todos eles por causa de uma coluna de tabela.
     """
 
+    #: De que bloco da coordenação é o aluno: o da turma ativa dele (docs/44 §4). A
+    #: lista vem inteira, e cada tela filtra, porque a ficha do ciclo e a cantina
+    #: leem a mesma carga.
+    serie: int = SERIE_DO_CURSO_DE_SIMULADOS
     medias: MediasDoAluno = Field(default_factory=MediasDoAluno)
     #: Almoço e janta, nada além. A restrição alimentar fica na cantina — ver
     #: o aviso no topo do módulo.
@@ -219,7 +234,11 @@ def _codigo_por_materia(cliente) -> dict[str, str]:
 
 
 def _referencia_de_medias(
-    cliente, simulados: dict[str, dict], *, hoje: date | None = None
+    cliente,
+    simulados: dict[str, dict],
+    *,
+    hoje: date | None = None,
+    serie: int = SERIE_DO_CURSO_DE_SIMULADOS,
 ) -> ReferenciaDeMedias:
     """Qual é o ano vigente, e quais são o primeiro e o último ciclo dele.
 
@@ -236,11 +255,12 @@ def _referencia_de_medias(
     dia = (hoje or hoje_na_escola()).isoformat()
     ciclos = (
         cliente.table("ciclo")
-        .select("id, ordem, nome, vestibular_alvo, ano_letivo_id")
+        .select("id, ordem, nome, serie, vestibular_alvo, ano_letivo_id")
         .execute()
         .data
         or []
     )
+    ciclos = [c for c in ciclos if c.get("serie", SERIE_DO_CURSO_DE_SIMULADOS) == serie]
     anos = cliente.table("ano_letivo").select("id, ano").execute().data or []
     ano_por_id = {linha["id"]: linha.get("ano") for linha in anos}
 
@@ -452,12 +472,20 @@ def listar_alunos(
     vestibulares = _vestibulares_por_aluno(cliente)
     sparklines = _series.sparklines(cliente)
 
+    turma_para_serie = _mapa_turma_para_serie(cliente)
     simulados = _mapa_simulados(cliente)
-    referencia = _referencia_de_medias(cliente, simulados)
-    medias = medias_por_aluno(
-        _notas_para_medias(cliente, simulados, _codigo_por_materia(cliente)),
-        referencia=referencia,
-    )
+    # "O primeiro" e "o último" ciclo são de cada série, porque cada uma tem as
+    # próprias provas. A varredura de notas só vira lista quando há mais de uma
+    # série para percorrê-la, para o caso comum continuar sem esse custo.
+    series = {SERIE_DO_CURSO_DE_SIMULADOS} | {
+        turma_para_serie.get(turma, SERIE_DO_CURSO_DE_SIMULADOS)
+        for turma in aluno_para_turma.values()
+    }
+    notas: Iterable[dict] = _notas_para_medias(cliente, simulados, _codigo_por_materia(cliente))
+    if len(series) > 1:
+        notas = list(notas)
+    referencias = {s: _referencia_de_medias(cliente, simulados, serie=s) for s in series}
+    medias = {s: medias_por_aluno(notas, referencia=referencias[s]) for s in series}
     direitos = _direitos_por_aluno(cliente)
 
     resp = (
@@ -481,8 +509,10 @@ def listar_alunos(
             continue
 
         classif = classificacoes.get(id_aluno) or {}
+        serie = turma_para_serie.get(id_turma, SERIE_DO_CURSO_DE_SIMULADOS)
         aluno = AlunoDaCoordenacao(
             id=id_aluno,
+            serie=serie,
             nome=linha["nome"],
             turmaId=id_turma,
             sedeId=id_sede,
@@ -494,7 +524,7 @@ def listar_alunos(
             media=como_float(classif.get("media_recente")),
             sparkline=sparklines.get(id_aluno, []),
             temFoto=linha.get("foto_perfil_storage") is not None,
-            medias=medias.get(id_aluno) or medias_vazias(referencia),
+            medias=medias[serie].get(id_aluno) or medias_vazias(referencias[serie]),
             direitos=direitos.get(id_aluno, []),
         )
         if not _passar_recorte(aluno, recorte):
@@ -530,8 +560,9 @@ def obter_aluno(aluno_id: str) -> AlunoDaCoordenacao:
     # Aqui a varredura de notas é restrita a UM aluno: a ficha não paga o preço
     # da lista. `GET /me` também cai neste caminho (routes/me.py), e o aluno
     # recebe as próprias médias e os próprios direitos — nunca os de outro.
+    serie = _mapa_turma_para_serie(cliente).get(id_turma, SERIE_DO_CURSO_DE_SIMULADOS)
     simulados = _mapa_simulados(cliente)
-    referencia = _referencia_de_medias(cliente, simulados)
+    referencia = _referencia_de_medias(cliente, simulados, serie=serie)
     medias = medias_por_aluno(
         _notas_para_medias(
             cliente, simulados, _codigo_por_materia(cliente), aluno_ids=[aluno_id]
@@ -543,6 +574,7 @@ def obter_aluno(aluno_id: str) -> AlunoDaCoordenacao:
     linha = resp.data[0]
     return AlunoDaCoordenacao(
         id=linha["id"],
+        serie=serie,
         nome=linha["nome"],
         turmaId=id_turma,
         sedeId=id_sede,

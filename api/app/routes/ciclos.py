@@ -46,6 +46,7 @@ def _linha_para_ciclo(linha: dict, simulado_ids: list[str]) -> Ciclo:
         nome=linha["nome"],
         ordem=linha.get("ordem") or 0,
         anoLetivo=ano,
+        serie=linha.get("serie") or SERIE_DO_CURSO_DE_SIMULADOS,
         vestibularAlvo=linha.get("vestibular_alvo"),
         periodoInicio=linha.get("periodo_inicio") or "",
         periodoFim=linha.get("periodo_fim") or "",
@@ -297,7 +298,7 @@ def listar_ciclos() -> list[Ciclo]:
     resp = (
         cliente.table("ciclo")
         .select(
-            "id, nome, ordem, vestibular_alvo, periodo_inicio, periodo_fim, "
+            "id, nome, ordem, serie, vestibular_alvo, periodo_inicio, periodo_fim, "
             "canvas_estado, canvas_erro, ano_letivo(ano)"
         )
         .order("ordem")
@@ -312,7 +313,7 @@ def obter_ciclo(ciclo_id: str) -> Ciclo:
     resp = (
         cliente.table("ciclo")
         .select(
-            "id, nome, ordem, vestibular_alvo, periodo_inicio, periodo_fim, "
+            "id, nome, ordem, serie, vestibular_alvo, periodo_inicio, periodo_fim, "
             "canvas_estado, canvas_erro, ano_letivo(ano)"
         )
         .eq("id", ciclo_id)

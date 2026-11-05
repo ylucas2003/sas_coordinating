@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react';
+
+import { useSerieDaTela } from '../../componentes/layout/migalhas';
+import { daSerie, SERIE_PADRAO } from '../../dominio/blocos';
 import { useNavigate } from 'react-router-dom';
 
 import { CalendarioAnual } from '../../componentes/ui/CalendarioAnual';
@@ -26,8 +29,11 @@ const TIPO_LABEL: Record<string, string> = { fase_1: 'Fase 1', fase_2: 'Fase 2' 
 
 /** Lista de simulados com filtros laterais e calendário anual. */
 export function Simulados() {
-  const { data: todos = [], isPending, isError, error } = useSimulados();
-  const { data: ciclos = [] } = useCiclos();
+  const serie = useSerieDaTela();
+  const { data: todasAsProvas = [], isPending, isError, error } = useSimulados();
+  const { data: todosOsCiclos = [] } = useCiclos();
+  const todos = useMemo(() => daSerie(todasAsProvas, serie), [todasAsProvas, serie]);
+  const ciclos = useMemo(() => daSerie(todosOsCiclos, serie), [todosOsCiclos, serie]);
 
   const [filtro, setFiltro] = useState<FiltroSimulados>(FILTRO_VAZIO);
   const [busca, setBusca] = useState('');
@@ -156,9 +162,13 @@ export function Simulados() {
             {isPending ? 'Carregando…' : `${filtrados.length} de ${simulados.length} simulados`}
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setDialogoAberto(true)}>
-          + Novo simulado
-        </button>
+        {/* Agendar cria a prova no curso do 3º (`ano_letivo.canvas_course_id`): fora
+            dele, o simulado do 1º ou do 2º ano iria para o curso errado. */}
+        {serie === SERIE_PADRAO && (
+          <button className="btn btn-primary" onClick={() => setDialogoAberto(true)}>
+            + Novo simulado
+          </button>
+        )}
       </div>
 
       <section className="card">

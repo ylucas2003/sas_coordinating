@@ -539,3 +539,222 @@
     max-width: min(180px, calc(100% - 68px));
   }
 }
+
+/* ─── Rail em blocos (docs/44 §1) ───────────────────────────────────────────
+   Só existe com 1º ou 2º ano na plataforma: com um bloco só, o rail é o de cima.
+
+   A lista rola e a conta fica. Com os três blocos abertos o rail passa da altura
+   de um notebook, e `.rail` tem `height: 100dvh`: sem rolagem, o Sair cairia
+   para fora da tela. O `padding` lateral é o que não deixa o `overflow` cortar o
+   contorno de foco dos itens. */
+
+.rail__lista {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 -4px;
+  padding: 2px 4px;
+  overflow-y: auto;
+}
+
+.rail__bloco {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--sas-borda);
+}
+
+.rail__bloco-cabeca {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--sas-magnitude);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rail__bloco-cabeca:focus-visible {
+  outline: 2px solid var(--sas-dado-claro);
+  outline-offset: 2px;
+}
+
+/* Recolhido e com a tela aberta dentro dele: o item ativo sumiu, então é o
+   cabeçalho que diz onde se está. */
+.rail__bloco.is-atual .rail__bloco-cabeca[aria-expanded='false'] {
+  background: var(--sas-realce);
+}
+
+.rail__bloco-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rail__bloco-nome {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.rail__bloco-contagem {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.rail__bloco-seta {
+  flex: none;
+  transition: transform 150ms;
+}
+
+.rail__bloco-cabeca[aria-expanded='false'] .rail__bloco-seta {
+  transform: rotate(-90deg);
+}
+
+.rail__bloco-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ⚠️ `hidden` sozinho não vence o `display: flex` de cima. */
+.rail__bloco-corpo[hidden] {
+  display: none;
+}
+
+.rail--em-blocos .rail__item {
+  height: 44px;
+}
+
+.rail--em-blocos .rail__label {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Contorno neutro, como a marca do card de campo: alerta aberto é estado, não
+   falha operacional (R4). */
+.rail__selo {
+  flex: none;
+  box-sizing: border-box;
+  min-width: 22px;
+  padding: 3px 6px;
+  border: 1px solid var(--sas-fio-forte);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  color: var(--sas-texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.rail__selo-leitura {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.seletor-bloco {
+  display: none;
+}
+
+/* A barra inferior não comporta os blocos: ela mostra o bloco em que se está, e a
+   troca sobe para o topo da tela. Depois das regras-base, porque `@media` não soma
+   especificidade (web/CLAUDE.md). */
+@media screen and (max-width: 760px) {
+  .rail__lista {
+    display: contents;
+  }
+
+  .rail__bloco {
+    display: none;
+  }
+
+  .rail__bloco.is-no-celular {
+    display: contents;
+  }
+
+  .rail__bloco-cabeca,
+  .rail__selo {
+    display: none;
+  }
+
+  /* Recolher é coisa do rail lateral: aqui não há cabeçalho para reabrir. */
+  .rail__bloco-corpo,
+  .rail__bloco-corpo[hidden] {
+    display: contents;
+  }
+
+  .rail--em-blocos .rail__item {
+    height: 52px;
+  }
+
+  .rail--em-blocos .rail__label {
+    flex: none;
+    max-width: 100%;
+  }
+
+  .seletor-bloco {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding: 4px;
+    background: var(--sas-superficie-2);
+    border: 1px solid var(--sas-borda);
+    border-radius: var(--radius-md);
+  }
+
+  .seletor-bloco__item {
+    min-height: 52px;
+    padding: 4px;
+    border-radius: 9px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    text-align: center;
+    color: var(--sas-texto);
+    text-decoration: none;
+  }
+
+  .seletor-bloco__item.is-active {
+    background: var(--sas-acao);
+    color: var(--sas-acao-texto);
+  }
+
+  .seletor-bloco__nome {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .seletor-bloco__detalhe {
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+}

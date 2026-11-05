@@ -36,6 +36,9 @@ class Turma(BaseModel):
     nome: str
     sedeId: str
     anoLetivo: int
+    # O bloco da coordenação: `turma.serie_do_curso`, e não `turma.serie`, que vale
+    # 0 nas sections que não declaram série (0078, docs/44 §3).
+    serie: int = 3
 
 
 class Aluno(BaseModel):
@@ -63,6 +66,8 @@ class Ciclo(BaseModel):
     # (docs/32 §3.2).
     ordem: int
     anoLetivo: int
+    # De que bloco da coordenação é o ciclo (0078, docs/44 §3).
+    serie: int = 3
     vestibularAlvo: VestibularAlvo | None = None
     periodoInicio: str
     periodoFim: str
@@ -89,6 +94,7 @@ class Simulado(BaseModel):
     dataAplicacao: str
     cicloId: str
     cicloOrdem: int | None = None         # 1, 2, ..., 11
+    serie: int = 3                        # o bloco da coordenação, herdado do ciclo
     vestibularAlvo: VestibularAlvo | None = None  # ITA | IME (herdado do ciclo)
     notaMaxima: float = 10
     anulado: bool = False

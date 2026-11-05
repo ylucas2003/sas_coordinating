@@ -79,7 +79,10 @@ export function useResolverAlerta() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.resolverAlerta(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: chaves.alertas }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chaves.alertas });
+      queryClient.invalidateQueries({ queryKey: chaves.blocos });
+    },
   });
 }
 
@@ -99,7 +102,10 @@ export function useReabrirAlerta() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.reabrirAlerta(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: chaves.alertas }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: chaves.alertas });
+      queryClient.invalidateQueries({ queryKey: chaves.blocos });
+    },
   });
 }
 

@@ -24,7 +24,9 @@ from datetime import date
 
 from supabase import Client
 
+from ..ingest.upsert import SERIE_DO_CURSO_DE_SIMULADOS
 from . import thresholds as th
+from .classificacao import _turma_ativa_por_aluno
 from .utils import (
     como_float,
     filtro_nota_valida,
@@ -49,6 +51,8 @@ def avaliar_tudo(cliente: Client) -> int:
     todos += regra_zona_transicao(cliente)
     todos += regra_panorama_ciclo(cliente)
 
+    _marcar_serie(cliente, todos)
+
     log.info("emitindo %d alertas (após dedup por hash)", len(todos))
     for alerta in todos:
         cliente.table("alerta").upsert(
@@ -57,6 +61,37 @@ def avaliar_tudo(cliente: Client) -> int:
             ignore_duplicates=True,
         ).execute()
     return len(todos)
+
+
+def _marcar_serie(cliente: Client, alertas: list[dict]) -> None:
+    """Cada alerta nasce dizendo de que bloco é (0079, docs/44 §4).
+
+    Num lugar só, e não em cada regra, porque a resposta depende só da entidade. O
+    hash de dedup já foi calculado e não leva a série: o mesmo alerta não duplica.
+    Entidade que não se resolve fica no 3º, onde sempre esteve.
+    """
+    if not alertas:
+        return
+    simulados = {
+        linha["id"]: (linha.get("ciclo") or {}).get("serie")
+        for linha in cliente.table("simulado").select("id, ciclo(serie)").execute().data or []
+    }
+    turmas = {
+        linha["id"]: linha.get("serie_do_curso")
+        for linha in cliente.table("turma").select("id, serie_do_curso").execute().data or []
+    }
+    turma_do_aluno = _turma_ativa_por_aluno(cliente)
+    for alerta in alertas:
+        tipo, entidade = alerta.get("entidade_tipo"), alerta.get("entidade_id")
+        if tipo == "simulado":
+            serie = simulados.get(entidade)
+        elif tipo == "aluno":
+            serie = turmas.get(turma_do_aluno.get(entidade))
+        elif tipo == "turma":
+            serie = turmas.get(entidade)
+        else:
+            serie = None
+        alerta["serie"] = serie or SERIE_DO_CURSO_DE_SIMULADOS
 
 
 # ─── Regras ───────────────────────────────────────────────────────────────

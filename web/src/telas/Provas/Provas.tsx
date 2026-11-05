@@ -1,3 +1,5 @@
+import { useCaminhoDoBloco, useSerieDaTela } from '../../componentes/layout/migalhas';
+import { daSerie } from '../../dominio/blocos';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 
 import { AberturaDoTour } from '../../componentes/onboarding/AberturaDoTour';
@@ -42,18 +44,20 @@ export function Provas() {
   const [params] = useSearchParams();
   const hoje = hojeISO();
 
+  const serie = useSerieDaTela();
+  const noBloco = useCaminhoDoBloco();
   const { data: ciclos, isPending: ciclosPendentes } = useCiclos();
   const { data: simulados, isPending: provasPendentes } = useSimulados();
 
-  const resumoCiclos = resumirCiclos(ciclos ?? [], hoje);
-  const resumoProvas = resumirProvas(simulados ?? [], hoje);
+  const resumoCiclos = resumirCiclos(daSerie(ciclos ?? [], serie), hoje);
+  const resumoProvas = resumirProvas(daSerie(simulados ?? [], serie), hoje);
 
   // Os caminhos antigos: `/provas?aba=simulados` está em link salvo e em
   // e-mail de lembrete, e continua valendo. Ele não pode virar `<Route>`
   // porque o roteador não casa query string — quem traduz é a própria tela.
   const aba = params.get('aba');
-  if (aba === 'simulados') return <Navigate to="/provas/simulados" replace />;
-  if (aba === 'ciclos') return <Navigate to="/provas/ciclos" replace />;
+  if (aba === 'simulados') return <Navigate to={noBloco('/provas/simulados')} replace />;
+  if (aba === 'ciclos') return <Navigate to={noBloco('/provas/ciclos')} replace />;
 
   return (
     <div className="tela">
@@ -69,7 +73,7 @@ export function Provas() {
 
         <div className="provas-hub__portas">
           <Porta
-            para="/provas/ciclos"
+            para={noBloco('/provas/ciclos')}
             olho="Leitura por pessoa"
             nome="Ciclos completos"
             pergunta="Como o grupo está fechando?"
@@ -79,7 +83,7 @@ export function Provas() {
             glifo="M12 16h46M12 30h46M12 44h30M20 10v48M40 10v48"
           />
           <Porta
-            para="/provas/simulados"
+            para={noBloco('/provas/simulados')}
             olho="Leitura por instrumento"
             nome="Provas específicas"
             pergunta="A medida funcionou?"
@@ -100,12 +104,12 @@ export function Provas() {
             lista — ver `Simulados.tsx::PENDENCIAS`. */}
         <div className="provas-hub__rodape">
           <EloQuieto
-            para="/provas/simulados?pendencia=sem-nota"
+            para={noBloco('/provas/simulados?pendencia=sem-nota')}
             texto="Provas sem nota lançada"
             contagem={provasPendentes ? null : resumoProvas.semNotaLancada}
           />
           <EloQuieto
-            para="/provas/simulados?pendencia=canvas-falhou"
+            para={noBloco('/provas/simulados?pendencia=canvas-falhou')}
             texto="Provas que falharam no Canvas"
             contagem={provasPendentes ? null : resumoProvas.falhouNoCanvas}
           />

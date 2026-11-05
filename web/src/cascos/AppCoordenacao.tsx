@@ -5,10 +5,11 @@
 // ⚠️ O import a partir do `App.tsx` tem de continuar DINÂMICO. Um `import`
 // estático desfaz a divisão sem erro nenhum (docs/40 §12.1.4).
 
-import { lazy, Suspense, type ReactNode } from 'react';
+import { Fragment, lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 
 import { AppShell } from '../componentes/layout/AppShell';
+import { BLOCOS } from '../dominio/blocos';
 import { Alunos } from '../telas/Alunos/Alunos';
 import { Provas } from '../telas/Provas/Provas';
 import { Ciclos } from '../telas/Ciclos/Ciclos';
@@ -64,6 +65,18 @@ export default function AppCoordenacao() {
     <AppShell>
       <Routes>
         <Route path="/" element={<Navigate to="/painel" replace />} />
+        {/* Os blocos novos (docs/44 §4). As telas são as mesmas, e leem a série do
+            endereço. As fichas ficam de fora: e-mail e chat apontam para elas. */}
+        {BLOCOS.filter((b) => b.prefixo).map(({ prefixo }) => (
+          <Fragment key={prefixo}>
+            <Route path={prefixo} element={<Navigate to={`${prefixo}/painel`} replace />} />
+            <Route path={`${prefixo}/painel`} element={<Painel />} />
+            <Route path={`${prefixo}/alunos`} element={<Alunos />} />
+            <Route path={`${prefixo}/provas`} element={<Provas />} />
+            <Route path={`${prefixo}/provas/ciclos`} element={<Ciclos />} />
+            <Route path={`${prefixo}/provas/simulados`} element={<Simulados />} />
+          </Fragment>
+        ))}
         <Route path="/painel" element={<Painel />} />
         <Route path="/alunos" element={<Alunos />} />
         <Route path="/alunos/:id" element={<AlunoFicha />} />

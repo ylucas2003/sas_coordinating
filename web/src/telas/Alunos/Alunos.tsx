@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { useCaminhoDoBloco, useSerieDaTela } from '../../componentes/layout/migalhas';
+import { daSerie } from '../../dominio/blocos';
 import { Link, useSearchParams } from 'react-router-dom';
 
 // A folha desta tela. Importada aqui, e não em `main.tsx`, porque `main.tsx`
@@ -295,14 +298,24 @@ function TarjaDaRegua({ regua, corte }: { regua: CriterioClassificacao | null; c
 
 /** Lista de 900 — varredura por médias, trajetória e cadastro. */
 export function Alunos() {
-  const { data: alunos = [], isPending, isError, error } = useAlunos();
-  const { data: turmas = [] } = useTurmas();
-  const { data: sedes = [] } = useSedes();
+  // A lista é a do bloco (docs/44 §1). Só as sedes que têm turma nele viram filtro:
+  // uma sede do 3º num filtro do 1º ano só levaria a uma lista vazia.
+  const serie = useSerieDaTela();
+  const noBloco = useCaminhoDoBloco();
+  const { data: todosOsAlunos = [], isPending, isError, error } = useAlunos();
+  const { data: todasAsTurmas = [] } = useTurmas();
+  const { data: todasAsSedes = [] } = useSedes();
+  const alunos = useMemo(() => daSerie(todosOsAlunos, serie), [todosOsAlunos, serie]);
+  const turmas = useMemo(() => daSerie(todasAsTurmas, serie), [todasAsTurmas, serie]);
+  const sedes = useMemo(
+    () => todasAsSedes.filter((sede) => turmas.some((turma) => turma.sedeId === sede.id)),
+    [todasAsSedes, turmas],
+  );
   const { data: criterios = [] } = useCriteriosDisponiveis();
   // Desestruturado, e remontado num `useMemo`, porque `useRotulosDasMedias`
   // devolve objeto novo a cada render: dependendo dele direto, as colunas —
   // e a ORDENAÇÃO de 900 linhas atrás delas — se recalculariam sempre.
-  const { ano: refAno, primeiroCiclo: refPrimeiro, ultimoCiclo: refUltimo } = useRotulosDasMedias();
+  const { ano: refAno, primeiroCiclo: refPrimeiro, ultimoCiclo: refUltimo } = useRotulosDasMedias({}, serie);
   const rotulos = useMemo(
     () => ({ ano: refAno, primeiroCiclo: refPrimeiro, ultimoCiclo: refUltimo }),
     [refAno, refPrimeiro, refUltimo],
@@ -543,7 +556,8 @@ export function Alunos() {
     if (alvo) novo.set('recorte', alvo);
     else novo.delete('recorte');
     const texto = novo.toString();
-    return texto ? `/alunos?${texto}` : '/alunos';
+    // No bloco desta lista: é para cá que os cartões e a volta da ficha levam.
+    return noBloco(texto ? `/alunos?${texto}` : '/alunos');
   }
 
   function irParaRecorte(alvo: Recorte | null) {

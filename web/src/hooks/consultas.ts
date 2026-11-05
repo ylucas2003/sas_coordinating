@@ -13,13 +13,15 @@ import type {
 import type { PayloadHeatmap } from '../componentes/ui/Heatmap';
 import { algumEmAndamento } from '../dominio/gravacoes';
 import type { NotaDoPainel, NotasPorSimulado } from '../dominio/painel';
-import type { Ciclo, Simulado } from '../tipos/dominio';
+import type { BlocoDaCoordenacao, Ciclo, Simulado } from '../tipos/dominio';
 import type { DiaDoCalendario, Refeicao } from '../tipos/cantina';
 // A chave vem de `hooks/cantina.ts`, e não de uma nova daqui: o dia da
 // coordenação lê a MESMA rota do calendário do mês, e duas chaves para a mesma
 // resposta fariam a tela do dia ignorar a invalidação que a publicação de um
 // cardápio dispara.
 import { chavesCantina } from './cantina';
+import { daSerie } from '../dominio/blocos';
+import type { SerieDoBloco } from '../dominio/blocos';
 
 /**
  * Chaves de cache. Centralizadas para a invalidação conseguir alcançar um
@@ -27,6 +29,7 @@ import { chavesCantina } from './cantina';
  */
 export const chaves = {
   alertas: ['alertas'] as const,
+  blocos: ['blocos'] as const,
   pendenciasCanvas: (cicloId: string) => ['ciclos', cicloId, 'pendencias-canvas'] as const,
   alunos: ['alunos'] as const,
   aluno: (id: string) => ['alunos', id] as const,
@@ -50,8 +53,50 @@ export function usePendenciasCanvas(cicloId: string | null) {
   });
 }
 
-export function useAlertas() {
-  return useQuery({ queryKey: chaves.alertas, queryFn: api.listarAlertas });
+/**
+ * Com `serie`, só os alertas daquele bloco. A chave começa em `chaves.alertas`, para
+ * resolver e reabrir continuarem invalidando todas as faixas de uma vez.
+ */
+export function useAlertas(serie?: SerieDoBloco) {
+  return useQuery({
+    queryKey: serie ? [...chaves.alertas, serie] : chaves.alertas,
+    queryFn: () => api.listarAlertas(serie),
+  });
+}
+
+/** A última lista de blocos que este navegador viu. São contagens, não dado de aluno. */
+const CHAVE_DOS_BLOCOS = 'sas_blocos_do_rail';
+
+function blocosGuardados(): BlocoDaCoordenacao[] | undefined {
+  try {
+    const salvo: unknown = JSON.parse(localStorage.getItem(CHAVE_DOS_BLOCOS) ?? 'null');
+    return Array.isArray(salvo) ? (salvo as BlocoDaCoordenacao[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Os blocos do rail. Falhar aqui não pode tirar a navegação de ninguém: sem resposta,
+ * o rail fica como sempre foi, com os cinco destinos.
+ *
+ * O provisório vem do navegador: sem ele, toda página recarregada pintava o rail
+ * antigo por um instante e trocava pelos blocos quando a rota respondia.
+ */
+export function useBlocos() {
+  return useQuery({
+    queryKey: chaves.blocos,
+    queryFn: async () => {
+      const blocos = await api.listarBlocos();
+      try {
+        localStorage.setItem(CHAVE_DOS_BLOCOS, JSON.stringify(blocos));
+      } catch {
+        // Sem armazenamento, a próxima abertura só pisca: nada a corrigir.
+      }
+      return blocos;
+    },
+    placeholderData: blocosGuardados,
+  });
 }
 
 /**
@@ -106,9 +151,14 @@ export interface RotulosDasMedias {
  * aí a coluna existe e não tem o que nomear, e o cabeçalho degrada em vez de
  * inventar um "Ciclo 1" que ninguém aplicou.
  */
-export function useRotulosDasMedias(opcoes: OpcoesConsulta = {}): RotulosDasMedias {
+export function useRotulosDasMedias(
+  opcoes: OpcoesConsulta = {},
+  serie?: SerieDoBloco,
+): RotulosDasMedias {
   const { data } = useAlunos(opcoes);
-  const comMedias = (data ?? []).find((aluno) => aluno.medias?.ano.referencia != null);
+  // Cada série tem os próprios ciclos, então o rótulo é o de um aluno do bloco.
+  const lista = serie ? daSerie(data ?? [], serie) : data ?? [];
+  const comMedias = lista.find((aluno) => aluno.medias?.ano.referencia != null);
   return {
     ano: comMedias?.medias?.ano.referencia ?? null,
     primeiroCiclo: comMedias?.medias?.primeiroCiclo.referencia ?? null,

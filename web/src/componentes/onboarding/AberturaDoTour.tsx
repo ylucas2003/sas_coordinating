@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useSerieDaTela } from '../layout/migalhas';
+import { daSerie } from '../../dominio/blocos';
+
 import { ancoraDoTour, montarTour } from '../../dominio/tour';
 import { useCiclos, useSimulados } from '../../hooks/consultas';
 import * as sessao from '../../servicos/sessao';
@@ -33,8 +36,11 @@ export function AberturaDoTour({ abrirSozinho = false }: { abrirSozinho?: boolea
   const quem = sessao.nome();
   const hoje = hojeISO();
 
-  const { data: ciclos = [], isPending: ciclosPendentes } = useCiclos();
-  const { data: simulados = [], isPending: provasPendentes } = useSimulados();
+  const serie = useSerieDaTela();
+  const { data: todosOsCiclos = [], isPending: ciclosPendentes } = useCiclos();
+  const { data: todasAsProvas = [], isPending: provasPendentes } = useSimulados();
+  const ciclos = useMemo(() => daSerie(todosOsCiclos, serie), [todosOsCiclos, serie]);
+  const simulados = useMemo(() => daSerie(todasAsProvas, serie), [todasAsProvas, serie]);
 
   const passos = useMemo(
     () => montarTour(ancoraDoTour(ciclos, simulados, hoje)),

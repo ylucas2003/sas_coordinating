@@ -28,7 +28,13 @@ import {
   useEstatisticasCiclo, useNotasDoCiclo, usePendenciasCanvas, useSedes, useSimulados, useTurmas,
 } from '../../hooks/consultas';
 import { useEditarNota } from '../../hooks/mutacoes';
-import { useRecorteDaTela, useTituloDaTela } from '../../componentes/layout/migalhas';
+import {
+  useCaminhoDoBloco,
+  useRecorteDaTela,
+  useSerieDaFicha,
+  useTituloDaTela,
+} from '../../componentes/layout/migalhas';
+import { daSerie, SERIE_PADRAO } from '../../dominio/blocos';
 import type { Aluno, AlunoClassificado, Ciclo } from '../../tipos/dominio';
 
 // FICHA DE CICLO — a chegada, dois campos e a varredura, numa rolagem só.
@@ -139,11 +145,17 @@ export function CicloFicha() {
   const hoje = isoDoDia(new Date());
 
   const { data: ciclo, isPending: carregandoCiclo, isError: erroCiclo } = useCiclo(id);
-  const { data: ciclos = [] } = useCiclos();
+  const { data: todosOsCiclos = [] } = useCiclos();
   const { data: todos = [], isPending: carregandoSimulados } = useSimulados();
-  const { data: alunos = [] } = useAlunos();
+  const { data: todosOsAlunos = [] } = useAlunos();
   const { data: sedes = [] } = useSedes();
   const { data: turmas = [] } = useTurmas();
+  // A tabela do ciclo é de quem faz estas provas, e 1º e 2º ano fazem outras
+  // (docs/44 §1). A ficha abre pelo id, então é o ciclo que diz a série.
+  const serieDoCiclo = ciclo?.serie ?? SERIE_PADRAO;
+  useSerieDaFicha(ciclo?.serie);
+  const alunos = useMemo(() => daSerie(todosOsAlunos, serieDoCiclo), [todosOsAlunos, serieDoCiclo]);
+  const ciclos = useMemo(() => daSerie(todosOsCiclos, serieDoCiclo), [todosOsCiclos, serieDoCiclo]);
 
   // A régua escolhida decide TODOS os cortes desta tela: os dois campos, os
   // KPIs e cada célula da tabela. É por isso que ela não é um grupo da faixa
@@ -794,6 +806,7 @@ function CampoCompacto({
  * calendário vazio.
  */
 function CicloSemProva({ ciclo, ciclos }: { ciclo: Ciclo; ciclos: readonly Ciclo[] }) {
+  const noBloco = useCaminhoDoBloco();
   const { podeAgendar, vizinho } = saidasDoCicloVazio(ciclo, ciclos);
 
   return (
@@ -814,7 +827,7 @@ function CicloSemProva({ ciclo, ciclos }: { ciclo: Ciclo; ciclos: readonly Ciclo
           </p>
           <div className="ciclo-vazio__acoes">
             {podeAgendar && (
-              <Link className="btn btn--primary" to="/provas/simulados">
+              <Link className="btn btn--primary" to={noBloco('/provas/simulados')}>
                 Agendar a primeira prova
               </Link>
             )}

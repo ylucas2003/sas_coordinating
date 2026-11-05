@@ -61,7 +61,7 @@ def _mapa_materias(cliente: Client) -> dict[str, MateriaResumo]:
 
 
 def _mapa_ciclos(cliente: Client) -> dict[str, dict]:
-    resp = cliente.table("ciclo").select("id, ordem, vestibular_alvo").execute()
+    resp = cliente.table("ciclo").select("id, ordem, serie, vestibular_alvo").execute()
     return {c["id"]: c for c in (resp.data or [])}
 
 
@@ -74,6 +74,7 @@ def _linha_para_simulado(
     ciclo = ciclos.get(linha["ciclo_id"], {})
     materia_id = linha.get("materia_id")
     return Simulado(
+        serie=ciclo.get("serie") or 3,
         id=linha["id"],
         nome=linha["nome"],
         rotuloCurto=linha.get("rotulo_curto"),

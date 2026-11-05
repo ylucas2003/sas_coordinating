@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Rail } from './Rail';
+import { SeletorDoBloco } from './SeletorDoBloco';
 import { Topbar } from './Topbar';
 import { ProvedorMigalhas } from './migalhas';
 
@@ -18,7 +19,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Rail />
         <div className="casco__coluna">
           <Topbar />
-          <main className="casco__main">{children}</main>
+          <main className="casco__main">
+            <SeletorDoBloco />
+            {children}
+          </main>
         </div>
       </div>
     </ProvedorMigalhas>
