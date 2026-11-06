@@ -31,11 +31,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
+# Só rodando como script: importado por um teste, despejaria o .env real no
+# os.environ da suíte inteira (tests/test_scripts_sem_efeito_no_import.py).
+if __name__ == "__main__":
+    load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
 
-from app.canvas_sync.cliente import ClienteCanvas  # noqa: E402
-from app.config import get_settings  # noqa: E402
-from app.gravacoes_aula.downloader import (  # noqa: E402
+from app.canvas_sync.cliente import ClienteCanvas
+from app.config import get_settings
+from app.gravacoes_aula.downloader import (
     FalhaNoDownload,
     GravacaoIndisponivel,
     baixar_video,

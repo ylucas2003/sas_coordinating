@@ -39,18 +39,21 @@ from datetime import UTC, datetime, timedelta
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Só rodando como script: importado por um teste, despejaria o .env real no
+# os.environ da suíte inteira (tests/test_scripts_sem_efeito_no_import.py).
+if __name__ == "__main__":
+    load_dotenv()
 
-from app.auditoria import registrar as auditar  # noqa: E402
-from app.mcp import tokens  # noqa: E402
-from app.mcp.auditoria_mcp import (  # noqa: E402
+from app.auditoria import registrar as auditar
+from app.mcp import tokens
+from app.mcp.auditoria_mcp import (
     ACAO_CONEXAO_EMITIDA,
     ACAO_CONEXAO_REVOGADA,
     CANAL,
     recurso_do_token,
 )
-from app.mcp.configuracao import get_configuracao_mcp  # noqa: E402
-from app.supabase_client import get_supabase  # noqa: E402
+from app.mcp.configuracao import get_configuracao_mcp
+from app.supabase_client import get_supabase
 
 NOME_MAXIMO = 80  # o CHECK `token_mcp_nome_valido` da 0072
 
