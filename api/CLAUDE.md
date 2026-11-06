@@ -185,7 +185,7 @@ Depois de qualquer migration que toque `metrica_simulado`, rode
 ## Ferramentas
 
 ```sh
-./.venv/bin/python -m pytest tests/ -q   # 3232 testes (+34 pulados); 3 de test_canvas_publicacao.py falham também no main
+./.venv/bin/python -m pytest tests/ -q   # 3319 testes (+34 pulados), todos verdes com ou sem api/.env
 ./.venv/bin/ruff check .                 # lint — configurado em pyproject.toml
 ./.venv/bin/ruff check . --fix
 ./.venv/bin/mypy app                     # sob demanda, fora do gate
@@ -199,9 +199,15 @@ Depois de qualquer migration que toque `metrica_simulado`, rode
 
 Sem `api/.env` (num worktree, por exemplo), o `pytest` precisa de
 `APP_ENV=dev` na frente — o default é `production` (armadilha 3 do
-CLAUDE.md da raiz). Os 3 testes de `tests/test_canvas_publicacao.py` falham
-também no `main` (26/10). O verificador de papéis é a prova de privilégio
-contra o PostgREST DE VERDADE — os testes rodam contra um fake, e o fake não
+CLAUDE.md da raiz). A suíte não pode depender do `.env` da máquina, nos dois
+sentidos: script de `scripts/` só carrega `.env` dentro de
+`if __name__ == "__main__":` (importado por um teste, ele despejava o `.env`
+real no `os.environ` e cinco testes do guard do MCP reprovavam na suíte
+inteira, `tests/test_scripts_sem_efeito_no_import.py`), e teste que precisa de
+credencial troca o cliente em vez de lê-la do ambiente (os 3 de
+`tests/test_canvas_publicacao.py` só passavam com o `api/.env`). O verificador
+de papéis é a prova de privilégio contra o PostgREST DE VERDADE — os testes
+rodam contra um fake, e o fake não
 sabe o que o Postgres recusa; cada rodada grava duas linhas na trilha. O
 `criar_token_mcp` grava o token num arquivo 0600 (`SAS_SAIDA_TOKEN` muda o
 diretório), nunca no stdout. O processo do MCP sobe pelo compose (`mcp`, em

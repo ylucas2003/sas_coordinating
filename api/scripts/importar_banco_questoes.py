@@ -32,10 +32,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
+# Só rodando como script: importado por um teste, despejaria o .env real no
+# os.environ da suíte inteira (tests/test_scripts_sem_efeito_no_import.py).
+if __name__ == "__main__":
+    load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
 
-from app.banco.importador import ErroImportacao, RelatorioImportacao, importar  # noqa: E402
-from app.supabase_client import criar_cliente_supabase  # noqa: E402
+from app.banco.importador import ErroImportacao, RelatorioImportacao, importar
+from app.supabase_client import criar_cliente_supabase
 
 # Conferidos em 04/09/2026 contra os arquivos. Não é meta: é fotografia.
 # Divergir não é erro por si — prova nova processada muda todos estes números de

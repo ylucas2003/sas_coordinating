@@ -47,6 +47,21 @@ def sem_canvas(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(canvas_publicacao, "ClienteCanvas", explode)
 
 
+@pytest.fixture
+def canvas_aberto(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Para os testes que trocam `_publicar_uma`: o `varrer` abre o
+    `ClienteCanvas` ANTES de chamá-la, e o cliente de verdade recusa nascer sem
+    CANVAS_BASE_URL e CANVAS_API_TOKEN.
+
+    Sem isto os testes dependiam do `api/.env` da máquina: passavam com ele e,
+    sem ele (num worktree, na CI), o `ValueError` do cliente virava 'falhou' e o
+    `_publicar_uma` falso nunca era chamado. `test_falha_incrementa_tentativas`
+    passava pela falha errada."""
+    monkeypatch.setattr(
+        canvas_publicacao, "ClienteCanvas", lambda **_k: _CanvasFalso(modulos=[], itens={})
+    )
+
+
 def test_curso_desligado_nao_toca_no_canvas(sem_canvas: None) -> None:
     r = canvas_publicacao.varrer(FakeCliente(_db(ligado=False)))
     assert r["analisadas"] == 0
@@ -64,7 +79,7 @@ def test_curso_desligado_NAO_carimba_a_aula(sem_canvas: None) -> None:
     assert db["aula_gravacao"]["a1"]["canvas_estado"] == "pendente"
 
 
-def test_ligar_o_curso_depois_recupera_a_aula(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ligar_o_curso_depois_recupera_a_aula(monkeypatch: pytest.MonkeyPatch, canvas_aberto: None) -> None:
     """Passa a rodada com o curso desligado, liga, e a aula tem que voltar."""
     db = _db(ligado=False)
     canvas_publicacao.varrer(FakeCliente(db))  # rodada com o curso desligado
@@ -81,7 +96,7 @@ def test_ligar_o_curso_depois_recupera_a_aula(monkeypatch: pytest.MonkeyPatch) -
     assert r["analisadas"] == 1
 
 
-def test_aula_ja_carimbada_ignorado_e_resgatada(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_aula_ja_carimbada_ignorado_e_resgatada(monkeypatch: pytest.MonkeyPatch, canvas_aberto: None) -> None:
     """Resgate do que a versão anterior já carimbou em produção."""
     db = _db(ligado=True, canvas_estado="ignorado")
     vistas: list[str] = []
@@ -90,7 +105,7 @@ def test_aula_ja_carimbada_ignorado_e_resgatada(monkeypatch: pytest.MonkeyPatch)
     assert vistas == ["a1"]
 
 
-def test_ensaio_enxerga_curso_desligado(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ensaio_enxerga_curso_desligado(monkeypatch: pytest.MonkeyPatch, canvas_aberto: None) -> None:
     """`?simular=true` é o que se roda ANTES de ligar — com o curso desligado
     ele precisa ter o que mostrar, senão o ritual da migration não existe."""
     db = _db(ligado=False)
@@ -101,7 +116,7 @@ def test_ensaio_enxerga_curso_desligado(monkeypatch: pytest.MonkeyPatch) -> None
     assert r["simulado"] is True
 
 
-def test_ensaio_nao_escreve_no_banco(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ensaio_nao_escreve_no_banco(monkeypatch: pytest.MonkeyPatch, canvas_aberto: None) -> None:
     db = _db(ligado=True)
     monkeypatch.setattr(canvas_publicacao, "_publicar_uma", _fake_publicar([]))
     canvas_publicacao.varrer(FakeCliente(db), simular=True)
@@ -121,7 +136,7 @@ def test_teto_de_tentativas_tira_a_aula_do_pool(sem_canvas: None) -> None:
     assert canvas_publicacao.varrer(FakeCliente(db))["analisadas"] == 0
 
 
-def test_falha_incrementa_tentativas(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_falha_incrementa_tentativas(monkeypatch: pytest.MonkeyPatch, canvas_aberto: None) -> None:
     db = _db(ligado=True)
 
     async def falha(*_a: Any, **_k: Any) -> dict:
@@ -132,9 +147,10 @@ def test_falha_incrementa_tentativas(monkeypatch: pytest.MonkeyPatch) -> None:
     linha = db["aula_gravacao"]["a1"]
     assert linha["canvas_estado"] == "falhou"
     assert linha["canvas_tentativas"] == 1
+    assert "Canvas fora do ar" in linha["canvas_erro"], "falhou, mas não pela falha deste teste"
 
 
-def test_varredura_nao_escreve_atualizado_em(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_varredura_nao_escreve_atualizado_em(monkeypatch: pytest.MonkeyPatch, canvas_aberto: None) -> None:
     """`atualizado_em` é o relógio do corte por esfriamento do pipeline de
     vídeo; carimbá-lo aqui esquentaria aula que já esfriou."""
     db = _db(ligado=True)

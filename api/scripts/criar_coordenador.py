@@ -34,10 +34,13 @@ import tempfile
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Só rodando como script: importado por um teste, despejaria o .env real no
+# os.environ da suíte inteira (tests/test_scripts_sem_efeito_no_import.py).
+if __name__ == "__main__":
+    load_dotenv()
 
-from app.auth import hash_senha  # noqa: E402
-from app.supabase_client import get_supabase  # noqa: E402
+from app.auth import hash_senha
+from app.supabase_client import get_supabase
 
 SENHA_MINIMA = 12   # esta conta lê a base toda — e a de administrador também escreve nota
 

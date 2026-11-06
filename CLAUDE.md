@@ -111,7 +111,7 @@ docker compose up                        # front :8080 · API :8000 · postgrest
 docker compose run --rm migrate status   # ver migrations aplicadas/pendentes
 docker compose run --rm migrate up       # aplicar
 
-cd api && ./.venv/bin/python -m pytest tests/ -q   # 3232 testes (+34 pulados); 3 de test_canvas_publicacao.py falham também no main
+cd api && ./.venv/bin/python -m pytest tests/ -q   # 3319 testes (+34 pulados), todos verdes com ou sem api/.env
 cd api && ./.venv/bin/ruff check .                 # lint
 cd web && npm test && npm run lint && npm run typecheck
 

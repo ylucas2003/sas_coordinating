@@ -32,10 +32,13 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
+# Só rodando como script: importado por um teste, despejaria o .env real no
+# os.environ da suíte inteira (tests/test_scripts_sem_efeito_no_import.py).
+if __name__ == "__main__":
+    load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
 
-from app.banco.taxonomia import raiz_repositorio  # noqa: E402
-from app.supabase_client import criar_cliente_supabase  # noqa: E402
+from app.banco.taxonomia import raiz_repositorio
+from app.supabase_client import criar_cliente_supabase
 
 # O PostgREST responde no máximo mil e poucas linhas por ida sem paginar; as
 # tabelas aqui passam disso (1.399 ligações, 2.459 alternativas).

@@ -26,13 +26,16 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
+# Só rodando como script: importado por um teste, despejaria o .env real no
+# os.environ da suíte inteira (tests/test_scripts_sem_efeito_no_import.py).
+if __name__ == "__main__":
+    load_dotenv()  # antes dos imports do app — Settings lê o ambiente na construção
 
-from app.canvas_sync.arquivos import sincronizar_arquivos_do_curso  # noqa: E402
-from app.canvas_sync.cliente import ClienteCanvas  # noqa: E402
-from app.canvas_sync.sincronizar import _descobrir_cursos_simulados  # noqa: E402
-from app.config import get_settings  # noqa: E402
-from app.supabase_client import criar_cliente_supabase  # noqa: E402
+from app.canvas_sync.arquivos import sincronizar_arquivos_do_curso
+from app.canvas_sync.cliente import ClienteCanvas
+from app.canvas_sync.sincronizar import _descobrir_cursos_simulados
+from app.config import get_settings
+from app.supabase_client import criar_cliente_supabase
 
 
 def _em_lotes(itens: list, tamanho: int):
