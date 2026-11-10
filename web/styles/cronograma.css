@@ -1,0 +1,913 @@
+/* ─── Proposta de cronograma (/cronograma) ───────────────────────────────
+   O plano de 2027 do 3º e cursinho, para planejar e apresentar. Cada aba
+   começa com o mínimo e cada clique abre um nível (telas/Cronograma/).
+
+   Só papéis (`--sas-*`): a tela segue os dois temas. Cor é papel —
+     DADO        aulas, blocos, barras, células (a intensidade carrega a quantidade)
+     REFERENCIA  o que não é conteúdo (simulado, tira-dúvidas) e o recesso
+     VALOR       a 1ª fase do IME e do ITA — o prazo que o ano inteiro mira
+     ACAO        aba, pílula e seletor escolhidos
+   A revisão de fim de ano é DADO com hachura: é conteúdo que volta, não alerta.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.crono {
+  gap: 18px;
+}
+
+.crono-olho,
+.crono-rotulo-detalhe,
+.crono-barra__rotulo {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+.crono-titulo {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--sas-magnitude);
+}
+
+.crono-sub,
+.crono-resumo {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--sas-texto-2);
+  max-width: 82ch;
+}
+
+.crono-resumo b {
+  color: var(--sas-magnitude);
+}
+
+/* ─── Cabeçalho, abas, faixas de escolha ─────────────────────────────── */
+
+.crono-cabeca,
+.crono-card__cabeca {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.crono-cabeca__texto,
+.crono-card__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.crono-acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.crono-alternar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+  cursor: pointer;
+}
+
+.crono-abas {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--sas-borda);
+  overflow-x: auto;
+}
+
+.crono-aba {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 16px 12px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  color: var(--sas-texto-2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.crono-aba:hover {
+  color: var(--sas-acao);
+}
+
+.crono-aba[aria-selected='true'] {
+  color: var(--sas-acao);
+  border-bottom-color: var(--sas-acao);
+}
+
+.crono-barra {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  background: var(--sas-superficie);
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-md);
+}
+
+.crono-pilulas {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.crono-seg {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  background: var(--sas-fundo);
+}
+
+.crono-seg__opcao {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--sas-texto-2);
+  cursor: pointer;
+}
+
+.crono-seg__opcao[aria-pressed='true'] {
+  background: var(--sas-acao);
+  color: var(--sas-acao-texto);
+}
+
+/* ─── Card ───────────────────────────────────────────────────────────── */
+
+.crono-card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.crono-card > .crono-card__cabeca {
+  padding: 22px 22px 16px;
+}
+
+.crono-card__titulo {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--sas-magnitude);
+}
+
+.crono-detalhe {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 22px 20px;
+}
+
+.crono-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.crono-chip {
+  font: inherit;
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 3px 10px;
+  border: 1px solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  background: var(--sas-fundo);
+  font-size: 12px;
+  color: var(--sas-texto);
+}
+
+.crono-chip b {
+  font-weight: 700;
+  color: var(--sas-dado);
+}
+
+.crono-chip--botao {
+  cursor: pointer;
+}
+
+.crono-chip--botao:hover {
+  border-color: var(--sas-dado);
+}
+
+.crono-info {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+/* "Ocultar detalhe técnico" */
+.crono:not(.crono--tecnico) .crono-tecnico {
+  display: none;
+}
+
+/* ─── O ano ──────────────────────────────────────────────────────────── */
+
+/* A grade rola nos dois sentidos dentro do card: a barra horizontal fica sempre à vista. */
+.crono-rolagem-ano {
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--sas-borda);
+  background: var(--sas-fundo);
+}
+
+.crono-ano {
+  display: grid;
+  min-width: 940px;
+  padding: 6px 18px 14px;
+  row-gap: 3px;
+  background: var(--sas-fundo);
+}
+
+.crono-ano--amplo {
+  min-width: max-content;
+  padding-left: 0;
+}
+
+.crono-ano__mes {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sas-texto-2);
+  padding: 4px 0 2px 3px;
+  white-space: nowrap;
+}
+
+.crono-ano__mes.is-inicio {
+  border-left: 1px solid var(--sas-fio-forte);
+}
+
+.crono-ano__dia {
+  font-size: 10px;
+  color: var(--sas-texto-2);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  border-left: 1px solid var(--sas-fio);
+}
+
+.crono-ano__dia.is-recesso {
+  background: var(--sas-referencia-fraca);
+}
+
+.crono-ano__rotulo {
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 10px 2px 0;
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--sas-texto);
+}
+
+.crono-ano__rotulo > span:not(.crono-seta) {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.crono-ano__rotulo small {
+  font-size: 11px;
+  color: var(--sas-texto-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+button.crono-ano__rotulo {
+  cursor: pointer;
+}
+
+button.crono-ano__rotulo:hover {
+  color: var(--sas-acao);
+}
+
+.crono-ano__rotulo--cabeca {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+.crono-ano__rotulo--materia {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--sas-magnitude);
+  padding-top: 12px;
+  border-top: 1px solid var(--sas-fio-forte);
+}
+
+.crono-ano__rotulo--prof {
+  font-size: 13px;
+  font-weight: 600;
+  padding-left: 10px;
+}
+
+.crono-ano__rotulo--item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  padding-left: 40px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crono-ano__rotulo--item small {
+  font-size: 10px;
+}
+
+.crono-ano__celula-marco {
+  display: flex;
+  align-items: center;
+}
+
+.crono-ano__marco {
+  flex: 1;
+  height: 22px;
+  margin: 0 1px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 22px;
+}
+
+.crono-ano__marco--prova {
+  background: var(--sas-valor);
+  color: var(--sas-magnitude);
+}
+
+.crono-ano__marco--recesso {
+  background: var(--sas-referencia-fraca);
+}
+
+.crono-ano__marco--colegio {
+  box-shadow: inset 0 0 0 2px var(--sas-acao);
+}
+
+.crono-ano__marco--feriado {
+  background: radial-gradient(circle, var(--sas-referencia) 3px, transparent 4px);
+}
+
+.crono-ano__feixe {
+  display: grid;
+  grid-auto-rows: 5px;
+  row-gap: 2px;
+  align-self: center;
+  padding: 10px 0 6px;
+}
+
+.crono-ano__fio {
+  margin: 0 1px;
+  border-radius: 3px;
+  background: var(--sas-dado);
+}
+
+.crono-ano__fio.is-outro {
+  background: var(--sas-referencia);
+}
+
+.crono-ano__faixa {
+  height: 26px;
+  border-radius: 6px;
+  background: var(--sas-superficie);
+  align-self: center;
+}
+
+.crono-ano__bloco {
+  font: inherit;
+  height: 26px;
+  margin: 0 1px;
+  padding: 0 7px;
+  border: none;
+  border-radius: 6px;
+  background: var(--sas-dado);
+  color: var(--sas-dado-texto-forte);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 26px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  align-self: center;
+  cursor: pointer;
+}
+
+.crono-ano__bloco:hover {
+  outline: 2px solid var(--sas-acao);
+  outline-offset: 1px;
+}
+
+.crono-ano__bloco.is-claro {
+  background: var(--sas-dado-claro);
+  color: var(--sas-magnitude);
+}
+
+.crono-ano__bloco.is-outro {
+  background: var(--sas-referencia);
+}
+
+.crono-ano__bloco.is-revisao,
+.crono-ano__fio.is-revisao,
+.crono-ano__ponto.is-revisao,
+.crono-hachura {
+  background: repeating-linear-gradient(135deg, var(--sas-dado) 0 4px, var(--sas-dado-claro) 4px 8px);
+  color: var(--sas-dado-texto-forte);
+}
+
+.crono-ano__ponto {
+  height: 14px;
+  margin: 2px 1px;
+  border-radius: 3px;
+  align-self: center;
+}
+
+/* amplo: nomes presos à esquerda, cabeçalho preso no topo, bloco de até duas linhas */
+.crono-ano--amplo .crono-ano__rotulo,
+.crono-ano--amplo .crono-ano__canto {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  padding-left: 18px;
+  background: var(--sas-fundo);
+  box-shadow: 6px 0 6px -6px var(--sas-fio-forte);
+}
+
+.crono-ano--amplo .crono-ano__rotulo--item {
+  padding-left: 58px;
+}
+
+.crono-ano--amplo .crono-ano__topo {
+  position: sticky;
+  z-index: 2;
+  background: var(--sas-fundo);
+}
+
+.crono-ano--amplo .crono-ano__topo--1 { top: 0; height: 24px; }
+.crono-ano--amplo .crono-ano__topo--2 { top: 24px; height: 20px; }
+.crono-ano--amplo .crono-ano__topo--3 { top: 44px; height: 30px; box-shadow: 0 6px 6px -6px var(--sas-fio-forte); }
+
+.crono-ano--amplo .crono-ano__canto,
+.crono-ano--amplo .crono-ano__rotulo.crono-ano__topo {
+  z-index: 4;
+}
+
+.crono-ano--amplo .crono-ano__faixa {
+  height: 38px;
+}
+
+.crono-ano--amplo .crono-ano__bloco {
+  height: 38px;
+  padding: 3px 8px;
+  font-size: 12px;
+  line-height: 1.15;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* ─── Listas que abrem ───────────────────────────────────────────────── */
+
+.crono-seta {
+  display: inline-block;
+  width: 14px;
+  flex: none;
+  color: var(--sas-referencia);
+  font-weight: 700;
+  transition: transform 150ms;
+}
+
+[aria-expanded='true'] > .crono-seta,
+[aria-expanded='true'] > td > .crono-seta {
+  transform: rotate(90deg);
+}
+
+.crono-lista {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--sas-borda);
+  background: var(--sas-fundo);
+}
+
+.crono-linha {
+  border-bottom: 1px solid var(--sas-fio);
+}
+
+.crono-linha:last-child {
+  border-bottom: none;
+}
+
+.crono-linha__cabeca {
+  font: inherit;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 16px minmax(160px, 1.2fr) minmax(120px, 2fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 22px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--sas-texto);
+  cursor: pointer;
+}
+
+.crono-lista--quem .crono-linha__cabeca {
+  grid-template-columns: 16px minmax(160px, 260px) 1fr;
+}
+
+.crono-linha__cabeca:hover {
+  background: var(--sas-realce);
+}
+
+.crono-linha__nome {
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.crono-linha__nome small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sas-texto-2);
+}
+
+.crono-linha__nome--outro {
+  font-weight: 500;
+  color: var(--sas-texto-2);
+}
+
+.crono-linha__barra {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--sas-superficie-2);
+  overflow: hidden;
+}
+
+.crono-linha__barra--vazia {
+  background: none;
+}
+
+.crono-linha__barra i {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: var(--sas-dado);
+}
+
+.crono-linha__numero {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--sas-magnitude);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.crono-linha__numero small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sas-texto-2);
+}
+
+.crono-linha__corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 22px 20px 52px;
+}
+
+.crono-bloco-prof {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crono-itens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 720px;
+}
+
+.crono-itens li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--sas-fio);
+  font-size: 14px;
+}
+
+.crono-itens li small {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--sas-texto-2);
+}
+
+.crono-itens li span:last-child {
+  white-space: nowrap;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Cartões das matérias ───────────────────────────────────────────── */
+
+.crono-cartoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+}
+
+.crono-cartao {
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 118px;
+  padding: 18px;
+  text-align: left;
+  color: inherit;
+  background: var(--sas-superficie);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color 150ms, transform 80ms ease-out;
+}
+
+.crono-cartao:hover {
+  border-color: var(--sas-dado);
+}
+
+.crono-cartao:active {
+  transform: translateY(2px);
+}
+
+.crono-cartao[aria-pressed='true'] {
+  border-color: var(--sas-acao);
+  background: var(--sas-fundo);
+}
+
+.crono-cartao__magnitude {
+  margin-top: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sas-texto-2);
+}
+
+.crono-cartao__numero {
+  margin-right: 6px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--sas-magnitude);
+  font-variant-numeric: tabular-nums;
+}
+
+.crono-cartao__sub {
+  font-size: 12px;
+  color: var(--sas-texto-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Cada professor no ano ──────────────────────────────────────────── */
+
+.crono-rolagem {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-top: 1px solid var(--sas-borda);
+}
+
+.crono-tempo {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.crono-tempo th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sas-texto-2);
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--sas-borda);
+  background: var(--sas-superficie);
+  white-space: nowrap;
+}
+
+.crono-tempo td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--sas-fio);
+  background: var(--sas-fundo);
+  vertical-align: middle;
+}
+
+.crono-tempo .crono-mes {
+  width: 54px;
+  min-width: 46px;
+  padding: 6px 2px;
+  text-align: center;
+  border-left: 1px solid var(--sas-fio);
+}
+
+.crono-tempo td.crono-mes span {
+  display: block;
+  height: 22px;
+  line-height: 22px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.crono-tempo .crono-n {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.crono-numero-forte {
+  font-weight: 700;
+  color: var(--sas-magnitude);
+}
+
+.crono-tempo__nome {
+  min-width: 260px;
+}
+
+.crono-tempo__nome small {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--sas-texto-2);
+}
+
+.crono-etapa {
+  cursor: pointer;
+}
+
+.crono-etapa:hover td {
+  background: var(--sas-realce);
+}
+
+.crono-etapa .crono-tempo__nome {
+  font-weight: 600;
+}
+
+.crono-subitem td {
+  background: var(--sas-superficie);
+}
+
+.crono-subitem .crono-tempo__nome {
+  padding-left: 40px;
+}
+
+/* ─── Como foi calculado ─────────────────────────────────────────────── */
+
+.crono-como {
+  border-top: 1px solid var(--sas-borda);
+  padding-top: 14px;
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+.crono-como summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--sas-acao);
+}
+
+.crono-como ul {
+  margin: 10px 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 100ch;
+}
+
+/* ─── Apresentação (tela cheia) ──────────────────────────────────────── */
+
+.crono.is-apresentando {
+  background: var(--sas-fundo);
+  overflow: auto;
+  padding: 28px 36px 110px;
+}
+
+.crono.is-apresentando .crono-abas,
+.crono.is-apresentando .crono-acoes,
+.crono.is-apresentando .crono-como,
+.crono.is-apresentando .crono-barra,
+.crono.is-apresentando .crono-resumo {
+  display: none;
+}
+
+.crono.is-apresentando .crono-titulo {
+  font-size: 24px;
+}
+
+.crono.is-apresentando .crono-card__titulo {
+  font-size: 28px;
+}
+
+.crono-passos {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px;
+  background: var(--sas-fundo);
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sas-texto);
+}
+
+.crono-passos span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Celular ───────────────────────────────────────────────────────────
+   Depois das regras-base, de propósito (web/CLAUDE.md: media query não soma
+   especificidade). */
+
+@media screen and (max-width: 760px) {
+  .crono-titulo {
+    font-size: 24px;
+  }
+
+  .crono-linha__cabeca,
+  .crono-lista--quem .crono-linha__cabeca {
+    grid-template-columns: 16px 1fr auto;
+    padding: 12px 16px;
+  }
+
+  .crono-linha__barra {
+    display: none;
+  }
+
+  .crono-lista--quem .crono-chips--linha {
+    grid-column: 2 / -1;
+  }
+
+  .crono-linha__corpo {
+    padding: 2px 16px 16px 32px;
+  }
+
+  .crono-card > .crono-card__cabeca {
+    padding: 18px 16px 14px;
+  }
+
+  .crono-aba,
+  .crono-seg__opcao {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crono-seta,
+  .crono-cartao {
+    transition: none;
+  }
+}

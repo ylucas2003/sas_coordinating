@@ -103,6 +103,8 @@ import '../styles/integracoes.css';
 // A cantina tem casco próprio (o terceiro do produto) e usa os tokens da
 // coordenação — a folha do lado do ALUNO é `aluno-cantina.css`, lá em cima.
 import '../styles/cantina.css';
+// A proposta de cronograma de 2027 (`telas/Cronograma/`), porta no Painel do 3º e cursinho.
+import '../styles/cronograma.css';
 // Por ÚLTIMO, e é obrigatório: o `@media print` de `documento.css` remapeia a
 // paleta inteira para `--doc-*`, e blocos `:root` têm a mesma especificidade —
 // quem vem depois vence. Importado antes daqui, o documento voltaria a herdar

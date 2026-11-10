@@ -57,6 +57,12 @@ import * as sessao from '../servicos/sessao';
  */
 const Banco = lazy(() =>
   import('../telas/Banco/Banco').then((m) => ({ default: m.Banco })));
+/**
+ * A proposta de cronograma de 2027: o plano vem num JSON estático de ~300 KB (`dados/cronograma2027.json`), e só
+ * quem abre a porta do Painel paga por ele.
+ */
+const Cronograma = lazy(() =>
+  import('../telas/Cronograma/Cronograma').then((m) => ({ default: m.Cronograma })));
 const ChatLauncher = lazy(() =>
   import('../componentes/chat/ChatLauncher').then((m) => ({ default: m.ChatLauncher })));
 
@@ -111,6 +117,16 @@ export default function AppCoordenacao() {
           element={
             <Suspense fallback={<Esqueleto />}>
               <Banco perfil="coordenacao" />
+            </Suspense>
+          }
+        />
+        {/* PROPOSTA DE CRONOGRAMA de 2027 — só do 3º e cursinho (a porta é o card do Painel dele), sem prefixo de
+            bloco. A aba, a matéria e o professor vão na query string (`?ver=professor&materia=…`). */}
+        <Route
+          path="/cronograma"
+          element={
+            <Suspense fallback={<Esqueleto />}>
+              <Cronograma />
             </Suspense>
           }
         />

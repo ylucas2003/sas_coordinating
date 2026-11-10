@@ -48,6 +48,8 @@ describe('semPrefixoDoBloco e caminhoNoBloco', () => {
 describe('destinoDoCaminho', () => {
   it('acende o item do bloco', () => {
     expect(destinoDoCaminho('/1ano/painel')).toBe('painel');
+    // a proposta de cronograma é porta do Painel do 3º e cursinho
+    expect(destinoDoCaminho('/cronograma')).toBe('painel');
     expect(destinoDoCaminho('/alunos/abc')).toBe('alunos');
     expect(destinoDoCaminho('/2ano/provas/simulados')).toBe('provas');
   });

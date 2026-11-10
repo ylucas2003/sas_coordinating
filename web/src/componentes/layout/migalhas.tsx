@@ -166,6 +166,8 @@ export function useMigalhas(): Migalha[] {
             : [PROVAS, { texto: 'Simulados' }];
         case 'banco':
           return [{ texto: 'Banco' }];
+        case 'cronograma':
+          return [{ texto: 'Painel', para: noBloco('/painel') }, folha('Proposta de cronograma')];
         case 'administracao': {
           // `/administracao` é o hub; o segundo segmento é o campo, não um
           // identificador. ⚠️ A troca de telas e a captação caíam no ternário
