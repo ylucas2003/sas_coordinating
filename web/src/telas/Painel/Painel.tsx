@@ -72,6 +72,9 @@ const DIAS_ATE_ENVELHECER = 28;
 /** O `<path>` do glifo do card de simulado — barras, 44px em traço fino. */
 const GLIFO_SIMULADO = <path d="M14 52V30M26 52V18M38 52V36M50 52V24M10 58h50" />;
 
+/** O glifo do card da proposta de cronograma — faixas de um calendário, em degrau. */
+const GLIFO_CRONOGRAMA = <path d="M12 12v48M18 20h24M24 32h28M30 44h22M18 56h16" />;
+
 /** O glifo do card da cantina — talher e prato. */
 const GLIFO_CANTINA = <path d="M18 14h34M22 14v10a13 13 0 0 0 26 0V14M35 37v19M12 60h46" />;
 
@@ -368,6 +371,20 @@ export function Painel() {
           vazio="sem refeição hoje"
           glifo={GLIFO_CANTINA}
         />
+        {/* PROPOSTA DE CRONOGRAMA — só no 3º e cursinho: é o plano de 2027 da turma ITA/IME, feito do Canvas dela
+            (conteudo-programatico/). O subtítulo é fixo de propósito: os números moram num JSON de ~300 KB que só a
+            tela carrega, e importá-lo aqui o traria para o pedaço do Painel. */}
+        {serie === 3 && (
+          <CartaoDeCampo
+            compacto
+            olho="Planejamento"
+            titulo="Proposta de cronograma"
+            para="/cronograma"
+            subtitulo="2027 semana a semana, por matéria, assunto e professor"
+            vazio="2027 semana a semana"
+            glifo={GLIFO_CRONOGRAMA}
+          />
+        )}
       </section>
 
       <FaixaDecisao

@@ -65,7 +65,8 @@ export function rotuloDoBloco(serie: SerieDoBloco): string {
  */
 export function destinoDoCaminho(caminho: string): DestinoDoBloco | null {
   const raiz = semPrefixoDoBloco(caminho).split('/').filter(Boolean)[0] ?? 'painel';
-  if (raiz === 'painel') return 'painel';
+  // A proposta de cronograma é uma porta do Painel (do 3º e cursinho): acende o Painel.
+  if (raiz === 'painel' || raiz === 'cronograma') return 'painel';
   if (raiz === 'alunos') return 'alunos';
   if (raiz === 'provas' || raiz === 'ciclos' || raiz === 'simulados') return 'provas';
   return null;
