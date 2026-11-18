@@ -277,6 +277,7 @@ for obrigatoria in JWT_SECRET_KEY COORDENADOR_SENHA; do
 done
 grep -qE '^CANVAS_API_TOKEN=.+' .env || aviso "CANVAS_API_TOKEN vazia — o sync do Canvas não roda"
 grep -qE '^OPENAI_API_KEY=.+'   .env || aviso "OPENAI_API_KEY vazia — insights e chat desligados (degrada limpo)"
+grep -qE '^PUSH_VAPID_CHAVE_PRIVADA=.+' .env || aviso "PUSH_VAPID_CHAVE_PRIVADA vazia — avisos no aparelho desligados (docs/45 §5.1)"
 
 # Comentário na mesma linha de uma chave VAZIA vira o valor dela: o compose lê
 # `CHAVE=   # texto` como "# texto" (Compose v5.2.0; docs/43 §10.3 e §10.7).

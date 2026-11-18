@@ -27,6 +27,13 @@ import './servicos/tema';
 import { recarregarUmaVezSeChunkSumiu } from './servicos/recuperacaoDeChunk';
 recarregarUmaVezSeChunkSumiu();
 
+// O service worker dos avisos no aparelho (docs/45 §4): só `push` e
+// `notificationclick`, SEM handler de `fetch` — nada é cacheado, então nenhuma
+// tela passa a abrir dado velho por causa dele. Em toda rota, inclusive no
+// login: é o registro que faz o Chrome oferecer "Instalar".
+import { registrarServiceWorker } from './servicos/avisosNoAparelho';
+registrarServiceWorker();
+
 // CSS global, na mesma ordem em que o `index.html` os carregava. Os arquivos
 // por tela vão virando CSS Modules conforme cada tela migra; o que fica aqui
 // para sempre são tokens, base e fontes.
@@ -99,6 +106,9 @@ import '../styles/aluno-cantina.css';
 import '../styles/porta.css';
 import '../styles/banco.css';
 import '../styles/foto-perfil.css';
+// Avisos neste aparelho — a seção dos dois cascos. Depois de `casco.css`, porque
+// esconde o botão do rail no celular e `@media` não soma especificidade.
+import '../styles/avisos.css';
 import '../styles/integracoes.css';
 // A cantina tem casco próprio (o terceiro do produto) e usa os tokens da
 // coordenação — a folha do lado do ALUNO é `aluno-cantina.css`, lá em cima.

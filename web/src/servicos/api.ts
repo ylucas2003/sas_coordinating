@@ -168,6 +168,49 @@ export const salvarMinhaFoto = (corpo: {
 }) => put<{ ok: true }>('/me/foto', corpo);
 export const removerMinhaFoto = () => del<{ ok: true }>('/me/foto');
 
+/**
+ * Avisos neste aparelho (routes/push.py, docs/45) — a mesma rota para aluno e
+ * coordenação, como a foto. O dono sai do JWT; a cantina recebe `ativo: false`.
+ * Quem chama o navegador (`PushManager`) é `servicos/avisosNoAparelho.ts`.
+ */
+export interface ConfiguracaoDosAvisos {
+  ativo: boolean;
+  chavePublica: string | null;
+}
+export interface AparelhoComAvisos {
+  id: string;
+  plataforma: 'ios' | 'android' | 'desktop' | 'outra';
+  descricao: string | null;
+  criadaEm: string;
+  vistaEm: string;
+  ultimoEnvioOkEm: string | null;
+  ultimoStatusHttp: number | null;
+}
+export interface CorpoDaInscricao {
+  endpoint: string;
+  chaves: { p256dh: string; auth: string };
+  plataforma: AparelhoComAvisos['plataforma'];
+  descricao_aparelho: string;
+}
+export interface ResultadoDoTeste {
+  tentadas: number;
+  entregues: number;
+  removidas: number;
+  falhas: number;
+}
+export const configuracaoDosAvisos = () => get<ConfiguracaoDosAvisos>('/push/configuracao');
+/** Só do clique em "Ativar": cria, ou toma para si o aparelho de outra conta. */
+export const inscreverAparelho = (corpo: CorpoDaInscricao) => post<{ id: string }>('/push/inscricoes', corpo);
+/** A reconciliação de cada abertura: confirma o que já é seu, nunca cria (routes/push.py). */
+export const confirmarAparelho = (corpo: CorpoDaInscricao) =>
+  post<{ registrada: boolean; id: string | null }>('/push/inscricoes/confirmar', corpo);
+export const listarAparelhosComAvisos = () => get<{ aparelhos: AparelhoComAvisos[] }>('/push/inscricoes');
+export const revogarAparelho = (id: string) => del<{ ok: true }>(`/push/inscricoes/${enc(id)}`);
+/** Pelo endpoint, no CORPO: na query ele iria para o log do nginx. */
+export const removerInscricaoDoAparelho = (endpoint: string) =>
+  post<{ removida: boolean }>('/push/inscricoes/remover', { endpoint });
+export const testarAvisos = () => post<ResultadoDoTeste>('/push/teste');
+
 // ─── Simulados ───────────────────────────────────────────────────────────
 
 export const listarSimulados = () => get<Simulado[]>('/simulados');

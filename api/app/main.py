@@ -25,6 +25,8 @@ from .observabilidade import (
     handler_erro_nao_tratado,
     middleware_request_id,
 )
+from .push.chaves import ChaveVapidInvalida
+from .push.chaves import ler_chave as ler_chave_vapid
 from .routes import (
     administracao,
     alertas,
@@ -49,6 +51,7 @@ from .routes import (
     missao,
     notas,
     oauth_mcp,
+    push,
     simulados,
     uploads,
 )
@@ -112,6 +115,19 @@ def _validar_configuracao(settings) -> None:
     if any("localhost" in origem for origem in settings.cors_origins_list):
         problemas.append("CORS_ALLOW_ORIGINS contém localhost")
 
+    # Vazia é "push desligado", e passa. Preenchida e ilegível é erro de deploy:
+    # subir com ela faria o botão "Ativar avisos" aparecer e falhar para todo
+    # mundo (docs/45 §5.1).
+    if settings.push_vapid_chave_privada:
+        try:
+            ler_chave_vapid(settings.push_vapid_chave_privada)
+        except ChaveVapidInvalida as erro:
+            problemas.append(f"PUSH_VAPID_CHAVE_PRIVADA preenchida e inválida ({erro})")
+        if not settings.push_vapid_contato.startswith(("https://", "mailto:")):
+            problemas.append("PUSH_VAPID_CONTATO precisa começar com https:// ou mailto: (RFC 8292)")
+        elif "localhost" in settings.push_vapid_contato:
+            problemas.append("PUSH_VAPID_CONTATO aponta para localhost — a Apple recusa o envio")
+
     if problemas:
         raise RuntimeError(
             f"Configuração insegura para APP_ENV={settings.app_env}:\n  - "
@@ -165,6 +181,8 @@ def create_app() -> FastAPI:
     app.include_router(auth_canvas.router)
     app.include_router(me.router)
     app.include_router(foto_perfil.router)
+    # Avisos no aparelho (docs/45): aluno e coordenação, mesma rota, como a foto.
+    app.include_router(push.router)
     app.include_router(horario_estudos.router)
     app.include_router(alertas.router)
     app.include_router(alunos.router)

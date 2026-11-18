@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 
 import { LimiteDeErro } from '../../componentes/LimiteDeErro';
+import { AvisosNoAparelho } from '../../componentes/perfil/AvisosNoAparelho';
 import { Avatar } from '../../componentes/ui/Avatar';
 import { useLiga, useProximoSimulado, useSequencia, useXp } from '../../dados/aluno';
+import { useConfiguracaoDosAvisos, useEsteAparelho } from '../../hooks/avisosNoAparelho';
 import { useEventosDaCantina } from '../../hooks/eventosCantina';
+import { desativarAoSair } from '../../servicos/avisosNoAparelho';
 import * as sessao from '../../servicos/sessao';
 import { Estudar } from './Estudar';
 import { EstudarBanco } from './EstudarBanco';
@@ -54,7 +57,11 @@ const DESTINOS: Array<{ para: string; rotulo: string; icone: NomeIcone; fim: boo
   { para: '/jornada', rotulo: 'Jornada', icone: 'bandeira', fim: false },
 ];
 
-function sair() {
+// Sair desativa os avisos NESTE aparelho antes de encerrar (docs/45 §12,
+// decisão 5: computador da escola é compartilhado). Fechar a aba não passa por
+// aqui — e não deve: o aviso existe para quem está com o SAS fechado.
+async function sair() {
+  await desativarAoSair();
   sessao.encerrar();
   window.location.replace('/login');
 }
@@ -65,6 +72,11 @@ export function CascoAluno() {
   // não tem direito que precisa ver o card aparecer no instante em que a
   // coordenação o concede.
   useEventosDaCantina('/me/cantina/eventos');
+  // A reconciliação dos avisos a cada abertura (`/push/inscricoes/confirmar`):
+  // mantém o `vista_em` do servidor e deixa a folha "Minha conta" já sabendo o
+  // estado. Nunca cria inscrição — só o clique em "Ativar" cria.
+  const avisos = useConfiguracaoDosAvisos();
+  useEsteAparelho(avisos.data);
   const nome = sessao.nome();
   const primeiro = nome.split(' ')[0] || nome;
   const [conta, setConta] = useState<'fechada' | 'menu'>('fechada');
@@ -316,8 +328,11 @@ function ColunaLateral() {
 function FolhaDaConta({ onFechar }: { onFechar: () => void }) {
   const { tema, trocar } = useTema();
 
+  // "meio" e não mais "espiada" (34dvh) desde a seção de avisos (docs/45 §6.3):
+  // com tema + avisos, o "Sair da conta" ficava abaixo da dobra a 390px — a
+  // folha rolava, mas a saída deixava de estar à vista.
   return (
-    <Folha aberta titulo="Minha conta" altura="espiada" onFechar={onFechar}>
+    <Folha aberta titulo="Minha conta" altura="meio" onFechar={onFechar}>
       {/* DOIS temas, e só dois (docs/24 §7.2).
 
           `<fieldset>` com rádios de VERDADE, e não dois botões com
@@ -352,6 +367,9 @@ function FolhaDaConta({ onFechar }: { onFechar: () => void }) {
           ))}
         </div>
       </fieldset>
+
+      {/* Some sozinha quando o servidor não tem chave VAPID (docs/45 §6.3). */}
+      <AvisosNoAparelho casco="aluno" />
 
       {/* Não há "Trocar senha" aqui desde 04/09 (docs/35 §11.5): o aluno entra
           só pelo Canvas, e `POST /me/senha` saiu junto. A folha continuava

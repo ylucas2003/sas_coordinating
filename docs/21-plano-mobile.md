@@ -341,6 +341,13 @@ qualquer passo exigir zoom ou rolagem lateral, não está pronto.
 
 ## P4 · PWA: instalável
 
+> **Feita em 18/11/2026 junto com o push**, no
+> [docs/45 §4](45-plano-notificacao-push.md): manifest, ícones, `theme-color`,
+> título que serve ao aluno e um service worker **escrito à mão**, só de push e
+> sem handler de `fetch`. O `vite-plugin-pwa` da tabela abaixo NÃO foi usado: o
+> precache do Workbox que ele traz é justamente o cache que esta seção deixa
+> fora. O que segue é o texto original.
+
 O "P" de PWA não existe: sem `manifest.webmanifest`, sem `theme-color`, sem
 ícone — o [index.html](../web/index.html) não tem sequer `<link rel="icon">`.
 

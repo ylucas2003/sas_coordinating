@@ -165,6 +165,19 @@ class Settings(BaseSettings):
     # HMAC do link de descadastro do rodapé. Vazio → cai no jwt_secret_key.
     lembrete_token_secret: str = ""
 
+    # --- Notificação push no aparelho (app/push/, docs/45) ----------------
+    # Os 32 bytes da chave privada VAPID (P-256) em base64url — gerada UMA vez
+    # por `python -m scripts.gerar_chave_vapid`. A pública é derivada dela.
+    # Vazia → push DESLIGADO: a seção "Avisos neste aparelho" não aparece e a API
+    # sobe normalmente, como o SES sem credencial. Preenchida e ilegível → a API
+    # recusa subir em produção (main._validar_configuracao).
+    # ⚠️ Trocar esta chave invalida TODAS as inscrições (app/push/chaves.py).
+    push_vapid_chave_privada: str = ""
+    # O `sub` do JWT VAPID: o contato que o fabricante (Google, Apple) usa se o
+    # nosso servidor se comportar mal. É o SITE, não o e-mail de uma pessoa —
+    # ele vai para fora (docs/45 §2, regra 3).
+    push_vapid_contato: str = "https://portalsas.online"
+
     # Segredo compartilhado com o scheduler da AWS (header X-Scheduler-Secret).
     # Mesmo valor do parâmetro SSM /sas/scheduler/secret — ver infra/README.md.
     scheduler_secret: str = ""

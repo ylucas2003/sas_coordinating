@@ -90,7 +90,10 @@ sas/
 │                 §9 a ordem do deploy e o §10 o MCP no `infra/vps` e como
 │                 ligá-lo e desligá-lo
 │                 **44 é a entrada de 1º e 2º ano** (um bloco por série no rail, só
-│                 AP e AG, sem conceito novo de etapa), planejada em 05/11
+│                 AP e AG, sem conceito novo de etapa), planejada em 05/11;
+│                 **45 é a notificação push** (Web Push padrão, PWA instalável,
+│                 `app/push/`), só a capacidade, sem evento — o §14 dele é o que
+│                 foi e o que NÃO foi verificado, e o §15 como ligar em produção
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no
@@ -234,6 +237,17 @@ O `docker` do PATH está quebrado nesta máquina (symlink para um
     o que estiver na fila de `disparo` — o e-mail de produção está adiado desde
     21/08 (docs/15 §2). O token pessoal (Claude Code) não passa por e-mail: é
     emitido pelo coordenador logado.
+
+11. **Trocar a chave VAPID derruba TODAS as inscrições de push.** Cada aparelho
+    se inscreveu com a chave pública derivada de `PUSH_VAPID_CHAVE_PRIVADA`;
+    com outra chave, o serviço de push recusa o envio (403) e todo aluno teria
+    de ativar os avisos de novo. Ela não é `[gerado]` no `.env.example` de
+    propósito, e o `deploy.sh` não a acrescenta a um `.env` que já existe
+    (docs/45 §5.1 e §15). Junto: o endpoint de uma inscrição é URL que o
+    CLIENTE manda e o SERVIDOR chama — só passa pela lista fechada de
+    `app/push/endpoints.py` (SSRF, a armadilha 4 do outro lado). E toda
+    inscrição nasce de um clique: a reconciliação de cada abertura só confirma,
+    nunca cria (docs/45 §6.1).
 
 ## Convenções
 

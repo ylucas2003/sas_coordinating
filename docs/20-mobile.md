@@ -42,10 +42,15 @@ Três rotas possíveis, mutuamente exclusivas na prática:
    fornecedor e SDKs nativos — cada um é uma superfície nova a justificar.
 4. **Push notification não é requisito hoje.** É o único motivo real para B; o
    canal de aviso ao aluno já é e-mail ([12-plano-p2-motor-lembretes.md](12-plano-p2-motor-lembretes.md)).
+   *(Superado em 18/11/2026: push virou requisito e **não** levou à rota B.
+   Web Push padrão funciona no próprio site — Android e desktop numa aba, iPhone
+   com o SAS na Tela de Início — e a rota A continua. Ver
+   [45-plano-notificacao-push.md §1](45-plano-notificacao-push.md).)*
 
-**O que reabre a decisão:** exigência de app na loja, ou push como requisito de
-produto. Nesse caso a rota é B (Capacitor), não C — a rota A feita direito é
-pré-requisito das duas, então nada deste trabalho se perde.
+**O que reabre a decisão:** exigência de app na loja, ou uma adesão de iPhone
+ao push menor do que os eventos precisam (a medição do docs/45 §8). Nesse caso a
+rota é B (Capacitor), não C — a rota A feita direito é pré-requisito das duas,
+então nada deste trabalho se perde.
 
 ---
 
