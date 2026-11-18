@@ -35,6 +35,7 @@ que decorrem disso:
 | `canvas_sync/` | Sincronização com o Canvas LMS — fonte de verdade das notas. `mapeador.py` compõe **e** parseia os nomes de assignment; as duas gramáticas precisam casar |
 | `ingest/` | Pipeline de planilha (CSV/XLSX), idempotente por construção |
 | `lembretes/` | Motor de e-mail via SES. Disparo é materializado na criação da regra e revalidado antes do envio. `email.py` é também por onde sai o código que aprova a conexão OAuth do MCP (`routes/oauth_mcp.py::_enviar_codigo`), com a mesma rede de `EMAIL_DESTINATARIO_TESTE` — preenchido, o código vai para a caixa de teste |
+| `push/` | Notificação push no aparelho (docs/45): Web Push padrão, **sem dependência nova** — a cifra `aes128gcm` (RFC 8291) e o JWT VAPID são do próprio módulo, sobre o `cryptography`, e `tests/test_push.py` os confere contra o vetor da RFC. Só a capacidade: nenhum evento manda push, e a porta de quem mandar é `envio.enviar_para_dono`. ⚠️ Erro 4xx que não seja 404/410 é ERRO NOSSO (chave, assinatura) e nunca conta contra o aparelho; e o endpoint só passa pela lista fechada de `endpoints.py` (SSRF). Rotas em `routes/push.py`, fail-closed por tipo de sessão — a cantina leva 403 |
 | `banco/` | Banco de questões ITA·IME (docs/22): consultas filtradas, recorrência por tópico, progresso do aluno e listas com dono. **É a única rota que pagina** — e o motivo está escrito em `schemas/banco.py`. As tabelas são a **fonte da verdade**: os JSONs não são versionados, e `scripts/exportar_banco_questoes.py` é a saída (docs/22 §13) |
 | `gravacoes_aula/` | Publica a aula gravada do Canvas no YouTube: baixa os dois componentes do BigBlueButton, compõe com o template da marca (ffmpeg), guarda no S3, publica como **não listado** (LGPD — são menores) e pendura a página da aula no módulo certo do Canvas (`0035`, `0036`). A ordem é assunto → módulo padrão → "Outras aulas gravadas", um módulo genérico publicado que o código cria por curso na primeira vez que faz falta (`0067`). Página publicada e fora de módulo é repassada a cada rodada; a coordenação acompanha em `/integracoes/aulas`. A gravação some do Canvas em ~7 dias, então o cron roda de hora em hora. Estados `publicado`/`publicado_sem_confirmacao` são TERMINAIS: reprocessar geraria segunda cópia no canal. Uma queda do S3 esgota as 3 tentativas de quem estava na fila; `scripts/reabrir_aulas_com_erro.py` (ou `infra/vps/reabrir-aulas.sh`) as devolve, depois de conferir que o S3 voltou e que a gravação ainda está no Canvas |
 | `auditoria.py` | Quem fez o quê. **Nunca** grave senha, hash, token ou corpo de mensagem |
@@ -149,7 +150,7 @@ conectou.
 
 ## Migrations
 
-72 em [migrations/](migrations/) (de 0001 a 0073; a 0030 não existe), cada
+80 em [migrations/](migrations/) (de 0001 a 0081; a 0030 não existe), cada
 uma com par `.down.sql`. Runner próprio, estado em `_migracoes_aplicadas`.
 
 ⚠️ **O runner guarda só a VERSÃO (os quatro dígitos), não o nome.** Duas

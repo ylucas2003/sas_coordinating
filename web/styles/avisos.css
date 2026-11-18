@@ -1,0 +1,141 @@
+/* ── Avisos neste aparelho (componentes/perfil/AvisosNoAparelho.tsx) ──────
+   Uma peça para os dois cascos: na folha "Minha conta" do aluno e no diálogo
+   que abre do rodapé do rail da coordenação. Lê os papéis `--sas-*` direto —
+   eles valem nos dois cascos e nos dois temas (papeis.css); o botão é que
+   muda por casco, pela classe que o componente põe.
+
+   Sem cor de estado: "ativo" é selo preenchido, o resto é texto. É a regra do
+   docs/37 — o semáforo não existe mais. */
+
+.avisos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--sas-texto);
+}
+
+.avisos__rotulo {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sas-texto-2);
+}
+
+.avisos__subrotulo {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sas-texto-2);
+}
+
+.avisos__texto {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.avisos__nota {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--sas-texto-2);
+}
+
+.avisos__passos {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.avisos__passos li + li {
+  margin-top: 4px;
+}
+
+.avisos__selo {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--sas-acao);
+  color: var(--sas-acao-texto);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.avisos__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Vazio, o `role="status"` não ocupa espaço — mas continua no DOM, que é o que
+   faz o leitor de tela anunciar a frase quando ela aparece. */
+.avisos__mensagem {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.avisos__mensagem:empty {
+  display: none;
+}
+
+.avisos__lista ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.avisos__aparelho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 0;
+  border-top: 1px solid var(--sas-fio);
+}
+
+.avisos__aparelho-nome {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.avisos__este {
+  display: contents;
+  font-weight: 400;
+  color: var(--sas-texto-2);
+}
+
+.avisos__aparelho-data {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--sas-texto-2);
+}
+
+/* O botão do rail que abre o diálogo na coordenação reaproveita `.rail__sair`
+   (casco.css): a mesma peça de 36px, ao lado dela.
+
+   ⚠️ No celular ele some. Abaixo de 760px o rail vira barra inferior de seis
+   alvos e a conta encolhe para o Sair só (casco.css, "A conta encolhe para o
+   botão"); um sétimo alvo ali arrisca a barra. A coordenação usa o notebook —
+   docs/20 §1: as telas dela não viram celular. Depois da regra-base, porque
+   `@media` não acrescenta especificidade (web/CLAUDE.md). */
+@media screen and (max-width: 760px) {
+  .rail__avisos {
+    display: none;
+  }
+}

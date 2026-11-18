@@ -2,9 +2,13 @@ import { useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { caminhoNoBloco, destinoDoCaminho, rotuloDoBloco, serieDoCaminho } from '../../dominio/blocos';
 import type { SerieDoBloco } from '../../dominio/blocos';
+import { useConfiguracaoDosAvisos, useEsteAparelho } from '../../hooks/avisosNoAparelho';
 import { useBlocos } from '../../hooks/consultas';
+import { desativarAoSair } from '../../servicos/avisosNoAparelho';
 import * as sessao from '../../servicos/sessao';
 import type { BlocoDaCoordenacao } from '../../tipos/dominio';
+import { Dialogo } from '../dialogos/Dialogo';
+import { AvisosNoAparelho } from '../perfil/AvisosNoAparelho';
 import { Avatar } from '../ui/Avatar';
 import { useSerieDaTela } from './migalhas';
 
@@ -80,15 +84,51 @@ function Conta() {
   // ("tem um botão de sair? como faz para deslogar?" — 21/08, 18h54). Ele
   // morava no avatar da topbar e desceu para cá junto com a conta: a pílula
   // de identidade lá em cima virou placa, não botão.
-  function sair() {
+  //
+  // Sair desativa os avisos NESTE aparelho antes de encerrar (docs/45 §12,
+  // decisão 5), com prazo curto: a limpeza nunca segura a saída.
+  async function sair() {
+    await desativarAoSair();
     sessao.encerrar();
     navegar('/login', { replace: true });
   }
+
+  // A consulta do aparelho roda aqui, e não só quando o diálogo abre: é a
+  // reconciliação de cada abertura (`/push/inscricoes/confirmar`), que mantém o
+  // `vista_em` do servidor honesto. Ela nunca cria inscrição.
+  const avisos = useConfiguracaoDosAvisos();
+  useEsteAparelho(avisos.data);
+  const [avisosAbertos, setAvisosAbertos] = useState(false);
 
   return (
     <div className="rail__usuario">
       <Avatar tipo="coordenador" proprio nome={nome} className="rail__avatar" />
       <span className="rail__usuario-nome">{nome}</span>
+      {avisos.data?.ativo && (
+        <button
+          type="button"
+          className="rail__sair rail__avisos"
+          onClick={() => setAvisosAbertos(true)}
+          title="Avisos neste aparelho"
+          aria-label="Avisos neste aparelho"
+        >
+          <IconeSino />
+        </button>
+      )}
+      {avisosAbertos && (
+        <Dialogo
+          titulo="Avisos neste aparelho"
+          subtitulo="Notificação no computador ou no celular, mesmo com o SAS fechado."
+          onFechar={() => setAvisosAbertos(false)}
+          rodape={
+            <button type="button" className="btn btn--ghost" onClick={() => setAvisosAbertos(false)}>
+              Fechar
+            </button>
+          }
+        >
+          <AvisosNoAparelho casco="coordenacao" comTitulo={false} />
+        </Dialogo>
+      )}
       <button
         className="rail__sair"
         onClick={sair}
@@ -316,6 +356,15 @@ function IconeAdmin() {
     <svg {...svgProps()}>
       <circle cx="10" cy="10" r="2.6" />
       <path d="M10 2.2v2M10 15.8v2M17.8 10h-2M4.2 10h-2M15.5 4.5l-1.4 1.4M5.9 14.1l-1.4 1.4M15.5 15.5l-1.4-1.4M5.9 5.9L4.5 4.5" />
+    </svg>
+  );
+}
+
+function IconeSino() {
+  return (
+    <svg {...svgProps()} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5.2 8.4a4.8 4.8 0 0 1 9.6 0c0 4 1.6 5.6 1.6 5.6H3.6s1.6-1.6 1.6-5.6" />
+      <path d="M8.4 16.6a1.8 1.8 0 0 0 3.2 0" />
     </svg>
   );
 }

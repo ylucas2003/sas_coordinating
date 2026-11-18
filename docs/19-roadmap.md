@@ -387,7 +387,7 @@ Três sprints, **uma frente por sprint**. "Escolher, não empilhar" ([10 §2.10]
 > | P3 | Área do aluno | ✅ 22/08 |
 > | **P5** | **Coordenação — casco, tabelas e alvos de toque** | **✅ 07/09** |
 > | **—** | **Cantina — casco próprio, calendário e "Ler código"** | **✅ 07/09** (não existia no plano original) |
-> | P4 | PWA instalável | ⬜ |
+> | P4 | PWA instalável | 🟡 no branch `feat/notificacao-push`, junto com o push ([45 §4](45-plano-notificacao-push.md)) |
 > | §6 | A trava automatizada de transbordo em `portoes_locais` | ⬜ |
 >
 > A P5 estava marcada como "a primeira a cair" e foi feita inteira, com a
@@ -542,7 +542,7 @@ Nada aqui é tela; tudo é o que impede as telas desenhadas de funcionarem.
 |---|---|---|
 | **A** | ✅ **FEITO em 05/09** ([36](36-plano-faixa-1-e-2.md)), menos `/me/erros`: ela ficou para o Sprint 6 porque `questao.assunto` está 100% vazio e a rota nasceria prometendo "estude por assunto" sem saber o assunto | **M** |
 | **B** | As regras que ninguém escreveu: simulado anulado e nota corrigida, virada de ano letivo, quem entra no meio, quem sai, e o `vestibular_alvo_aluno` que nunca foi lido | **M** |
-| **C** | **Notificação** — não existe `web/public` nem manifest; o PWA nunca foi feito. Sem isso, sequência, liga e contagem regressiva perdem o gatilho | **G** |
+| **C** | **Notificação** — 🟡 **a CAPACIDADE está no branch `feat/notificacao-push` (18/11), fora de produção**: PWA instalável, Web Push padrão sem SDK de fornecedor, "Avisos neste aparelho" no aluno e na coordenação, só com envio de teste. **Nenhum evento manda push ainda** — quais vão mandar é a decisão seguinte, com o contrato do [docs/45 §9](45-plano-notificacao-push.md). Falta o portão do iPhone (login do Canvas no app instalado, §4.1) e aparelho real. Sem eventos, sequência, liga e contagem regressiva continuam sem gatilho | **G** |
 | **D** | Confiança: a **origem da resolução** (o acervo histórico tem resolução gerada por LLM e o aluno vai achar que é do professor) e um canal de suporte | **M** |
 | **E** | Onboarding do jogo e estados vazios de verdade | **M** |
 | **F** | Trava de 360px, Safari real, testes de DOM | **M** |

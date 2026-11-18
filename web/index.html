@@ -3,7 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SAS · coordenação ITA/IME</title>
+    <!-- O título vai para a Tela de Início de quem instala — aluno incluído.
+         "coordenação ITA/IME" estava errado lá (docs/21 §P4, docs/45 §4). -->
+    <title>SAS · Colégio Ari de Sá</title>
+    <!-- O "P" de PWA (docs/45 §4): instalável na Tela de Início, que é o que
+         destrava o push no iPhone. Tudo servido do nosso domínio. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icones/icone-192.png" />
+    <link rel="apple-touch-icon" href="/icones/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="SAS" />
+    <!-- As cores do `--sas-fundo` nos dois temas (paleta.css). O tema escolhido
+         dentro do app não muda isto; o do sistema, sim. -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#050a18" media="(prefers-color-scheme: dark)" />
   </head>
   <body>
     <div id="root"></div>
