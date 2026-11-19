@@ -6,7 +6,7 @@
 > falta está no **§14**: leia esse antes do resto. Para ligar em produção: **§15**.
 >
 > **Atualização (19/11/2026): o primeiro evento existe — a missão do dia, no
-> §16.** Todo dia às 15h, o aluno com aparelho ativo recebe o assunto de hoje.
+> §16.** Todo dia às 15h20, o aluno com aparelho ativo recebe o assunto de hoje.
 > Branch `feat/push-missao-do-dia`, migration **0082**, fora de produção. A
 > capacidade (o PR #128, já na `main`) também **ainda não foi para produção**:
 > ligar as duas é o §15.
@@ -477,7 +477,7 @@ verificação de ponta a ponta precisava de tudo. A Fase 3 em aparelho real
 | 5 | Sair desativa o push neste aparelho | **sim** (computador da escola é compartilhado) *(padrão adotado, a confirmar)* |
 | 6 | Logo em vetor | dispensado: os ícones saíram de `ari-logo-branca.png` (312×157), que cabe sem ampliar no 512. Com o vetor, dá para refazê-los mais nítidos |
 | 7 | Primeiro evento | **a missão do dia**, pedido do dono em 19/11 ("todos os dias"). §16 |
-| 8 | Horário da missão | **15h** de Fortaleza, decidido pelo dono em 19/11 (a primeira proposta era 18h). Muda numa linha do `crontab-sas` |
+| 8 | Horário da missão | **15h20** de Fortaleza, decidido pelo dono em 19/11 (a primeira proposta era 18h). Muda numa linha do `crontab-sas` |
 | 9 | Quem já mexeu no assunto de hoje recebe? | **não**: cobrar a missão de quem já está nela ensina a ignorar os avisos *(padrão adotado, a confirmar)* |
 | 10 | Desligar só a missão | **ainda não**: com um tipo só, "Desativar" é o desligar dela. A preferência por tipo entra com o segundo evento (§9, item 7) |
 
@@ -559,9 +559,9 @@ descartável. Passos e resultados:
    manda a árvore inteira), mas **não o instala**: no VPS, como o usuário
    `sas`, `crontab /opt/sas/infra/vps/crontab-sas` e `crontab -l | grep missao`
    para conferir. Sem isto, a missão do dia nunca sai, e nada avisa.
-5. **Ver a missão sair** sem esperar as 15h (precisa ser entre 7h e 22h):
+5. **Ver a missão sair** sem esperar as 15h20 (precisa ser entre 7h e 22h):
    `/opt/sas/infra/vps/cron-sas.sh /push/eventos/missao-do-dia 120` no VPS e
-   `tail -1 /var/log/sas/cron.log`. Isso gasta a vaga do dia: o disparo das 15h
+   `tail -1 /var/log/sas/cron.log`. Isso gasta a vaga do dia: o disparo das 15h20
    vai responder `ja_enviado`, e é o certo.
 6. **Depois:** o portão do iPhone (§4.1) e as linhas do §7.
 
@@ -588,7 +588,7 @@ aviso também é um só, para a turma, e não um por aluno.
 | # | Pergunta | Resposta |
 |---|---|---|
 | 1 | Quem recebe | aluno com `aluno.ativo` (a régua do login, `auth_canvas.py::_sessao_para`) e aparelho ativado, **menos quem já mexeu numa questão do assunto de hoje, hoje** (§16.2). A coordenação não recebe |
-| 2 | Quando sai | **agendado pelo cron, 15h** (§12, decisão 8). Não passa pelo motor de lembretes: lá o destinatário é um e-mail e o disparo é por pessoa, aqui é um envio só para a turma |
+| 2 | Quando sai | **agendado pelo cron, 15h20** (§12, decisão 8). Não passa pelo motor de lembretes: lá o destinatário é um e-mail e o disparo é por pessoa, aqui é um envio só para a turma |
 | 3 | O texto | o assunto no título, que é o que se lê de relance, e a matéria no corpo. Os dois são iguais para todos, e nada é pessoal (regra 4 do §2). Nome de tópico com mais de 64 caracteres sai do título e vai para o corpo |
 | 4 | Validade | **TTL até a meia-noite de Fortaleza**, quando a missão vira. Depois disso o aviso falaria de um assunto que já não é o da tela. Urgência `normal` |
 | 5 | Agrupa | `tag` e `Topic` fixos em `missao-do-dia`: o aviso de hoje substitui o de ontem na central de notificações, e um aparelho que ficou desligado recebe só o mais novo quando volta, nunca a fila da semana |
@@ -658,7 +658,7 @@ Todas as respostas são 200, porque nenhuma delas é falha do agendador:
 | `aceito` | o envio começou em segundo plano, com `destinatarios`, `pulados` e `aparelhos` |
 
 O cron é [`infra/vps/crontab-sas`](../infra/vps/crontab-sas),
-`0 15 * * *`, com `--max-time 120`: a resposta sai antes do fan-out.
+`20 15 * * *`, com `--max-time 120`: a resposta sai antes do fan-out.
 
 ### 16.5 · O que foi verificado
 
@@ -686,7 +686,7 @@ Chrome do Mac, com janela:
 
 **O que NÃO foi verificado:**
 
-- **O cron do VPS de verdade** chamando a rota às 15h. Isso só se prova em
+- **O cron do VPS de verdade** chamando a rota às 15h20. Isso só se prova em
   produção, pelo `cron.log`, no primeiro dia (§15, passo 5).
 - **O volume**: 900 alunos é um `select` de `inscricao_push` inteira e de
   `questao_estudo_aluno` do dia, sem paginação (armadilha 2). Os dois são

@@ -94,7 +94,7 @@ sas/
 │                 **45 é a notificação push** (Web Push padrão, PWA instalável,
 │                 `app/push/`) — o §14 dele é o que foi e o que NÃO foi
 │                 verificado, o §15 como ligar em produção, e o §16 o primeiro
-│                 evento: a missão do dia, às 15h, uma vez por dia (`envio_push`)
+│                 evento: a missão do dia, às 15h20, uma vez por dia (`envio_push`)
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no

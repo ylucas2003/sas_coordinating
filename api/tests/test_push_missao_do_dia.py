@@ -37,8 +37,8 @@ from .fake_postgrest import FakeCliente
 from .test_missao_do_dia import montar_banco
 from .test_push import CHAVE, Aparelho, decifrar
 
-#: Quinta, 19/11/2026, 15h em Fortaleza — o horário do crontab.
-AGORA = datetime(2026, 11, 19, 15, 0, tzinfo=FUSO_DA_ESCOLA)
+#: Quinta, 19/11/2026, 15h20 em Fortaleza — o horário do crontab.
+AGORA = datetime(2026, 11, 19, 15, 20, tzinfo=FUSO_DA_ESCOLA)
 HOJE = AGORA.date()
 
 
@@ -159,9 +159,9 @@ def test_nome_comprido_vai_para_o_corpo(turma):
 @pytest.mark.parametrize(
     ("agora", "segundos"),
     [
-        (AGORA, 9 * 3600),
-        # O mesmo instante dito em UTC: 18h de Greenwich são 15h em Fortaleza.
-        (datetime(2026, 11, 19, 18, 0, tzinfo=UTC), 9 * 3600),
+        (AGORA, 8 * 3600 + 40 * 60),
+        # O mesmo instante dito em UTC: 18h20 de Greenwich são 15h20 em Fortaleza.
+        (datetime(2026, 11, 19, 18, 20, tzinfo=UTC), 8 * 3600 + 40 * 60),
         (datetime(2026, 11, 19, 7, 0, tzinfo=FUSO_DA_ESCOLA), 17 * 3600),
         # Perto da virada, um piso: TTL zero é "entregue agora ou descarte".
         (datetime(2026, 11, 19, 23, 59, 50, tzinfo=FUSO_DA_ESCOLA), 60),
@@ -173,7 +173,7 @@ def test_vale_ate_a_missao_virar_a_meia_noite_de_fortaleza(agora, segundos):
 
 @pytest.mark.parametrize(
     ("hora", "minuto", "pode"),
-    [(6, 59, False), (7, 0, True), (15, 0, True), (21, 59, True), (22, 0, False), (3, 0, False)],
+    [(6, 59, False), (7, 0, True), (15, 20, True), (21, 59, True), (22, 0, False), (3, 0, False)],
 )
 def test_silencio_das_22h_as_7h(hora, minuto, pode):
     agora = datetime(2026, 11, 19, hora, minuto, tzinfo=FUSO_DA_ESCOLA)
@@ -300,7 +300,7 @@ def test_aceita_responde_na_hora_e_manda_depois(ligado, fabricante):
         "tag": "missao-do-dia",
     }
     assert pedido.headers["Topic"] == "missao-do-dia"
-    assert pedido.headers["TTL"] == str(9 * 3600)
+    assert pedido.headers["TTL"] == str(8 * 3600 + 40 * 60)
 
     [linha] = ligado.db["envio_push"].values()
     assert linha["tipo"] == "missao-do-dia" and linha["referencia"] == "2026-11-19"
