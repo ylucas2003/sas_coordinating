@@ -37,3 +37,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Vigia de saúde: consulta /health/ready e registra. É o que transforma o
 # endpoint em alerta — sem isto, ninguém lê o 503 (docs/15 §Etapa 8).
 */10 * * * * /opt/sas/infra/vps/cron-saude.sh
+
+# Aviso da missão do dia no aparelho do aluno (docs/45 §16). 15h20, o horário que
+# o dono escolheu em 19/11. Mudar o horário é só mudar esta linha, e errar é
+# barato: a rota recusa fora das 7h–22h de Fortaleza e manda uma vez por dia
+# (`envio_push`), então uma linha repetida ou de madrugada não acorda ninguém.
+# Com o push desligado (sem chave VAPID), responde "desligado" e não faz nada.
+20 15 * * * /opt/sas/infra/vps/cron-sas.sh /push/eventos/missao-do-dia 120

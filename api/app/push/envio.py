@@ -1,8 +1,8 @@
 """Mandar uma notificação para os aparelhos de alguém — e manter a tabela limpa.
 
 A porta de entrada de todo evento futuro é `enviar_para_dono` (ou
-`enviar_para_inscricoes`, quando o evento já tiver as linhas). Hoje só o botão
-"Testar" a chama (routes/push.py).
+`enviar_para_inscricoes`, quando o evento já tiver as linhas). Chamam hoje: o
+botão "Testar" (routes/push.py) e a missão do dia, por `registro.disparar`.
 
 Síncrono de propósito. A camada de dados do projeto é síncrona (api/CLAUDE.md,
 "Convenções"), e um `async def` que fizesse `.execute()` rodaria no event loop do

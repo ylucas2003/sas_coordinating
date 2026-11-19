@@ -212,6 +212,12 @@ class Query:
                 (k for k, v in tabela.items() if all(v.get(c) == item.get(c) for c in chaves)),
                 None,
             )
+            # `ignore_duplicates=True` é o `ON CONFLICT DO NOTHING`: a linha que
+            # já existe fica como estava, e a resposta traz só o que foi
+            # INSERIDO — lista vazia. É disso que `push/registro.py::reservar`
+            # tira o "já enviado hoje" (conferido no PostgREST real, docs/45 §16).
+            if existente is not None and self.kw.get("ignore_duplicates"):
+                return Resp([])
             if existente is not None:
                 id_ = existente
             elif "id" in item:

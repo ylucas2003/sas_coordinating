@@ -4,9 +4,10 @@
 // (`CascoAluno.tsx`), na coordenação abre do rodapé do rail (`Rail.tsx`). O que
 // muda por casco é a classe do botão — a tecla do aluno, o `.btn` da coordenação.
 //
-// Nenhum EVENTO manda aviso ainda: o único envio é o "Mandar um teste", que vai
-// para os aparelhos da própria pessoa. A seção some inteira quando o servidor não
-// tem chave VAPID (ou a sessão é da cantina): não existe botão que não funciona.
+// O aluno recebe UM evento: a missão do dia (docs/45 §16), e é dela que o texto
+// fala — quem ativa precisa saber o que vai receber. A coordenação, por ora, só
+// tem o "Mandar um teste". A seção some inteira quando o servidor não tem chave
+// VAPID (ou a sessão é da cantina): não existe botão que não funciona.
 //
 // ⚠️ O iPhone numa aba do Safari não recebe push — regra da Apple, sem contorno
 // (docs/45 §1). Ali a seção não oferece "Ativar"; ensina a instalar na Tela de
@@ -35,6 +36,20 @@ const BOTOES: Record<Casco, { primario: string; secundario: string }> = {
     secundario: 'alu-tecla alu-tecla--fantasma alu-tecla--pequena',
   },
   coordenacao: { primario: 'btn btn--primary', secundario: 'btn btn--ghost' },
+};
+
+// O que a pessoa vai receber, dito ANTES de ela ativar. Sem a hora do aviso de
+// propósito: ela mora no crontab (`infra/vps/crontab-sas`), e uma hora escrita
+// aqui ficaria mentindo no dia em que a linha mudasse.
+const O_QUE_CHEGA: Record<Casco, { convite: string; ativo: string }> = {
+  aluno: {
+    convite: 'Receba aqui a missão de hoje, todo dia, mesmo com o SAS fechado.',
+    ativo: 'Este aparelho recebe a missão de hoje, todo dia.',
+  },
+  coordenacao: {
+    convite: 'Receba um aviso aqui quando houver novidade no SAS, mesmo com ele fechado.',
+    ativo: 'Este aparelho recebe os avisos do SAS.',
+  },
 };
 
 const DATA_CURTA = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -159,9 +174,7 @@ export function AvisosNoAparelho({ casco, comTitulo = true }: { casco: Casco; co
 
       {leitura?.estado === 'inativo' && (
         <>
-          <p className="avisos__texto">
-            Receba um aviso aqui quando houver novidade no SAS, mesmo com ele fechado.
-          </p>
+          <p className="avisos__texto">{O_QUE_CHEGA[casco].convite}</p>
           <button type="button" className={botoes.primario} onClick={aoAtivar} disabled={ocupado}>
             {ativar.isPending ? 'Ativando…' : 'Ativar avisos'}
           </button>
@@ -171,7 +184,7 @@ export function AvisosNoAparelho({ casco, comTitulo = true }: { casco: Casco; co
       {leitura?.estado === 'ativo' && (
         <>
           <p className="avisos__texto">
-            <span className="avisos__selo">Ativo</span> Este aparelho recebe os avisos do SAS.
+            <span className="avisos__selo">Ativo</span> {O_QUE_CHEGA[casco].ativo}
           </p>
           <div className="avisos__acoes">
             <button type="button" className={botoes.secundario} onClick={aoTestar} disabled={ocupado}>
