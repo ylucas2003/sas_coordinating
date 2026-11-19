@@ -92,8 +92,9 @@ sas/
 │                 **44 é a entrada de 1º e 2º ano** (um bloco por série no rail, só
 │                 AP e AG, sem conceito novo de etapa), planejada em 05/11;
 │                 **45 é a notificação push** (Web Push padrão, PWA instalável,
-│                 `app/push/`), só a capacidade, sem evento — o §14 dele é o que
-│                 foi e o que NÃO foi verificado, e o §15 como ligar em produção
+│                 `app/push/`) — o §14 dele é o que foi e o que NÃO foi
+│                 verificado, o §15 como ligar em produção, e o §16 o primeiro
+│                 evento: a missão do dia, às 15h, uma vez por dia (`envio_push`)
 ├── banco-questoes/  pipeline do banco ITA·IME (PDF → JSON) e as taxonomias dos
 │                 editais. Fora de `api/` de propósito — nada aqui roda em
 │                 requisição. **As 934 questões NÃO estão aqui**: moram no

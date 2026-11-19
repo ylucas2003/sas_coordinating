@@ -95,6 +95,20 @@ def missao_do_dia(cliente: Client, dia: date | None = None) -> MissaoDoDia | Non
     ele — o convite "escolha um assunto para treinar". Um 500 aqui viraria uma
     faixa de erro no herói da tela por causa de dado que ninguém prometeu.
     """
+    resultado = missao_e_questoes_do_dia(cliente, dia)
+    return resultado[0] if resultado else None
+
+
+def missao_e_questoes_do_dia(
+    cliente: Client, dia: date | None = None
+) -> tuple[MissaoDoDia, frozenset[str]] | None:
+    """A missão E os ids das questões respondíveis do assunto dela.
+
+    Existe para o aviso da missão (app/push/missao_do_dia.py), que precisa saber
+    quem já mexeu no assunto de hoje. Pegar os ids aqui, do MESMO sorteio, e não
+    numa segunda leitura do acervo: duas leituras seriam duas chances de o aviso
+    falar de um assunto e conferir outro — o bug de docs/35 §9.1 com outra roupa.
+    """
     ids_por_topico = ids_respondiveis_por_topico(cliente)
     elegiveis = topicos_elegiveis(cliente, ids_por_topico)
     if not elegiveis:
@@ -113,13 +127,15 @@ def missao_do_dia(cliente: Client, dia: date | None = None) -> MissaoDoDia | Non
         if materia == escolhido["materia"]:
             ids_da_materia |= ids
 
-    return MissaoDoDia(
+    missao = MissaoDoDia(
         materia=escolhido["materia"],
         topicoCodigo=escolhido["codigo"],
         nome=escolhido["nome"],
         quantidade=QUESTOES_DA_MISSAO,
         razao=_razao(escolhido, len(ids_da_materia)),
     )
+    ids_do_assunto = ids_por_topico.get((escolhido["materia"], escolhido["codigo"]), set())
+    return missao, frozenset(ids_do_assunto)
 
 
 # ─── Elegibilidade ───────────────────────────────────────────────────────

@@ -52,6 +52,7 @@ from .routes import (
     notas,
     oauth_mcp,
     push,
+    push_eventos,
     simulados,
     uploads,
 )
@@ -183,6 +184,8 @@ def create_app() -> FastAPI:
     app.include_router(foto_perfil.router)
     # Avisos no aparelho (docs/45): aluno e coordenação, mesma rota, como a foto.
     app.include_router(push.router)
+    # Os eventos que o cron dispara (X-Scheduler-Secret), em router à parte.
+    app.include_router(push_eventos.router)
     app.include_router(horario_estudos.router)
     app.include_router(alertas.router)
     app.include_router(alunos.router)
