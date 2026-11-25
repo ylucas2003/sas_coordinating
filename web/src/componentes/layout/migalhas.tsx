@@ -176,6 +176,7 @@ export function useMigalhas(): Migalha[] {
           if (campo === 'troca-de-telas') return [ADMIN, { texto: 'Troca de Telas Automática' }];
           if (campo === 'captacao') return [ADMIN, { texto: 'Captação' }];
           if (campo === 'conexoes-de-ia') return [ADMIN, { texto: 'Conexões de IA' }];
+          if (campo === 'cadastro-canvas') return [ADMIN, { texto: 'Cadastro no Canvas' }];
           return temId ? [ADMIN, { texto: 'Quem tem acesso' }] : [{ texto: 'Administração' }];
         }
         // `/conectar-ia` (o consentimento do OAuth) não tem caso aqui, e não é

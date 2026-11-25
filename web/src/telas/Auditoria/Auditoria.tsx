@@ -46,6 +46,10 @@ const ACAO_LABEL: Record<string, string> = {
   coordenador_editado: 'editou uma conta de coordenação',
   papel_alterado: 'mudou o papel de uma conta',
   senha_redefinida: 'redefiniu a senha de uma conta',
+  // Cadastro no Canvas (docs/46): conta e matrícula de ALUNO no Canvas do
+  // colégio, não conta do SAS. O detalhe leva a matrícula, nunca nome ou e-mail.
+  aluno_cadastrado_no_canvas: 'cadastrou um aluno no Canvas',
+  lote_enviado_ao_canvas: 'enviou um lote de alunos ao Canvas',
   simulado_criado: 'agendou um simulado',
   simulado_editado: 'editou um simulado',
   simulado_removido: 'desmarcou um simulado',

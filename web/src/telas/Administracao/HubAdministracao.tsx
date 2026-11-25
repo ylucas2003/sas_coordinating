@@ -299,6 +299,31 @@ export function HubAdministracao() {
           }
         />
 
+        {/* CADASTRO NO CANVAS (docs/46) — criar a conta do ALUNO no Canvas e
+            matricular nos cursos da série. Logo depois de "Quem tem acesso"
+            porque é a outra metade da mesma pergunta: lá, quem entra no SAS;
+            aqui, quem existe no Canvas. Só administrador vê, como a Troca de
+            Telas, e a tela se guarda sozinha. Subtítulo fixo de propósito: o
+            dado vivo dele (os lotes enviados) custaria duas chamadas ao Canvas
+            a cada visita ao hub. */}
+        {sessao.ehAdministrador() && (
+          <CartaoDeCampo
+            olho="Canvas"
+            titulo="Cadastrar alunos"
+            para="/administracao/cadastro-canvas"
+            subtitulo="Um por vez ou por planilha · conta e matrícula nos cursos da série"
+            vazio=""
+            glifo={
+              <>
+                <circle cx="25" cy="24" r="9" />
+                <path d="M10 54c0-8.3 6.7-15 15-15s15 6.7 15 15" />
+                <rect x="42" y="30" width="18" height="22" rx="2" />
+                <path d="M46 38h10M46 44h10" />
+              </>
+            }
+          />
+        )}
+
         {/* CONEXÕES DE IA — o MCP da coordenação (docs/43 §5.3). Logo depois
             de "Quem tem acesso" porque é a mesma pergunta feita de fora: que
             IA lê o SAS, em nome de quem. O card é de TODA a coordenação —

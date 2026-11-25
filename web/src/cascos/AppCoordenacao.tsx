@@ -26,6 +26,7 @@ import { Calibracao } from '../telas/Calibracao/Calibracao';
 import { HubAdministracao } from '../telas/Administracao/HubAdministracao';
 import { Contas } from '../telas/Administracao/Contas';
 import { TrocaDeTelas } from '../telas/Administracao/TrocaDeTelas';
+import { CadastroCanvas } from '../telas/Administracao/CadastroCanvas';
 import { Captacao } from '../telas/Administracao/Captacao';
 import { CaptacaoPerfil } from '../telas/Administracao/CaptacaoPerfil';
 import { CaptacaoConquistas } from '../telas/Administracao/CaptacaoConquistas';
@@ -139,6 +140,7 @@ export default function AppCoordenacao() {
         <Route path="/administracao/contas" element={<Contas />} />
         <Route path="/administracao/captacao" element={<Captacao />} />
         <Route path="/administracao/troca-de-telas" element={<TrocaDeTelas />} />
+        <Route path="/administracao/cadastro-canvas" element={<CadastroCanvas />} />
         {/* CONEXÕES DE IA — os tokens do MCP da coordenação e os e-mails da IA
             (docs/43 §5.3).
 
