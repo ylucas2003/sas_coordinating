@@ -36,6 +36,7 @@ from .routes import (
     auth,
     auth_canvas,
     banco,
+    cadastro_canvas,
     cantina,
     captacao,
     ciclos,
@@ -197,6 +198,9 @@ def create_app() -> FastAPI:
     app.include_router(banco.router)
     app.include_router(missao.router)
     app.include_router(administracao.router)
+    # Criar aluno no Canvas e matricular, um por vez ou por SIS Import —
+    # só administrador, no router inteiro (docs/46).
+    app.include_router(cadastro_canvas.router)
     # Conexões de IA: emitir e revogar o token do MCP da coordenação. O MCP
     # em si é outro processo (`python -m app.mcp`, docs/43 §5.1).
     app.include_router(mcp_tokens.router)

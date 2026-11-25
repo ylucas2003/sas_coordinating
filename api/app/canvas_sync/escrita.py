@@ -1,4 +1,9 @@
-"""O único lugar por onde o SAS escreve no Canvas (docs/18 §2.3).
+"""O único lugar por onde o SAS escreve PROVA e NOTA no Canvas (docs/18 §2.3).
+
+⚠️ Não é mais o único que escreve no Canvas: `cadastro.py` cria conta de aluno
+e matrícula (docs/46), e `gravacoes_aula/` publica página e módulo de aula. A
+regra de baixo vale para os três — nada sobe sem alguém clicar —, e no
+cadastro o clique é sempre o de uma tela que mostrou antes o que seria feito.
 
 Antes, cinco rotas chamavam `await canvas.…` cada uma do seu jeito — e cada
 uma decidia sozinha que a escrita acontecia. A coordenação decidiu que

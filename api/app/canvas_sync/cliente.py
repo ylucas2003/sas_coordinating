@@ -429,3 +429,141 @@ class ClienteCanvas:
             f"/courses/{course_id}/modules/{modulo_id}/items", json={"module_item": item}
         )
         return resposta.json()
+
+    # ─── Cadastro de aluno (docs/46) ─────────────────────────────────────
+    #
+    # A única escrita que CRIA gente no Canvas. Quem chama é só
+    # `canvas_sync/cadastro.py`, atrás do guard de administrador.
+
+    async def listar_cursos_para_cadastro(self, account_id: str) -> list[dict[str, Any]]:
+        """Os cursos ITA/IME da conta, publicados OU NÃO.
+
+        O `listar_cursos_da_conta` do sync pede só `available`, e está certo
+        para ele: nota só existe em curso publicado. Para matricular é o
+        contrário — na virada do ano a escola cria os cursos novos fechados e
+        matricula antes de abrir. `completed` (curso encerrado) fica fora."""
+        return await self._get_paginado(
+            f"/accounts/{account_id}/courses",
+            params={"search_term": "ITA/IME", "state[]": ["available", "unpublished"]},
+        )
+
+    async def obter_usuario_por_sis(self, sis_user_id: str) -> dict[str, Any] | None:
+        """O usuário cuja SIS ID é esta, ou None. Aqui 404 é resposta, não erro:
+        é como se descobre que a conta ainda não existe."""
+        try:
+            resposta = await self._get(f"/users/sis_user_id:{quote(sis_user_id, safe='')}")
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return None
+            raise
+        return resposta.json()
+
+    async def listar_matriculas_ativas_do_usuario(self, user_id: str) -> list[dict[str, Any]]:
+        """As matrículas de aluno em vigor (ativas ou convite pendente), em
+        qualquer curso. É o que torna o cadastro repetível: o que já existe
+        não é POSTado de novo."""
+        return await self._get_paginado(
+            f"/users/{user_id}/enrollments",
+            params={"type[]": ["StudentEnrollment"], "state[]": ["active", "invited"]},
+        )
+
+    async def criar_usuario_aluno(
+        self, account_id: str, *, nome: str, matricula: str, email: str
+    ) -> dict[str, Any]:
+        """Conta nova com login = SIS ID = matrícula, sem senha.
+
+        `force_self_registration` faz o Canvas mandar ao aluno o e-mail de
+        "terminar o cadastro", onde ELE cria a senha — que por isso nunca passa
+        pelo SAS (decisão de 25/11/2026, docs/46 §2). `authentication_provider_id`
+        "canvas" é o único provedor da conta (105) e é o que a doc do SIS exige
+        para o mesmo e-mail sair no lote."""
+        corpo = {
+            "user": {"name": nome},
+            "pseudonym": {
+                "unique_id": matricula,
+                "sis_user_id": matricula,
+                "send_confirmation": True,
+                "force_self_registration": True,
+                "authentication_provider_id": "canvas",
+            },
+            "communication_channel": {"type": "email", "address": email},
+        }
+        resposta = await self._post(f"/accounts/{account_id}/users", json=corpo)
+        return resposta.json()
+
+    async def matricular_aluno(
+        self, course_id: str, user_id: str, *, section_id: str | None = None
+    ) -> dict[str, Any]:
+        """Matrícula ativa, sem convite a aceitar e SEM notificação: o aluno
+        novo já recebe o e-mail do cadastro, e 19 avisos de "você foi
+        matriculado" (um por curso do 3º) seriam só ruído na caixa dele."""
+        corpo = {
+            "enrollment": {
+                "user_id": user_id,
+                "type": "StudentEnrollment",
+                "enrollment_state": "active",
+                "notify": False,
+            }
+        }
+        caminho = (
+            f"/sections/{section_id}/enrollments"
+            if section_id
+            else f"/courses/{course_id}/enrollments"
+        )
+        resposta = await self._post(caminho, json=corpo)
+        return resposta.json()
+
+    async def enviar_sis_import(self, account_id: str, *, arquivo_zip: bytes) -> dict[str, Any]:
+        """Um SIS Import de CSV, que o Canvas processa em segundo plano.
+
+        `skip_deletes` é trava, não detalhe: nenhuma linha do lote do SAS pede
+        exclusão, e com ele nem uma linha malformada consegue apagar alguém.
+        Batch mode e diffing NUNCA: neles, quem falta no arquivo é apagado ou
+        suspenso (docs/canvas-api/guides/sis_csv.md)."""
+        async with self._semaforo:
+            resposta = await self._http.post(
+                f"/accounts/{account_id}/sis_imports",
+                params={
+                    "import_type": "instructure_csv",
+                    "extension": "zip",
+                    "skip_deletes": "true",
+                },
+                files={"attachment": ("cadastro-sas.zip", arquivo_zip, "application/zip")},
+            )
+            resposta.raise_for_status()
+            return resposta.json()
+
+    async def obter_sis_import(self, account_id: str, import_id: str) -> dict[str, Any]:
+        return (await self._get(f"/accounts/{account_id}/sis_imports/{import_id}")).json()
+
+    async def listar_sis_imports_recentes(
+        self, account_id: str, *, quantos: int = 50
+    ) -> list[dict[str, Any]]:
+        """Uma página só, dos mais novos: o histórico inteiro da conta não
+        interessa, e paginar até o fim custaria uma chamada por 100 imports."""
+        resposta = await self._get(
+            f"/accounts/{account_id}/sis_imports", params={"per_page": quantos}
+        )
+        return resposta.json().get("sis_imports", [])
+
+    async def quem_sou(self) -> dict[str, Any]:
+        """O usuário dono do token (a conta Admin, 7387). É por ele que se
+        separa o lote do SAS do que o administrador sobe à mão no Canvas."""
+        return (await self._get("/users/self")).json()
+
+    # Só o ensaio (`scripts/ensaio_cadastro_canvas.py`, docs/46 §5) usa os três
+    # abaixo: desfazer o que ele criou no curso sandbox. Nenhuma rota apaga
+    # usuário nem mexe na SIS ID de curso.
+
+    async def obter_curso(self, course_id: str) -> dict[str, Any]:
+        return (await self._get(f"/courses/{course_id}")).json()
+
+    async def apagar_usuario_da_conta(self, account_id: str, user_id: str) -> None:
+        await self._delete(f"/accounts/{account_id}/users/{user_id}")
+
+    async def definir_sis_do_curso(self, course_id: str, sis_course_id: str) -> dict[str, Any]:
+        """`""` tira a SIS ID."""
+        resposta = await self._put(
+            f"/courses/{course_id}", json={"course": {"sis_course_id": sis_course_id}}
+        )
+        return resposta.json()

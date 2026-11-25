@@ -1,0 +1,297 @@
+/* ─── Cadastrar alunos no Canvas (docs/46) ───────────────────────────────
+   Importado só pela tela (mesmo padrão de `troca-de-telas.css`). Só papéis
+   `--sas-*` e os raios de `forma.css`; nenhuma cor nova, nenhuma sombra.
+
+   O vermelho (`--sas-alerta`) aparece só na FALHA OPERACIONAL — matrícula que
+   o Canvas recusou, linha da planilha com erro, lote que falhou. É a regra do
+   docs/37: "matriculado" e "já estava" não ganham verde, porque verde não
+   existe na interface.
+
+   ⚠️ O bloco de celular de cada regra vem DEPOIS dela: `@media` não soma
+   especificidade, e uma media declarada antes da regra-base perde para ela.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.cadcanvas {
+  max-width: 1080px;
+}
+
+.cadcanvas__ano {
+  min-width: 140px;
+}
+
+/* ─── A seta dos <select> ─────────────────────────────────────────────────
+   A seta nativa do Chrome fica a ~8px da borda e não obedece ao `padding`:
+   colada na borda, como a coordenação reclamou em 25/11. Aqui ela é
+   desenhada — dois traços diagonais de 6px em `currentColor`, que segue o
+   tema sem cor nova (um SVG embutido precisaria de hexadecimal, e
+   `tokensCss.test.ts` reprova hex fora da paleta). A ponta da seta fica a
+   16px da borda, e o `padding-right` reserva o espaço para o texto não
+   correr por baixo dela. */
+.cadcanvas select.dialog__input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  background-image:
+    linear-gradient(45deg, transparent 42%, currentColor 42%, currentColor 58%, transparent 58%),
+    linear-gradient(-45deg, transparent 42%, currentColor 42%, currentColor 58%, transparent 58%);
+  background-position:
+    calc(100% - 22px) 50%,
+    calc(100% - 16px) 50%;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.cadcanvas select.dialog__input:disabled {
+  cursor: default;
+}
+
+/* `.card` não tem padding próprio (layout.css): cada tela põe o seu. 22px é o
+   do `.importar__form`, a outra tela de formulário da administração. */
+.cadcanvas__bloco,
+.cadcanvas__falha-de-leitura {
+  padding: 22px;
+}
+
+.cadcanvas__bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media screen and (max-width: 760px) {
+  .cadcanvas__bloco,
+  .cadcanvas__falha-de-leitura {
+    padding: 16px;
+  }
+}
+
+.cadcanvas__bloco > .section__title {
+  margin-bottom: 0;
+}
+
+/* ─── O formulário de um aluno ─────────────────────────────────────────── */
+
+.cadcanvas__form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+/* O e-mail é campo + botão de domínio, colados: os dois são UM endereço. */
+.cadcanvas__email {
+  display: flex;
+  min-width: 0;
+}
+
+.cadcanvas__email > .dialog__input:first-child {
+  flex: 1;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.cadcanvas__email > .cadcanvas__dominio {
+  flex: none;
+  width: auto;
+  max-width: 55%;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  /* `background-color`, e não o atalho `background`: o atalho zeraria a
+     `background-image`, que é a seta. */
+  background-color: var(--sas-superficie-2);
+}
+
+.cadcanvas__email > .cadcanvas__dominio:disabled {
+  color: var(--sas-texto-2);
+}
+
+.cadcanvas__pacote,
+.cadcanvas__acoes {
+  grid-column: 1 / -1;
+}
+
+.cadcanvas__pacote {
+  font-size: 13px;
+  color: var(--sas-texto-2);
+}
+
+.cadcanvas__pacote summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.cadcanvas__pacote ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  columns: 2;
+  column-gap: 24px;
+}
+
+.cadcanvas__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+@media screen and (max-width: 760px) {
+  .cadcanvas__form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cadcanvas__pacote ul {
+    columns: 1;
+  }
+}
+
+/* ─── Resultado, aviso e falha ─────────────────────────────────────────── */
+
+.cadcanvas__resultado,
+.cadcanvas__aviso,
+.cadcanvas__previa {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border: var(--sas-borda-l) solid var(--sas-borda);
+  border-radius: var(--radius-md);
+  background: var(--sas-fundo);
+}
+
+/* O aviso pede uma DECISÃO (é a mesma pessoa?), e por isso leva o fio da
+   ação, e não o vermelho: nada falhou ainda. */
+.cadcanvas__aviso {
+  border-color: var(--sas-acao);
+}
+
+.cadcanvas__aviso p,
+.cadcanvas__resultado p,
+.cadcanvas__previa p {
+  margin: 0;
+}
+
+.cadcanvas__resultado-titulo {
+  font-size: 14px;
+  color: var(--sas-texto);
+}
+
+.cadcanvas__falha {
+  color: var(--sas-alerta-texto);
+}
+
+.tag.cadcanvas__falha {
+  background: transparent;
+  border: 1px solid var(--sas-alerta);
+}
+
+.cadcanvas__falha-de-leitura {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cadcanvas__falha-de-leitura p {
+  margin: 0;
+  color: var(--sas-alerta-texto);
+}
+
+.cadcanvas__cursos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 24px;
+  font-size: 13px;
+}
+
+.cadcanvas__cursos li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  justify-content: space-between;
+  min-height: 32px;
+  border-bottom: 1px solid var(--sas-fio);
+}
+
+.cadcanvas__detalhe {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+
+@media screen and (max-width: 760px) {
+  .cadcanvas__cursos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ─── Lote ─────────────────────────────────────────────────────────────── */
+
+/* O `<input type=file>` vive dentro do `<label class="btn">`: fica fora da
+   vista, mas continua no fluxo de foco (o `display: none` o tiraria do
+   teclado). */
+.cadcanvas__arquivo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.btn:has(.cadcanvas__arquivo:focus-visible) {
+  outline: 2px solid var(--sas-acao);
+  outline-offset: 2px;
+}
+
+.cadcanvas__desligado {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Rolagem própria: a prévia de um lote de virada de ano são centenas de
+   linhas, e a página inteira não precisa rolar junto com elas. */
+.cadcanvas__tabela {
+  max-height: 480px;
+  overflow: auto;
+  border: 1px solid var(--sas-fio);
+  border-radius: var(--radius-sm);
+}
+
+.cadcanvas__mensagens summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.cadcanvas__mensagens ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--sas-texto-2);
+}
+
+.cadcanvas__so-celular {
+  display: none;
+}
+
+@media screen and (max-width: 760px) {
+  .cadcanvas__so-celular {
+    display: inline;
+  }
+
+  /* Abaixo de 760px a tabela vira cartões (`data-table--cartoes`) e a altura
+     fixa cortaria o cartão no meio: a página rola. */
+  .cadcanvas__tabela {
+    max-height: none;
+    border: 0;
+  }
+}

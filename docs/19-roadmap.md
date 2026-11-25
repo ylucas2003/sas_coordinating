@@ -865,6 +865,23 @@ com o PR #115 em 27/10** (o §4 do 08 em `ca4c68f` já não os traz).
 **Continuam no histórico do git** desde o commit `feade09` (04/07/2026):
 reescrever o histórico de um repositório já empurrado é decisão do dono.
 
+
+### 🔨 Cadastro de aluno no Canvas pela tela *(25/11)* — [46](46-plano-cadastro-canvas.md)
+
+> **No branch `feat/cadastro-canvas`, fora de produção, e sem nenhuma escrita
+> real no Canvas ainda.** O administrador cria a conta do aluno no Canvas e o
+> matricula nos cursos da série — um por vez (REST) ou por planilha (SIS
+> Import). Decidido em 25/11: só administrador; **pacote da série** (no 3º são
+> 19 cursos, com a sede no de Simulados; no 1º e no 2º, um curso); a senha o
+> aluno cria pelo **e-mail do Canvas**, e nunca passa pelo SAS; só aluno nesta
+> versão. Conta que já existe não é alterada, só ganha as matrículas que
+> faltam. Sem migration.
+>
+> **Falta, nesta ordem** (46 §5): o ensaio no sandbox 694
+> (`scripts/ensaio_cadastro_canvas.py`), que escreve no Canvas de produção e
+> precisa de autorização; combinar com o Leo, que hoje sobe o mesmo SIS Import à
+> mão; e o deploy.
+
 ---
 
 ## 3.9 · A área do aluno · front escrito, backend pendente *(30/08)*
